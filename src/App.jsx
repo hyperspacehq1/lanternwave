@@ -3,6 +3,7 @@ import React from "react";
 import { Routes, Route, NavLink } from "react-router-dom";
 import ControllerPage from "./pages/Controller.jsx";
 import PlayerPage from "./pages/PlayerPage.jsx";
+import BootGate from "./pages/BootGate.jsx"; // ★ NEW
 import { LogoMark } from "./components/LogoMark.jsx";
 
 function App() {
@@ -40,7 +41,10 @@ function App() {
 
       <main className="lw-main">
         <Routes>
-          <Route path="/" element={<ControllerPage />} />
+          {/* ★ NEW: BootGate wraps Host Console */}
+          <Route path="/" element={<BootGate><ControllerPage /></BootGate>} />
+
+          {/* Player Viewer remains direct (skips boot) */}
           <Route path="/player" element={<PlayerPage />} />
         </Routes>
       </main>
