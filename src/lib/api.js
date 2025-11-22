@@ -95,6 +95,7 @@ export async function getNowPlaying() {
 // STREAM URL (R2 PUBLIC URL)
 // -----------------------------------------
 export function streamUrlForKey(key) {
-  // key is always full R2 path "clips/<file>"
-  return `https://lanternwave-r2.hyperspacehq.com/${key}`;
+  const base = "https://f15ba1de2141b3d2d51467df1cb1e32e.r2.cloudflarestorage.com/lanternwave";
+  return `${base}/${key}`;
+}`;
 }
