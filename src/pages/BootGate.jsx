@@ -4,12 +4,13 @@ import typeSound from "../assets/type.mp3";
 
 export default function BootGate({ children }) {
   const [stage, setStage] = useState("init");
-  // stages: init → boot → code → player
+  // init → boot → code → player
 
   const [bootText, setBootText] = useState("");
   const [attempts, setAttempts] = useState(0);
   const [codeInput, setCodeInput] = useState("");
   const audioRef = useRef(null);
+  const [fade, setFade] = useState(false);
 
   const fullBootMsg = [
     "BOOTING MU/TH/UR 182 TERMINAL...",
@@ -20,14 +21,13 @@ export default function BootGate({ children }) {
     "PREPARING HOST CONSOLE INTERFACE...",
   ];
 
-  // Fade transition
-  const [fade, setFade] = useState(false);
-
-  // ---- Start boot sequence typing ----
+  // ---------------------------
+  // Boot typing effect
+  // ---------------------------
   useEffect(() => {
     if (stage !== "boot") return;
 
-    let index = 0;
+    let charIndex = 0;
     let lineIndex = 0;
 
     setBootText("");
@@ -36,13 +36,13 @@ export default function BootGate({ children }) {
 
     const typeInterval = setInterval(() => {
       const currentLine = fullBootMsg[lineIndex];
-      setBootText((old) => old + currentLine[index]);
+      setBootText((old) => old + currentLine[charIndex]);
 
-      index++;
+      charIndex++;
 
-      if (index === currentLine.length) {
+      if (charIndex === currentLine.length) {
         setBootText((old) => old + "\n");
-        index = 0;
+        charIndex = 0;
         lineIndex++;
 
         if (lineIndex === fullBootMsg.length) {
@@ -61,20 +61,20 @@ export default function BootGate({ children }) {
     return () => clearInterval(typeInterval);
   }, [stage]);
 
-  // ---- Access Code ----
+  // ---------------------------
+  // Code submission
+  // ---------------------------
   function handleSubmit() {
     if (codeInput === "91011") {
       setFade(true);
-      setTimeout(() => {
-        setStage("player");
-      }, 350);
+      setTimeout(() => setStage("player"), 350);
       return;
     }
 
     setAttempts((a) => a + 1);
 
     if (attempts + 1 >= 3) {
-      // full reset
+      // Reset entire sequence
       setFade(true);
       setTimeout(() => {
         setStage("init");
@@ -86,25 +86,29 @@ export default function BootGate({ children }) {
       return;
     }
 
-    // wrong
+    // Wrong code animation
     setCodeInput("INVALID CODE");
     setTimeout(() => setCodeInput(""), 900);
   }
 
-  // ---- Stage Rendering ----
+  // ---------------------------
+  // FINAL STAGE: RETURN CHILDREN
+  // ---------------------------
   if (stage === "player") {
-    return (
-      <div className={`boot-fade-in`}>
-        {children}
-      </div>
-    );
+    // 🔥 IMPORTANT FIX:
+    // Do NOT wrap children in Boot container.
+    // BootGate completely disappears after login.
+    return children;
   }
 
+  // ---------------------------
+  // RENDER BOOT UI ONLY IF NOT PLAYER
+  // ---------------------------
   return (
     <div className={`boot-container ${fade ? "boot-fade-out" : ""}`}>
       <audio ref={audioRef} src={typeSound} preload="auto" />
 
-      {/* ---- INITIAL SCREEN ---- */}
+      {/* INITIAL SCREEN */}
       {stage === "init" && (
         <div
           className="boot-init-screen"
@@ -120,7 +124,7 @@ export default function BootGate({ children }) {
         </div>
       )}
 
-      {/* ---- BOOT SEQUENCE ---- */}
+      {/* BOOT SEQUENCE */}
       {stage === "boot" && (
         <pre className="boot-sequence">
           {bootText}
@@ -128,7 +132,7 @@ export default function BootGate({ children }) {
         </pre>
       )}
 
-      {/* ---- ACCESS CODE ---- */}
+      {/* ACCESS CODE */}
       {stage === "code" && (
         <div className="boot-code-screen">
           <div className="boot-code-title">ENTER ACCESS CODE</div>
