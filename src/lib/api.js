@@ -97,5 +97,4 @@ export async function getNowPlaying() {
 export function streamUrlForKey(key) {
   const base = "https://f15ba1de2141b3d2d51467df1cb1e32e.r2.cloudflarestorage.com/lanternwave";
   return `${base}/${key}`;
-}`;
 }
