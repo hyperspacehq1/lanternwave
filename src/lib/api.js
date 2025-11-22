@@ -1,16 +1,23 @@
 // src/lib/api.js
 import { clipTypeFromKey } from "./ui.js";
 
-// CHANGE THIS to your Netlify function base:
 const BASE = "/.netlify/functions";
 
+// Safe JSON fetch
 async function jsonFetch(url, options) {
   const res = await fetch(url, {
     headers: { "Content-Type": "application/json" },
     ...options,
   });
-  const data = await res.json();
-  return data;
+
+  let text = await res.text();
+
+  try {
+    return JSON.parse(text);
+  } catch (err) {
+    console.error("JSON parse failed:", text);
+    return { ok: false, error: "Invalid JSON from server" };
+  }
 }
 
 // -----------------------------------------
@@ -35,7 +42,7 @@ export async function deleteClip(key) {
 }
 
 // -----------------------------------------
-// UPLOAD CLIP — STAGED R2 MULTIPART
+// UPLOAD CLIP
 // -----------------------------------------
 export async function uploadClip(file, onProgress) {
   // STEP 1: Create upload URL
@@ -46,7 +53,7 @@ export async function uploadClip(file, onProgress) {
 
   if (!start.ok) throw new Error(start.error || "Failed to request upload URL");
 
-  // STEP 2: Upload actual file to presigned URL
+  // STEP 2: Upload file directly to R2
   await fetch(start.uploadUrl, {
     method: "PUT",
     body: file,
@@ -54,21 +61,22 @@ export async function uploadClip(file, onProgress) {
 
   if (onProgress) onProgress(100);
 
-  // STEP 3: Finalize upload
+  // STEP 3: Finalize
   const finish = await jsonFetch(`${BASE}/finish-upload`, {
     method: "POST",
     body: JSON.stringify({ key: start.key }),
   });
 
   if (!finish.ok) throw new Error(finish.error || "Failed to finalize upload");
+
   return { key: finish.key };
 }
 
 // -----------------------------------------
-// SET NOW PLAYING  (STOP FIX APPLIED)
+// NOW PLAYING  (STOP FIX APPLIED)
 // -----------------------------------------
 export async function setNowPlaying(key) {
-  // FIX: Only compute type if key is a real string
+  // Fix: Only compute type when a real key exists
   const type = key ? clipTypeFromKey(key) : null;
 
   const res = await jsonFetch(`${BASE}/now-playing`, {
@@ -92,9 +100,7 @@ export async function getNowPlaying() {
 }
 
 // -----------------------------------------
-// STREAM URL (R2 PUBLIC URL)
+// STREAM URL
 // -----------------------------------------
 export function streamUrlForKey(key) {
-  // key is always full R2 path "clips/<file>"
-  return `https://lanternwave-r2.hyperspacehq.com/${key}`;
-}
+  return `https://lanter
