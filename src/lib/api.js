@@ -45,7 +45,6 @@ export async function deleteClip(key) {
 // UPLOAD CLIP
 // -----------------------------------------
 export async function uploadClip(file, onProgress) {
-  // STEP 1: Create upload URL
   const start = await jsonFetch(`${BASE}/create-upload-url`, {
     method: "POST",
     body: JSON.stringify({ filename: file.name }),
@@ -53,7 +52,6 @@ export async function uploadClip(file, onProgress) {
 
   if (!start.ok) throw new Error(start.error || "Failed to request upload URL");
 
-  // STEP 2: Upload file directly to R2
   await fetch(start.uploadUrl, {
     method: "PUT",
     body: file,
@@ -61,9 +59,8 @@ export async function uploadClip(file, onProgress) {
 
   if (onProgress) onProgress(100);
 
-  // STEP 3: Finalize
   const finish = await jsonFetch(`${BASE}/finish-upload`, {
-    method: "POST",
+    method: "POST`,
     body: JSON.stringify({ key: start.key }),
   });
 
@@ -76,7 +73,6 @@ export async function uploadClip(file, onProgress) {
 // NOW PLAYING  (STOP FIX APPLIED)
 // -----------------------------------------
 export async function setNowPlaying(key) {
-  // Fix: Only compute type when a real key exists
   const type = key ? clipTypeFromKey(key) : null;
 
   const res = await jsonFetch(`${BASE}/now-playing`, {
@@ -95,6 +91,7 @@ export async function getNowPlaying() {
   const res = await jsonFetch(`${BASE}/now-playing`, {
     method: "GET",
   });
+
   if (!res.ok) throw new Error(res.error || "Failed to get now-playing");
   return res.nowPlaying;
 }
@@ -103,4 +100,5 @@ export async function getNowPlaying() {
 // STREAM URL
 // -----------------------------------------
 export function streamUrlForKey(key) {
-  return `https://lanter
+  return `https://lanternwave-r2.hyperspacehq.com/${key}`;
+}
