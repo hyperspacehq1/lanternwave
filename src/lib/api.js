@@ -1,96 +1,100 @@
 // src/lib/api.js
 import { clipTypeFromKey } from "./ui.js";
 
+// CHANGE THIS to your Netlify function base:
 const BASE = "/.netlify/functions";
 
-async function jsonFetch(url, options = {}) {
+async function jsonFetch(url, options) {
   const res = await fetch(url, {
-    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
-    ...options
+    headers: { "Content-Type": "application/json" },
+    ...options,
   });
-  const text = await res.text();
-  try {
-    return JSON.parse(text);
-  } catch {
-    return { ok: false, error: "invalid JSON", raw: text };
-  }
+  const data = await res.json();
+  return data;
 }
 
-// Upload flow: create-upload-url -> PUT to R2 -> finish-upload
-const type = key ? clipTypeFromKey(key) : null;
-    method: "POST",
-    body: JSON.stringify({
-      filename: file.name,
-      contentType: file.type
-    })
-  });
-
-  if (!create.ok) throw new Error(create.error || "Failed to create upload URL");
-
-  const { uploadUrl, key, contentType } = create;
-
-  await new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open("PUT", uploadUrl);
-    xhr.setRequestHeader("Content-Type", contentType || file.type || "application/octet-stream");
-
-    xhr.upload.onprogress = (evt) => {
-      if (!onProgress || !evt.lengthComputable) return;
-      const pct = (evt.loaded / evt.total) * 100;
-      onProgress(pct);
-    };
-
-    xhr.onload = () => {
-      if (xhr.status >= 200 && xhr.status < 300) resolve();
-      else reject(new Error(`Upload failed with status ${xhr.status}`));
-    };
-
-    xhr.onerror = () => reject(new Error("Network error during upload"));
-
-    xhr.send(file);
-  });
-
-  const check = await jsonFetch(`${BASE}/finish-upload`, {
-    method: "POST",
-    body: JSON.stringify({ key })
-  });
-
-  if (!check.ok) {
-    throw new Error(check.error || "Upload verification failed");
-  }
-
-  return { key, type: clipTypeFromKey(key) };
-}
-
+// -----------------------------------------
+// LIST CLIPS
+// -----------------------------------------
 export async function listClips() {
-  const res = await jsonFetch(`${BASE}/list-clips`);
+  const res = await jsonFetch(`${BASE}/list-clips`, { method: "GET" });
   if (!res.ok) throw new Error(res.error || "Failed to list clips");
-  return res.items || [];
+  return res.items;
 }
 
+// -----------------------------------------
+// DELETE CLIP
+// -----------------------------------------
 export async function deleteClip(key) {
-  const url = `${BASE}/delete-clip?key=${encodeURIComponent(key)}`;
-  const res = await jsonFetch(url);
+  const res = await jsonFetch(`${BASE}/delete-clip`, {
+    method: "POST",
+    body: JSON.stringify({ key }),
+  });
   if (!res.ok) throw new Error(res.error || "Failed to delete clip");
-  return res.deleted;
+  return res;
 }
 
-export function streamUrlForKey(key) {
-  return `${BASE}/stream?key=${encodeURIComponent(key)}`;
+// -----------------------------------------
+// UPLOAD CLIP — STAGED R2 MULTIPART
+// -----------------------------------------
+export async function uploadClip(file, onProgress) {
+  // STEP 1: Create upload URL
+  const start = await jsonFetch(`${BASE}/create-upload-url`, {
+    method: "POST",
+    body: JSON.stringify({ filename: file.name }),
+  });
+
+  if (!start.ok) throw new Error(start.error || "Failed to request upload URL");
+
+  // STEP 2: Upload actual file to presigned URL
+  await fetch(start.uploadUrl, {
+    method: "PUT",
+    body: file,
+  });
+
+  if (onProgress) onProgress(100);
+
+  // STEP 3: Finalize upload
+  const finish = await jsonFetch(`${BASE}/finish-upload`, {
+    method: "POST",
+    body: JSON.stringify({ key: start.key }),
+  });
+
+  if (!finish.ok) throw new Error(finish.error || "Failed to finalize upload");
+  return { key: finish.key };
 }
 
+// -----------------------------------------
+// SET NOW PLAYING  (STOP FIX APPLIED)
+// -----------------------------------------
+export async function setNowPlaying(key) {
+  // FIX: Only compute type if key is a real string
+  const type = key ? clipTypeFromKey(key) : null;
+
+  const res = await jsonFetch(`${BASE}/now-playing`, {
+    method: "POST",
+    body: JSON.stringify({ key, type }),
+  });
+
+  if (!res.ok) throw new Error(res.error || "Failed to set now-playing");
+  return res.nowPlaying;
+}
+
+// -----------------------------------------
+// GET NOW PLAYING
+// -----------------------------------------
 export async function getNowPlaying() {
-  const res = await jsonFetch(`${BASE}/now-playing`);
+  const res = await jsonFetch(`${BASE}/now-playing`, {
+    method: "GET",
+  });
   if (!res.ok) throw new Error(res.error || "Failed to get now-playing");
   return res.nowPlaying;
 }
 
-export async function setNowPlaying(key) {
-  const type = clipTypeFromKey(key);
-  const res = await jsonFetch(`${BASE}/now-playing`, {
-    method: "POST",
-    body: JSON.stringify({ key, type })
-  });
-  if (!res.ok) throw new Error(res.error || "Failed to set now-playing");
-  return res.nowPlaying;
+// -----------------------------------------
+// STREAM URL (R2 PUBLIC URL)
+// -----------------------------------------
+export function streamUrlForKey(key) {
+  // key is always full R2 path "clips/<file>"
+  return `https://lanternwave-r2.hyperspacehq.com/${key}`;
 }
