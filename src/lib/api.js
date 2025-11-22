@@ -16,6 +16,7 @@ async function jsonFetch(url, options) {
     return JSON.parse(text);
   } catch (err) {
     console.error("JSON parse failed:", text);
+    console.error("Raw response:", text);
     return { ok: false, error: "Invalid JSON from server" };
   }
 }
@@ -33,18 +34,22 @@ export async function listClips() {
 // DELETE CLIP
 // -----------------------------------------
 export async function deleteClip(key) {
+  if (!key) throw new Error("Missing key for deleteClip");
+
   const res = await jsonFetch(`${BASE}/delete-clip`, {
     method: "POST",
     body: JSON.stringify({ key }),
   });
+
   if (!res.ok) throw new Error(res.error || "Failed to delete clip");
   return res;
 }
 
 // -----------------------------------------
-// UPLOAD CLIP
+// UPLOAD CLIP (Create URL → PUT to R2 → finalize)
 // -----------------------------------------
 export async function uploadClip(file, onProgress) {
+  // STEP 1: Request presigned URL
   const start = await jsonFetch(`${BASE}/create-upload-url`, {
     method: "POST",
     body: JSON.stringify({ filename: file.name }),
@@ -52,6 +57,7 @@ export async function uploadClip(file, onProgress) {
 
   if (!start.ok) throw new Error(start.error || "Failed to request upload URL");
 
+  // STEP 2: Upload actual file to R2
   await fetch(start.uploadUrl, {
     method: "PUT",
     body: file,
@@ -59,6 +65,7 @@ export async function uploadClip(file, onProgress) {
 
   if (onProgress) onProgress(100);
 
+  // STEP 3: Finalize
   const finish = await jsonFetch(`${BASE}/finish-upload`, {
     method: "POST",
     body: JSON.stringify({ key: start.key }),
@@ -70,7 +77,7 @@ export async function uploadClip(file, onProgress) {
 }
 
 // -----------------------------------------
-// NOW PLAYING  (STOP FIX APPLIED)
+// SET NOW PLAYING
 // -----------------------------------------
 export async function setNowPlaying(key) {
   const type = key ? clipTypeFromKey(key) : null;
@@ -97,8 +104,9 @@ export async function getNowPlaying() {
 }
 
 // -----------------------------------------
-// STREAM URL
+// STREAM URL  (FIXED — matches your Cloudflare R2 bucket)
 // -----------------------------------------
 export function streamUrlForKey(key) {
-  return `https://lanternwave-r2.hyperspacehq.com/${key}`;
+  if (!key) return "";
+  return `https://f15ba1de2141b3d2d51467df1cb1e32e.r2.cloudflarestorage.com/lanternwave/${key}`;
 }
