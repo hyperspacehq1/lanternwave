@@ -1,5 +1,5 @@
 // src/pages/Controller.jsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   uploadClip,
   listClips,
@@ -24,6 +24,9 @@ export default function ControllerPage() {
 
   // Always a *full R2 key* like: "clips/myvideo.mp4"
   const [previewKey, setPreviewKey] = useState(null);
+
+  // 🔧 NEW: Media ref to control preview playback
+  const previewMediaRef = useRef(null);
 
   /** -------------------------------------------
    * LIST CLIPS
@@ -149,6 +152,18 @@ export default function ControllerPage() {
   const handleStop = async () => {
     try {
       console.log("[LW Controller] setNowPlaying -> null (STOP/HIDE)");
+
+      // 🔧 NEW: Stop preview audio/video
+      if (previewMediaRef.current) {
+        try {
+          previewMediaRef.current.pause();
+          previewMediaRef.current.removeAttribute("src");
+          previewMediaRef.current.load();
+        } catch (err) {
+          console.warn("[LW Controller] previewMediaRef stop error", err);
+        }
+      }
+
       const np = await setNowPlaying(null);
       setNowPlayingState(np);
       setPreviewKey(null);
@@ -292,6 +307,7 @@ export default function ControllerPage() {
               <div className="lw-audio-bar" />
               <div className="lw-audio-bar" />
               <audio
+                ref={previewMediaRef}
                 src={previewUrl}
                 autoPlay
                 controls={false}
@@ -302,6 +318,7 @@ export default function ControllerPage() {
 
           {previewUrl && previewType === "video" && (
             <video
+              ref={previewMediaRef}
               src={previewUrl}
               autoPlay
               controls
