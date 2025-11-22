@@ -1,13 +1,10 @@
 // src/lib/ui.js
-export function clipTypeFromKey(key = "") {
+eexport function clipTypeFromKey(key = "") {
+  if (typeof key !== "string") return "unknown";   // ← ADD THIS
   const lower = key.toLowerCase();
   if (lower.endsWith(".mp3")) return "audio";
   if (lower.endsWith(".mp4")) return "video";
-  if (
-    lower.endsWith(".jpg") ||
-    lower.endsWith(".jpeg") ||
-    lower.endsWith(".png")
-  )
+  if (lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".png"))
     return "image";
   return "unknown";
 }

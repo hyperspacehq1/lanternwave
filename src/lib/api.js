@@ -17,8 +17,7 @@ async function jsonFetch(url, options = {}) {
 }
 
 // Upload flow: create-upload-url -> PUT to R2 -> finish-upload
-export async function uploadClip(file, onProgress) {
-  const create = await jsonFetch(`${BASE}/create-upload-url`, {
+const type = key ? clipTypeFromKey(key) : null;
     method: "POST",
     body: JSON.stringify({
       filename: file.name,
