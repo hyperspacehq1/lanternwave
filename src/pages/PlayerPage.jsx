@@ -4,7 +4,7 @@ import { getNowPlaying, streamUrlForKey } from "../lib/api.js";
 import { clipTypeFromKey } from "../lib/ui.js";
 
 export default function PlayerPage() {
-  const [nowPlaying, setNowPlaying] = useState(null); // raw from API
+  const [nowPlaying, setNowPlaying] = useState(null);
   const [tick, setTick] = useState(0);
   const [debug, setDebug] = useState({
     lastFetchAt: null,
@@ -13,7 +13,12 @@ export default function PlayerPage() {
     normalizedKey: null,
   });
   const [showDebug, setShowDebug] = useState(false);
+
   const mediaRef = useRef(null);
+  const lastKeyRef = useRef(null);
+
+  // NEW — STOP RECEIVED flash banner
+  const [stopFlash, setStopFlash] = useState(false);
 
   // Toggle debug overlay with "D"
   useEffect(() => {
@@ -32,13 +37,23 @@ export default function PlayerPage() {
 
     async function fetchNowPlaying() {
       try {
-        const np = await getNowPlaying(); // payload object or null
+        const np = await getNowPlaying();
         if (cancelled) return;
 
         console.log("[LW Player] getNowPlaying ->", np);
         setNowPlaying(np ?? null);
 
         const normalizedKey = deriveKey(np);
+
+        // STOP DETECTION
+        const newKey = np?.key || null;
+        if (lastKeyRef.current && !newKey) {
+          // Key went from a real clip → null   => STOP RECEIVED
+          setStopFlash(true);
+          setTimeout(() => setStopFlash(false), 2000);
+        }
+        lastKeyRef.current = newKey;
+
         setDebug((prev) => ({
           ...prev,
           lastFetchAt: new Date().toISOString(),
@@ -87,7 +102,7 @@ export default function PlayerPage() {
     }
   }
 
-  // If we lose signal, reset media element
+  // Stop media element if lost signal
   useEffect(() => {
     if (!normalizedKey && mediaRef.current) {
       try {
@@ -119,6 +134,30 @@ export default function PlayerPage() {
         <ActiveMedia type={clipType} url={url} mediaRef={mediaRef} />
       )}
 
+      {/* STOP RECEIVED FLASH */}
+      {stopFlash && (
+        <div
+          style={{
+            position: "absolute",
+            left: "16px",
+            bottom: "16px",
+            padding: "10px 16px",
+            background: "rgba(0,0,0,0.65)",
+            border: "1px solid #3affaa",
+            borderRadius: "4px",
+            color: "#3affaa",
+            fontFamily: "MU_TH_UR, monospace",
+            letterSpacing: "0.12em",
+            fontSize: "12px",
+            textTransform: "uppercase",
+            boxShadow: "0 0 10px #3affaa",
+            zIndex: 9999,
+          }}
+        >
+          STOP RECEIVED
+        </div>
+      )}
+
       {showDebug && (
         <DebugOverlay
           tick={tick}
@@ -132,22 +171,16 @@ export default function PlayerPage() {
 }
 
 /**
- * Normalize any nowPlaying shape into a full "clips/<file>" key.
- * Handles:
- *  - { key: "file.mp4" }
- *  - { key: "clips/file.mp4" }
- *  - { nowPlaying: { key: "file.mp4" } }  (legacy)
- *  - "file.mp4#loop3" (removes #loop suffix)
+ * Normalize keys into "clips/<file>" format.
+ * Handles legacy and loop-suffix formats.
  */
 function deriveKey(np) {
   if (!np) return null;
 
   let key = null;
-
   if (typeof np.key === "string") {
     key = np.key;
   } else if (np.nowPlaying && typeof np.nowPlaying.key === "string") {
-    // legacy shape fallback
     key = np.nowPlaying.key;
   }
 
@@ -155,14 +188,9 @@ function deriveKey(np) {
   key = key.trim();
   if (!key) return null;
 
-  // Strip loop info: "file.mp4#loop3" -> "file.mp4"
   const withoutLoop = key.split("#")[0].trim();
-
-  // Ensure we have exactly one "clips/" prefix
   const bare = withoutLoop.replace(/^clips\//, "");
-  const full = "clips/" + bare;
-
-  return full;
+  return "clips/" + bare;
 }
 
 function ActiveMedia({ type, url, mediaRef }) {
@@ -189,7 +217,7 @@ function ActiveMedia({ type, url, mediaRef }) {
         src={url}
         autoPlay
         playsInline
-        muted // iOS autoplay requirement; audio comes from host Mac
+        muted
         controls={false}
         style={{
           width: "100%",
@@ -235,6 +263,7 @@ function ActiveMedia({ type, url, mediaRef }) {
             />
           ))}
         </div>
+
         <audio
           ref={mediaRef}
           src={url}
@@ -246,7 +275,6 @@ function ActiveMedia({ type, url, mediaRef }) {
     );
   }
 
-  console.warn("[LW Player] unknown type", type, "for url", url);
   return (
     <div
       style={{
