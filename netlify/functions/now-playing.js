@@ -5,8 +5,9 @@ import { corsResponse, handleOptions } from "./cors.js";
 const NOW_PLAYING_KEY = "meta/now-playing.json";
 
 function cleanKey(key) {
-  if (!key) return null;
-  return key.replace(/^clips\//, "");
+  // SAFELY normalize keys
+  if (typeof key !== "string") return null;
+  return key.replace(/^clips\//i, "");
 }
 
 export const handler = async (event) => {
@@ -29,14 +30,14 @@ export const handler = async (event) => {
       const text = await res.Body.transformToString();
       const data = JSON.parse(text || "{}");
 
-      // FIX: normalize on fetch
+      // Normalize safely
       if (data.key) {
         data.key = cleanKey(data.key);
       }
 
       return corsResponse({ ok: true, nowPlaying: data });
     } catch {
-      // no now-playing stored yet
+      // Not set yet
       return corsResponse({ ok: true, nowPlaying: null });
     }
   }
@@ -49,7 +50,6 @@ export const handler = async (event) => {
       const body = JSON.parse(event.body || "{}");
       let { key, type } = body;
 
-      // Normalize
       key = cleanKey(key);
 
       const payload = {
@@ -69,6 +69,7 @@ export const handler = async (event) => {
 
       return corsResponse({ ok: true, nowPlaying: payload });
     } catch (err) {
+      console.error("now-playing error:", err);
       return corsResponse({ ok: false, error: err.message }, 500);
     }
   }
