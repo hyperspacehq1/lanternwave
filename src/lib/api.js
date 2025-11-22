@@ -1,5 +1,7 @@
+// src/lib/api.js
 import { clipTypeFromKey } from "./ui.js";
 
+// Netlify functions base
 const BASE = "/.netlify/functions";
 
 async function jsonFetch(url, options) {
@@ -21,28 +23,34 @@ export async function listClips() {
 }
 
 // -----------------------------------------
-// DELETE CLIP
+// DELETE CLIP (FRONTEND FIXED VERSION)
 // -----------------------------------------
+// Backend expects:  /delete-clip?key=<value>
+// NOT JSON body
 export async function deleteClip(key) {
-  const res = await jsonFetch(`${BASE}/delete-clip`, {
-    method: "POST",
-    body: JSON.stringify({ key }),
+  const url = `${BASE}/delete-clip?key=${encodeURIComponent(key)}`;
+
+  const res = await jsonFetch(url, {
+    method: "POST"
   });
+
   if (!res.ok) throw new Error(res.error || "Failed to delete clip");
   return res;
 }
 
 // -----------------------------------------
-// UPLOAD CLIP
+// UPLOAD CLIP — STAGED R2 MULTIPART
 // -----------------------------------------
 export async function uploadClip(file, onProgress) {
+  // STEP 1: Create upload URL
   const start = await jsonFetch(`${BASE}/create-upload-url`, {
     method: "POST",
     body: JSON.stringify({ filename: file.name }),
   });
 
-  if (!start.ok) throw new Error(start.error);
+  if (!start.ok) throw new Error(start.error || "Failed to request upload URL");
 
+  // STEP 2: Upload actual file to presigned URL
   await fetch(start.uploadUrl, {
     method: "PUT",
     body: file,
@@ -50,12 +58,13 @@ export async function uploadClip(file, onProgress) {
 
   if (onProgress) onProgress(100);
 
+  // STEP 3: Finalize upload
   const finish = await jsonFetch(`${BASE}/finish-upload`, {
     method: "POST",
     body: JSON.stringify({ key: start.key }),
   });
 
-  if (!finish.ok) throw new Error(finish.error);
+  if (!finish.ok) throw new Error(finish.error || "Failed to finalize upload");
   return { key: finish.key };
 }
 
@@ -70,7 +79,7 @@ export async function setNowPlaying(key) {
     body: JSON.stringify({ key, type }),
   });
 
-  if (!res.ok) throw new Error(res.error);
+  if (!res.ok) throw new Error(res.error || "Failed to set now-playing");
   return res.nowPlaying;
 }
 
@@ -81,12 +90,12 @@ export async function getNowPlaying() {
   const res = await jsonFetch(`${BASE}/now-playing`, {
     method: "GET",
   });
-  if (!res.ok) throw new Error(res.error);
+  if (!res.ok) throw new Error(res.error || "Failed to get now-playing");
   return res.nowPlaying;
 }
 
 // -----------------------------------------
-// STREAM URL (R2 PUBLIC URL)
+// STREAM URL (PUBLIC R2 BUCKET)
 // -----------------------------------------
 export function streamUrlForKey(key) {
   const base = "https://f15ba1de2141b3d2d51467df1cb1e32e.r2.cloudflarestorage.com/lanternwave";
