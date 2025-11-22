@@ -60,7 +60,7 @@ export async function uploadClip(file, onProgress) {
   if (onProgress) onProgress(100);
 
   const finish = await jsonFetch(`${BASE}/finish-upload`, {
-    method: "POST`,
+    method: "POST",
     body: JSON.stringify({ key: start.key }),
   });
 
