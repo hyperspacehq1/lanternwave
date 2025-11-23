@@ -7,7 +7,7 @@ const NOW_PLAYING_KEY = "meta/now-playing.json";
 function cleanKey(key) {
   // SAFELY normalize keys
   if (typeof key !== "string") return null;
-  return key.replace(/^clips\//i, "");
+  return key;
 }
 
 export const handler = async (event) => {
