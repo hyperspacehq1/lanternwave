@@ -57,7 +57,19 @@ export default function PlayerPage() {
     ? streamUrlForKey(normalizedKey)
     : null;
 
+  const volume = nowPlaying?.volume ?? 100; // DEFAULT: full volume
   const showNoSignal = !normalizedKey || !immediateUrl || !clipType;
+
+  // ---------------------------------------------
+  // Apply VOLUME whenever nowPlaying.volume changes
+  // ---------------------------------------------
+  useEffect(() => {
+    if (!mediaRef.current) return;
+
+    const safeVolume = Math.max(0, Math.min(100, volume)) / 100; // convert to 0.0–1.0
+    mediaRef.current.volume = safeVolume;
+
+  }, [volume, normalizedKey, immediateUrl]);
 
   // ---------------------------------------------
   // Render
