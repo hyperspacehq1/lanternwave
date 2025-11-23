@@ -3,7 +3,7 @@ import { getNowPlaying } from "../lib/api";
 import { clipTypeFromKey } from "../lib/ui";
 import { streamUrlForKey } from "../lib/api";
 
-// Helper: extract key (your existing logic)
+// Helper: extract key
 function deriveKey(nowPlaying) {
   if (!nowPlaying) return null;
   if (!nowPlaying.key) return null;
@@ -15,11 +15,6 @@ export default function PlayerPage() {
   const [loading, setLoading] = useState(true);
 
   const mediaRef = useRef(null);
-
-  // NEW delayed visual states
-  const [delayedKey, setDelayedKey] = useState(null);
-  const [delayedType, setDelayedType] = useState(null);
-  const [delayedUrl, setDelayedUrl] = useState(null);
 
   // ---------------------------------------------
   // Polling: Get Now Playing
@@ -39,7 +34,7 @@ export default function PlayerPage() {
       }
 
       if (!cancelled) {
-        setTimeout(poll, 1500); // every 1.5s
+        setTimeout(poll, 1500);
       }
     }
 
@@ -50,8 +45,7 @@ export default function PlayerPage() {
   }, []);
 
   // ---------------------------------------------
-  // Compute current (immediate) key + type + URL
-  // (Audio uses this version)
+  // Compute immediate key + type + URL (no delay)
   // ---------------------------------------------
   const normalizedKey = deriveKey(nowPlaying);
 
@@ -59,40 +53,15 @@ export default function PlayerPage() {
     ? clipTypeFromKey(normalizedKey.replace(/^clips\//, ""))
     : null;
 
-  const immediateUrl = normalizedKey ? streamUrlForKey(normalizedKey) : null;
+  const immediateUrl = normalizedKey
+    ? streamUrlForKey(normalizedKey)
+    : null;
+
+  const showNoSignal = !normalizedKey || !immediateUrl || !clipType;
 
   // ---------------------------------------------
-  // 4-SECOND VISUAL DELAY
+  // Render
   // ---------------------------------------------
-  useEffect(() => {
-    if (!normalizedKey) {
-      // "STOP" state — immediately clear visuals
-      setDelayedKey(null);
-      setDelayedType(null);
-      setDelayedUrl(null);
-      return;
-    }
-
-    // Delay UI update by 4 seconds to sync with audio
-    const timer = setTimeout(() => {
-      setDelayedKey(normalizedKey);
-      setDelayedType(clipType);
-
-      try {
-        setDelayedUrl(streamUrlForKey(normalizedKey));
-      } catch (err) {
-        console.error("[LW Player] delayed visual URL error", err);
-      }
-    }, 7800);
-
-    return () => clearTimeout(timer);
-  }, [normalizedKey, clipType]);
-
-  // ---------------------------------------------
-  // Render Logic
-  // ---------------------------------------------
-  const showNoSignal = !delayedKey || !delayedUrl || !delayedType;
-
   return (
     <div className="lw-player-wrapper">
       {loading && (
@@ -107,8 +76,8 @@ export default function PlayerPage() {
 
       {!loading && !showNoSignal && (
         <ActiveMedia
-          type={delayedType}
-          url={delayedUrl}
+          type={clipType}
+          url={immediateUrl}
           mediaRef={mediaRef}
         />
       )}
@@ -117,7 +86,7 @@ export default function PlayerPage() {
 }
 
 // ---------------------------------------------
-// Renders the actual audio/video/image
+// Media Renderer
 // ---------------------------------------------
 function ActiveMedia({ type, url, mediaRef }) {
   if (type === "audio") {
