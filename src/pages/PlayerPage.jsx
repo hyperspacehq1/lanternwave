@@ -83,7 +83,7 @@ export default function PlayerPage() {
       } catch (err) {
         console.error("[LW Player] delayed visual URL error", err);
       }
-    }, 4000);
+    }, 7800);
 
     return () => clearTimeout(timer);
   }, [normalizedKey, clipType]);
