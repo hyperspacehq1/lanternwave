@@ -519,9 +519,9 @@ body {
   }
 }
 
-/* -------------------------
-   ACCESS GATE / BOOT SEQ
--------------------------- */
+/* ------------------------------------------
+   ACCESS GATE — MU/TH/UR CLASSIFIED TERMINAL
+------------------------------------------- */
 
 .gate-screen {
   position: fixed;
@@ -532,68 +532,150 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
 }
 
+/* Optional grain overlay */
+.gate-screen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: url("/grain.png");
+  opacity: 0.12;
+  mix-blend-mode: screen;
+}
+
+/* Optional scanline effect */
+.gate-screen::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(255,255,255,0.04) 0px,
+    rgba(255,255,255,0.04) 1px,
+    transparent 2px,
+    transparent 4px
+  );
+  opacity: 0.07;
+}
+
+/* INITIAL CENTER PROMPT */
 .gate-center {
   text-align: center;
   cursor: pointer;
-  animation: pulse 2.5s infinite;
+  animation: pulse 2.5s infinite ease-in-out;
+  z-index: 5;
 }
 
 .gate-logo {
-  width: 180px;
-  margin-bottom: 20px;
-  filter: drop-shadow(0 0 10px var(--lw-green));
+  width: 220px;
+  margin-bottom: 25px;
+  filter: drop-shadow(0 0 14px rgba(108,196,23,0.9))
+          drop-shadow(0 0 25px rgba(108,196,23,0.4));
 }
 
 .gate-title {
-  font-size: 1.6rem;
-  letter-spacing: 0.2em;
+  font-size: 1.8rem;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  margin-top: 0.5rem;
 }
 
 .gate-sub {
   margin-top: 1rem;
   font-size: 0.8rem;
-  letter-spacing: 0.25em;
+  letter-spacing: 0.28em;
+  opacity: 0.8;
 }
 
 @keyframes pulse {
-  0% { opacity: 0.6; }
-  50% { opacity: 1; }
-  100% { opacity: 0.6; }
+  0% { opacity: 0.4; transform: scale(0.98); }
+  50% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0.4; transform: scale(0.98); }
 }
 
+/* TERMINAL FRAME */
 .gate-terminal {
-  width: 90%;
-  max-width: 800px;
-  height: 80%;
-  overflow-y: auto;
-  padding: 20px;
-  font-size: 0.9rem;
-  line-height: 1.4rem;
+  position: relative;
+  width: 88%;
+  max-width: 820px;
+  height: 75%;
+  padding: 22px;
+  font-size: 1rem;
+  line-height: 1.45rem;
   white-space: pre-wrap;
+  border: 1px solid rgba(108,196,23,0.35);
+  border-radius: 12px;
+  background: rgba(0,0,0,0.85);
+  overflow-y: hidden; /* We control scroll manually */
+  overflow-x: hidden;
+  box-shadow:
+    0 0 12px rgba(108,196,23,0.4),
+    inset 0 0 35px rgba(0,0,0,0.8);
+  backdrop-filter: blur(2px);
 }
 
+/* Soft gradient at top & bottom for cinematic scrolling reveal */
+.gate-terminal::after,
+.gate-terminal::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 40px;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.gate-terminal::before {
+  top: 0;
+  background: linear-gradient(to bottom, #000 0%, transparent 100%);
+}
+
+.gate-terminal::after {
+  bottom: 0;
+  background: linear-gradient(to top, #000 0%, transparent 100%);
+}
+
+/* LINES OF TEXT */
+.gate-terminal div {
+  padding: 2px 0;
+}
+
+/* CODE ENTRY BLOCK */
 .gate-code {
+  margin-top: 1.2rem;
   text-align: center;
-  font-size: 1.2rem;
+}
+
+.gate-code div {
+  letter-spacing: 0.22em;
+  font-size: 1rem;
+  margin-bottom: 0.8rem;
 }
 
 .gate-input {
-  margin-top: 15px;
-  background: #000;
+  background: rgba(0,0,0,0.9);
   color: var(--lw-green);
   border: 1px solid var(--lw-green);
-  padding: 10px;
-  font-size: 1.5rem;
-  width: 300px;
+  padding: 12px;
+  font-size: 1.6rem;
+  width: 320px;
   text-align: center;
   outline: none;
+  border-radius: 8px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  box-shadow: 0 0 12px rgba(108,196,23,0.5);
 }
 
+/* UNLOCK MESSAGE */
 .gate-approve {
-  font-size: 2rem;
-  letter-spacing: 0.3em;
-  animation: pulse 1s infinite;
+  font-size: 2.4rem;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  animation: pulse 1.4s infinite ease-in-out;
 }
-
