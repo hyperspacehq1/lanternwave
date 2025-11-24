@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 
 const BOOT_LINES = [
   "AEGIS/OS v5.2.1 (CLASSIFIED BUILD)",
@@ -48,16 +48,15 @@ const BOOT_LINES = [
   "ENTER ACCESS CODE:"
 ];
 
-// Flatten to one string so we can type char-by-char
+// Flatten into one full string for character-by-character typing
 const BOOT_TEXT = BOOT_LINES.join("\n");
 
 export default function AccessGate({ onUnlock }) {
-  const [stage, setStage] = useState("idle"); // idle → boot → code → unlock
-  const [typedCount, setTypedCount] = useState(0); // chars typed into BOOT_TEXT
+  const [stage, setStage] = useState("idle");    // idle → boot → code → unlock
+  const [typedCount, setTypedCount] = useState(0); // number of characters rendered
   const [code, setCode] = useState("");
   const [attempts, setAttempts] = useState(0);
 
-  const audioRef = useRef(null);
   const correctCode = import.meta.env.VITE_OPEN_CODE;
 
   // Start boot on click
@@ -66,32 +65,22 @@ export default function AccessGate({ onUnlock }) {
     setStage("boot");
   };
 
-  // Character-by-character typing effect
+  // Character-by-character typing effect (NO SOUND)
   useEffect(() => {
     if (stage !== "boot") return;
-
-    // start / loop typing sound
-    if (!audioRef.current) {
-      audioRef.current = new Audio("/type.mp3");
-      audioRef.current.loop = true;
-    }
-    audioRef.current.currentTime = 0;
-    audioRef.current.play().catch(() => {});
 
     let cancelled = false;
 
     const step = () => {
       setTypedCount(prev => {
-        if (prev >= BOOT_TEXT.length) {
-          return prev;
-        }
+        if (prev >= BOOT_TEXT.length) return prev;
         return prev + 1;
       });
 
       if (!cancelled) {
         setTimeout(() => {
           if (!cancelled) step();
-        }, 15); // speed A: ~15ms per char
+        }, 15); // fast typing (twice as fast)
       }
     };
 
@@ -99,30 +88,24 @@ export default function AccessGate({ onUnlock }) {
 
     return () => {
       cancelled = true;
-      if (audioRef.current) {
-        audioRef.current.pause();
-      }
     };
   }, [stage]);
 
-  // When finished typing, move to code stage & stop sound
+  // Move from boot → code entry
   useEffect(() => {
     if (stage === "boot" && typedCount >= BOOT_TEXT.length) {
-      if (audioRef.current) {
-        audioRef.current.pause();
-      }
       setStage("code");
     }
   }, [stage, typedCount]);
 
-  // Compute visible lines (rolling window of last 10)
+  // Rolling 10-line window
   const allLines = BOOT_TEXT.slice(0, typedCount).split("\n");
-  const visibleLines = allLines.slice(-10); // only last 10 lines
+  const visibleLines = allLines.slice(-10);
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!correctCode) {
-      // If no code is configured, just unlock
+      // If no OPEN_CODE set, unlock automatically
       onUnlock();
       return;
     }
@@ -134,8 +117,9 @@ export default function AccessGate({ onUnlock }) {
       const next = attempts + 1;
       setAttempts(next);
       setCode("");
+
       if (next >= 3) {
-        // Reset back to idle after 3 failed attempts
+        // reset whole sequence
         setTypedCount(0);
         setAttempts(0);
         setStage("idle");
@@ -145,6 +129,7 @@ export default function AccessGate({ onUnlock }) {
 
   return (
     <div className="gate-screen">
+      {/* INITIAL CLICK SCREEN */}
       {stage === "idle" && (
         <div className="gate-center" onClick={begin}>
           <img
@@ -157,6 +142,7 @@ export default function AccessGate({ onUnlock }) {
         </div>
       )}
 
+      {/* BOOT SCROLL */}
       {stage === "boot" && (
         <div className="gate-terminal">
           {visibleLines.map((line, idx) => (
@@ -165,11 +151,13 @@ export default function AccessGate({ onUnlock }) {
         </div>
       )}
 
+      {/* PASSWORD ENTRY */}
       {stage === "code" && (
         <div className="gate-terminal">
           {visibleLines.map((line, idx) => (
             <div key={idx}>{line}</div>
           ))}
+
           <form className="gate-code" onSubmit={handleSubmit}>
             <div>ENTER ACCESS CODE:</div>
             <input
@@ -183,6 +171,7 @@ export default function AccessGate({ onUnlock }) {
         </div>
       )}
 
+      {/* ACCESS APPROVED */}
       {stage === "unlock" && (
         <div className="gate-center">
           <div className="gate-title">ACCESS APPROVED</div>
