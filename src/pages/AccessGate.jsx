@@ -91,7 +91,7 @@ export default function AccessGate({ onUnlock }) {
       if (!cancelled) {
         setTimeout(() => {
           if (!cancelled) step();
-        }, 60); // speed A: ~60ms per char
+        }, 15); // speed A: ~15ms per char
       }
     };
 
