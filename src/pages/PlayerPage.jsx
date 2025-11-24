@@ -45,7 +45,7 @@ export default function PlayerPage() {
   }, []);
 
   // ---------------------------------------------
-  // Compute immediate key + type + URL (no delay)
+  // Compute key + type + URL
   // ---------------------------------------------
   const normalizedKey = deriveKey(nowPlaying);
 
@@ -57,7 +57,7 @@ export default function PlayerPage() {
     ? streamUrlForKey(normalizedKey)
     : null;
 
-  const volume = nowPlaying?.volume ?? 100; // DEFAULT: full volume
+  const volume = nowPlaying?.volume ?? 100; // Default full volume
   const showNoSignal = !normalizedKey || !immediateUrl || !clipType;
 
   // ---------------------------------------------
@@ -66,23 +66,24 @@ export default function PlayerPage() {
   useEffect(() => {
     if (!mediaRef.current) return;
 
-    const safeVolume = Math.max(0, Math.min(100, volume)) / 100; // convert to 0.0–1.0
+    const safeVolume = Math.max(0, Math.min(100, volume)) / 100;
     mediaRef.current.volume = safeVolume;
-
   }, [volume, normalizedKey, immediateUrl]);
 
   // ---------------------------------------------
   // Render
   // ---------------------------------------------
   return (
-    <div className="lw-player-wrapper">
+    <div className="lw-player">
       {loading && (
-        <div className="lw-player-loading">CONNECTING...</div>
+        <div className="lw-player-idle">
+          <div className="lw-player-idle-text">CONNECTING...</div>
+        </div>
       )}
 
       {!loading && showNoSignal && (
-        <div className="lw-player-nosignal">
-          <p>NO SIGNAL</p>
+        <div className="lw-player-idle">
+          <div className="lw-player-idle-text">NO SIGNAL</div>
         </div>
       )}
 
@@ -98,7 +99,7 @@ export default function PlayerPage() {
 }
 
 // ---------------------------------------------
-// Media Renderer
+// Media Renderer (Unified className = lw-player-media)
 // ---------------------------------------------
 function ActiveMedia({ type, url, mediaRef }) {
   if (type === "audio") {
@@ -108,6 +109,7 @@ function ActiveMedia({ type, url, mediaRef }) {
         src={url}
         autoPlay
         controls={false}
+        className="lw-player-media"
       />
     );
   }
@@ -119,7 +121,7 @@ function ActiveMedia({ type, url, mediaRef }) {
         src={url}
         autoPlay
         controls={false}
-        className="lw-player-video"
+        className="lw-player-media"
       />
     );
   }
@@ -127,7 +129,7 @@ function ActiveMedia({ type, url, mediaRef }) {
   return (
     <img
       src={url}
-      className="lw-player-image"
+      className="lw-player-media"
       alt="Now Playing"
     />
   );
