@@ -518,3 +518,82 @@ body {
     max-height: 100vh !important;
   }
 }
+
+/* -------------------------
+   ACCESS GATE / BOOT SEQ
+-------------------------- */
+
+.gate-screen {
+  position: fixed;
+  inset: 0;
+  background: #000;
+  color: var(--lw-green);
+  font-family: "MU-TH-UR";
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gate-center {
+  text-align: center;
+  cursor: pointer;
+  animation: pulse 2.5s infinite;
+}
+
+.gate-logo {
+  width: 180px;
+  margin-bottom: 20px;
+  filter: drop-shadow(0 0 10px var(--lw-green));
+}
+
+.gate-title {
+  font-size: 1.6rem;
+  letter-spacing: 0.2em;
+}
+
+.gate-sub {
+  margin-top: 1rem;
+  font-size: 0.8rem;
+  letter-spacing: 0.25em;
+}
+
+@keyframes pulse {
+  0% { opacity: 0.6; }
+  50% { opacity: 1; }
+  100% { opacity: 0.6; }
+}
+
+.gate-terminal {
+  width: 90%;
+  max-width: 800px;
+  height: 80%;
+  overflow-y: auto;
+  padding: 20px;
+  font-size: 0.9rem;
+  line-height: 1.4rem;
+  white-space: pre-wrap;
+}
+
+.gate-code {
+  text-align: center;
+  font-size: 1.2rem;
+}
+
+.gate-input {
+  margin-top: 15px;
+  background: #000;
+  color: var(--lw-green);
+  border: 1px solid var(--lw-green);
+  padding: 10px;
+  font-size: 1.5rem;
+  width: 300px;
+  text-align: center;
+  outline: none;
+}
+
+.gate-approve {
+  font-size: 2rem;
+  letter-spacing: 0.3em;
+  animation: pulse 1s infinite;
+}
+

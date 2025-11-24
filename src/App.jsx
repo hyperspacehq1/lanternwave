@@ -1,11 +1,20 @@
 // src/App.jsx
-import React from "react";
+import React, { useState } from "react";
 import { Routes, Route, NavLink } from "react-router-dom";
 import ControllerPage from "./pages/Controller.jsx";
 import PlayerPage from "./pages/PlayerPage.jsx";
 import { LogoMark } from "./components/LogoMark.jsx";
+import AccessGate from "./pages/AccessGate.jsx";
 
 function App() {
+  const [unlocked, setUnlocked] = useState(false);
+
+  // Gate first
+  if (!unlocked) {
+    return <AccessGate onUnlock={() => setUnlocked(true)} />;
+  }
+
+  // Main app once unlocked
   return (
     <div className="lw-root">
       <header className="lw-header">
@@ -27,6 +36,7 @@ function App() {
           >
             Host Console
           </NavLink>
+
           <NavLink
             to="/player"
             className={({ isActive }) =>
