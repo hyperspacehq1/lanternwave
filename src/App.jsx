@@ -7,14 +7,41 @@ import { LogoMark } from "./components/LogoMark.jsx";
 import AccessGate from "./pages/AccessGate.jsx";
 
 function App() {
-  const [unlocked, setUnlocked] = useState(false);
+  // -------------------------------------------------------------
+  // 24-hour automatic unlock using localStorage
+  // -------------------------------------------------------------
+  const [unlocked, setUnlocked] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem("lw_access"));
+      if (!saved) return false;
+      if (saved.unlocked && saved.expires > Date.now()) {
+        return true;
+      }
+    } catch {}
+    return false;
+  });
 
-  // Gate first
+  // -------------------------------------------------------------
+  // Show AccessGate until unlocked
+  // -------------------------------------------------------------
   if (!unlocked) {
-    return <AccessGate onUnlock={() => setUnlocked(true)} />;
+    return (
+      <AccessGate
+        onUnlock={() => {
+          const expires = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
+          localStorage.setItem(
+            "lw_access",
+            JSON.stringify({ unlocked: true, expires })
+          );
+          setUnlocked(true);
+        }}
+      />
+    );
   }
 
-  // Main app once unlocked
+  // -------------------------------------------------------------
+  // Main Lanternwave app (unchanged)
+  // -------------------------------------------------------------
   return (
     <div className="lw-root">
       <header className="lw-header">
