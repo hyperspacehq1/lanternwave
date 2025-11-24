@@ -75,7 +75,7 @@ export default function AccessGate({ onUnlock }) {
       setLines(prev => [...prev, BOOT_TEXT[i]]);
       i++;
       if (i < BOOT_TEXT.length) {
-        setTimeout(tick, 130);
+        setTimeout(tick, 200);
       } else {
         audioRef.current.pause();
         setStage("code");
