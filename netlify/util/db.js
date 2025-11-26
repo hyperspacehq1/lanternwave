@@ -1,4 +1,4 @@
-// netlify/util/db.ts
+// netlify/util/db.js
 import { Client } from "@neondatabase/serverless";
 
 export const query = async (sql, params = []) => {
