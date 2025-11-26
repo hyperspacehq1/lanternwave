@@ -16,10 +16,9 @@ export const handler = async (event) => {
 
     if (method === "POST") {
       const body = JSON.parse(event.body);
-
       const res = await query(
         `INSERT INTO missions
-         (mission_id_code, name, region, weather, mission_date, summary_known, summary_unknown)
+        (mission_id_code,name,region,weather,mission_date,summary_known,summary_unknown)
          VALUES ($1,$2,$3,$4,$5,$6,$7)
          RETURNING *`,
         [
@@ -29,10 +28,9 @@ export const handler = async (event) => {
           body.weather,
           body.mission_date,
           body.summary_known,
-          body.summary_unknown,
+          body.summary_unknown
         ]
       );
-
       return json(res.rows[0]);
     }
 
@@ -44,8 +42,7 @@ export const handler = async (event) => {
         `UPDATE missions SET
          mission_id_code=$1,name=$2,region=$3,weather=$4,mission_date=$5,
          summary_known=$6,summary_unknown=$7
-         WHERE id=$8
-         RETURNING *`,
+         WHERE id=$8 RETURNING *`,
         [
           body.mission_id_code,
           body.name,
@@ -54,7 +51,7 @@ export const handler = async (event) => {
           body.mission_date,
           body.summary_known,
           body.summary_unknown,
-          id,
+          id
         ]
       );
 
@@ -68,6 +65,7 @@ export const handler = async (event) => {
     }
 
     return { statusCode: 405, body: "Method Not Allowed" };
+
   } catch (err) {
     console.error("Mission API Error:", err);
     return { statusCode: 500, body: "Server Error" };
@@ -75,8 +73,5 @@ export const handler = async (event) => {
 };
 
 function json(data) {
-  return {
-    statusCode: 200,
-    body: JSON.stringify(data),
-  };
+  return { statusCode: 200, body: JSON.stringify(data) };
 }

@@ -19,6 +19,6 @@ export const handler = async (event) => {
   return {
     statusCode: 200,
     headers: { "Content-Type": "text/xml" },
-    body: `<Response><Message>Temporary system outage. Your message was saved.</Message></Response>`,
+    body: `<Response><Message>Temporary system outage. Your message was saved.</Message></Response>`
   };
 };

@@ -8,47 +8,42 @@ export const handler = async (event) => {
 
   const params = new URLSearchParams(event.body);
   const from = params.get("From");
-  const body = (params.get("Body") || "").trim().toLowerCase();
+  const body = (params.get("Body") || "").trim();
 
   try {
-    // SECURITY QUESTION PHASE
-    const openCode = process.env.VITE_OPEN_CODE || "umbrella";
-
-    // Check if this is the mission code
+    // Step 1 — Mission code check
     const missionResult = await query(
       "SELECT * FROM missions WHERE mission_id_code=$1",
       [body]
     );
 
     if (missionResult.rows.length > 0) {
-      return twiml(
-        "What do you wear when it's raining?"
-      );
+      return twiml("What do you wear when it's raining?");
     }
 
-    // Check if it matches security answer
-    if (body.includes(openCode.toLowerCase())) {
+    // Step 2 — Security Q
+    const openCode = "green umbrella";
+    if (body.toLowerCase().includes("umbrella")) {
       return twiml("Confirmed. Identity accepted. State your situation.");
     }
 
-    // Otherwise, continue to OpenAI chat (example placeholder)
-    const response = await fetch(
-      "https://api.openai.com/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "gpt-4o-mini",
-          messages: [{ role: "user", content: body }],
-        }),
-      }
-    );
+    // Step 3 — AI response
+    const aiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        messages: [{ role: "user", content: body }],
+      }),
+    });
 
-    const data = await response.json();
-    return twiml(data.choices[0].message.content);
+    const aiJson = await aiRes.json();
+    const reply = aiJson?.choices?.[0]?.message?.content || "Signal degraded.";
+
+    return twiml(reply);
 
   } catch (err) {
     console.error("SMS ERROR:", err);
@@ -60,6 +55,6 @@ function twiml(message) {
   return {
     statusCode: 200,
     headers: { "Content-Type": "text/xml" },
-    body: `<Response><Message>${message}</Message></Response>`,
+    body: `<Response><Message>${message}</Message></Response>`
   };
 }
