@@ -93,3 +93,24 @@ export function listSessionEvents(sessionId) {
 export function listSessionLogs(sessionId) {
   return apiFetch("api-session-logs", "GET", null, `session_id=${sessionId}`);
 }
+
+// --------------------------------------------------
+// NPC State (per NPC + per Player + per Session)
+// --------------------------------------------------
+export function getNpcState(sessionId, npcId, phone) {
+  return apiFetch(
+    "api-npc-state",
+    "GET",
+    null,
+    `session_id=${sessionId}&npc_id=${npcId}&phone=${encodeURIComponent(phone)}`
+  );
+}
+
+export function updateNpcState(sessionId, npcId, phone, body) {
+  return apiFetch(
+    "api-npc-state",
+    "POST",
+    body,
+    `session_id=${sessionId}&npc_id=${npcId}&phone=${encodeURIComponent(phone)}`
+  );
+}

@@ -14,7 +14,9 @@ import {
   removeSessionPlayer,
   listSessionEvents,
   listSessionLogs,
-} from "../lib/mission-api.js";   // ✅ CORRECT PATH
+  getNpcState,
+  updateNpcState,
+} from "../lib/mission-api.js"; // <-- Correct import path
 
 // Reusable input styling for LW theme
 const inputStyle = {
@@ -57,13 +59,13 @@ export default function MissionManagerPage() {
   // logs
   const [logs, setLogs] = useState([]);
 
-  // load sessions when admin key changes
+  // refresh sessions when admin key saved
   useEffect(() => {
     if (!adminKey) return;
     refreshSessions();
   }, [adminKey]);
 
-  // load selected session on change
+  // load selected session
   useEffect(() => {
     if (!selectedSessionId) return setSelectedSession(null);
     loadSession(selectedSessionId);
@@ -76,21 +78,22 @@ export default function MissionManagerPage() {
     if (tab === "players") refreshPlayers();
     if (tab === "events") refreshEvents();
     if (tab === "logs") refreshLogs();
+    // NPC tab loads on-demand
   }, [tab, selectedSession]);
 
-  // save admin key
   const handleSaveKey = () => {
     setStoredAdminKey(adminKey);
     refreshSessions();
   };
 
-  // sessions
+  // -----------------------
+  // SESSIONS
+  // -----------------------
   const refreshSessions = async () => {
     setError("");
     try {
       const data = await listSessions();
       setSessions(data);
-
       if (!selectedSessionId && data.length > 0) {
         setSelectedSessionId(data[0].id);
       }
@@ -100,7 +103,6 @@ export default function MissionManagerPage() {
   };
 
   const loadSession = async (id) => {
-    setError("");
     try {
       const data = await getSession(id);
       setSelectedSession(data);
@@ -112,7 +114,7 @@ export default function MissionManagerPage() {
   const handleCreateSession = async (e) => {
     e.preventDefault();
     if (!missionId || !sessionName) {
-      setError("Mission ID and Session Name required");
+      setError("Mission ID and Session Name are required.");
       return;
     }
 
@@ -129,14 +131,12 @@ export default function MissionManagerPage() {
 
   const handleSaveSession = async () => {
     if (!selectedSession) return;
-
     try {
       const upd = await updateSession(selectedSession.id, {
         session_name: selectedSession.session_name,
         gm_notes: selectedSession.gm_notes,
         status: selectedSession.status,
       });
-
       setSelectedSession(upd);
       refreshSessions();
     } catch (e) {
@@ -160,7 +160,9 @@ export default function MissionManagerPage() {
     }
   };
 
-  // players
+  // -----------------------
+  // PLAYERS
+  // -----------------------
   const refreshPlayers = async () => {
     try {
       const data = await listSessionPlayers(selectedSession.id);
@@ -185,7 +187,7 @@ export default function MissionManagerPage() {
   };
 
   const handleRemovePlayer = async (phone) => {
-    const ok = window.confirm(`Remove ${phone}?`);
+    const ok = window.confirm(`Remove: ${phone}?`);
     if (!ok) return;
 
     try {
@@ -196,7 +198,9 @@ export default function MissionManagerPage() {
     }
   };
 
-  // events
+  // -----------------------
+  // EVENTS
+  // -----------------------
   const refreshEvents = async () => {
     try {
       const data = await listSessionEvents(selectedSession.id);
@@ -206,7 +210,9 @@ export default function MissionManagerPage() {
     }
   };
 
-  // logs
+  // -----------------------
+  // LOGS
+  // -----------------------
   const refreshLogs = async () => {
     try {
       const data = await listSessionLogs(selectedSession.id);
@@ -216,12 +222,12 @@ export default function MissionManagerPage() {
     }
   };
 
-  // ------------------------------------------------------------------
-  //   RENDER UI — using Lanternwave MU/TH/UR terminal styling
-  // ------------------------------------------------------------------
+  // =================================================================
+  //  RENDER
+  // =================================================================
   return (
     <div className="lw-console" style={{ width: "100%" }}>
-      {/* LEFT PANEL */}
+      {/* ---------------- LEFT PANEL ---------------- */}
       <div className="lw-panel">
         <h2 className="lw-panel-title">Mission Runs</h2>
 
@@ -239,13 +245,16 @@ export default function MissionManagerPage() {
             style={inputStyle}
           />
 
-          <button className="lw-btn" style={{ marginTop: "0.3rem", width: "100%" }}
-            onClick={handleSaveKey}>
+          <button
+            className="lw-btn"
+            style={{ marginTop: "0.3rem", width: "100%" }}
+            onClick={handleSaveKey}
+          >
             Save Key
           </button>
         </div>
 
-        {/* SESSIONS LIST */}
+        {/* SESSION LIST */}
         <div className="lw-clip-list" style={{ flex: 1, overflowY: "auto" }}>
           {sessions.map((s) => (
             <div
@@ -304,7 +313,7 @@ export default function MissionManagerPage() {
         </form>
       </div>
 
-      {/* CENTER / RIGHT PANELS */}
+      {/* ---------------- RIGHT PANELS ---------------- */}
       {!selectedSession ? (
         <div className="lw-panel">
           <h2 className="lw-panel-title">Details</h2>
@@ -411,9 +420,17 @@ export default function MissionManagerPage() {
               >
                 Logs
               </button>
+
+              {/* NEW NPC STATE TAB */}
+              <button
+                className="lw-btn"
+                style={tab === "npc" ? activeTabStyle : {}}
+                onClick={() => setTab("npc")}
+              >
+                NPC State
+              </button>
             </div>
 
-            {/* TAB CONTENT */}
             <div style={{ flex: 1, overflowY: "auto" }}>
               {tab === "players" && (
                 <PlayersTab
@@ -429,6 +446,13 @@ export default function MissionManagerPage() {
 
               {tab === "events" && <EventsTab events={events} />}
               {tab === "logs" && <LogsTab logs={logs} />}
+
+              {tab === "npc" && (
+                <NpcStateTab
+                  session={selectedSession}
+                  players={players}
+                />
+              )}
             </div>
           </div>
         </>
@@ -561,4 +585,197 @@ function LogsTab({ logs }) {
       ))}
     </div>
   );
+}
+
+// -----------------------------
+// NPC STATE TAB
+// -----------------------------
+function NpcStateTab({ session, players }) {
+  const [npcId, setNpcId] = useState("");
+  const [phone, setPhone] = useState("");
+  const [npcState, setNpcState] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const loadState = async () => {
+    if (!npcId || !phone) return;
+    setLoading(true);
+
+    try {
+      const data = await getNpcState(
+        session.id,
+        npcId,
+        phone
+      );
+      setNpcState(data || {});
+    } catch (e) {
+      console.error(e);
+      alert("Error loading NPC state.");
+    }
+    setLoading(false);
+  };
+
+  const handleSave = async () => {
+    if (!npcId || !phone) return;
+
+    try {
+      await updateNpcState(
+        session.id,
+        npcId,
+        phone,
+        {
+          knowledge_json: npcState.knowledge_json,
+          flags_json: npcState.flags_json,
+          trust_level: npcState.trust_level,
+        }
+      );
+      alert("NPC state saved.");
+    } catch (e) {
+      console.error(e);
+      alert("Error saving NPC state.");
+    }
+  };
+
+  const handleReset = async () => {
+    const ok = window.confirm("Reset this NPC's memory?");
+    if (!ok) return;
+
+    try {
+      await updateNpcState(
+        session.id,
+        npcId,
+        phone,
+        {
+          knowledge_json: {},
+          flags_json: {},
+          trust_level: 0,
+        }
+      );
+      setNpcState({
+        knowledge_json: {},
+        flags_json: {},
+        trust_level: 0,
+      });
+    } catch (e) {
+      alert("Error resetting NPC.");
+    }
+  };
+
+  return (
+    <div style={{ fontSize: "0.75rem" }}>
+      {/* NPC + PLAYER SELECT */}
+      <div style={{ marginBottom: "0.5rem" }}>
+        <div>NPC ID</div>
+        <input
+          type="text"
+          placeholder="NPC ID"
+          value={npcId}
+          onChange={(e) => setNpcId(e.target.value)}
+          className="lw-input"
+          style={inputStyle}
+        />
+
+        <div style={{ marginTop: "0.3rem" }}>Select Player</div>
+        <select
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          className="lw-input"
+          style={inputStyle}
+        >
+          <option value="">Choose player...</option>
+          {players.map((p) => (
+            <option key={p.phone_number} value={p.phone_number}>
+              {p.phone_number} {p.player_name ? `(${p.player_name})` : ""}
+            </option>
+          ))}
+        </select>
+
+        <button className="lw-btn" style={{ marginTop: "0.3rem" }} onClick={loadState}>
+          Load NPC State
+        </button>
+      </div>
+
+      {/* STATE EDITOR */}
+      {loading && <div>Loading NPC state...</div>}
+
+      {!loading && npcState && (
+        <div className="lw-panel" style={{ marginTop: "0.5rem" }}>
+          <h3 className="lw-panel-title">NPC Memory</h3>
+
+          {/* KNOWLEDGE */}
+          <div style={{ marginTop: "0.5rem" }}>
+            <strong>Knowledge JSON</strong>
+            <textarea
+              className="lw-input"
+              style={{ ...inputStyle, height: "120px" }}
+              value={JSON.stringify(npcState.knowledge_json || {}, null, 2)}
+              onChange={(e) =>
+                setNpcState((s) => ({
+                  ...s,
+                  knowledge_json: safeJsonParse(e.target.value)
+                }))
+              }
+            />
+          </div>
+
+          {/* FLAGS */}
+          <div style={{ marginTop: "0.5rem" }}>
+            <strong>Flags JSON</strong>
+            <textarea
+              className="lw-input"
+              style={{ ...inputStyle, height: "120px" }}
+              value={JSON.stringify(npcState.flags_json || {}, null, 2)}
+              onChange={(e) =>
+                setNpcState((s) => ({
+                  ...s,
+                  flags_json: safeJsonParse(e.target.value)
+                }))
+              }
+            />
+          </div>
+
+          {/* TRUST */}
+          <div style={{ marginTop: "0.5rem" }}>
+            <strong>Trust Level</strong>
+            <input
+              type="number"
+              className="lw-input"
+              style={inputStyle}
+              value={npcState.trust_level || 0}
+              onChange={(e) =>
+                setNpcState((s) => ({
+                  ...s,
+                  trust_level: Number(e.target.value)
+                }))
+              }
+            />
+          </div>
+
+          {/* ACTIONS */}
+          <button
+            className="lw-btn"
+            style={{ marginTop: "0.5rem" }}
+            onClick={handleSave}
+          >
+            Save NPC State
+          </button>
+
+          <button
+            className="lw-btn lw-btn-danger"
+            style={{ marginTop: "0.5rem" }}
+            onClick={handleReset}
+          >
+            Reset Memory
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function safeJsonParse(str) {
+  try {
+    return JSON.parse(str);
+  } catch {
+    return {};
+  }
 }
