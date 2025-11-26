@@ -3,6 +3,7 @@ import React, { useState } from "react";
 import { Routes, Route, NavLink } from "react-router-dom";
 import ControllerPage from "./pages/Controller.jsx";
 import PlayerPage from "./pages/PlayerPage.jsx";
+import MissionManagerPage from "./pages/MissionManagerPage.jsx"; // ⬅ NEW
 import { LogoMark } from "./components/LogoMark.jsx";
 import AccessGate from "./pages/AccessGate.jsx";
 
@@ -40,7 +41,7 @@ function App() {
   }
 
   // -------------------------------------------------------------
-  // Main Lanternwave app (unchanged)
+  // Main Lanternwave app
   // -------------------------------------------------------------
   return (
     <div className="lw-root">
@@ -54,6 +55,17 @@ function App() {
         </div>
 
         <nav className="lw-nav">
+
+          {/* NEW BUTTON */}
+          <NavLink
+            to="/mission-manager"
+            className={({ isActive }) =>
+              "lw-nav-link" + (isActive ? " lw-nav-link-active" : "")
+            }
+          >
+            Mission Manager
+          </NavLink>
+
           <NavLink
             to="/"
             end
@@ -79,6 +91,7 @@ function App() {
         <Routes>
           <Route path="/" element={<ControllerPage />} />
           <Route path="/player" element={<PlayerPage />} />
+          <Route path="/mission-manager" element={<MissionManagerPage />} />
         </Routes>
       </main>
     </div>
