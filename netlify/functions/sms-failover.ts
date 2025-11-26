@@ -1,11 +1,16 @@
 // netlify/functions/sms-failover.ts
-import { Handler } from '@netlify/functions';
-import { Client } from '@neondatabase/serverless';
+import { Handler } from "@netlify/functions";
+import { Client } from "@neondatabase/serverless";
 
 const ALERT_WEBHOOK_URL = process.env.FAILOVER_ALERT_WEBHOOK_URL || null;
 
-// Send Slack/Webhook alert (optional)
-const sendAlert = async (from: string, body: string) => {
+const twiml = (msg) => `
+<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Message>${msg}</Message>
+</Response>`;
+
+const sendAlert = async (from, body) => {
   if (!ALERT_WEBHOOK_URL) return;
 
   try {
@@ -13,24 +18,18 @@ const sendAlert = async (from: string, body: string) => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        text: `🚨 *Twilio FAILOVER Triggered*  
-Primary SMS handler failed and fallback endpoint was used.
+        text: `🚨 *Twilio FAILOVER Activated*
+Primary handler failed.
 
 *From:* ${from}
 *Message:* ${body}
 *Time:* ${new Date().toISOString()}`
-      })
+      }),
     });
   } catch (err) {
     console.error("Failover alert error:", err);
   }
 };
-
-const twiml = (msg: string) => `
-<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Message>${msg}</Message>
-</Response>`;
 
 export const handler: Handler = async (event) => {
   const params = new URLSearchParams(event.body || "");
@@ -38,7 +37,7 @@ export const handler: Handler = async (event) => {
   const body = params.get("Body") || "";
 
   try {
-    // Log failover event to Neon
+    // Log failover event
     const client = new Client(process.env.NETLIFY_DATABASE_URL);
     await client.connect();
 
@@ -50,23 +49,21 @@ export const handler: Handler = async (event) => {
 
     await client.end();
 
-    // Notify GM / Admin
+    // Alert GM/Admin
     await sendAlert(from, body);
 
     return {
       statusCode: 200,
       headers: { "Content-Type": "application/xml" },
-      body: twiml("Signal degraded. Routing through secondary channel.")
+      body: twiml("Signal degraded. Routing through secondary channel."),
     };
-
   } catch (err) {
-    console.error("Failover handler error:", err);
+    console.error("Failover Handler Error:", err);
 
-    // MUST still return TwiML to Twilio
     return {
-      statusCode: 200,
+      statusCode: 200, // Must still return 200
       headers: { "Content-Type": "application/xml" },
-      body: twiml("System integrity uncertain. Hold position.")
+      body: twiml("System integrity unstable. Hold position."),
     };
   }
 };
