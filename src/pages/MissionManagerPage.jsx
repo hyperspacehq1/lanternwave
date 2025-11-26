@@ -1,5 +1,6 @@
 // src/pages/MissionManagerPage.jsx
 import React, { useEffect, useState } from "react";
+
 import {
   getStoredAdminKey,
   setStoredAdminKey,
@@ -13,7 +14,23 @@ import {
   removeSessionPlayer,
   listSessionEvents,
   listSessionLogs,
-} from "../api";
+} from "../lib/mission-api.js";   // ✅ CORRECT PATH
+
+// Reusable input styling for LW theme
+const inputStyle = {
+  width: "100%",
+  padding: "0.3rem",
+  background: "#000",
+  color: "var(--lw-green)",
+  border: "1px solid var(--lw-border)",
+  borderRadius: "6px",
+  fontSize: "0.75rem",
+};
+
+const activeTabStyle = {
+  borderColor: "var(--lw-green)",
+  color: "var(--lw-green)",
+};
 
 export default function MissionManagerPage() {
   const [adminKey, setAdminKeyState] = useState(getStoredAdminKey());
@@ -24,35 +41,35 @@ export default function MissionManagerPage() {
   const [error, setError] = useState("");
   const [tab, setTab] = useState("players");
 
-  // New session form
+  // form states
   const [missionId, setMissionId] = useState("");
   const [sessionName, setSessionName] = useState("");
   const [gmNotes, setGmNotes] = useState("");
 
-  // Players tab
+  // players
   const [players, setPlayers] = useState([]);
   const [newPhone, setNewPhone] = useState("");
   const [newPlayerName, setNewPlayerName] = useState("");
 
-  // Events tab
+  // events
   const [events, setEvents] = useState([]);
 
-  // Logs tab
+  // logs
   const [logs, setLogs] = useState([]);
 
+  // load sessions when admin key changes
   useEffect(() => {
     if (!adminKey) return;
     refreshSessions();
   }, [adminKey]);
 
+  // load selected session on change
   useEffect(() => {
-    if (!selectedSessionId) {
-      setSelectedSession(null);
-      return;
-    }
+    if (!selectedSessionId) return setSelectedSession(null);
     loadSession(selectedSessionId);
   }, [selectedSessionId]);
 
+  // load tab content
   useEffect(() => {
     if (!selectedSession) return;
 
@@ -61,21 +78,19 @@ export default function MissionManagerPage() {
     if (tab === "logs") refreshLogs();
   }, [tab, selectedSession]);
 
-  // Save admin key
+  // save admin key
   const handleSaveKey = () => {
     setStoredAdminKey(adminKey);
     refreshSessions();
   };
 
-  // --------------------------
-  // Load sessions
-  // --------------------------
+  // sessions
   const refreshSessions = async () => {
     setError("");
     try {
       const data = await listSessions();
-      setSessions(data || []);
-      // auto select first
+      setSessions(data);
+
       if (!selectedSessionId && data.length > 0) {
         setSelectedSessionId(data[0].id);
       }
@@ -84,28 +99,23 @@ export default function MissionManagerPage() {
     }
   };
 
-  // --------------------------
-  // Load single session
-  // --------------------------
   const loadSession = async (id) => {
     setError("");
     try {
       const data = await getSession(id);
-      setSelectedSession(data || null);
+      setSelectedSession(data);
     } catch (e) {
       setError(e.message);
     }
   };
 
-  // --------------------------
-  // Create new session
-  // --------------------------
   const handleCreateSession = async (e) => {
     e.preventDefault();
     if (!missionId || !sessionName) {
-      setError("Mission ID and Name required");
+      setError("Mission ID and Session Name required");
       return;
     }
+
     try {
       await createSession(Number(missionId), sessionName, gmNotes);
       setMissionId("");
@@ -117,17 +127,16 @@ export default function MissionManagerPage() {
     }
   };
 
-  // --------------------------
-  // Save session details
-  // --------------------------
   const handleSaveSession = async () => {
     if (!selectedSession) return;
+
     try {
       const upd = await updateSession(selectedSession.id, {
         session_name: selectedSession.session_name,
         gm_notes: selectedSession.gm_notes,
         status: selectedSession.status,
       });
+
       setSelectedSession(upd);
       refreshSessions();
     } catch (e) {
@@ -135,9 +144,6 @@ export default function MissionManagerPage() {
     }
   };
 
-  // --------------------------
-  // Reset mission (delete session)
-  // --------------------------
   const handleResetMission = async () => {
     if (!selectedSession) return;
     const ok = window.confirm(
@@ -154,13 +160,11 @@ export default function MissionManagerPage() {
     }
   };
 
-  // --------------------------
-  // Players
-  // --------------------------
+  // players
   const refreshPlayers = async () => {
     try {
       const data = await listSessionPlayers(selectedSession.id);
-      setPlayers(data || []);
+      setPlayers(data);
     } catch (e) {
       setError(e.message);
     }
@@ -169,6 +173,7 @@ export default function MissionManagerPage() {
   const handleAddPlayer = async (e) => {
     e.preventDefault();
     if (!newPhone) return;
+
     try {
       await addSessionPlayer(selectedSession.id, newPhone, newPlayerName);
       setNewPhone("");
@@ -182,6 +187,7 @@ export default function MissionManagerPage() {
   const handleRemovePlayer = async (phone) => {
     const ok = window.confirm(`Remove ${phone}?`);
     if (!ok) return;
+
     try {
       await removeSessionPlayer(selectedSession.id, phone);
       refreshPlayers();
@@ -190,73 +196,57 @@ export default function MissionManagerPage() {
     }
   };
 
-  // --------------------------
-  // Events
-  // --------------------------
+  // events
   const refreshEvents = async () => {
     try {
       const data = await listSessionEvents(selectedSession.id);
-      setEvents(data || []);
+      setEvents(data);
     } catch (e) {
       setError(e.message);
     }
   };
 
-  // --------------------------
-  // Logs
-  // --------------------------
+  // logs
   const refreshLogs = async () => {
     try {
       const data = await listSessionLogs(selectedSession.id);
-      setLogs(data || []);
+      setLogs(data);
     } catch (e) {
       setError(e.message);
     }
   };
 
-  // ======================================================
-  //  RENDER UI — using LW panels & theme
-  // ======================================================
+  // ------------------------------------------------------------------
+  //   RENDER UI — using Lanternwave MU/TH/UR terminal styling
+  // ------------------------------------------------------------------
   return (
     <div className="lw-console" style={{ width: "100%" }}>
-      {/* LEFT PANEL: sessions */}
+      {/* LEFT PANEL */}
       <div className="lw-panel">
         <h2 className="lw-panel-title">Mission Runs</h2>
 
-        {/* Admin Key */}
+        {/* ADMIN KEY */}
         <div style={{ marginBottom: "0.7rem" }}>
           <div style={{ fontSize: "0.7rem", color: "var(--lw-text-subtle)" }}>
             ADMIN KEY
           </div>
+
           <input
             type="password"
             value={adminKey}
             onChange={(e) => setAdminKeyState(e.target.value)}
             className="lw-input"
-            style={{
-              width: "100%",
-              marginTop: "0.25rem",
-              padding: "0.35rem",
-              background: "#000",
-              color: "var(--lw-green)",
-              border: "1px solid var(--lw-border)",
-              borderRadius: "6px",
-            }}
+            style={inputStyle}
           />
-          <button
-            className="lw-btn"
-            style={{ marginTop: "0.3rem", width: "100%" }}
-            onClick={handleSaveKey}
-          >
+
+          <button className="lw-btn" style={{ marginTop: "0.3rem", width: "100%" }}
+            onClick={handleSaveKey}>
             Save Key
           </button>
         </div>
 
-        {/* Sessions List */}
-        <div
-          className="lw-clip-list"
-          style={{ flex: 1, overflowY: "auto", marginTop: "0.5rem" }}
-        >
+        {/* SESSIONS LIST */}
+        <div className="lw-clip-list" style={{ flex: 1, overflowY: "auto" }}>
           {sessions.map((s) => (
             <div
               key={s.id}
@@ -276,12 +266,12 @@ export default function MissionManagerPage() {
           ))}
         </div>
 
-        {/* Create Session */}
-        <form
-          onSubmit={handleCreateSession}
-          style={{ marginTop: "0.7rem", fontSize: "0.75rem" }}
-        >
-          <div style={{ marginBottom: "0.3rem" }}>Create New Run</div>
+        {/* CREATE SESSION */}
+        <form onSubmit={handleCreateSession} style={{ marginTop: "0.7rem" }}>
+          <div style={{ marginBottom: "0.3rem", fontSize: "0.7rem" }}>
+            Create New Run
+          </div>
+
           <input
             type="number"
             placeholder="Mission ID"
@@ -290,6 +280,7 @@ export default function MissionManagerPage() {
             className="lw-input"
             style={inputStyle}
           />
+
           <input
             type="text"
             placeholder="Session Name"
@@ -298,6 +289,7 @@ export default function MissionManagerPage() {
             className="lw-input"
             style={inputStyle}
           />
+
           <textarea
             placeholder="GM Notes"
             value={gmNotes}
@@ -305,13 +297,14 @@ export default function MissionManagerPage() {
             className="lw-input"
             style={{ ...inputStyle, height: "60px" }}
           />
+
           <button className="lw-btn" style={{ width: "100%" }}>
             Create
           </button>
         </form>
       </div>
 
-      {/* CENTER + RIGHT depend on session */}
+      {/* CENTER / RIGHT PANELS */}
       {!selectedSession ? (
         <div className="lw-panel">
           <h2 className="lw-panel-title">Details</h2>
@@ -325,7 +318,6 @@ export default function MissionManagerPage() {
           <div className="lw-panel">
             <h2 className="lw-panel-title">Run Details</h2>
 
-            {/* Session Name */}
             <input
               type="text"
               value={selectedSession.session_name}
@@ -339,17 +331,14 @@ export default function MissionManagerPage() {
               style={inputStyle}
             />
 
-            {/* Status */}
             <div style={{ marginTop: "0.5rem", fontSize: "0.75rem" }}>
               Status
             </div>
+
             <select
               value={selectedSession.status}
               onChange={(e) =>
-                setSelectedSession((s) => ({
-                  ...s,
-                  status: e.target.value,
-                }))
+                setSelectedSession((s) => ({ ...s, status: e.target.value }))
               }
               className="lw-input"
               style={inputStyle}
@@ -360,10 +349,10 @@ export default function MissionManagerPage() {
               <option value="abandoned">abandoned</option>
             </select>
 
-            {/* GM Notes */}
             <div style={{ marginTop: "0.5rem", fontSize: "0.75rem" }}>
               GM Notes
             </div>
+
             <textarea
               value={selectedSession.gm_notes || ""}
               onChange={(e) =>
@@ -376,7 +365,6 @@ export default function MissionManagerPage() {
               style={{ ...inputStyle, height: "100px" }}
             />
 
-            {/* Save */}
             <button
               className="lw-btn"
               style={{ marginTop: "0.5rem", width: "100%" }}
@@ -385,7 +373,6 @@ export default function MissionManagerPage() {
               Save
             </button>
 
-            {/* Reset */}
             <button
               className="lw-btn lw-btn-danger"
               style={{ marginTop: "0.5rem", width: "100%" }}
@@ -395,11 +382,11 @@ export default function MissionManagerPage() {
             </button>
           </div>
 
-          {/* RIGHT PANEL: Tabs */}
+          {/* RIGHT PANEL */}
           <div className="lw-panel">
             <h2 className="lw-panel-title">Run Data</h2>
 
-            {/* Tabs */}
+            {/* TABS */}
             <div style={{ display: "flex", gap: "0.3rem", marginBottom: "0.5rem" }}>
               <button
                 className="lw-btn"
@@ -431,12 +418,12 @@ export default function MissionManagerPage() {
               {tab === "players" && (
                 <PlayersTab
                   players={players}
-                  onAdd={handleAddPlayer}
-                  onRemove={handleRemovePlayer}
                   newPhone={newPhone}
                   newPlayerName={newPlayerName}
                   setNewPhone={setNewPhone}
                   setNewPlayerName={setNewPlayerName}
+                  onAdd={handleAddPlayer}
+                  onRemove={handleRemovePlayer}
                 />
               )}
 
@@ -449,6 +436,10 @@ export default function MissionManagerPage() {
     </div>
   );
 }
+
+// -------------------------------------------------------
+// SUBCOMPONENTS
+// -------------------------------------------------------
 
 function PlayersTab({
   players,
@@ -491,23 +482,18 @@ function PlayersTab({
       )}
 
       {players.map((p) => (
-        <div
-          key={p.id}
-          className="lw-clip-row"
-          style={{ marginBottom: "0.3rem" }}
-        >
+        <div key={p.id} className="lw-clip-row">
           <div className="lw-clip-main">
             <div className="lw-clip-type">P</div>
             <div>{p.phone_number}</div>
           </div>
-          <div style={{ display: "flex", gap: "0.3rem" }}>
-            <button
-              className="lw-btn lw-btn-danger"
-              onClick={() => onRemove(p.phone_number)}
-            >
-              X
-            </button>
-          </div>
+
+          <button
+            className="lw-btn lw-btn-danger"
+            onClick={() => onRemove(p.phone_number)}
+          >
+            X
+          </button>
         </div>
       ))}
     </div>
@@ -525,18 +511,14 @@ function EventsTab({ events }) {
   return (
     <div>
       {events.map((ev) => (
-        <div
-          key={ev.id}
-          className="lw-clip-row"
-          style={{ marginBottom: "0.3rem" }}
-        >
+        <div key={ev.id} className="lw-clip-row">
           <div className="lw-clip-main" style={{ flexDirection: "column" }}>
             <div className="lw-clip-type">{ev.event_type}</div>
             <pre
               style={{
                 fontSize: "0.7rem",
-                color: "var(--lw-text-subtle)",
                 whiteSpace: "pre-wrap",
+                color: "var(--lw-text-subtle)",
               }}
             >
               {JSON.stringify(ev.event_data, null, 2)}
@@ -559,11 +541,7 @@ function LogsTab({ logs }) {
   return (
     <div>
       {logs.map((log) => (
-        <div
-          key={log.id}
-          className="lw-clip-row"
-          style={{ marginBottom: "0.3rem" }}
-        >
+        <div key={log.id} className="lw-clip-row">
           <div className="lw-clip-main" style={{ flexDirection: "column" }}>
             <div className="lw-clip-type">{log.direction}</div>
             <div style={{ fontSize: "0.7rem" }}>
@@ -584,18 +562,3 @@ function LogsTab({ logs }) {
     </div>
   );
 }
-
-const inputStyle = {
-  width: "100%",
-  padding: "0.3rem",
-  background: "#000",
-  color: "var(--lw-green)",
-  border: "1px solid var(--lw-border)",
-  borderRadius: "6px",
-  fontSize: "0.75rem",
-};
-
-const activeTabStyle = {
-  borderColor: "var(--lw-green)",
-  color: "var(--lw-green)",
-};
