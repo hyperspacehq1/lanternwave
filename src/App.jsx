@@ -49,7 +49,7 @@ function App() {
           <LogoMark />
           <div className="lw-title-block">
             <h1 className="lw-app-title">LANTERNWAVE</h1>
-            <p className="lw-app-subtitle">Gordon Control Console</p>
+            <p className="lw-app-subtitle">Control Console</p>
           </div>
         </div>
 
