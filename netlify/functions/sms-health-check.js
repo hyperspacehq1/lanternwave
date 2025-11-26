@@ -1,5 +1,15 @@
 // netlify/functions/sms-health-check.js
-import { Client } from "@neondatabase/serverless";
+import { Client, neonConfig } from "@neondatabase/serverless";
+
+// ------------------------------------------------------
+// REQUIRED FOR NETLIFY — disable WebSockets globally
+// ------------------------------------------------------
+neonConfig.webSocketConstructor = undefined;
+
+// ------------------------------------------------------
+// REQUIRED — force Neon to use HTTPS serverless endpoint
+// ------------------------------------------------------
+neonConfig.fetchEndpoint = (host) => `https://${host}/sql`;
 
 export const handler = async () => {
   let neon = "OK";
@@ -8,17 +18,14 @@ export const handler = async () => {
   let openai = "OK";
   let openaiError = null;
 
-  // NEON CHECK
+  // ------------------------------------------------------
+  // NEON DATABASE CHECK
+  // ------------------------------------------------------
   try {
     const dbURL = process.env.NETLIFY_DATABASE_URL_UNPOOLED;
     if (!dbURL) throw new Error("NETLIFY_DATABASE_URL_UNPOOLED missing");
 
-    const client = new Client(dbURL, {
-      connection: {
-        fetchEndpoint: true
-      }
-    });
-
+    const client = new Client(dbURL); // now HTTP-only, no WebSockets
     await client.connect();
     await client.query("SELECT NOW()");
     await client.end();
@@ -27,7 +34,9 @@ export const handler = async () => {
     neonError = err.message || String(err);
   }
 
+  // ------------------------------------------------------
   // OPENAI CHECK
+  // ------------------------------------------------------
   try {
     const key = process.env.OPENAI_API_KEY;
     if (!key) throw new Error("OPENAI_API_KEY missing");
@@ -45,6 +54,9 @@ export const handler = async () => {
     openaiError = err.message || String(err);
   }
 
+  // ------------------------------------------------------
+  // RETURN RESULTS
+  // ------------------------------------------------------
   return {
     statusCode: 200,
     body: JSON.stringify(
@@ -57,6 +69,6 @@ export const handler = async () => {
       },
       null,
       2
-    )
+    ),
   };
 };
