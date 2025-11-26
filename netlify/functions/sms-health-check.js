@@ -8,27 +8,26 @@ export const handler = async () => {
   let openai = "OK";
   let openaiError = null;
 
-// Neon DB Check
-try {
-  const dbURL = process.env.NETLIFY_DATABASE_URL;
-  if (!dbURL) throw new Error("NETLIFY_DATABASE_URL missing");
+  // NEON CHECK
+  try {
+    const dbURL = process.env.NETLIFY_DATABASE_URL_UNPOOLED;
+    if (!dbURL) throw new Error("NETLIFY_DATABASE_URL_UNPOOLED missing");
 
-  const client = new Client(dbURL, {
-    connection: {
-      // REQUIRED FIX FOR NETLIFY – same as db.js
-      fetchEndpoint: true
-    }
-  });
+    const client = new Client(dbURL, {
+      connection: {
+        fetchEndpoint: true
+      }
+    });
 
-  await client.connect();
-  await client.query("SELECT NOW()");
-  await client.end();
-} catch (err) {
-  neon = "FAIL";
-  neonError = err.message || String(err);
-}
+    await client.connect();
+    await client.query("SELECT NOW()");
+    await client.end();
+  } catch (err) {
+    neon = "FAIL";
+    neonError = err.message || String(err);
+  }
 
-  // OpenAI Check
+  // OPENAI CHECK
   try {
     const key = process.env.OPENAI_API_KEY;
     if (!key) throw new Error("OPENAI_API_KEY missing");
@@ -58,6 +57,6 @@ try {
       },
       null,
       2
-    ),
+    )
   };
 };
