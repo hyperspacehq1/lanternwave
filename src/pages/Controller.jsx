@@ -21,7 +21,10 @@ export default function ControllerPage() {
 
   const [clips, setClips] = useState([]);
   const [loadingList, setLoadingList] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
+
+  // ✅ use null when idle; show bar whenever not null (including 0%)
+  const [uploadProgress, setUploadProgress] = useState(null);
+
   const [uploadMessage, setUploadMessage] = useState("");
   const [deleteMessage, setDeleteMessage] = useState("");
   const [volume, setVolume] = useState(80);
@@ -100,6 +103,7 @@ export default function ControllerPage() {
     const file = evt.target.files?.[0];
     if (!file) return;
 
+    // Show bar immediately at 0%
     setUploadProgress(0);
     setUploadMessage("");
 
@@ -115,7 +119,8 @@ export default function ControllerPage() {
       setUploadMessage("There was an error uploading your file");
     } finally {
       evt.target.value = "";
-      setTimeout(() => setUploadProgress(0), 1500);
+      // Fade out bar after a short delay
+      setTimeout(() => setUploadProgress(null), 1500);
     }
   };
 
@@ -151,9 +156,7 @@ export default function ControllerPage() {
       console.log("[LW Controller] setNowPlaying ->", key);
       const np = await setNowPlaying(key);
 
-      const normalized = np?.key
-        ? { ...np, key }
-        : np;
+      const normalized = np?.key ? { ...np, key } : np;
 
       setNowPlayingState(normalized);
       setPreviewKey(key);
@@ -210,7 +213,8 @@ export default function ControllerPage() {
           />
         </label>
 
-        {uploadProgress > 0 && (
+        {/* ✅ Show bar whenever uploadProgress is not null (0–100) */}
+        {uploadProgress !== null && (
           <div className="lw-progress-wrap">
             <div className="lw-progress-bar">
               <div
@@ -238,18 +242,38 @@ export default function ControllerPage() {
             const type = clipTypeFromKey(clip.key);
             const isNow = nowPlaying?.key === clip.key;
 
-            return (
-              <div
-                key={clip.key}
-                className={
-                  "lw-clip-row" + (isNow ? " lw-clip-row-active" : "")
+            const rowClass =
+              "lw-clip-row" + (isNow ? " lw-clip-row-active" : "");
+            const rowStyle = isNow
+              ? {
+                  boxShadow: "0 0 14px rgba(0, 255, 120, 0.7)",
+                  borderColor: "var(--lw-green)",
+                  background: "rgba(0, 255, 80, 0.10)",
+                  position: "relative",
                 }
-              >
+              : undefined;
+
+            return (
+              <div key={clip.key} className={rowClass} style={rowStyle}>
                 <div className="lw-clip-main">
                   <span className="lw-clip-type">{type.toUpperCase()}</span>
                   <span className="lw-clip-name">
                     {displayNameFromKey(clip.key)}
                   </span>
+
+                  {isNow && (
+                    <span
+                      style={{
+                        marginLeft: "0.5rem",
+                        fontSize: "0.7rem",
+                        color: "var(--lw-green)",
+                        opacity: 0.9,
+                        letterSpacing: "0.08em",
+                      }}
+                    >
+                      NOW PLAYING
+                    </span>
+                  )}
                 </div>
 
                 <div className="lw-clip-actions">

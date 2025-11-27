@@ -679,3 +679,34 @@ body {
   text-transform: uppercase;
   animation: pulse 1.4s infinite ease-in-out;
 }
+
+.clip-item {
+  padding: 6px;
+  border: 1px solid var(--lw-green-dim);
+  border-radius: 6px;
+  margin-bottom: 6px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.clip-item.active {
+  border-color: var(--lw-green);
+  box-shadow: 0 0 12px rgba(0, 255, 100, 0.6);
+  background: rgba(0, 255, 80, 0.08);
+  position: relative;
+}
+
+.upload-progress {
+  height: 6px;
+  background: rgba(0,255,80,0.2);
+  border: 1px solid var(--lw-green);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-top: 6px;
+}
+.upload-progress .bar {
+  height: 100%;
+  background: var(--lw-green);
+  width: 0%;
+  transition: width 0.2s linear;
+}
