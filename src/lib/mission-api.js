@@ -1,30 +1,42 @@
 // src/lib/mission-api.js
 const BASE = "/.netlify/functions";
 
-// Local storage for admin key
+// ---------- ADMIN KEY STORAGE FIX ----------
+const KEY_NAME = "adminKey"; // <-- unified name
+
 export function getStoredAdminKey() {
-  return localStorage.getItem("admin_api_key") || "";
+  // Allow fallback in case old versions were used
+  return (
+    localStorage.getItem(KEY_NAME) ||
+    localStorage.getItem("admin_api_key") || 
+    ""
+  );
 }
 
 export function setStoredAdminKey(key) {
-  localStorage.setItem("admin_api_key", key);
+  localStorage.setItem(KEY_NAME, key);
 }
+// -------------------------------------------
 
 // Wrapper for authenticated calls
 async function apiFetch(fnName, method = "GET", body = null, query = "") {
   const key = getStoredAdminKey();
 
   const url = `${BASE}/${fnName}${query ? `?${query}` : ""}`;
+
   const res = await fetch(url, {
     method,
     headers: {
       "Content-Type": "application/json",
-      "x-admin-key": key,
+      "x-admin-key": key,  // MUST MATCH server
     },
     body: body ? JSON.stringify(body) : undefined,
   });
 
-  if (!res.ok) throw new Error(`API Error: ${res.status}`);
+  if (!res.ok) {
+    console.error("[API ERROR]", fnName, res.status);
+    throw new Error(`API Error: ${res.status}`);
+  }
 
   return res.json();
 }
@@ -49,11 +61,12 @@ export function getSession(id) {
 }
 
 export function updateSession(id, { session_name, gm_notes, status }) {
-  return apiFetch("api-mission-session", "PUT", {
-    session_name,
-    gm_notes,
-    status,
-  }, `id=${id}`);
+  return apiFetch(
+    "api-mission-session",
+    "PUT",
+    { session_name, gm_notes, status },
+    `id=${id}`
+  );
 }
 
 export function resetSession(id) {
@@ -64,18 +77,28 @@ export function resetSession(id) {
 // Players
 // --------------------------------------------------
 export function listSessionPlayers(sessionId) {
-  return apiFetch("api-session-players", "GET", null, `session_id=${sessionId}`);
+  return apiFetch(
+    "api-session-players",
+    "GET",
+    null,
+    `session_id=${sessionId}`
+  );
 }
 
 export function addSessionPlayer(sessionId, phone_number, player_name = "") {
-  return apiFetch("api-session-players", "POST", {
-    phone_number,
-    player_name,
-  }, `session_id=${sessionId}`);
+  return apiFetch(
+    "api-session-players",
+    "POST",
+    { phone_number, player_name },
+    `session_id=${sessionId}`
+  );
 }
 
 export function removeSessionPlayer(sessionId, phone_number) {
-  return apiFetch("api-session-players", "DELETE", null, 
+  return apiFetch(
+    "api-session-players",
+    "DELETE",
+    null,
     `session_id=${sessionId}&phone=${encodeURIComponent(phone_number)}`
   );
 }
@@ -95,7 +118,7 @@ export function listSessionLogs(sessionId) {
 }
 
 // --------------------------------------------------
-// NPC State (per NPC + per Player + per Session)
+// NPC State
 // --------------------------------------------------
 export function getNpcState(sessionId, npcId, phone) {
   return apiFetch(
