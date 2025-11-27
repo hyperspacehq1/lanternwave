@@ -350,26 +350,209 @@ export default function MissionManagerPage() {
 
 /* ---------------- TABS (Placeholders If Needed) ---------------- */
 
+/* ============================================================
+   PLAYER TAB — FULL UI
+   ============================================================ */
 function PlayerTab({ session, reload }) {
+  const [phone, setPhone] = useState("");
+  const [name, setName] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function handleAdd() {
+    setError("");
+    if (!phone.trim()) {
+      setError("Phone number required.");
+      return;
+    }
+    try {
+      setBusy(true);
+      await addSessionPlayer(session.id, phone.trim(), name.trim());
+      setPhone("");
+      setName("");
+      await reload(session.id);
+    } catch (e) {
+      console.error("addSessionPlayer ERROR:", e);
+      setError("Failed to add player.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleRemove(phoneNumber) {
+    try {
+      setBusy(true);
+      await removeSessionPlayer(session.id, phoneNumber);
+      await reload(session.id);
+    } catch (e) {
+      console.error("removeSessionPlayer ERROR:", e);
+      setError("Failed to remove player.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div style={{ fontSize: "0.8rem" }}>
-      <pre>{JSON.stringify(session.players, null, 2)}</pre>
+      <h3 style={{ marginBottom: "0.5rem" }}>Players</h3>
+
+      {/* ADD PLAYER */}
+      <div
+        style={{
+          border: "1px solid var(--lw-green-dim)",
+          padding: "0.5rem",
+          marginBottom: "1rem",
+        }}
+      >
+        <input
+          placeholder="Phone Number"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          style={inputStyle}
+        />
+
+        <input
+          placeholder="Player Name (optional)"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          style={{ ...inputStyle, marginTop: "0.4rem" }}
+        />
+
+        <button
+          className="lw-btn"
+          style={{ marginTop: "0.5rem" }}
+          disabled={busy}
+          onClick={handleAdd}
+        >
+          ADD PLAYER
+        </button>
+
+        {error && (
+          <div style={{ color: "var(--lw-red)", marginTop: "0.5rem" }}>
+            {error}
+          </div>
+        )}
+      </div>
+
+      {/* PLAYER LIST */}
+      {session.players.length === 0 && <div>No players yet.</div>}
+
+      {session.players.length > 0 && (
+        <div>
+          {session.players.map((p) => (
+            <div
+              key={p.phone_number}
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                padding: "0.3rem 0",
+                borderBottom: "1px solid var(--lw-green-dim)",
+              }}
+            >
+              <div>
+                <div>{p.player_name || "(Unnamed)"}</div>
+                <div style={{ opacity: 0.6 }}>{p.phone_number}</div>
+              </div>
+
+              <button
+                className="lw-btn"
+                onClick={() => handleRemove(p.phone_number)}
+                disabled={busy}
+              >
+                REMOVE
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
+/* ============================================================
+   EVENTS TAB — FULL UI
+   ============================================================ */
 function EventsTab({ session }) {
+  if (!session.events) return null;
+
   return (
     <div style={{ fontSize: "0.8rem" }}>
-      <pre>{JSON.stringify(session.events, null, 2)}</pre>
+      <h3 style={{ marginBottom: "0.5rem" }}>Mission Events</h3>
+
+      {session.events.length === 0 && <div>No events recorded.</div>}
+
+      {session.events.length > 0 && (
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "0.7rem",
+          }}
+        >
+          {session.events.map((evt) => (
+            <div
+              key={evt.id}
+              style={{
+                border: "1px solid var(--lw-green-dim)",
+                padding: "0.6rem",
+                borderRadius: "6px",
+                background: "rgba(20, 255, 50, 0.03)",
+              }}
+            >
+              {/* Header */}
+              <div
+                style={{
+                  fontWeight: "bold",
+                  marginBottom: "0.25rem",
+                  color: "var(--lw-green)",
+                }}
+              >
+                {evt.event_type.toUpperCase()}
+              </div>
+
+              {/* Timestamp */}
+              <div style={{ opacity: 0.7, marginBottom: "0.25rem" }}>
+                {new Date(evt.created_at).toLocaleString()}
+              </div>
+
+              {/* Player phone (if applicable) */}
+              {evt.phone_number && (
+                <div style={{ opacity: 0.7, marginBottom: "0.25rem" }}>
+                  From: {evt.phone_number}
+                </div>
+              )}
+
+              {/* JSON payload */}
+              <pre
+                style={{
+                  fontSize: "0.7rem",
+                  whiteSpace: "pre-wrap",
+                }}
+              >
+                {JSON.stringify(evt.payload, null, 2)}
+              </pre>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
+/* ============================================================
+   LOGS TAB — JSON VIEWER (keep simple)
+   ============================================================ */
 function LogsTab({ session }) {
   return (
     <div style={{ fontSize: "0.8rem" }}>
-      <pre>{JSON.stringify(session.logs, null, 2)}</pre>
+      <h3>Message Logs</h3>
+      {session.logs.length === 0 && <div>No logs yet.</div>}
+
+      {session.logs.length > 0 && (
+        <pre style={{ fontSize: "0.75rem", whiteSpace: "pre-wrap" }}>
+          {JSON.stringify(session.logs, null, 2)}
+        </pre>
+      )}
     </div>
   );
 }
