@@ -2,45 +2,73 @@
 import { query } from "../util/db.js";
 import { requireAdmin } from "../util/auth.js";
 
-export const handler = async (event) => {
-  const auth = requireAdmin(event.headers);
-  if (!auth.ok) return auth.response;
+function json(statusCode, data) {
+  return {
+    statusCode,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  };
+}
 
-  const method = event.httpMethod;
+export const handler = async (event) => {
+  const { ok, response } = requireAdmin(event.headers || {});
+  if (!ok) return response;
 
   try {
-    // GET — list sessions
-    if (method === "GET") {
-      const res = await query(`
-        SELECT ms.*, m.name AS mission_name
-        FROM mission_sessions ms
-        JOIN missions m ON m.id = ms.mission_id
-        ORDER BY ms.id DESC
-      `);
-      return json(res.rows);
+    if (event.httpMethod === "GET") {
+      // List sessions with mission name + mission code
+      const result = await query(
+        `SELECT
+           ms.id,
+           ms.mission_id,
+           ms.session_name,
+           ms.gm_notes,
+           ms.status,
+           ms.started_at,
+           ms.ended_at,
+           ms.created_at,
+           m.name AS mission_name,
+           m.mission_id_code
+         FROM mission_sessions ms
+         LEFT JOIN missions m ON m.id = ms.mission_id
+         ORDER BY ms.created_at DESC`
+      );
+      return json(200, result.rows || []);
     }
 
-    // POST — create new session
-    if (method === "POST") {
-      const body = JSON.parse(event.body);
+    if (event.httpMethod === "POST") {
+      const body = event.body ? JSON.parse(event.body) : {};
+      const { mission_id, session_name, gm_notes = "" } = body;
 
-      const res = await query(`
-        INSERT INTO mission_sessions
-        (mission_id, session_name, gm_notes)
-        VALUES ($1,$2,$3)
-        RETURNING *
-      `, [body.mission_id, body.session_name, body.gm_notes]);
+      if (!mission_id || Number(mission_id) < 1 || !session_name?.trim()) {
+        return json(400, { error: "mission_id >= 1 and session_name are required." });
+      }
 
-      return json(res.rows[0]);
+      // Validate mission exists
+      const mid = Number(mission_id);
+      const missionRes = await query(
+        "SELECT id, name FROM missions WHERE id = $1",
+        [mid]
+      );
+      if (missionRes.rows.length === 0) {
+        return json(400, { error: `Mission id ${mid} does not exist.` });
+      }
+
+      // Insert session
+      const insertRes = await query(
+        `INSERT INTO mission_sessions
+           (mission_id, session_name, gm_notes, status, created_at)
+         VALUES ($1, $2, $3, 'new', NOW())
+         RETURNING *`,
+        [mid, session_name.trim(), gm_notes.trim()]
+      );
+
+      return json(200, insertRes.rows[0]);
     }
 
-    return methodNotAllowed();
+    return json(405, { error: "Method Not Allowed" });
   } catch (err) {
-    console.error("mission-sessions error:", err);
-    return serverError();
+    console.error("api-mission-sessions error:", err);
+    return json(500, { error: "Internal Server Error" });
   }
 };
-
-function json(data) { return { statusCode: 200, body: JSON.stringify(data) }; }
-function serverError() { return { statusCode: 500, body: "Server Error" }; }
-function methodNotAllowed() { return { statusCode: 405, body: "Method Not Allowed" }; }

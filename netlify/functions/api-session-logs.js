@@ -2,27 +2,48 @@
 import { query } from "../util/db.js";
 import { requireAdmin } from "../util/auth.js";
 
-export const handler = async (event) => {
-  const auth = requireAdmin(event.headers);
-  if (!auth.ok) return auth.response;
+function json(statusCode, data) {
+  return {
+    statusCode,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  };
+}
 
-  const sessionId = event.queryStringParameters.session_id;
-  if (!sessionId) return { statusCode: 400, body: "Missing session_id" };
+export const handler = async (event) => {
+  const { ok, response } = requireAdmin(event.headers || {});
+  if (!ok) return response;
+
+  const params = event.queryStringParameters || {};
+  const sessionId = params.session_id ? Number(params.session_id) : null;
+
+  if (!sessionId || sessionId < 1) {
+    return json(400, { error: "Valid session_id is required." });
+  }
 
   try {
-    const logs = await query(`
-      SELECT * FROM message_logs
-      WHERE session_id=$1
-      ORDER BY timestamp ASC
-    `, [sessionId]);
+    if (event.httpMethod !== "GET") {
+      return json(405, { error: "Method Not Allowed" });
+    }
 
-    return {
-      statusCode: 200,
-      body: JSON.stringify(logs.rows)
-    };
+    const res = await query(
+      `SELECT
+         id,
+         session_id,
+         message,
+         direction,
+         created_at,
+         phone_number,
+         npc_id
+       FROM mission_logs
+       WHERE session_id = $1
+       ORDER BY created_at ASC, id ASC`,
+      [sessionId]
+    );
 
+    return json(200, res.rows || []);
   } catch (err) {
     console.error("api-session-logs error:", err);
-    return { statusCode: 500, body: "Server Error" };
+    return json(500, { error: "Internal Server Error" });
   }
 };
