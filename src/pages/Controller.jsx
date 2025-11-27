@@ -1,5 +1,7 @@
 // src/pages/Controller.jsx
 import React, { useEffect, useState, useRef } from "react";
+import { useLocation } from "react-router-dom";
+
 import {
   uploadClip,
   listClips,
@@ -14,6 +16,9 @@ const VOLUME_MIN = 0;
 const VOLUME_MAX = 100;
 
 export default function ControllerPage() {
+  const location = useLocation();
+  const isActive = location.pathname === "/"; // 🔥 ONLY RUN CONTROLLER ON "/"
+
   const [clips, setClips] = useState([]);
   const [loadingList, setLoadingList] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -22,16 +27,14 @@ export default function ControllerPage() {
   const [volume, setVolume] = useState(80);
   const [nowPlaying, setNowPlayingState] = useState(null);
 
-  // Always a *full R2 key* like: "clips/myvideo.mp4"
   const [previewKey, setPreviewKey] = useState(null);
-
-  // 🔧 NEW: Media ref to control preview playback
   const previewMediaRef = useRef(null);
 
   /** -------------------------------------------
    * LIST CLIPS
    * ------------------------------------------- */
   async function refreshClips() {
+    if (!isActive) return; // 🔥 Guard everything
     setLoadingList(true);
     try {
       const items = await listClips();
@@ -47,18 +50,16 @@ export default function ControllerPage() {
 
   /** -------------------------------------------
    * NOW PLAYING NORMALIZATION
-   * Server returns shape: { key, type, updatedAt } or null
-   * We convert to always "clips/<key>"
    * ------------------------------------------- */
   async function refreshNowPlaying() {
+    if (!isActive) return; // 🔥 Guard everything
     try {
-      const np = await getNowPlaying(); // { key, type, updatedAt } or null
+      const np = await getNowPlaying();
       console.log("[LW Controller] getNowPlaying ->", np);
 
       if (np && np.key) {
         const bare = np.key.replace(/^clips\//, "");
         const fullKey = `clips/${bare}`;
-
         const normalized = { ...np, key: fullKey };
         setNowPlayingState(normalized);
         setPreviewKey(fullKey);
@@ -71,15 +72,31 @@ export default function ControllerPage() {
     }
   }
 
+  /** -------------------------------------------
+   * CONTROLLER LOGIC (GUARDED BY ROUTE)
+   * ------------------------------------------- */
   useEffect(() => {
+    if (!isActive) {
+      console.log("[LW Controller] Page NOT active — controller disabled.");
+      return;
+    }
+
+    console.log("[LW Controller] Controller ACTIVE on route '/'");
+
     refreshClips();
     refreshNowPlaying();
-  }, []);
+
+    return () => {
+      console.log("[LW Controller] Controller UNMOUNTED (leaving '/')");
+    };
+  }, [isActive]);
 
   /** -------------------------------------------
    * UPLOAD
    * ------------------------------------------- */
   const handleFileChange = async (evt) => {
+    if (!isActive) return; // 🔥 Guard
+
     const file = evt.target.files?.[0];
     if (!file) return;
 
@@ -90,7 +107,6 @@ export default function ControllerPage() {
       const res = await uploadClip(file, (pct) => setUploadProgress(pct));
       console.log("[LW Controller] uploadClip ->", res);
 
-      // res.key is ALWAYS full R2 key (clips/filename)
       setUploadMessage("Your file has been uploaded.");
       await refreshClips();
       setPreviewKey(res.key);
@@ -107,6 +123,8 @@ export default function ControllerPage() {
    * DELETE
    * ------------------------------------------- */
   const handleDelete = async (key) => {
+    if (!isActive) return; // 🔥 Guard
+
     setDeleteMessage("");
     try {
       console.log("[LW Controller] deleteClip", key);
@@ -127,16 +145,14 @@ export default function ControllerPage() {
    * PLAY (SHOW/PLAY)
    * ------------------------------------------- */
   const handlePlay = async (key) => {
+    if (!isActive) return; // 🔥 Guard
+
     try {
       console.log("[LW Controller] setNowPlaying ->", key);
       const np = await setNowPlaying(key);
 
-      // np.key from server may be bare "filename.mp4"
       const normalized = np?.key
-        ? {
-            ...np,
-            key, // force full correct key ("clips/<file>")
-          }
+        ? { ...np, key }
         : np;
 
       setNowPlayingState(normalized);
@@ -150,10 +166,11 @@ export default function ControllerPage() {
    * STOP (HIDE)
    * ------------------------------------------- */
   const handleStop = async () => {
+    if (!isActive) return; // 🔥 Guard
+
     try {
       console.log("[LW Controller] setNowPlaying -> null (STOP/HIDE)");
 
-      // 🔧 NEW: Stop preview audio/video
       if (previewMediaRef.current) {
         try {
           previewMediaRef.current.pause();
@@ -180,9 +197,7 @@ export default function ControllerPage() {
 
   return (
     <div className="lw-console">
-      {/* -------------------------------------- */}
       {/* UPLOAD PANEL */}
-      {/* -------------------------------------- */}
       <section className="lw-panel lw-panel-upload">
         <h2 className="lw-panel-title">UPLOAD CLIP</h2>
 
@@ -209,17 +224,11 @@ export default function ControllerPage() {
           </div>
         )}
 
-        {uploadMessage && (
-          <div className="lw-status-line">{uploadMessage}</div>
-        )}
-        {deleteMessage && (
-          <div className="lw-status-line">{deleteMessage}</div>
-        )}
+        {uploadMessage && <div className="lw-status-line">{uploadMessage}</div>}
+        {deleteMessage && <div className="lw-status-line">{deleteMessage}</div>}
       </section>
 
-      {/* -------------------------------------- */}
       {/* LIBRARY PANEL */}
-      {/* -------------------------------------- */}
       <section className="lw-panel lw-panel-library">
         <h2 className="lw-panel-title">CLIP LIBRARY</h2>
         {loadingList && <div className="lw-status-line">LOADING...</div>}
@@ -227,8 +236,6 @@ export default function ControllerPage() {
         <div className="lw-clip-list">
           {clips.map((clip) => {
             const type = clipTypeFromKey(clip.key);
-
-            // Correct highlight: both sides now use full "clips/<file>"
             const isNow = nowPlaying?.key === clip.key;
 
             return (
@@ -287,14 +294,14 @@ export default function ControllerPage() {
         </div>
       </section>
 
-      {/* -------------------------------------- */}
       {/* PREVIEW PANEL */}
-      {/* -------------------------------------- */}
       <section className="lw-panel lw-panel-preview">
         <h2 className="lw-panel-title">AUDIENCE PREVIEW</h2>
 
         <div className="lw-preview-frame">
-          {!previewUrl && <div className="lw-preview-placeholder">NO CLIP</div>}
+          {!previewUrl && (
+            <div className="lw-preview-placeholder">NO CLIP</div>
+          )}
 
           {previewUrl && previewType === "image" && (
             <img src={previewUrl} alt="Preview" className="lw-preview-media" />
