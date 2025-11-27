@@ -1,101 +1,96 @@
-// src/App.jsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Routes, Route, NavLink } from "react-router-dom";
-import ControllerPage from "./pages/Controller.jsx";
-import PlayerPage from "./pages/PlayerPage.jsx";
-import MissionManagerPage from "./pages/MissionManagerPage.jsx"; // ⬅ NEW
-import { LogoMark } from "./components/LogoMark.jsx";
-import AccessGate from "./pages/AccessGate.jsx";
 
-function App() {
-  // -------------------------------------------------------------
-  // 24-hour automatic unlock using localStorage
-  // -------------------------------------------------------------
-  const [unlocked, setUnlocked] = useState(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem("lw_access"));
-      if (!saved) return false;
-      if (saved.unlocked && saved.expires > Date.now()) {
-        return true;
-      }
-    } catch {}
-    return false;
-  });
+import ControllerPage from "./pages/Controller";
+import PlayerPage from "./pages/Player";
+import MissionManagerPage from "./pages/MissionManagerPage";
 
-  // -------------------------------------------------------------
-  // Show AccessGate until unlocked
-  // -------------------------------------------------------------
-  if (!unlocked) {
+// NEW IMPORT
+import PrivacyPolicy from "./pages/PrivacyPolicy.jsx";
+
+export default function App() {
+  const [hasBooted, setHasBooted] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setHasBooted(true), 2000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (!hasBooted) {
     return (
-      <AccessGate
-        onUnlock={() => {
-          const expires = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
-          localStorage.setItem(
-            "lw_access",
-            JSON.stringify({ unlocked: true, expires })
-          );
-          setUnlocked(true);
-        }}
-      />
+      <div className="boot-container">
+        <div className="boot-text">
+          <p>BOOTING LANTERNWAVE TERMINAL...</p>
+          <p>INITIALIZING SYSTEM MODULES…</p>
+          <p>LOADING DIRECTOR AI INTERFACE…</p>
+        </div>
+      </div>
     );
   }
 
-  // -------------------------------------------------------------
-  // Main Lanternwave app
-  // -------------------------------------------------------------
   return (
-    <div className="lw-root">
-      <header className="lw-header">
-        <div className="lw-header-left">
-          <LogoMark />
-          <div className="lw-title-block">
-            <h1 className="lw-app-title">LANTERNWAVE</h1>
-            <p className="lw-app-subtitle">Control Console</p>
-          </div>
-        </div>
+    <div className="app-container">
+      {/* Top Navigation */}
+      <nav className="top-nav">
+        <NavLink
+          to="/"
+          className={({ isActive }) =>
+            isActive ? "nav-button active" : "nav-button"
+          }
+        >
+          Host Console
+        </NavLink>
 
-        <nav className="lw-nav">
+        <NavLink
+          to="/player"
+          className={({ isActive }) =>
+            isActive ? "nav-button active" : "nav-button"
+          }
+        >
+          Player Viewer
+        </NavLink>
 
-          {/* NEW BUTTON */}
-          <NavLink
-            to="/mission-manager"
-            className={({ isActive }) =>
-              "lw-nav-link" + (isActive ? " lw-nav-link-active" : "")
-            }
-          >
-            Mission Manager
-          </NavLink>
+        <NavLink
+          to="/mission-manager"
+          className={({ isActive }) =>
+            isActive ? "nav-button active" : "nav-button"
+          }
+        >
+          Mission Manager
+        </NavLink>
+      </nav>
 
-          <NavLink
-            to="/"
-            end
-            className={({ isActive }) =>
-              "lw-nav-link" + (isActive ? " lw-nav-link-active" : "")
-            }
-          >
-            Host Console
-          </NavLink>
+      {/* Page Routes */}
+      <Routes>
+        <Route path="/" element={<ControllerPage />} />
+        <Route path="/player" element={<PlayerPage />} />
+        <Route path="/mission-manager" element={<MissionManagerPage />} />
 
-          <NavLink
-            to="/player"
-            className={({ isActive }) =>
-              "lw-nav-link" + (isActive ? " lw-nav-link-active" : "")
-            }
-          >
-            Player Viewer
-          </NavLink>
-        </nav>
-      </header>
+        {/* NEW PRIVACY POLICY ROUTE */}
+        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+      </Routes>
 
-      <main className="lw-main">
-        <Routes>
-          <Route path="/" element={<ControllerPage />} />
-          <Route path="/player" element={<PlayerPage />} />
-          <Route path="/mission-manager" element={<MissionManagerPage />} />
-        </Routes>
-      </main>
+      {/* NEW FOOTER FOR TWILIO COMPLIANCE */}
+      <footer
+        style={{
+          marginTop: "40px",
+          padding: "20px",
+          textAlign: "center",
+          borderTop: "1px solid #333",
+          opacity: 0.8,
+        }}
+      >
+        <a
+          href="/privacy-policy"
+          style={{
+            color: "#6cc5f0",
+            fontSize: "0.9rem",
+            textDecoration: "underline",
+          }}
+        >
+          Privacy Policy
+        </a>
+      </footer>
     </div>
   );
 }
-
-export default App;
