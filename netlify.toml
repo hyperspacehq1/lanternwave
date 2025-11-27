@@ -14,3 +14,11 @@
   to = "/index.html"
   status = 200
 
+[[redirects]]
+  from = "/mission-manager"
+  to = "/index.html"
+  status = 200
+
+
+
+
