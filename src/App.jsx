@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { Routes, Route, NavLink } from "react-router-dom";
 
-import ControllerPage from "./pages/Controller";
-import PlayerPage from "./pages/Player";
-import MissionManagerPage from "./pages/MissionManagerPage";
+import ControllerPage from "./pages/Controller.jsx";
+import PlayerPage from "./pages/PlayerPage.jsx";        // ✅ FIXED IMPORT
+import MissionManagerPage from "./pages/MissionManagerPage.jsx";
 
 // NEW IMPORT
 import PrivacyPolicy from "./pages/PrivacyPolicy.jsx";
@@ -70,7 +70,7 @@ export default function App() {
         <Route path="/privacy-policy" element={<PrivacyPolicy />} />
       </Routes>
 
-      {/* NEW FOOTER FOR TWILIO COMPLIANCE */}
+      {/* FOOTER FOR TWILIO A2P COMPLIANCE */}
       <footer
         style={{
           marginTop: "40px",
