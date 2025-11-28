@@ -1,96 +1,92 @@
-import React, { useState, useEffect } from "react";
-import { Routes, Route, NavLink } from "react-router-dom";
+// src/App.jsx
+import { Routes, Route, Link, useLocation } from "react-router-dom";
 
-import ControllerPage from "./pages/Controller.jsx";
-import PlayerPage from "./pages/PlayerPage.jsx";        // ✅ FIXED IMPORT
+// FIXED PATHS — All pages are in /src/pages/
+import AccessGate from "./pages/AccessGate.jsx";
+import Controller from "./pages/Controller.jsx";
+import PlayerPage from "./pages/PlayerPage.jsx";
 import MissionManagerPage from "./pages/MissionManagerPage.jsx";
-
-// NEW IMPORT
 import PrivacyPolicy from "./pages/PrivacyPolicy.jsx";
 
 export default function App() {
-  const [hasBooted, setHasBooted] = useState(false);
+  const location = useLocation();
 
-  useEffect(() => {
-    const timer = setTimeout(() => setHasBooted(true), 2000);
-    return () => clearTimeout(timer);
-  }, []);
-
-  if (!hasBooted) {
-    return (
-      <div className="boot-container">
-        <div className="boot-text">
-          <p>BOOTING LANTERNWAVE TERMINAL...</p>
-          <p>INITIALIZING SYSTEM MODULES…</p>
-          <p>LOADING DIRECTOR AI INTERFACE…</p>
-        </div>
-      </div>
-    );
-  }
+  const showNav =
+    location.pathname !== "/" &&
+    location.pathname !== "/access" &&
+    location.pathname !== "/privacy-policy";
 
   return (
-    <div className="app-container">
+    <div className="lw-root">
+
       {/* Top Navigation */}
-      <nav className="top-nav">
-        <NavLink
-          to="/"
-          className={({ isActive }) =>
-            isActive ? "nav-button active" : "nav-button"
-          }
-        >
-          Host Console
-        </NavLink>
+      {showNav && (
+        <header className="lw-header">
+          <div className="lw-header-left">
+            <Link to="/" className="lw-logo-wrap">
+              <img src="/lanterwave-logo.png" className="lw-logo" />
+            </Link>
 
-        <NavLink
-          to="/player"
-          className={({ isActive }) =>
-            isActive ? "nav-button active" : "nav-button"
-          }
-        >
-          Player Viewer
-        </NavLink>
+            <div className="lw-title-block">
+              <p className="lw-app-title">LANTERNWAVE</p>
+              <p className="lw-app-subtitle">AUDIO / VISUAL CONTROL NODE</p>
+            </div>
+          </div>
 
-        <NavLink
-          to="/mission-manager"
-          className={({ isActive }) =>
-            isActive ? "nav-button active" : "nav-button"
-          }
-        >
-          Mission Manager
-        </NavLink>
-      </nav>
+          <nav className="lw-nav">
+            <Link
+              to="/"
+              className={`lw-nav-link ${
+                location.pathname === "/" ? "lw-nav-link-active" : ""
+              }`}
+            >
+              Host Console
+            </Link>
 
-      {/* Page Routes */}
-      <Routes>
-        <Route path="/" element={<ControllerPage />} />
-        <Route path="/player" element={<PlayerPage />} />
-        <Route path="/mission-manager" element={<MissionManagerPage />} />
+            <Link
+              to="/player"
+              className={`lw-nav-link ${
+                location.pathname === "/player" ? "lw-nav-link-active" : ""
+              }`}
+            >
+              Player Viewer
+            </Link>
 
-        {/* NEW PRIVACY POLICY ROUTE */}
-        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-      </Routes>
+            <Link
+              to="/mission-manager"
+              className={`lw-nav-link ${
+                location.pathname === "/mission-manager" ? "lw-nav-link-active" : ""
+              }`}
+            >
+              Mission Manager
+            </Link>
+          </nav>
+        </header>
+      )}
 
-      {/* FOOTER FOR TWILIO A2P COMPLIANCE */}
-      <footer
-        style={{
-          marginTop: "40px",
-          padding: "20px",
-          textAlign: "center",
-          borderTop: "1px solid #333",
-          opacity: 0.8,
-        }}
-      >
-        <a
-          href="/privacy-policy"
-          style={{
-            color: "#6cc5f0",
-            fontSize: "0.9rem",
-            textDecoration: "underline",
-          }}
-        >
-          Privacy Policy
-        </a>
-      </footer>
+      {/* Routes */}
+      <main className="lw-main">
+        <Routes>
+          <Route path="/" element={<AccessGate />} />
+          <Route path="/access" element={<AccessGate />} />
+
+          {/* FIXED: Privacy Policy route */}
+          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+
+          <Route path="/player" element={<PlayerPage />} />
+
+          <Route
+            path="/mission-manager"
+            element={<MissionManagerPage />}
+          />
+
+          {/* Fallback */}
+          <Route
+            path="*"
+            element={<div style={{ color: "white" }}>404 — Page Not Found</div>}
+          />
+        </Routes>
+      </main>
     </div>
   );
 }
