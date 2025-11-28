@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { Routes, Route, NavLink } from "react-router-dom";
 
-import ControllerPage from "./pages/Controller";
-import PlayerPage from "./pages/PlayerPage";
-import MissionManagerPage from "./pages/MissionManagerPage";
+import ControllerPage from "./pages/Controller.jsx";
+import PlayerPage from "./pages/PlayerPage.jsx";        // ✅ FIXED IMPORT
+import MissionManagerPage from "./pages/MissionManagerPage.jsx";
+
+// NEW IMPORT
+import PrivacyPolicy from "./pages/PrivacyPolicy.jsx";
 
 export default function App() {
   const [hasBooted, setHasBooted] = useState(false);
@@ -62,8 +65,32 @@ export default function App() {
         <Route path="/" element={<ControllerPage />} />
         <Route path="/player" element={<PlayerPage />} />
         <Route path="/mission-manager" element={<MissionManagerPage />} />
+
+        {/* NEW PRIVACY POLICY ROUTE */}
+        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
       </Routes>
+
+      {/* FOOTER FOR TWILIO A2P COMPLIANCE */}
+      <footer
+        style={{
+          marginTop: "40px",
+          padding: "20px",
+          textAlign: "center",
+          borderTop: "1px solid #333",
+          opacity: 0.8,
+        }}
+      >
+        <a
+          href="/privacy-policy"
+          style={{
+            color: "#6cc5f0",
+            fontSize: "0.9rem",
+            textDecoration: "underline",
+          }}
+        >
+          Privacy Policy
+        </a>
+      </footer>
     </div>
   );
 }
-
