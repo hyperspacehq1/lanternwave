@@ -9,11 +9,8 @@ import PrivacyPolicy from "./pages/PrivacyPolicy.jsx";
 
 export default function App() {
   const location = useLocation();
-
-  // NEW — unlock state so AccessGate can disappear
   const [unlocked, setUnlocked] = useState(false);
 
-  // Show nav ONLY when inside the authenticated app
   const showNav =
     location.pathname !== "/" &&
     location.pathname !== "/access" &&
@@ -21,15 +18,24 @@ export default function App() {
 
   return (
     <div className="lw-root">
-
-      {/* Navigation — Hidden on the Access Gate */}
       {showNav && (
         <header className="lw-header">
+          <div className="lw-header-left">
+            <div className="lw-logo-wrap">
+              <img src="/lanterwave-logo.png" className="lw-logo" />
+            </div>
+
+            <div className="lw-title-block">
+              <h1 className="lw-app-title">LANTERNWAVE</h1>
+              <div className="lw-app-subtitle">CONTROL INTERFACE</div>
+            </div>
+          </div>
+
           <nav className="lw-nav">
             <NavLink
               to="/"
               className={({ isActive }) =>
-                isActive ? "lw-nav-item active" : "lw-nav-item"
+                isActive ? "lw-nav-link lw-nav-link-active" : "lw-nav-link"
               }
             >
               Host Console
@@ -38,7 +44,7 @@ export default function App() {
             <NavLink
               to="/player"
               className={({ isActive }) =>
-                isActive ? "lw-nav-item active" : "lw-nav-item"
+                isActive ? "lw-nav-link lw-nav-link-active" : "lw-nav-link"
               }
             >
               Player Viewer
@@ -47,7 +53,7 @@ export default function App() {
             <NavLink
               to="/mission-manager"
               className={({ isActive }) =>
-                isActive ? "lw-nav-item active" : "lw-nav-item"
+                isActive ? "lw-nav-link lw-nav-link-active" : "lw-nav-link"
               }
             >
               Mission Manager
@@ -58,8 +64,6 @@ export default function App() {
 
       <main className="lw-main">
         <Routes>
-
-          {/* ROOT ACCESS ROUTE */}
           <Route
             path="/"
             element={
@@ -71,7 +75,6 @@ export default function App() {
             }
           />
 
-          {/* OPTIONAL ACCESS ROUTE */}
           <Route
             path="/access"
             element={
@@ -83,16 +86,10 @@ export default function App() {
             }
           />
 
-          {/* PLAYER PAGE */}
           <Route path="/player" element={<PlayerPage />} />
-
-          {/* MISSION MANAGER */}
           <Route path="/mission-manager" element={<MissionManagerPage />} />
-
-          {/* PRIVACY POLICY */}
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
 
-          {/* FAILSAFE 404 */}
           <Route
             path="*"
             element={
