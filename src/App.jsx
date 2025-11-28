@@ -1,7 +1,6 @@
-// src/App.jsx
-import { Routes, Route, Link, useLocation } from "react-router-dom";
+import React, { useState } from "react";
+import { Routes, Route, NavLink, useLocation } from "react-router-dom";
 
-// FIXED PATHS — All pages are in /src/pages/
 import AccessGate from "./pages/AccessGate.jsx";
 import Controller from "./pages/Controller.jsx";
 import PlayerPage from "./pages/PlayerPage.jsx";
@@ -11,6 +10,10 @@ import PrivacyPolicy from "./pages/PrivacyPolicy.jsx";
 export default function App() {
   const location = useLocation();
 
+  // NEW — unlock state so AccessGate can disappear
+  const [unlocked, setUnlocked] = useState(false);
+
+  // Show nav ONLY when inside the authenticated app
   const showNav =
     location.pathname !== "/" &&
     location.pathname !== "/access" &&
@@ -19,71 +22,84 @@ export default function App() {
   return (
     <div className="lw-root">
 
-      {/* Top Navigation */}
+      {/* Navigation — Hidden on the Access Gate */}
       {showNav && (
         <header className="lw-header">
-          <div className="lw-header-left">
-            <Link to="/" className="lw-logo-wrap">
-              <img src="/lanterwave-logo.png" className="lw-logo" />
-            </Link>
-
-            <div className="lw-title-block">
-              <p className="lw-app-title">LANTERNWAVE</p>
-              <p className="lw-app-subtitle">AUDIO / VISUAL CONTROL NODE</p>
-            </div>
-          </div>
-
           <nav className="lw-nav">
-            <Link
+            <NavLink
               to="/"
-              className={`lw-nav-link ${
-                location.pathname === "/" ? "lw-nav-link-active" : ""
-              }`}
+              className={({ isActive }) =>
+                isActive ? "lw-nav-item active" : "lw-nav-item"
+              }
             >
               Host Console
-            </Link>
+            </NavLink>
 
-            <Link
+            <NavLink
               to="/player"
-              className={`lw-nav-link ${
-                location.pathname === "/player" ? "lw-nav-link-active" : ""
-              }`}
+              className={({ isActive }) =>
+                isActive ? "lw-nav-item active" : "lw-nav-item"
+              }
             >
               Player Viewer
-            </Link>
+            </NavLink>
 
-            <Link
+            <NavLink
               to="/mission-manager"
-              className={`lw-nav-link ${
-                location.pathname === "/mission-manager" ? "lw-nav-link-active" : ""
-              }`}
+              className={({ isActive }) =>
+                isActive ? "lw-nav-item active" : "lw-nav-item"
+              }
             >
               Mission Manager
-            </Link>
+            </NavLink>
           </nav>
         </header>
       )}
 
-      {/* Routes */}
       <main className="lw-main">
         <Routes>
-          <Route path="/" element={<AccessGate />} />
-          <Route path="/access" element={<AccessGate />} />
 
-          {/* FIXED: Privacy Policy route */}
-          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-
-          <Route path="/player" element={<PlayerPage />} />
-
+          {/* ROOT ACCESS ROUTE */}
           <Route
-            path="/mission-manager"
-            element={<MissionManagerPage />}
+            path="/"
+            element={
+              unlocked ? (
+                <Controller />
+              ) : (
+                <AccessGate onUnlock={() => setUnlocked(true)} />
+              )
+            }
           />
 
-          {/* Fallback */}
+          {/* OPTIONAL ACCESS ROUTE */}
+          <Route
+            path="/access"
+            element={
+              unlocked ? (
+                <Controller />
+              ) : (
+                <AccessGate onUnlock={() => setUnlocked(true)} />
+              )
+            }
+          />
+
+          {/* PLAYER PAGE */}
+          <Route path="/player" element={<PlayerPage />} />
+
+          {/* MISSION MANAGER */}
+          <Route path="/mission-manager" element={<MissionManagerPage />} />
+
+          {/* PRIVACY POLICY */}
+          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+
+          {/* FAILSAFE 404 */}
           <Route
             path="*"
-            element={<div style={{ color: "white" }}>404 — Page Not Found</div>}
+            element={
+              <div style={{ color: "white", padding: "40px" }}>
+                404 — Page Not Found
+              </div>
+            }
           />
         </Routes>
       </main>
