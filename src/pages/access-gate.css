@@ -1,6 +1,6 @@
 /* ============================================================
    LANTERNWAVE – ACCESS GATE / BOOT SEQUENCE
-   Now fully override-safe using .boot-screen and namespace
+   Now fully override-safe using .boot-screen namespace
 ============================================================ */
 
 /* Fullscreen boot wrapper */
@@ -14,10 +14,10 @@
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  z-index: 10000; /* force above global app */
+  z-index: 10000;
 }
 
-/* Fade-out on approval */
+/* Fade-out transition */
 .boot-screen.boot-screen-fade {
   animation: boot-fade-out 0.9s ease-in-out forwards;
 }
@@ -29,7 +29,7 @@
   }
 }
 
-/* Scanlines + grain */
+/* Scanlines + grain overlays */
 .boot-screen::before,
 .boot-screen::after {
   content: "";
@@ -67,9 +67,18 @@
 }
 
 @keyframes boot-intro-pulse {
-  0% { opacity: 0.5; transform: scale(0.98); }
-  50% { opacity: 1;   transform: scale(1); }
-  100% { opacity: 0.5; transform: scale(0.98); }
+  0% {
+    opacity: 0.5;
+    transform: scale(0.98);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0.5;
+    transform: scale(0.98);
+  }
 }
 
 .boot-screen .boot-logo-wrap {
@@ -98,12 +107,12 @@
 }
 
 @keyframes boot-logo-glow {
-  from {
+  0% {
     filter:
       drop-shadow(0 0 10px rgba(108, 196, 23, 0.7))
       drop-shadow(0 0 22px rgba(108, 196, 23, 0.25));
   }
-  to {
+  100% {
     filter:
       drop-shadow(0 0 18px rgba(108, 196, 23, 1))
       drop-shadow(0 0 40px rgba(108, 196, 23, 0.5));
@@ -216,3 +225,177 @@
   font-size: 1.4rem;
   padding: 10px 14px;
   width: 280px;
+  border-radius: 8px;
+  outline: none;
+  box-shadow: 0 0 14px rgba(108, 196, 23, 0.6);
+}
+
+.boot-screen .boot-code-button {
+  margin-top: 0.2rem;
+  padding: 8px 22px;
+  border-radius: 999px;
+  border: 1px solid #8aff8a;
+  background: radial-gradient(circle at center, #1b2f1b 0%, #071007 80%);
+  color: #c7f8c7;
+  font-family: "MU-TH-UR", system-ui, sans-serif !important;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: 0.18s ease;
+}
+
+.boot-screen .boot-code-button:hover {
+  box-shadow: 0 0 18px rgba(108, 196, 23, 0.9);
+  transform: translateY(-1px);
+}
+
+.boot-screen .boot-error {
+  margin-top: 0.4rem;
+  font-size: 0.9rem;
+  color: #ff6666;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.boot-screen .boot-approved {
+  margin-top: auto;
+  text-align: center;
+  font-family: "MU-TH-UR", system-ui, sans-serif !important;
+  font-size: 2.1rem;
+  letter-spacing: 0.32em;
+  color: #bdfcbd;
+  animation: boot-approved-pulse 1.2s infinite ease-in-out;
+}
+
+@keyframes boot-approved-pulse {
+  0% {
+    text-shadow: 0 0 10px #8aff8a;
+  }
+  100% {
+    text-shadow: 0 0 26px #d8ffd8;
+  }
+}
+
+/* ============================================================
+   PRIVACY POLICY BUTTON
+============================================================ */
+
+.boot-screen .boot-privacy-button {
+  position: fixed;
+  top: 20px;
+  right: 22px;
+  z-index: 11000;
+  border-radius: 999px;
+  border: 1px solid rgba(108, 196, 23, 0.7);
+  background: rgba(0, 0, 0, 0.85);
+  padding: 6px 14px;
+  font-size: 0.7rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #c7f8c7 !important;
+  cursor: pointer;
+  font-family: "MU-TH-UR", system-ui, sans-serif !important;
+}
+
+/* ============================================================
+   PRIVACY MODAL
+============================================================ */
+
+.boot-privacy-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 20000;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.boot-privacy-modal {
+  width: 80%;
+  max-width: 900px;
+  max-height: 80vh;
+  background: #010801;
+  border-radius: 8px;
+  border: 1px solid #8aff8a;
+  box-shadow: 0 0 28px rgba(140, 255, 140, 0.5);
+  position: relative;
+  padding: 20px;
+  overflow: hidden;
+}
+
+.boot-privacy-close {
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  font-size: 1.5rem;
+  background: transparent;
+  border: none;
+  color: #c8ffc8 !important;
+  cursor: pointer;
+}
+
+.boot-privacy-content {
+  max-height: 72vh;
+  overflow-y: auto;
+}
+
+.boot-privacy-text {
+  color: #c7f8c7 !important;
+  font-family: "VT323", monospace !important;
+  font-size: 1.05rem;
+  line-height: 1.45rem;
+}
+
+.boot-privacy-text h1,
+.boot-privacy-text h2,
+.boot-privacy-text h3 {
+  font-family: "MU-TH-UR", system-ui, sans-serif !important;
+  color: #8cff8c !important;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  margin-top: 1.4rem;
+}
+
+.boot-privacy-text hr {
+  border: none;
+  border-top: 1px solid rgba(108,196,23,0.4);
+  margin: 1.4rem 0;
+}
+
+.boot-privacy-text a {
+  color: #8cff8c !important;
+  text-decoration: underline;
+}
+
+.boot-pre {
+  background: rgba(0,0,0,0.6);
+  border: 1px solid rgba(108,196,23,0.4);
+  padding: 12px;
+  border-radius: 6px;
+  white-space: pre-wrap;
+  color: #bdfcbd !important;
+}
+
+/* ============================================================
+   RESPONSIVE
+============================================================ */
+
+@media (max-width: 768px) {
+  .boot-screen .boot-terminal-frame {
+    width: 90%;
+    height: 70vh;
+    padding: 18px;
+  }
+
+  .boot-screen .boot-title {
+    font-size: 1.1rem;
+  }
+
+  .boot-screen .boot-code-input {
+    width: 240px;
+    font-size: 1.2rem;
+  }
+}
