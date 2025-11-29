@@ -1,557 +1,463 @@
-// src/pages/MissionManagerPage.jsx
+// ================================================
+// MissionManagerPage.jsx — CLEAN & PATCHED
+// ================================================
 import React, { useEffect, useState } from "react";
+
 import {
-  getStoredAdminKey,
-  setStoredAdminKey,
   listSessions,
   createSession,
-  getSession,
-  updateSession,
-  resetSession,
   listSessionPlayers,
-  addSessionPlayer,
-  removeSessionPlayer,
+  addPlayerToSession,
+  removePlayer,
   listSessionEvents,
-  listSessionLogs,
+  createSessionEvent,
+  updateSessionEvent,
+  archiveSessionEvent,
+  listNPCsForMission,
+  getNPCState,
+  listSessionMessages,
 } from "../lib/mission-api.js";
 
-const inputStyle = {
-  width: "100%",
-  padding: "4px",
-  fontSize: "0.8rem",
-  background: "black",
-  color: "var(--lw-green)",
-  border: "1px solid var(--lw-green-dim)",
-};
-
-const activeTabStyle = {
-  background: "var(--lw-green)",
-  color: "black",
-};
+import EventModal from "../components/EventModal.jsx";
+import EventEditor from "../components/EventEditor.jsx"; // <-- ensure this exists
 
 export default function MissionManagerPage() {
-  const [adminKey, setAdminKey] = useState(getStoredAdminKey());
-  const [adminEntered, setAdminEntered] = useState(!!getStoredAdminKey());
-
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  // CREATE SESSION FORM
-  const [missionId, setMissionId] = useState("");
-  const [sessionName, setSessionName] = useState("");
-  const [gmNotes, setGmNotes] = useState("");
-
-  // SESSION LIST
+  // -------------------------------------------------------
+  // STATE
+  // -------------------------------------------------------
   const [sessions, setSessions] = useState([]);
   const [selectedSession, setSelectedSession] = useState(null);
+  const [selectedSessionId, setSelectedSessionId] = useState(null);
 
-  // TABS
-  const [tab, setTab] = useState("players");
+  // CREATE SESSION
+  const [missionIdInput, setMissionIdInput] = useState("");
+  const [sessionNameInput, setSessionNameInput] = useState("");
+  const [gmNotesInput, setGmNotesInput] = useState("");
 
+  // PLAYERS
+  const [players, setPlayers] = useState([]);
+  const [newPlayerName, setNewPlayerName] = useState("");
+  const [newPlayerPhone, setNewPlayerPhone] = useState("");
+
+  // EVENTS
+  const [events, setEvents] = useState([]);
+  const [selectedEventId, setSelectedEventId] = useState(null);
+
+  // EVENT MODAL
+  const [eventModalOpen, setEventModalOpen] = useState(false);
+  const [editEvent, setEditEvent] = useState(null);
+
+  // LOGS
+  const [logs, setLogs] = useState([]);
+
+  // NPCS
+  const [npcs, setNpcs] = useState([]);
+  const [npcStateView, setNpcStateView] = useState(null);
+
+  // -------------------------------------------------------
+  // INITIAL LOAD
+  // -------------------------------------------------------
   useEffect(() => {
-    if (adminEntered) {
-      refreshSessions();
-    }
-  }, [adminEntered]);
+    refreshSessions();
+  }, []);
 
   async function refreshSessions() {
     try {
-      setLoading(true);
       const data = await listSessions();
-      setSessions(data || []);
-    } catch (e) {
-      console.error("refreshSessions error:", e);
-      setError("Failed to load sessions.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  function handleAdminKeySubmit(e) {
-    e.preventDefault();
-    setError("");
-
-    console.log("[MissionManager] Admin key submitted:", adminKey);
-
-    if (!adminKey.trim()) {
-      setError("Admin Key is required.");
-      return;
-    }
-
-    setStoredAdminKey(adminKey.trim());
-    setAdminEntered(true);
-  }
-
-  // CREATE SESSION
-  const handleCreateSession = async (e) => {
-    e.preventDefault();
-    setError("");
-
-    console.log(
-      "[MissionManager] Create clicked",
-      "missionId =", missionId,
-      "sessionName =", sessionName
-    );
-
-    // Validate INPUT — prevent silent failure
-    if (!missionId || Number(missionId) < 1) {
-      setError("Mission ID must be ≥ 1.");
-      console.warn("[MissionManager] Create blocked: invalid missionId");
-      return;
-    }
-
-    if (!sessionName.trim()) {
-      setError("Session Name is required.");
-      console.warn("[MissionManager] Create blocked: empty sessionName");
-      return;
-    }
-
-    try {
-      const mid = Number(missionId);
-      console.log("[MissionManager] Calling createSession:", mid, sessionName);
-
-      await createSession(mid, sessionName.trim(), gmNotes.trim());
-      console.log("[MissionManager] createSession SUCCESS");
-
-      setMissionId("");
-      setSessionName("");
-      setGmNotes("");
-      refreshSessions();
+      setSessions(data.sessions || []);
     } catch (err) {
-      console.error("[MissionManager] createSession ERROR:", err);
-      setError("Create Session failed: " + err.message);
+      console.error("Failed to load sessions", err);
     }
-  };
+  }
 
-  // LOAD SESSION DETAILS
-  async function loadSessionDetails(id) {
+  // -------------------------------------------------------
+  // SELECT SESSION
+  // -------------------------------------------------------
+  async function handleSelectSession(session) {
     try {
-      setLoading(true);
+      setSelectedSession(session);
+      setSelectedSessionId(session.id);
 
-      const session = await getSession(id);
-      const players = await listSessionPlayers(id);
-      const events = await listSessionEvents(id);
-      const logs = await listSessionLogs(id);
+      await refreshPlayers(session.id);
+      await refreshEvents(session.id);
+      await refreshLogs(session.id);
 
-      setSelectedSession({
-        ...session,
-        players,
-        events,
-        logs,
-      });
-
-      console.log("[MissionManager] Loaded session:", session);
-    } catch (e) {
-      console.error("loadSessionDetails ERROR:", e);
-      setError("Failed to load session details.");
-    } finally {
-      setLoading(false);
+      if (session.mission_id) {
+        const missionNPCs = await listNPCsForMission(session.mission_id);
+        setNpcs(missionNPCs.npcs || []);
+      }
+    } catch (err) {
+      console.error("Failed to load session details", err);
     }
   }
 
-  // MIN UTILITY: Prevent negative inputs
-  function enforceMinPositive(val, setter) {
-    const num = Number(val);
-    if (num >= 1) setter(String(num));
+  // -------------------------------------------------------
+  // CREATE SESSION
+  // -------------------------------------------------------
+  async function handleCreateSession() {
+    try {
+      const mid = Number(missionIdInput);
+      if (!mid || !sessionNameInput.trim()) {
+        alert("Mission ID and Session Name are required.");
+        return;
+      }
+
+      await createSession(
+        mid,
+        sessionNameInput.trim(),
+        gmNotesInput.trim()
+      );
+
+      setMissionIdInput("");
+      setSessionNameInput("");
+      setGmNotesInput("");
+
+      await refreshSessions();
+    } catch (err) {
+      console.error("Create session failed", err);
+      alert("Create session failed.");
+    }
   }
 
+  // -------------------------------------------------------
+  // PLAYERS
+  // -------------------------------------------------------
+  async function refreshPlayers(sessionId) {
+    try {
+      const res = await listSessionPlayers(sessionId);
+      setPlayers(res.players || []);
+    } catch (err) {
+      console.error("Failed to load players", err);
+    }
+  }
+
+  async function handleAddPlayer() {
+    if (!newPlayerName.trim() || !newPlayerPhone.trim()) {
+      alert("Player name & phone required");
+      return;
+    }
+    try {
+      await addPlayerToSession(
+        selectedSessionId,
+        newPlayerName.trim(),
+        newPlayerPhone.trim()
+      );
+
+      setNewPlayerName("");
+      setNewPlayerPhone("");
+
+      await refreshPlayers(selectedSessionId);
+    } catch (err) {
+      console.error("Failed to add player", err);
+    }
+  }
+
+  async function handleRemovePlayer(player) {
+    try {
+      await removePlayer(player.id);
+      await refreshPlayers(selectedSessionId);
+    } catch (err) {
+      console.error("Failed to remove player", err);
+    }
+  }
+
+  // -------------------------------------------------------
+  // EVENTS
+  // -------------------------------------------------------
+  async function refreshEvents(sessionId) {
+    try {
+      const res = await listSessionEvents(sessionId);
+      setEvents(res.events || []);
+      setSelectedEventId(null);
+    } catch (err) {
+      console.error("Failed to load events", err);
+    }
+  }
+
+  function openAddEventModal() {
+    setEditEvent(null);
+    setEventModalOpen(true);
+  }
+
+  function openEditEventModal(eventRecord) {
+    setEditEvent(eventRecord);
+    setEventModalOpen(true);
+  }
+
+  async function handleSaveEvent(formData) {
+    try {
+      if (editEvent) {
+        await updateSessionEvent({
+          id: editEvent.id,
+          ...formData,
+        });
+      } else {
+        await createSessionEvent({
+          session_id: selectedSessionId,
+          ...formData,
+        });
+      }
+      setEventModalOpen(false);
+      await refreshEvents(selectedSessionId);
+    } catch (err) {
+      console.error("Failed to save event", err);
+      alert("Failed to save event");
+    }
+  }
+
+  async function handleArchiveEvent() {
+    if (!selectedEventId) return;
+    try {
+      await archiveSessionEvent(selectedEventId);
+      await refreshEvents(selectedSessionId);
+      setSelectedEventId(null);
+    } catch (err) {
+      console.error("Failed to archive event", err);
+    }
+  }
+
+  // -------------------------------------------------------
+  // LOGS
+  // -------------------------------------------------------
+  async function refreshLogs(sessionId) {
+    try {
+      const res = await listSessionMessages(sessionId);
+      setLogs(res.messages || []);
+    } catch (err) {
+      console.error("Failed to load logs", err);
+    }
+  }
+
+  // -------------------------------------------------------
+  // NPC STATE VIEW
+  // -------------------------------------------------------
+  async function loadNpcState(npc) {
+    try {
+      const res = await getNPCState(selectedSessionId, npc.id);
+      setNpcStateView(res.state || res);
+    } catch (err) {
+      console.error("Failed to load NPC state", err);
+    }
+  }
+
+  // -------------------------------------------------------
+  // RENDER
+  // -------------------------------------------------------
   return (
-    <div style={{ padding: "1rem", color: "var(--lw-green)" }}>
-      <h1 className="lw-panel-title">MISSION MANAGER</h1>
+    <div className="mission-manager-page">
+      <h1 className="page-title">Mission Manager</h1>
 
-      {/* -------------------- ADMIN KEY FORM -------------------- */}
-      {!adminEntered && (
-        <form
-          onSubmit={handleAdminKeySubmit}
-          style={{
-            marginTop: "1rem",
-            background: "black",
-            padding: "1rem",
-            border: "1px solid var(--lw-green-dim)",
-          }}
-        >
-          <h2 style={{ marginBottom: "0.5rem" }}>ENTER ADMIN KEY</h2>
+      {/* ---------------------------------------------------
+           SESSION LIST
+      --------------------------------------------------- */}
+      <section className="section">
+        <h2>Sessions</h2>
 
-          <input
-            type="password"
-            placeholder="Admin Key"
-            value={adminKey}
-            onChange={(e) => setAdminKey(e.target.value)}
-            style={inputStyle}
-          />
-
-          <button
-            type="submit"
-            className="lw-btn"
-            style={{ marginTop: "0.5rem", width: "100%" }}
-          >
-            UNLOCK CONSOLE
-          </button>
-
-          {error && (
-            <div style={{ color: "var(--lw-red)", marginTop: "0.5rem" }}>
-              {error}
+        <div className="session-list">
+          {sessions.map((s) => (
+            <div
+              key={s.id}
+              className={
+                "session-card " + (selectedSessionId === s.id ? "selected" : "")
+              }
+              onClick={() => handleSelectSession(s)}
+            >
+              <strong>{s.session_name}</strong>
+              <div className="session-meta">
+                Mission: {s.mission_id} <br />
+                Status: {s.status}
+              </div>
             </div>
-          )}
-        </form>
-      )}
+          ))}
+        </div>
 
-      {/* -------------------- MAIN CONSOLE -------------------- */}
-      {adminEntered && (
-        <>
-          {/* CREATE NEW SESSION */}
-          <div
-            style={{
-              background: "black",
-              border: "1px solid var(--lw-green-dim)",
-              padding: "1rem",
-              marginTop: "1rem",
-            }}
-          >
-            <h2 className="lw-panel-title">CREATE NEW RUN</h2>
+        {/* CREATE SESSION */}
+        <div className="create-session">
+          <h3>Create New Session</h3>
+          <input
+            type="number"
+            placeholder="Mission ID"
+            value={missionIdInput}
+            onChange={(e) => setMissionIdInput(e.target.value)}
+          />
+          <input
+            type="text"
+            placeholder="Session Name"
+            value={sessionNameInput}
+            onChange={(e) => setSessionNameInput(e.target.value)}
+          />
+          <textarea
+            placeholder="GM Notes"
+            value={gmNotesInput}
+            onChange={(e) => setGmNotesInput(e.target.value)}
+          />
+          <button onClick={handleCreateSession}>Create Session</button>
+        </div>
+      </section>
 
-            <form onSubmit={handleCreateSession}>
-              <label>Mission ID</label>
-              <input
-                type="number"
-                min={1}
-                value={missionId}
-                onChange={(e) =>
-                  enforceMinPositive(e.target.value, setMissionId)
-                }
-                style={inputStyle}
-              />
+      {/* ---------------------------------------------------
+           SELECTED SESSION DETAILS
+      --------------------------------------------------- */}
+      {selectedSession && (
+        <section className="section">
+          <h2>
+            Session: {selectedSession.session_name} (ID {selectedSession.id})
+          </h2>
 
-              <label style={{ marginTop: "0.5rem" }}>Session Name</label>
+          {/* -------------------------------------
+                PLAYERS
+          --------------------------------------*/}
+          <div className="card">
+            <h3>Players</h3>
+
+            <div className="player-list">
+              {players.map((p) => (
+                <div key={p.id} className="player-item">
+                  {p.player_name} ({p.phone_number})
+                  <button onClick={() => handleRemovePlayer(p)}>Remove</button>
+                </div>
+              ))}
+            </div>
+
+            <div className="player-add">
               <input
                 type="text"
-                value={sessionName}
-                onChange={(e) => setSessionName(e.target.value)}
-                style={inputStyle}
+                placeholder="Player Name"
+                value={newPlayerName}
+                onChange={(e) => setNewPlayerName(e.target.value)}
               />
-
-              <label style={{ marginTop: "0.5rem" }}>GM Notes</label>
-              <textarea
-                value={gmNotes}
-                onChange={(e) => setGmNotes(e.target.value)}
-                style={{ ...inputStyle, height: "80px" }}
+              <input
+                type="text"
+                placeholder="Phone Number"
+                value={newPlayerPhone}
+                onChange={(e) => setNewPlayerPhone(e.target.value)}
               />
-
-              <button
-                type="submit"
-                className="lw-btn"
-                style={{ marginTop: "0.5rem", width: "100%" }}
-              >
-                CREATE
-              </button>
-
-              {error && (
-                <div style={{ color: "var(--lw-red)", marginTop: "0.5rem" }}>
-                  {error}
-                </div>
-              )}
-            </form>
+              <button onClick={handleAddPlayer}>Add Player</button>
+            </div>
           </div>
 
-          {/* SESSION LIST */}
-          <div
-            style={{
-              background: "black",
-              border: "1px solid var(--lw-green-dim)",
-              padding: "1rem",
-              marginTop: "1rem",
-            }}
-          >
-            <h2 className="lw-panel-title">ACTIVE & RECENT SESSIONS</h2>
+          {/* -------------------------------------
+                EVENTS
+          --------------------------------------*/}
+          <div className="card event-panel">
+            <h3>Mission Events</h3>
 
-            {loading && <div>Loading…</div>}
+            <div className="event-panel-content">
+              {/* LEFT COLUMN */}
+              <div className="event-list-column">
+                {events.length === 0 ? (
+                  <div className="empty-events">
+                    <p>No mission events recorded.</p>
+                    <button onClick={openAddEventModal}>Add First Event</button>
+                  </div>
+                ) : (
+                  <div className="event-list">
+                    {events.map((ev) => {
+                      const data = ev.event_data || {};
+                      const sev = (data.severity || "info").toLowerCase();
+                      const summary = data.summary || "(no summary)";
+                      const details = data.details || "";
 
-            <div className="lw-session-list">
-              {sessions.map((s) => (
-                <div
-                  key={s.id}
-                  className="lw-session-row"
-                  onClick={() => loadSessionDetails(s.id)}
-                >
-                  <div>#{s.id}</div>
-                  <div>{s.session_name}</div>
-                  <div>{s.status}</div>
+                      return (
+                        <div
+                          key={ev.id}
+                          className={
+                            "event-item " +
+                            (selectedEventId === ev.id ? "selected" : "")
+                          }
+                          onClick={() => {
+                            setSelectedEventId(ev.id);
+                          }}
+                        >
+                          <div className="event-header">
+                            <strong>{summary}</strong>
+                            <span className={`sev sev-${sev}`}>
+                              {sev.toUpperCase()}
+                            </span>
+                          </div>
+
+                          <div className="event-meta">
+                            {ev.event_type} — {ev.phone_number || "GM"}
+                          </div>
+
+                          {details && (
+                            <div className="event-details">{details}</div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* RIGHT COLUMN — EVENT EDITOR */}
+              <div className="event-editor-column">
+                {selectedEventId === null ? (
+                  <div className="empty-events">
+                    <p>Select an event to edit,<br />or add a new one.</p>
+                    <button onClick={openAddEventModal}>Add Event</button>
+                  </div>
+                ) : (
+                  <EventEditor
+                    sessionId={selectedSessionId}
+                    selectedEvent={events.find((e) => e.id === selectedEventId)}
+                    onSave={handleSaveEvent}
+                    onArchive={handleArchiveEvent}
+                    onCancel={() => setSelectedEventId(null)}
+                  />
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* -------------------------------------
+                LOGS
+          --------------------------------------*/}
+          <div className="card">
+            <h3>Message Logs</h3>
+            <div className="log-list">
+              {logs.map((l, idx) => (
+                <div key={idx} className="log-item">
+                  <strong>{l.phone_number}</strong> — {l.body}
                 </div>
               ))}
             </div>
           </div>
 
-          {/* SESSION DETAILS */}
-          {selectedSession && (
-            <div
-              style={{
-                background: "black",
-                border: "1px solid var(--lw-green-dim)",
-                padding: "1rem",
-                marginTop: "1rem",
-              }}
-            >
-              <h2 className="lw-panel-title">
-                SESSION #{selectedSession.id}: {selectedSession.session_name}
-              </h2>
+          {/* -------------------------------------
+                NPC STATE
+          --------------------------------------*/}
+          <div className="card">
+            <h3>NPCs</h3>
 
-              {/* TABS */}
-              <div
-                style={{
-                  display: "flex",
-                  gap: "0.3rem",
-                  marginBottom: "0.5rem",
-                }}
-              >
-                <button
-                  className="lw-btn"
-                  style={tab === "players" ? activeTabStyle : {}}
-                  onClick={() => setTab("players")}
+            <div className="npc-list">
+              {npcs.map((npc) => (
+                <div
+                  key={npc.id}
+                  className="npc-item"
+                  onClick={() => loadNpcState(npc)}
                 >
-                  Players
-                </button>
-
-                <button
-                  className="lw-btn"
-                  style={tab === "events" ? activeTabStyle : {}}
-                  onClick={() => setTab("events")}
-                >
-                  Events
-                </button>
-
-                <button
-                  className="lw-btn"
-                  style={tab === "logs" ? activeTabStyle : {}}
-                  onClick={() => setTab("logs")}
-                >
-                  Logs
-                </button>
-              </div>
-
-              {/* TAB CONTENT TARGETS */}
-              {tab === "players" && (
-                <PlayerTab session={selectedSession} reload={loadSessionDetails} />
-              )}
-
-              {tab === "events" && (
-                <EventsTab session={selectedSession} />
-              )}
-
-              {tab === "logs" && (
-                <LogsTab session={selectedSession} />
-              )}
-            </div>
-          )}
-        </>
-      )}
-    </div>
-  );
-}
-
-/* ---------------- TABS (Placeholders If Needed) ---------------- */
-
-/* ============================================================
-   PLAYER TAB — FULL UI
-   ============================================================ */
-function PlayerTab({ session, reload }) {
-  const [phone, setPhone] = useState("");
-  const [name, setName] = useState("");
-  const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
-
-  async function handleAdd() {
-    setError("");
-    if (!phone.trim()) {
-      setError("Phone number required.");
-      return;
-    }
-    try {
-      setBusy(true);
-      await addSessionPlayer(session.id, phone.trim(), name.trim());
-      setPhone("");
-      setName("");
-      await reload(session.id);
-    } catch (e) {
-      console.error("addSessionPlayer ERROR:", e);
-      setError("Failed to add player.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function handleRemove(phoneNumber) {
-    try {
-      setBusy(true);
-      await removeSessionPlayer(session.id, phoneNumber);
-      await reload(session.id);
-    } catch (e) {
-      console.error("removeSessionPlayer ERROR:", e);
-      setError("Failed to remove player.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <div style={{ fontSize: "0.8rem" }}>
-      <h3 style={{ marginBottom: "0.5rem" }}>Players</h3>
-
-      {/* ADD PLAYER */}
-      <div
-        style={{
-          border: "1px solid var(--lw-green-dim)",
-          padding: "0.5rem",
-          marginBottom: "1rem",
-        }}
-      >
-        <input
-          placeholder="Phone Number"
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          style={inputStyle}
-        />
-
-        <input
-          placeholder="Player Name (optional)"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          style={{ ...inputStyle, marginTop: "0.4rem" }}
-        />
-
-        <button
-          className="lw-btn"
-          style={{ marginTop: "0.5rem" }}
-          disabled={busy}
-          onClick={handleAdd}
-        >
-          ADD PLAYER
-        </button>
-
-        {error && (
-          <div style={{ color: "var(--lw-red)", marginTop: "0.5rem" }}>
-            {error}
-          </div>
-        )}
-      </div>
-
-      {/* PLAYER LIST */}
-      {session.players.length === 0 && <div>No players yet.</div>}
-
-      {session.players.length > 0 && (
-        <div>
-          {session.players.map((p) => (
-            <div
-              key={p.phone_number}
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                padding: "0.3rem 0",
-                borderBottom: "1px solid var(--lw-green-dim)",
-              }}
-            >
-              <div>
-                <div>{p.player_name || "(Unnamed)"}</div>
-                <div style={{ opacity: 0.6 }}>{p.phone_number}</div>
-              </div>
-
-              <button
-                className="lw-btn"
-                onClick={() => handleRemove(p.phone_number)}
-                disabled={busy}
-              >
-                REMOVE
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* ============================================================
-   EVENTS TAB — FULL UI
-   ============================================================ */
-function EventsTab({ session }) {
-  if (!session.events) return null;
-
-  return (
-    <div style={{ fontSize: "0.8rem" }}>
-      <h3 style={{ marginBottom: "0.5rem" }}>Mission Events</h3>
-
-      {session.events.length === 0 && <div>No events recorded.</div>}
-
-      {session.events.length > 0 && (
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: "0.7rem",
-          }}
-        >
-          {session.events.map((evt) => (
-            <div
-              key={evt.id}
-              style={{
-                border: "1px solid var(--lw-green-dim)",
-                padding: "0.6rem",
-                borderRadius: "6px",
-                background: "rgba(20, 255, 50, 0.03)",
-              }}
-            >
-              {/* Header */}
-              <div
-                style={{
-                  fontWeight: "bold",
-                  marginBottom: "0.25rem",
-                  color: "var(--lw-green)",
-                }}
-              >
-                {evt.event_type.toUpperCase()}
-              </div>
-
-              {/* Timestamp */}
-              <div style={{ opacity: 0.7, marginBottom: "0.25rem" }}>
-                {new Date(evt.created_at).toLocaleString()}
-              </div>
-
-              {/* Player phone (if applicable) */}
-              {evt.phone_number && (
-                <div style={{ opacity: 0.7, marginBottom: "0.25rem" }}>
-                  From: {evt.phone_number}
+                  {npc.display_name}
                 </div>
-              )}
-
-              {/* JSON payload */}
-              <pre
-                style={{
-                  fontSize: "0.7rem",
-                  whiteSpace: "pre-wrap",
-                }}
-              >
-                {JSON.stringify(evt.payload, null, 2)}
-              </pre>
+              ))}
             </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
-/* ============================================================
-   LOGS TAB — JSON VIEWER (keep simple)
-   ============================================================ */
-function LogsTab({ session }) {
-  return (
-    <div style={{ fontSize: "0.8rem" }}>
-      <h3>Message Logs</h3>
-      {session.logs.length === 0 && <div>No logs yet.</div>}
+            {npcStateView && (
+              <div className="npc-state-view">
+                <h4>NPC State</h4>
+                <pre>{JSON.stringify(npcStateView, null, 2)}</pre>
+              </div>
+            )}
+          </div>
 
-      {session.logs.length > 0 && (
-        <pre style={{ fontSize: "0.75rem", whiteSpace: "pre-wrap" }}>
-          {JSON.stringify(session.logs, null, 2)}
-        </pre>
+          {/* EVENT MODAL */}
+          <EventModal
+            open={eventModalOpen}
+            onClose={() => setEventModalOpen(false)}
+            onSave={handleSaveEvent}
+            eventRecord={editEvent}
+          />
+        </section>
       )}
     </div>
   );
