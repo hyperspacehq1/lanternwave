@@ -472,7 +472,7 @@ body {
 
 
 /* --------------------------------------------------
-   SCREEN MIRROR FIX (Option 2 — perfect 1:1 pixel fit)
+   SCREEN MIRROR (Option 2 — perfect 1:1 pixel fit)
 ----------------------------------------------------- */
 
 @media screen and (max-device-width: 1366px) {
