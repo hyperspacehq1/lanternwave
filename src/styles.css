@@ -274,3 +274,82 @@ body {
   max-height: 400px;
   overflow: auto;
 }
+
+/* ============================================================
+   LANTERNWAVE HEADER + NAVIGATION (missing styles restored)
+   ============================================================ */
+.lw-root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: var(--lw-bg-dark);
+}
+
+.lw-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 22px;
+  border-bottom: 1px solid var(--lw-border-light);
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
+}
+
+.lw-header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.lw-logo-wrap img {
+  height: 42px;
+  filter: drop-shadow(0 0 6px var(--lw-green-glow));
+}
+
+.lw-title-block {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+
+.lw-app-title {
+  font-size: 1.4rem;
+  margin: 0;
+  color: var(--lw-green);
+  text-shadow: 0 0 8px var(--lw-green-glow);
+}
+
+.lw-app-subtitle {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--lw-text-subtle);
+}
+
+.lw-nav {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+}
+
+.lw-nav-link {
+  text-decoration: none;
+  color: var(--lw-text);
+  font-size: 0.9rem;
+  padding-bottom: 2px;
+  border-bottom: 2px solid transparent;
+  transition: 0.15s ease;
+}
+
+.lw-nav-link:hover {
+  color: var(--lw-green);
+}
+
+.lw-nav-link-active {
+  color: var(--lw-green);
+  border-bottom-color: var(--lw-green);
+}
+
+.lw-main {
+  flex: 1;
+  padding: 24px;
+}
