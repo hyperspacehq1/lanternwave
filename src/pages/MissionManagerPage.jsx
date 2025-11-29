@@ -1,5 +1,5 @@
 // =========================================================
-// MissionManagerPage.jsx — FINAL DEPLOY-SAFE VERSION
+// MissionManagerPage.jsx — FINAL DEPLOY-SAFE VERSION (No listNPCs)
 // =========================================================
 
 import React, { useEffect, useState } from "react";
@@ -14,7 +14,6 @@ import {
   createSessionEvent,
   updateSessionEvent,
   archiveSessionEvent,
-  listNPCs,
   getNPCState,
   listSessionMessages,
 } from "../lib/mission-api.js";
@@ -46,6 +45,7 @@ export default function MissionManagerPage() {
 
   const [logs, setLogs] = useState([]);
 
+  // TEMPORARY: NPC list disabled
   const [npcs, setNpcs] = useState([]);
   const [npcStateView, setNpcStateView] = useState(null);
 
@@ -77,9 +77,9 @@ export default function MissionManagerPage() {
       await refreshEvents(session.id);
       await refreshLogs(session.id);
 
-      // NEW — UPDATED: load *all* NPCs (Option B)
-      const npcRes = await listNPCs();
-      setNpcs(npcRes.npcs || []);
+      // NPC listing temporarily disabled
+      setNpcs([]);
+
     } catch (err) {
       console.error("Failed to load session details", err);
     }
@@ -226,9 +226,7 @@ export default function MissionManagerPage() {
     <div className="mission-manager-page">
       <h1 className="page-title">Mission Manager</h1>
 
-      {/* ======================================================
-          SESSION LIST
-      ======================================================= */}
+      {/* ===================== SESSION LIST ===================== */}
       <section className="section">
         <h2>Sessions</h2>
 
@@ -250,7 +248,6 @@ export default function MissionManagerPage() {
           ))}
         </div>
 
-        {/* Create Session */}
         <div className="create-session">
           <h3>Create New Session</h3>
 
@@ -278,18 +275,14 @@ export default function MissionManagerPage() {
         </div>
       </section>
 
-      {/* ======================================================
-          SELECTED SESSION DETAILS
-      ======================================================= */}
+      {/* ===================== SESSION DETAILS ===================== */}
       {selectedSession && (
         <section className="section">
           <h2>
             Session: {selectedSession.session_name} (ID {selectedSession.id})
           </h2>
 
-          {/* -----------------------------------------
-              PLAYERS
-          ------------------------------------------ */}
+          {/* ===================== PLAYERS ===================== */}
           <div className="card">
             <h3>Players</h3>
 
@@ -321,9 +314,7 @@ export default function MissionManagerPage() {
             </div>
           </div>
 
-          {/* -----------------------------------------
-              EVENTS
-          ------------------------------------------ */}
+          {/* ===================== EVENTS ===================== */}
           <div className="card event-panel">
             <h3>Mission Events</h3>
 
@@ -393,9 +384,7 @@ export default function MissionManagerPage() {
             </div>
           </div>
 
-          {/* -----------------------------------------
-              LOGS
-          ------------------------------------------ */}
+          {/* ===================== LOGS ===================== */}
           <div className="card">
             <h3>Message Logs</h3>
             <div className="log-list">
@@ -407,9 +396,7 @@ export default function MissionManagerPage() {
             </div>
           </div>
 
-          {/* -----------------------------------------
-              NPC STATE
-          ------------------------------------------ */}
+          {/* ===================== NPC STATE ===================== */}
           <div className="card">
             <h3>NPCs</h3>
 
