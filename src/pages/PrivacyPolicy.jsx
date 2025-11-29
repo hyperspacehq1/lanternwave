@@ -4,7 +4,7 @@ import React from "react";
 export default function PrivacyPolicy() {
   return (
     <div className="boot-privacy-text">
-      <h1 className="boot-privacy-title">LanternWave Privacy Policy</h1>
+      <h1 className="boot-privacy-title">Privacy Policy</h1>
       <p><strong>Last Updated:</strong> January 1, 2025</p>
 
       <p>

@@ -1,12 +1,7 @@
-// =========================================================
-// MissionManagerPage.jsx — FINAL DEPLOY-SAFE VERSION
-// Matching current backend, no missing exports, .mm namespace clean
-// =========================================================
-
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
+import "./mission-manager.css";
 
 import {
-  listSessions,
   createSession,
   listSessionPlayers,
   addPlayerToSession,
@@ -16,425 +11,367 @@ import {
   updateSessionEvent,
   archiveSessionEvent,
   listSessionMessages,
+  listNPCs,
   getNPCState
-} from "../lib/mission-api.js";
-
-import EventModal from "../components/EventModal.jsx";
-import EventEditor from "../components/EventEditor.jsx";
+} from "../lib/mission-api";
 
 export default function MissionManagerPage() {
-
-  // -------------------------
-  // STATE
-  // -------------------------
-  const [sessions, setSessions] = useState([]);
+  const [activeTab, setActiveTab] = useState("sessions");
+  const [sessionList, setSessionList] = useState([]);
   const [selectedSession, setSelectedSession] = useState(null);
-  const [selectedSessionId, setSelectedSessionId] = useState(null);
 
-  const [missionIdInput, setMissionIdInput] = useState("");
-  const [sessionNameInput, setSessionNameInput] = useState("");
-  const [gmNotesInput, setGmNotesInput] = useState("");
-
-  const [players, setPlayers] = useState([]);
+  const [playerList, setPlayerList] = useState([]);
   const [newPlayerName, setNewPlayerName] = useState("");
   const [newPlayerPhone, setNewPlayerPhone] = useState("");
 
-  const [events, setEvents] = useState([]);
-  const [selectedEventId, setSelectedEventId] = useState(null);
+  const [eventList, setEventList] = useState([]);
+  const [editingEvent, setEditingEvent] = useState(null);
 
-  const [eventModalOpen, setEventModalOpen] = useState(false);
-  const [editEvent, setEditEvent] = useState(null);
+  const [npcList, setNPCList] = useState([]);
+  const [selectedNPC, setSelectedNPC] = useState(null);
+  const [npcState, setNPCState] = useState(null);
 
-  const [logs, setLogs] = useState([]);
-
-  // NPC List (stays empty until backend exports endpoints)
-  const [npcs, setNpcs] = useState([]);
-  const [npcStateView, setNpcStateView] = useState(null);
-
-  // -------------------------
-  // INITIAL LOAD
-  // -------------------------
   useEffect(() => {
-    refreshSessions();
+    loadNPCs();
   }, []);
 
-  async function refreshSessions() {
+  async function loadNPCs() {
     try {
-      const data = await listSessions();
-      setSessions(data.sessions || []);
-    } catch (err) {
-      console.error("Failed to load sessions", err);
+      const npcs = await listNPCs();
+      setNPCList(npcs || []);
+    } catch (error) {
+      console.error("Failed loading NPCs:", error);
     }
   }
 
-  // -------------------------
-  // SELECT SESSION
-  // -------------------------
+  // -----------------------------
+  // SESSION SELECTION
+  // -----------------------------
   async function handleSelectSession(session) {
     setSelectedSession(session);
-    setSelectedSessionId(session.id);
 
-    await refreshPlayers(session.id);
-    await refreshEvents(session.id);
-    await refreshLogs(session.id);
-
-    // NPC fetch disabled because backend doesn't expose listNPCs
-    setNpcs([]);
+    // Load tab-specific data
+    refreshPlayers(session.id);
+    refreshEvents(session.id);
   }
 
-  // -------------------------
-  // CREATE SESSION
-  // -------------------------
-  async function handleCreateSession() {
-    try {
-      const mid = Number(missionIdInput);
-      if (!mid || !sessionNameInput.trim()) {
-        alert("Mission ID and Session Name are required.");
-        return;
-      }
-
-      await createSession(mid, sessionNameInput.trim(), gmNotesInput.trim());
-
-      setMissionIdInput("");
-      setSessionNameInput("");
-      setGmNotesInput("");
-
-      await refreshSessions();
-    } catch (err) {
-      console.error("Create session failed", err);
-      alert("Create session failed.");
-    }
-  }
-
-  // -------------------------
+  // -----------------------------
   // PLAYERS
-  // -------------------------
+  // -----------------------------
   async function refreshPlayers(sessionId) {
     try {
-      const res = await listSessionPlayers(sessionId);
-      setPlayers(res.players || []);
-    } catch (err) {
-      console.error("Failed to load players", err);
+      const players = await listSessionPlayers(sessionId);
+      setPlayerList(players || []);
+    } catch (error) {
+      console.error("Failed loading players:", error);
     }
   }
 
   async function handleAddPlayer() {
-    if (!newPlayerName.trim() || !newPlayerPhone.trim()) {
-      alert("Player name & phone required");
-      return;
-    }
-    try {
-      await addPlayerToSession(
-        selectedSessionId,
-        newPlayerName.trim(),
-        newPlayerPhone.trim()
-      );
+    if (!selectedSession) return;
 
+    try {
+      await addPlayerToSession(selectedSession.id, newPlayerName, newPlayerPhone);
       setNewPlayerName("");
       setNewPlayerPhone("");
-
-      await refreshPlayers(selectedSessionId);
-    } catch (err) {
-      console.error("Failed to add player", err);
+      refreshPlayers(selectedSession.id);
+    } catch (error) {
+      console.error("Failed adding player:", error);
     }
   }
 
   async function handleRemovePlayer(player) {
+    if (!selectedSession) return;
+
     try {
-      await removePlayer(player.id);
-      await refreshPlayers(selectedSessionId);
-    } catch (err) {
-      console.error("Failed to remove player", err);
+      await removePlayer(selectedSession.id, player.phone_number);
+      refreshPlayers(selectedSession.id);
+    } catch (error) {
+      console.error("Failed removing player:", error);
     }
   }
 
-  // -------------------------
+  // -----------------------------
   // EVENTS
-  // -------------------------
+  // -----------------------------
   async function refreshEvents(sessionId) {
     try {
-      const res = await listSessionEvents(sessionId);
-      setEvents(res.events || []);
-      setSelectedEventId(null);
-    } catch (err) {
-      console.error("Failed to load events", err);
+      const events = await listSessionEvents(sessionId);
+      setEventList(events || []);
+    } catch (error) {
+      console.error("Failed loading events:", error);
     }
   }
 
-  function openAddEventModal() {
-    setEditEvent(null);
-    setEventModalOpen(true);
+  function startCreateEvent() {
+    setEditingEvent({
+      id: null,
+      severity: "info",
+      summary: "",
+      payload: {}
+    });
   }
 
-  async function handleSaveEvent(data) {
+  async function saveEvent() {
+    if (!selectedSession || !editingEvent) return;
+
     try {
-      if (editEvent) {
-        await updateSessionEvent({ id: editEvent.id, ...data });
+      if (editingEvent.id) {
+        await updateSessionEvent(
+          selectedSession.id,
+          editingEvent.id,
+          editingEvent
+        );
       } else {
-        await createSessionEvent({
-          session_id: selectedSessionId,
-          ...data
-        });
+        await createSessionEvent(selectedSession.id, editingEvent);
       }
-      setEventModalOpen(false);
-      await refreshEvents(selectedSessionId);
-    } catch (err) {
-      console.error("Failed to save event", err);
-      alert("Failed to save event.");
+
+      setEditingEvent(null);
+      refreshEvents(selectedSession.id);
+    } catch (error) {
+      console.error("Failed saving event:", error);
     }
   }
 
-  async function handleArchiveEvent(eventId) {
+  async function archiveEvent(evt) {
+    if (!selectedSession) return;
+
     try {
-      await archiveSessionEvent(eventId);
-      await refreshEvents(selectedSessionId);
-      setSelectedEventId(null);
-    } catch (err) {
-      console.error("Failed to archive event", err);
+      await archiveSessionEvent(selectedSession.id, evt.id);
+      refreshEvents(selectedSession.id);
+    } catch (error) {
+      console.error("Failed archiving event:", error);
     }
   }
 
-  // -------------------------
-  // LOGS
-  // -------------------------
-  async function refreshLogs(sessionId) {
-    try {
-      const res = await listSessionMessages(sessionId);
-      setLogs(res.messages || []);
-    } catch (err) {
-      console.error("Failed to load logs", err);
-    }
-  }
-
-  // -------------------------
+  // -----------------------------
   // NPC STATE
-  // -------------------------
-  async function loadNpcState(npc) {
+  // -----------------------------
+  async function handleSelectNPC(npc) {
+    setSelectedNPC(npc);
     try {
-      const res = await getNPCState(selectedSessionId, npc.id);
-      setNpcStateView(res.state || res);
-    } catch (err) {
-      console.error("Failed to load NPC state", err);
+      const state = await getNPCState(selectedSession.id, npc.id);
+      setNPCState(state || {});
+    } catch (error) {
+      console.error("Failed loading NPC state:", error);
     }
   }
 
-  // =========================================================
-  // RENDER
-  // =========================================================
+  // -----------------------------
+  // MAIN RENDER
+  // -----------------------------
+
   return (
-    <div className="mission-manager-page">
-      <h1 className="page-title">Mission Manager</h1>
+    <div className="mission-manager">
 
-      {/* ===================== SESSION LIST ===================== */}
-      <section className="section">
-        <h2>Sessions</h2>
+      {/* PAGE TITLE */}
+      <h1>Mission Manager</h1>
 
-        <div className="session-list">
-          {sessions.map((s) => (
-            <div
-              key={s.id}
-              className={
-                "session-card " + (selectedSessionId === s.id ? "selected" : "")
-              }
-              onClick={() => handleSelectSession(s)}
-            >
-              <strong>{s.session_name}</strong>
-              <div className="session-meta">
-                Mission: {s.mission_id} <br />
-                Status: {s.status}
+      {/* TABS */}
+      <div className="mm-tabs">
+        <div
+          className={`mm-tab ${activeTab === "sessions" ? "active" : ""}`}
+          onClick={() => setActiveTab("sessions")}
+        >
+          Sessions
+        </div>
+
+        <div
+          className={`mm-tab ${activeTab === "players" ? "active" : ""}`}
+          onClick={() => setActiveTab("players")}
+          style={{ opacity: selectedSession ? 1 : 0.4 }}
+        >
+          Players
+        </div>
+
+        <div
+          className={`mm-tab ${activeTab === "events" ? "active" : ""}`}
+          onClick={() => selectedSession && setActiveTab("events")}
+          style={{ opacity: selectedSession ? 1 : 0.4 }}
+        >
+          Events
+        </div>
+
+        <div
+          className={`mm-tab ${activeTab === "npc" ? "active" : ""}`}
+          onClick={() => selectedSession && setActiveTab("npc")}
+          style={{ opacity: selectedSession ? 1 : 0.4 }}
+        >
+          NPC State
+        </div>
+      </div>
+
+      <div className="mm-container">
+
+        {/* LEFT PANEL */}
+        <div className="mm-left-panel">
+
+          {activeTab === "sessions" && (
+            <>
+              <h2>Sessions</h2>
+              <p>Use Controller to create or manage active sessions.</p>
+            </>
+          )}
+
+          {activeTab === "players" && selectedSession && (
+            <>
+              <h2>Players</h2>
+
+              <div className="mm-player-form">
+                <input
+                  type="text"
+                  placeholder="Player name"
+                  value={newPlayerName}
+                  onChange={(e) => setNewPlayerName(e.target.value)}
+                />
+                <input
+                  type="text"
+                  placeholder="Phone Number"
+                  value={newPlayerPhone}
+                  onChange={(e) => setNewPlayerPhone(e.target.value)}
+                />
+                <button className="mm-btn" onClick={handleAddPlayer}>
+                  Add Player
+                </button>
               </div>
-            </div>
-          ))}
+
+              <div className="mm-session-list">
+                {playerList.map((p) => (
+                  <div key={p.id} className="mm-session-row">
+                    <div className="mm-session-title">{p.player_name}</div>
+                    <div className="mm-session-sub">{p.phone_number}</div>
+
+                    <button
+                      className="mm-btn"
+                      onClick={() => handleRemovePlayer(p)}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          {activeTab === "events" && selectedSession && (
+            <>
+              <h2>Events</h2>
+
+              <button className="mm-btn" onClick={startCreateEvent}>
+                + Add Event
+              </button>
+
+              <div className="mm-session-list">
+                {eventList.map((ev) => (
+                  <div
+                    key={ev.id}
+                    className="mm-event-card"
+                    onClick={() => setEditingEvent(ev)}
+                  >
+                    <span className={`mm-chip ${ev.severity || "info"}`}>
+                      {ev.severity}
+                    </span>
+
+                    <div className="mm-event-summary">{ev.summary}</div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          {activeTab === "npc" && selectedSession && (
+            <>
+              <h2>NPCs</h2>
+
+              <div className="mm-session-list">
+                {npcList.map((npc) => (
+                  <div
+                    key={npc.id}
+                    className="mm-session-row"
+                    onClick={() => handleSelectNPC(npc)}
+                  >
+                    <div className="mm-session-title">{npc.display_name}</div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
 
-        <div className="create-session">
-          <h3>Create New Session</h3>
+        {/* RIGHT PANEL */}
+        <div className="mm-right-panel">
+          {activeTab === "events" && editingEvent && (
+            <>
+              <h2>{editingEvent.id ? "Edit Event" : "New Event"}</h2>
 
-          <input
-            type="number"
-            placeholder="Mission ID"
-            value={missionIdInput}
-            onChange={(e) => setMissionIdInput(e.target.value)}
-          />
-
-          <input
-            type="text"
-            placeholder="Session Name"
-            value={sessionNameInput}
-            onChange={(e) => setSessionNameInput(e.target.value)}
-          />
-
-          <textarea
-            placeholder="GM Notes"
-            value={gmNotesInput}
-            onChange={(e) => setGmNotesInput(e.target.value)}
-          />
-
-          <button onClick={handleCreateSession}>Create Session</button>
-        </div>
-      </section>
-
-      {/* ===================== SESSION DETAILS ===================== */}
-      {selectedSession && (
-        <section className="section">
-          <h2>
-            Session: {selectedSession.session_name} (ID {selectedSession.id})
-          </h2>
-
-          {/* ------------------------- PLAYERS ------------------------- */}
-          <div className="card">
-            <h3>Players</h3>
-
-            <div className="player-list">
-              {players.map((p) => (
-                <div key={p.id} className="player-item">
-                  {p.player_name} ({p.phone_number})
-                  <button onClick={() => handleRemovePlayer(p)}>
-                    Remove
-                  </button>
-                </div>
-              ))}
-            </div>
-
-            <div className="player-add">
-              <input
-                type="text"
-                placeholder="Player Name"
-                value={newPlayerName}
-                onChange={(e) => setNewPlayerName(e.target.value)}
-              />
-
-              <input
-                type="text"
-                placeholder="Phone Number"
-                value={newPlayerPhone}
+              <label>Severity</label>
+              <select
+                value={editingEvent.severity}
                 onChange={(e) =>
-                  setNewPlayerPhone(e.target.value)
+                  setEditingEvent({
+                    ...editingEvent,
+                    severity: e.target.value,
+                  })
+                }
+              >
+                <option value="info">Info</option>
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+                <option value="critical">Critical</option>
+              </select>
+
+              <label>Summary</label>
+              <input
+                type="text"
+                value={editingEvent.summary}
+                onChange={(e) =>
+                  setEditingEvent({
+                    ...editingEvent,
+                    summary: e.target.value,
+                  })
                 }
               />
 
-              <button onClick={handleAddPlayer}>Add Player</button>
-            </div>
-          </div>
+              <label>Payload</label>
+              <textarea
+                value={JSON.stringify(editingEvent.payload, null, 2)}
+                onChange={(e) => {
+                  try {
+                    setEditingEvent({
+                      ...editingEvent,
+                      payload: JSON.parse(e.target.value),
+                    });
+                  } catch (err) {}
+                }}
+              />
 
-          {/* ------------------------- EVENTS ------------------------- */}
-          <div className="card event-panel">
-            <h3>Mission Events</h3>
+              <button className="mm-btn" onClick={saveEvent}>
+                Save Event
+              </button>
 
-            <div className="event-panel-content">
-              {/* LEFT COLUMN */}
-              <div className="event-list-column">
-                {events.length === 0 ? (
-                  <div className="empty-events">
-                    <p>No mission events recorded.</p>
-                    <button onClick={openAddEventModal}>
-                      Add First Event
-                    </button>
-                  </div>
-                ) : (
-                  <div className="event-list">
-                    {events.map((ev) => {
-                      const data = ev.event_data || {};
-                      const sev = (data.severity || "info").toLowerCase();
-                      const summary = data.summary || "(no summary)";
-                      const details = data.details || "";
-
-                      return (
-                        <div
-                          key={ev.id}
-                          className={`event-item sev-${sev} ${
-                            selectedEventId === ev.id ? "selected" : ""
-                          }`}
-                          onClick={() => setSelectedEventId(ev.id)}
-                        >
-                          <div className="event-header">
-                            <strong>{summary}</strong>
-                            <span className={`sev sev-${sev}`}>
-                              {sev.toUpperCase()}
-                            </span>
-                          </div>
-
-                          <div className="event-meta">
-                            {ev.event_type} — {ev.phone_number || "GM"}
-                          </div>
-
-                          {details && (
-                            <div className="event-details">{details}</div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-
-              {/* RIGHT COLUMN — EDITOR */}
-              <div className="event-editor-column">
-                {selectedEventId === null ? (
-                  <div className="empty-events">
-                    <p>
-                      Select an event to edit,<br />or add a new one.
-                    </p>
-                    <button onClick={openAddEventModal}>Add Event</button>
-                  </div>
-                ) : (
-                  <EventEditor
-                    sessionId={selectedSessionId}
-                    selectedEvent={events.find((e) => e.id === selectedEventId)}
-                    onSave={handleSaveEvent}
-                    onArchive={handleArchiveEvent}
-                    onCancel={() => setSelectedEventId(null)}
-                  />
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* ------------------------- LOGS ------------------------- */}
-          <div className="card">
-            <h3>Message Logs</h3>
-            <div className="log-list">
-              {logs.map((l, idx) => (
-                <div key={idx} className="log-item">
-                  <strong>{l.phone_number}</strong> — {l.body}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* ------------------------- NPC STATE ------------------------- */}
-          <div className="card">
-            <h3>NPCs</h3>
-
-            <div className="npc-list">
-              {npcs.map((npc) => (
-                <div
-                  key={npc.id}
-                  className="npc-item"
-                  onClick={() => loadNpcState(npc)}
+              {editingEvent.id && (
+                <button
+                  className="mm-btn"
+                  style={{ marginTop: "0.5rem" }}
+                  onClick={() => archiveEvent(editingEvent)}
                 >
-                  {npc.display_name}
-                </div>
-              ))}
-            </div>
+                  Archive Event
+                </button>
+              )}
+            </>
+          )}
 
-            {npcStateView && (
-              <div className="npc-state-view">
-                <h4>NPC State</h4>
-                <pre>{JSON.stringify(npcStateView, null, 2)}</pre>
-              </div>
-            )}
-          </div>
-
-          {/* EVENT MODAL */}
-          <EventModal
-            open={eventModalOpen}
-            onClose={() => setEventModalOpen(false)}
-            onSave={handleSaveEvent}
-            eventRecord={editEvent}
-          />
-        </section>
-      )}
+          {activeTab === "npc" && selectedNPC && (
+            <>
+              <h2>{selectedNPC.display_name}</h2>
+              <pre className="mm-event-json">
+                {JSON.stringify(npcState, null, 2)}
+              </pre>
+            </>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
