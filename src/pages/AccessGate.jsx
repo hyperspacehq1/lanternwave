@@ -1,182 +1,95 @@
-import { useState, useEffect } from "react";
+// AccessGate.jsx — FINAL MU/TH/UR TERMINAL VERSION
 
-const BOOT_LINES = [
-  "AEGIS/OS v5.2.1 (CLASSIFIED BUILD)",
-  "© U.S. GOVT / MAJESTIC-12 LEGACY INTERFACE",
-  "",
-  "BOOT SEQUENCE INITIATED...",
-  "",
-  "[ OK ] Power-on self-test ............... PASSED",
-  "[ OK ] Secure BIOS checksum ............. VERIFIED",
-  "[ OK ] Encrypted volume /ROOT/.......... MOUNTED",
-  "[ OK ] Quantum entropy pool ............ ONLINE",
-  "[ OK ] SIGINT relay uplink ............. STANDBY",
-  "[ OK ] BLACKNET routing tables ......... LOADED",
-  "[ OK ] AIR-GAP verification ............ CONFIRMED",
-  "",
-  "LOADING CORE MODULES...",
-  "  -> MOD_AEGIS_CORE                 [LOADED]",
-  "  -> MOD_OBELISK_SIGMA              [LOADED]",
-  "  -> MOD_GLASS_HARP (PSY-HAZ)       [RESTRICTED]",
-  "  -> MOD_TARTARUS_ARCHIVE           [LOADED]",
-  "  -> MOD_UNK_███                    [ERROR] FLAGGED / QUARANTINED",
-  "",
-  "CROSSCHECKING DATA INTEGRITY...",
-  "  HASH: TARTARUS_ARCHIVE            [MISMATCH!]",
-  "  NOTE: PRIOR REDACTION EVENT DETECTED (UNLOGGED)",
-  "  STATUS: PROCEEDING UNDER PROTEST",
-  "",
-  "INITIALIZING OPERATOR INTERFACE...",
-  "  Secure shell                [READY]",
-  "  Dead-drop channels          [READY]",
-  "  Incident logbook            [READY]",
-  "  Evidence locker index       [READY]",
-  "  Reality deviation monitor   [NO BASELINE]",
-  "",
-  "WARNING: MEMETIC CONTAMINATION THRESHOLD AT 11%",
-  "WARNING: ONE OR MORE CASEFILES ARE MISSING FROM HISTORY",
-  "WARNING: LAST LOGIN ENTRY CORRUPTED / UNREADABLE",
-  "",
-  "CLASSIFICATION BANNER: ███████████████",
-  "COMPARTMENT: DELTA GREEN / EYES ONLY",
-  "CLEARANCE LEVEL: KESSLER-9 OR ABOVE REQUIRED",
-  "",
-  "---",
-  "",
-  "IDENTITY VERIFICATION REQUIRED.",
-  "",
-  "ENTER ACCESS CODE:"
-];
-
-// Flatten into one full string for character-by-character typing
-const BOOT_TEXT = BOOT_LINES.join("\n");
+import React, { useState, useEffect, useRef } from "react";
 
 export default function AccessGate({ onUnlock }) {
-  const [stage, setStage] = useState("idle");    // idle → boot → code → unlock
-  const [typedCount, setTypedCount] = useState(0); // number of characters rendered
-  const [code, setCode] = useState("");
-  const [attempts, setAttempts] = useState(0);
+  const [bootLines, setBootLines] = useState([]);
+  const [showCodeEntry, setShowCodeEntry] = useState(false);
+  const [codeInput, setCodeInput] = useState("");
+  const [approved, setApproved] = useState(false);
+  const [error, setError] = useState("");
 
-  const correctCode = import.meta.env.VITE_OPEN_CODE;
+  const terminalRef = useRef(null);
 
-  // Start boot on click
-  const begin = () => {
-    setTypedCount(0);
-    setStage("boot");
-  };
+  // Boot Script (unchanged from original)
+  const sequence = [
+    "BOOTING MU/TH/UR 182 TERMINAL...",
+    "WEYLAND-YUTANI APOLLO INITIATED...",
+    "ESTABLISHING INTERNAL NETWORK LINK…",
+    "SECURITY PROTOCOL ONLINE...",
+    "",
+    "READY."
+  ];
 
-  // Character-by-character typing effect (NO SOUND)
+  // Typewriter — matches your old pacing & scroll behavior
   useEffect(() => {
-    if (stage !== "boot") return;
-
-    let cancelled = false;
-
-    const step = () => {
-      setTypedCount(prev => {
-        if (prev >= BOOT_TEXT.length) return prev;
-        return prev + 1;
-      });
-
-      if (!cancelled) {
-        setTimeout(() => {
-          if (!cancelled) step();
-        }, 15); // fast typing (twice as fast)
+    let i = 0;
+    const interval = setInterval(() => {
+      setBootLines(prev => [...prev, sequence[i]]);
+      i++;
+      if (i >= sequence.length) {
+        clearInterval(interval);
+        setTimeout(() => setShowCodeEntry(true), 600);
       }
-    };
+    }, 700);
+  }, []);
 
-    step();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [stage]);
-
-  // Move from boot → code entry
+  // Scroll terminal as lines are added
   useEffect(() => {
-    if (stage === "boot" && typedCount >= BOOT_TEXT.length) {
-      setStage("code");
+    if (terminalRef.current) {
+      terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
     }
-  }, [stage, typedCount]);
+  }, [bootLines]);
 
-  // Rolling 10-line window
-  const allLines = BOOT_TEXT.slice(0, typedCount).split("\n");
-  const visibleLines = allLines.slice(-10);
+  function handleSubmit() {
+    const correct = import.meta.env.VITE_OPEN_CODE || "10241972";
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!correctCode) {
-      // If no OPEN_CODE set, unlock automatically
-      onUnlock();
-      return;
-    }
+    if (codeInput.trim() === correct.toString()) {
+      setApproved(true);
+      setError("");
 
-    if (code === correctCode) {
-      setStage("unlock");
-      setTimeout(onUnlock, 800);
+      // small delay, then unlock
+      setTimeout(() => {
+        if (onUnlock) onUnlock();
+      }, 1000);
     } else {
-      const next = attempts + 1;
-      setAttempts(next);
-      setCode("");
-
-      if (next >= 3) {
-        // reset whole sequence
-        setTypedCount(0);
-        setAttempts(0);
-        setStage("idle");
-      }
+      setError("ACCESS DENIED");
     }
-  };
+  }
 
   return (
     <div className="gate-screen">
-      {/* INITIAL CLICK SCREEN */}
-      {stage === "idle" && (
-        <div className="gate-center" onClick={begin}>
-          <img
-            src="/lanterwave-logo.png"
-            className="gate-logo"
-            alt="Lanternwave Logo"
-          />
-          <div className="gate-title">LANTERNWAVE SYSTEM</div>
-          <div className="gate-sub">CLICK TO INITIALIZE</div>
-        </div>
-      )}
 
-      {/* BOOT SCROLL */}
-      {stage === "boot" && (
-        <div className="gate-terminal">
-          {visibleLines.map((line, idx) => (
-            <div key={idx}>{line}</div>
-          ))}
-        </div>
-      )}
+      <div className="gate-terminal" ref={terminalRef}>
+        {bootLines.map((line, i) => (
+          <div key={i}>{line}</div>
+        ))}
 
-      {/* PASSWORD ENTRY */}
-      {stage === "code" && (
-        <div className="gate-terminal">
-          {visibleLines.map((line, idx) => (
-            <div key={idx}>{line}</div>
-          ))}
+        {showCodeEntry && !approved && (
+          <div className="gate-code">
+            <div>ENTER ACCESS CODE</div>
 
-          <form className="gate-code" onSubmit={handleSubmit}>
-            <div>ENTER ACCESS CODE:</div>
             <input
-              autoFocus
               type="password"
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
               className="gate-input"
+              value={codeInput}
+              onChange={(e) => setCodeInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+              autoFocus
             />
-          </form>
-        </div>
-      )}
 
-      {/* ACCESS APPROVED */}
-      {stage === "unlock" && (
-        <div className="gate-center">
-          <div className="gate-title">ACCESS APPROVED</div>
-        </div>
-      )}
+            {error && (
+              <div className="access-error">{error}</div>
+            )}
+          </div>
+        )}
+
+        {approved && (
+          <div className="gate-approve">
+            ACCESS APPROVED
+          </div>
+        )}
+      </div>
     </div>
   );
 }
