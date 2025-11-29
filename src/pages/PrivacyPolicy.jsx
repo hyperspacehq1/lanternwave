@@ -1,9 +1,10 @@
+// src/pages/PrivacyPolicy.jsx
 import React from "react";
 
 export default function PrivacyPolicy() {
   return (
-    <div style={styles.container}>
-      <h1 style={styles.h1}>LanternWave Privacy Policy</h1>
+    <div className="boot-privacy-text">
+      <h1 className="boot-privacy-title">LanternWave Privacy Policy</h1>
       <p><strong>Last Updated:</strong> January 1, 2025</p>
 
       <p>
@@ -19,11 +20,11 @@ export default function PrivacyPolicy() {
         you consent to the practices described in this Privacy Policy.
       </p>
 
-      <hr style={styles.hr} />
+      <hr />
 
-      <h2 style={styles.h2}>1. Information We Collect</h2>
+      <h2>1. Information We Collect</h2>
 
-      <h3 style={styles.h3}>1.1 User-Provided Information</h3>
+      <h3>1.1 User-Provided Information</h3>
       <ul>
         <li>Phone number (only if you text us during a game session)</li>
         <li>Messages you send to the in-game NPC (“The Director”)</li>
@@ -31,7 +32,7 @@ export default function PrivacyPolicy() {
         <li>Gameplay responses for interactive storytelling</li>
       </ul>
 
-      <h3 style={styles.h3}>1.2 Automatically Collected Information</h3>
+      <h3>1.2 Automatically Collected Information</h3>
       <ul>
         <li>Message timestamps</li>
         <li>Delivery status metadata from mobile carriers</li>
@@ -43,9 +44,9 @@ export default function PrivacyPolicy() {
         government identifiers, health data, or biometric information.
       </p>
 
-      <hr style={styles.hr} />
+      <hr />
 
-      <h2 style={styles.h2}>2. How We Use Your Information</h2>
+      <h2>2. How We Use Your Information</h2>
 
       <p>We use SMS data solely to:</p>
       <ul>
@@ -61,15 +62,13 @@ export default function PrivacyPolicy() {
         resale, lead generation, or any promotional purpose.
       </p>
 
-      <hr style={styles.hr} />
+      <hr />
 
-      <h2 style={styles.h2}>3. How We Share Information</h2>
+      <h2>3. How We Share Information</h2>
 
       <p>
-        <strong>
-          Mobile information will not be shared with third parties/affiliates for 
-          marketing or promotional purposes.
-        </strong>
+        <strong>Mobile information will not be shared with third parties/affiliates for 
+        marketing or promotional purposes.</strong>
         Information sharing to subcontractors in support services (e.g., customer care, 
         hosting partners) is permitted.
       </p>
@@ -87,43 +86,43 @@ export default function PrivacyPolicy() {
         or to maintain system integrity.
       </p>
 
-      <hr style={styles.hr} />
+      <hr />
 
-      <h2 style={styles.h2}>4. SMS/Text Messaging Policy</h2>
+      <h2>4. SMS/Text Messaging Policy</h2>
 
-      <h3 style={styles.h3}>4.1 Opt-In</h3>
+      <h3>4.1 Opt-In</h3>
       <p>
         Users opt-in voluntarily by texting our number and replying YES after being 
         shown the SMS disclosure at the game table.
       </p>
 
-      <h3 style={styles.h3}>4.2 Opt-Out</h3>
+      <h3>4.2 Opt-Out</h3>
       <p>
         You may opt-out at any time by texting: 
         <strong> STOP, END, QUIT, CANCEL, or UNSUBSCRIBE</strong>
       </p>
 
       <p>Opt-out confirmation message:</p>
-      <pre style={styles.pre}>
+      <pre className="boot-pre">
 LanternWave: You have been unsubscribed and will no longer receive messages. 
 Reply HELP for help.
       </pre>
 
-      <h3 style={styles.h3}>4.3 Help</h3>
+      <h3>4.3 Help</h3>
       <p>Text <strong>HELP</strong> for support information.</p>
 
-      <h3 style={styles.h3}>4.4 Message Frequency</h3>
+      <h3>4.4 Message Frequency</h3>
       <p>
         Messages occur only during active gameplay sessions and are conversational 
         in nature.
       </p>
 
-      <h3 style={styles.h3}>4.5 Fees</h3>
+      <h3>4.5 Fees</h3>
       <p>Your carrier’s standard message and data rates may apply.</p>
 
-      <hr style={styles.hr} />
+      <hr />
 
-      <h2 style={styles.h2}>5. Data Retention</h2>
+      <h2>5. Data Retention</h2>
       <p>
         We retain SMS session data only as long as required for gameplay, debugging, 
         or operational purposes.
@@ -133,17 +132,17 @@ Reply HELP for help.
         the information below.
       </p>
 
-      <hr style={styles.hr} />
+      <hr />
 
-      <h2 style={styles.h2}>6. Children’s Privacy</h2>
+      <h2>6. Children’s Privacy</h2>
       <p>
         LanternWave is intended for players aged 13 and older. We do not knowingly 
         collect data from children under 13.
       </p>
 
-      <hr style={styles.hr} />
+      <hr />
 
-      <h2 style={styles.h2}>7. Security</h2>
+      <h2>7. Security</h2>
       <p>We use industry-standard protections including:</p>
       <ul>
         <li>HTTPS encryption</li>
@@ -152,51 +151,19 @@ Reply HELP for help.
       </ul>
       <p>No security method is perfectly secure, but we strive to safeguard your data responsibly.</p>
 
-      <hr style={styles.hr} />
+      <hr />
 
-      <h2 style={styles.h2}>8. Contact Us</h2>
+      <h2>8. Contact Us</h2>
       <p>
         <strong>LanternWave Support</strong><br />
-        Email: <a href="mailto:support@lanternwave.com" style={styles.link}>
+        Email: <a href="mailto:support@lanternwave.com">
           support@lanternwave.com
         </a><br />
         Website:{" "}
-        <a href="https://lanternwave.com" style={styles.link}>
+        <a href="https://lanternwave.com">
           https://lanternwave.com
         </a>
       </p>
     </div>
   );
 }
-
-// --- Inline Styles (matches LanternWave theme) ---
-const styles = {
-  container: {
-    backgroundColor: "#0a0a0a",
-    color: "#e0e0e0",
-    fontFamily: "Arial, sans-serif",
-    lineHeight: 1.6,
-    padding: "40px",
-    maxWidth: "900px",
-    margin: "auto",
-  },
-  h1: { color: "#6cc5f0" },
-  h2: { color: "#6cc5f0" },
-  h3: { color: "#6cc5f0" },
-  hr: {
-    margin: "30px 0",
-    border: 0,
-    borderTop: "1px solid #333",
-  },
-  link: {
-    color: "#6cc5f0",
-    textDecoration: "underline",
-  },
-  pre: {
-    background: "#111",
-    padding: "15px",
-    border: "1px solid #333",
-    whiteSpace: "pre-wrap",
-    borderRadius: "4px",
-  },
-};
