@@ -1,62 +1,71 @@
-// netlify/functions/api-player-state.js
 import { query } from "../util/db.js";
-import { requireAdmin } from "../util/auth.js";
+
+function json(statusCode, data) {
+  return {
+    statusCode,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  };
+}
 
 export const handler = async (event) => {
-  const auth = requireAdmin(event.headers);
-  if (!auth.ok) return auth.response;
-
-  const sessionId = event.queryStringParameters.session_id;
-  const phone = event.queryStringParameters.phone;
-
-  if (!sessionId || !phone)
-    return badRequest("Missing session_id or phone");
-
-  const method = event.httpMethod;
+  const qs = event.queryStringParameters || {};
 
   try {
-    // GET — fetch player state
-    if (method === "GET") {
-      const res = await query(`
-        SELECT * FROM mission_player_state
-        WHERE session_id=$1 AND phone_number=$2
-      `, [sessionId, phone]);
+    if (event.httpMethod === "GET") {
+      const { session_id, phone_number } = qs;
+      if (!session_id || !phone_number) {
+        return json(400, {
+          error: "session_id and phone_number are required",
+        });
+      }
 
-      return json(res.rows[0] || {});
+      const r = await query(
+        `SELECT *
+         FROM mission_player_state
+         WHERE session_id=$1 AND phone_number=$2`,
+        [session_id, phone_number]
+      );
+      if (r.rows.length === 0) {
+        return json(200, null);
+      }
+      return json(200, r.rows[0]);
     }
 
-    // POST — update player state
-    if (method === "POST") {
-      const b = JSON.parse(event.body);
+    if (event.httpMethod === "PUT") {
+      const body = JSON.parse(event.body || "{}");
+      const { session_id, phone_number, progress_flags, discovered_clues } = body;
 
-      const res = await query(`
-        INSERT INTO mission_player_state
-        (session_id, phone_number, progress_flags, discovered_clues)
-        VALUES ($1,$2,$3,$4)
-        ON CONFLICT (session_id, phone_number)
-        DO UPDATE SET
-          progress_flags = EXCLUDED.progress_flags,
-          discovered_clues = EXCLUDED.discovered_clues,
-          last_update = NOW()
-        RETURNING *
-      `, [
-        sessionId,
-        phone,
-        b.progress_flags || {},
-        b.discovered_clues || []
-      ]);
+      if (!session_id || !phone_number) {
+        return json(400, {
+          error: "session_id and phone_number are required",
+        });
+      }
 
-      return json(res.rows[0]);
+      const r = await query(
+        `INSERT INTO mission_player_state
+           (session_id, phone_number, progress_flags, discovered_clues, last_update)
+         VALUES ($1,$2,$3,$4,NOW())
+         ON CONFLICT (session_id, phone_number)
+         DO UPDATE SET
+           progress_flags=EXCLUDED.progress_flags,
+           discovered_clues=EXCLUDED.discovered_clues,
+           last_update=NOW()
+         RETURNING *`,
+        [
+          session_id,
+          phone_number,
+          progress_flags || {},
+          discovered_clues || [],
+        ]
+      );
+
+      return json(200, r.rows[0]);
     }
 
-    return methodNotAllowed();
+    return json(405, { error: "Method Not Allowed" });
   } catch (err) {
     console.error("api-player-state error:", err);
-    return serverError();
+    return json(500, { error: "Internal Server Error" });
   }
 };
-
-function json(d) { return { statusCode: 200, body: JSON.stringify(d) }; }
-function badRequest(m) { return { statusCode: 400, body: m }; }
-function serverError() { return { statusCode: 500, body: "Server Error" }; }
-function methodNotAllowed() { return { statusCode: 405, body: "Method Not Allowed" }; }

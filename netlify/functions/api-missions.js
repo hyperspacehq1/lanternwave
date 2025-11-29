@@ -1,77 +1,80 @@
-// netlify/functions/api-missions.js
 import { query } from "../util/db.js";
-import { requireAdmin } from "../util/auth.js";
+
+function json(statusCode, data) {
+  return {
+    statusCode,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  };
+}
 
 export const handler = async (event) => {
-  const auth = requireAdmin(event.headers);
-  if (!auth.ok) return auth.response;
-
-  const method = event.httpMethod;
-
   try {
-    if (method === "GET") {
-      const res = await query("SELECT * FROM missions ORDER BY id DESC");
-      return json(res.rows);
+    const qs = event.queryStringParameters || {};
+
+    if (event.httpMethod === "GET") {
+      const { id } = qs;
+
+      if (id) {
+        const r = await query(
+          "SELECT * FROM missions WHERE id=$1",
+          [id]
+        );
+        if (r.rows.length === 0) {
+          return json(404, { error: "Mission not found" });
+        }
+        return json(200, r.rows[0]);
+      }
+
+      const r = await query(
+        "SELECT * FROM missions ORDER BY created_at DESC NULLS LAST"
+      );
+      return json(200, r.rows);
     }
 
-    if (method === "POST") {
-      const body = JSON.parse(event.body);
-      const res = await query(
+    if (event.httpMethod === "POST") {
+      const body = JSON.parse(event.body || "{}");
+      const {
+        mission_id_code,
+        name,
+        summary_known,
+        summary_unknown,
+        region,
+        weather,
+        mission_date,
+        auto_create_sessions = false,
+      } = body;
+
+      if (!mission_id_code || !name) {
+        return json(400, {
+          error: "mission_id_code and name are required",
+        });
+      }
+
+      const r = await query(
         `INSERT INTO missions
-        (mission_id_code,name,region,weather,mission_date,summary_known,summary_unknown)
-         VALUES ($1,$2,$3,$4,$5,$6,$7)
+         (mission_id_code, name, summary_known, summary_unknown,
+          region, weather, mission_date, auto_create_sessions, created_at, updated_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,NOW(),NOW())
          RETURNING *`,
         [
-          body.mission_id_code,
-          body.name,
-          body.region,
-          body.weather,
-          body.mission_date,
-          body.summary_known,
-          body.summary_unknown
-        ]
-      );
-      return json(res.rows[0]);
-    }
-
-    if (method === "PUT") {
-      const id = event.queryStringParameters.id;
-      const body = JSON.parse(event.body);
-
-      const res = await query(
-        `UPDATE missions SET
-         mission_id_code=$1,name=$2,region=$3,weather=$4,mission_date=$5,
-         summary_known=$6,summary_unknown=$7
-         WHERE id=$8 RETURNING *`,
-        [
-          body.mission_id_code,
-          body.name,
-          body.region,
-          body.weather,
-          body.mission_date,
-          body.summary_known,
-          body.summary_unknown,
-          id
+          mission_id_code,
+          name,
+          summary_known || null,
+          summary_unknown || null,
+          region || null,
+          weather || null,
+          mission_date || null,
+          auto_create_sessions,
         ]
       );
 
-      return json(res.rows[0]);
+      return json(201, r.rows[0]);
     }
 
-    if (method === "DELETE") {
-      const id = event.queryStringParameters.id;
-      await query("DELETE FROM missions WHERE id=$1", [id]);
-      return json("Deleted");
-    }
-
-    return { statusCode: 405, body: "Method Not Allowed" };
-
+    return json(405, { error: "Method Not Allowed" });
   } catch (err) {
-    console.error("Mission API Error:", err);
-    return { statusCode: 500, body: "Server Error" };
+    console.error("api-missions error:", err);
+    return json(500, { error: "Internal Server Error" });
   }
 };
-
-function json(data) {
-  return { statusCode: 200, body: JSON.stringify(data) };
-}

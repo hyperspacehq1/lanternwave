@@ -1,32 +1,38 @@
-// netlify/functions/api-mission-messages.js
 import { query } from "../util/db.js";
-import { requireAdmin } from "../util/auth.js";
+
+function json(statusCode, data) {
+  return {
+    statusCode,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  };
+}
 
 export const handler = async (event) => {
-  const auth = requireAdmin(event.headers);
-  if (!auth.ok) return auth.response;
-
-  const missionId = event.queryStringParameters.mission_id;
-  const phone = event.queryStringParameters.phone;
-
-  if (!missionId || !phone) {
-    return { statusCode: 400, body: "mission_id and phone required" };
-  }
+  const qs = event.queryStringParameters || {};
 
   try {
-    const res = await query(
-      `SELECT * FROM messages
-       WHERE mission_id=$1 AND phone_number=$2
-       ORDER BY created_at ASC`,
-      [missionId, phone]
+    if (event.httpMethod !== "GET") {
+      return json(405, { error: "Method Not Allowed" });
+    }
+
+    const { session_id } = qs;
+
+    if (!session_id) {
+      return json(400, { error: "session_id is required" });
+    }
+
+    const r = await query(
+      `SELECT id, session_id, phone_number, direction, body, timestamp
+       FROM message_logs
+       WHERE session_id=$1
+       ORDER BY timestamp ASC, id ASC`,
+      [session_id]
     );
 
-    return {
-      statusCode: 200,
-      body: JSON.stringify(res.rows),
-    };
+    return json(200, r.rows);
   } catch (err) {
-    console.error("Message API Error:", err);
-    return { statusCode: 500, body: "Server Error" };
+    console.error("api-mission-messages error:", err);
+    return json(500, { error: "Internal Server Error" });
   }
 };

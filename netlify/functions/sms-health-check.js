@@ -1,52 +1,50 @@
-// netlify/functions/sms-health-check.js
 import { query } from "../util/db.js";
 
+function json(statusCode, data) {
+  return {
+    statusCode,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  };
+}
+
 export const handler = async () => {
-  let neon = "OK";
-  let neonError = null;
+  const result = {
+    neon: { ok: false, error: null },
+    openai: { ok: false, error: null },
+  };
 
-  let openai = "OK";
-  let openaiError = null;
-
-  // ---- NEON / POSTGRES CHECK ----
+  // Check Neon / Postgres
   try {
-    // This will throw if the DB connection fails
-    await query("SELECT NOW()");
+    const r = await query("SELECT NOW() AS now");
+    result.neon.ok = true;
+    result.neon.now = r.rows[0].now;
   } catch (err) {
-    neon = "FAIL";
-    neonError = err.message || String(err);
+    console.error("Health check Neon error:", err);
+    result.neon.error = String(err.message || err);
   }
 
-  // ---- OPENAI CHECK ----
+  // Check OpenAI
   try {
-    const key = process.env.OPENAI_API_KEY;
-    if (!key) throw new Error("OPENAI_API_KEY missing");
-
     const res = await fetch("https://api.openai.com/v1/models", {
-      headers: { Authorization: `Bearer ${key}` },
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+      },
     });
 
     if (!res.ok) {
-      openai = "FAIL";
-      openaiError = `HTTP ${res.status}`;
+      throw new Error(`OpenAI HTTP ${res.status}`);
     }
+    const data = await res.json();
+    result.openai.ok = true;
+    result.openai.model_count = Array.isArray(data.data)
+      ? data.data.length
+      : null;
   } catch (err) {
-    openai = "FAIL";
-    openaiError = err.message || String(err);
+    console.error("Health check OpenAI error:", err);
+    result.openai.error = String(err.message || err);
   }
 
-  return {
-    statusCode: 200,
-    body: JSON.stringify(
-      {
-        neon,
-        neonError,
-        openai,
-        openaiError,
-        timestamp: new Date().toISOString(),
-      },
-      null,
-      2
-    ),
-  };
+  return json(200, result);
 };
