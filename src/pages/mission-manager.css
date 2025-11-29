@@ -464,3 +464,15 @@
   font-size: 0.75rem;
   opacity: 0.8;
 }
+.mission-manager .mm-select {
+  width: 100%;
+  padding: 0.4rem 0.6rem;
+  background: rgba(0, 0, 0, 0.7);
+  color: #6cc417;
+  border: 1px solid rgba(108, 196, 23, 0.35);
+  border-radius: 6px;
+  margin-bottom: 0.75rem;
+  font-family: "VT323", monospace;
+  font-size: 1rem;
+}
+

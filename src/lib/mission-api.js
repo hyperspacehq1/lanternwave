@@ -19,6 +19,23 @@ async function api(path, method = "GET", body = null) {
 }
 
 /* ============================================================
+   CAMPAIGNS (MISSIONS)
+   ============================================================ */
+
+export function listMissions() {
+  return api("api-missions");
+}
+
+export function createMission(name, region, summaryKnown, summaryUnknown) {
+  return api("api-missions", "POST", {
+    name,
+    region,
+    summary_known: summaryKnown || "",
+    summary_unknown: summaryUnknown || ""
+  });
+}
+
+/* ============================================================
    SESSIONS
    ============================================================ */
 
