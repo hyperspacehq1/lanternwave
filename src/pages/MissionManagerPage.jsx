@@ -1,6 +1,7 @@
-// ================================================
-// MissionManagerPage.jsx — CLEAN & PATCHED
-// ================================================
+// =========================================================
+// MissionManagerPage.jsx — FINAL DEPLOY-SAFE VERSION
+// =========================================================
+
 import React, { useEffect, useState } from "react";
 
 import {
@@ -13,50 +14,44 @@ import {
   createSessionEvent,
   updateSessionEvent,
   archiveSessionEvent,
-  listNPCsForMission,
+  listNPCs,
   getNPCState,
   listSessionMessages,
 } from "../lib/mission-api.js";
 
 import EventModal from "../components/EventModal.jsx";
-import EventEditor from "../components/EventEditor.jsx"; // <-- ensure this exists
+import EventEditor from "../components/EventEditor.jsx";
 
 export default function MissionManagerPage() {
-  // -------------------------------------------------------
+  // -----------------------------------------
   // STATE
-  // -------------------------------------------------------
+  // -----------------------------------------
   const [sessions, setSessions] = useState([]);
   const [selectedSession, setSelectedSession] = useState(null);
   const [selectedSessionId, setSelectedSessionId] = useState(null);
 
-  // CREATE SESSION
   const [missionIdInput, setMissionIdInput] = useState("");
   const [sessionNameInput, setSessionNameInput] = useState("");
   const [gmNotesInput, setGmNotesInput] = useState("");
 
-  // PLAYERS
   const [players, setPlayers] = useState([]);
   const [newPlayerName, setNewPlayerName] = useState("");
   const [newPlayerPhone, setNewPlayerPhone] = useState("");
 
-  // EVENTS
   const [events, setEvents] = useState([]);
   const [selectedEventId, setSelectedEventId] = useState(null);
 
-  // EVENT MODAL
   const [eventModalOpen, setEventModalOpen] = useState(false);
   const [editEvent, setEditEvent] = useState(null);
 
-  // LOGS
   const [logs, setLogs] = useState([]);
 
-  // NPCS
   const [npcs, setNpcs] = useState([]);
   const [npcStateView, setNpcStateView] = useState(null);
 
-  // -------------------------------------------------------
+  // -----------------------------------------
   // INITIAL LOAD
-  // -------------------------------------------------------
+  // -----------------------------------------
   useEffect(() => {
     refreshSessions();
   }, []);
@@ -70,9 +65,9 @@ export default function MissionManagerPage() {
     }
   }
 
-  // -------------------------------------------------------
+  // -----------------------------------------
   // SELECT SESSION
-  // -------------------------------------------------------
+  // -----------------------------------------
   async function handleSelectSession(session) {
     try {
       setSelectedSession(session);
@@ -82,18 +77,17 @@ export default function MissionManagerPage() {
       await refreshEvents(session.id);
       await refreshLogs(session.id);
 
-      if (session.mission_id) {
-        const missionNPCs = await listNPCsForMission(session.mission_id);
-        setNpcs(missionNPCs.npcs || []);
-      }
+      // NEW — UPDATED: load *all* NPCs (Option B)
+      const npcRes = await listNPCs();
+      setNpcs(npcRes.npcs || []);
     } catch (err) {
       console.error("Failed to load session details", err);
     }
   }
 
-  // -------------------------------------------------------
+  // -----------------------------------------
   // CREATE SESSION
-  // -------------------------------------------------------
+  // -----------------------------------------
   async function handleCreateSession() {
     try {
       const mid = Number(missionIdInput);
@@ -102,11 +96,7 @@ export default function MissionManagerPage() {
         return;
       }
 
-      await createSession(
-        mid,
-        sessionNameInput.trim(),
-        gmNotesInput.trim()
-      );
+      await createSession(mid, sessionNameInput.trim(), gmNotesInput.trim());
 
       setMissionIdInput("");
       setSessionNameInput("");
@@ -119,9 +109,9 @@ export default function MissionManagerPage() {
     }
   }
 
-  // -------------------------------------------------------
+  // -----------------------------------------
   // PLAYERS
-  // -------------------------------------------------------
+  // -----------------------------------------
   async function refreshPlayers(sessionId) {
     try {
       const res = await listSessionPlayers(sessionId);
@@ -161,9 +151,9 @@ export default function MissionManagerPage() {
     }
   }
 
-  // -------------------------------------------------------
+  // -----------------------------------------
   // EVENTS
-  // -------------------------------------------------------
+  // -----------------------------------------
   async function refreshEvents(sessionId) {
     try {
       const res = await listSessionEvents(sessionId);
@@ -179,24 +169,14 @@ export default function MissionManagerPage() {
     setEventModalOpen(true);
   }
 
-  function openEditEventModal(eventRecord) {
-    setEditEvent(eventRecord);
-    setEventModalOpen(true);
-  }
-
   async function handleSaveEvent(formData) {
     try {
       if (editEvent) {
-        await updateSessionEvent({
-          id: editEvent.id,
-          ...formData,
-        });
+        await updateSessionEvent({ id: editEvent.id, ...formData });
       } else {
-        await createSessionEvent({
-          session_id: selectedSessionId,
-          ...formData,
-        });
+        await createSessionEvent({ session_id: selectedSessionId, ...formData });
       }
+
       setEventModalOpen(false);
       await refreshEvents(selectedSessionId);
     } catch (err) {
@@ -205,10 +185,9 @@ export default function MissionManagerPage() {
     }
   }
 
-  async function handleArchiveEvent() {
-    if (!selectedEventId) return;
+  async function handleArchiveEvent(eventId) {
     try {
-      await archiveSessionEvent(selectedEventId);
+      await archiveSessionEvent(eventId);
       await refreshEvents(selectedSessionId);
       setSelectedEventId(null);
     } catch (err) {
@@ -216,9 +195,9 @@ export default function MissionManagerPage() {
     }
   }
 
-  // -------------------------------------------------------
+  // -----------------------------------------
   // LOGS
-  // -------------------------------------------------------
+  // -----------------------------------------
   async function refreshLogs(sessionId) {
     try {
       const res = await listSessionMessages(sessionId);
@@ -228,9 +207,9 @@ export default function MissionManagerPage() {
     }
   }
 
-  // -------------------------------------------------------
-  // NPC STATE VIEW
-  // -------------------------------------------------------
+  // -----------------------------------------
+  // NPC STATE
+  // -----------------------------------------
   async function loadNpcState(npc) {
     try {
       const res = await getNPCState(selectedSessionId, npc.id);
@@ -240,16 +219,16 @@ export default function MissionManagerPage() {
     }
   }
 
-  // -------------------------------------------------------
+  // -----------------------------------------
   // RENDER
-  // -------------------------------------------------------
+  // -----------------------------------------
   return (
     <div className="mission-manager-page">
       <h1 className="page-title">Mission Manager</h1>
 
-      {/* ---------------------------------------------------
-           SESSION LIST
-      --------------------------------------------------- */}
+      {/* ======================================================
+          SESSION LIST
+      ======================================================= */}
       <section className="section">
         <h2>Sessions</h2>
 
@@ -271,42 +250,46 @@ export default function MissionManagerPage() {
           ))}
         </div>
 
-        {/* CREATE SESSION */}
+        {/* Create Session */}
         <div className="create-session">
           <h3>Create New Session</h3>
+
           <input
             type="number"
             placeholder="Mission ID"
             value={missionIdInput}
             onChange={(e) => setMissionIdInput(e.target.value)}
           />
+
           <input
             type="text"
             placeholder="Session Name"
             value={sessionNameInput}
             onChange={(e) => setSessionNameInput(e.target.value)}
           />
+
           <textarea
             placeholder="GM Notes"
             value={gmNotesInput}
             onChange={(e) => setGmNotesInput(e.target.value)}
           />
+
           <button onClick={handleCreateSession}>Create Session</button>
         </div>
       </section>
 
-      {/* ---------------------------------------------------
-           SELECTED SESSION DETAILS
-      --------------------------------------------------- */}
+      {/* ======================================================
+          SELECTED SESSION DETAILS
+      ======================================================= */}
       {selectedSession && (
         <section className="section">
           <h2>
             Session: {selectedSession.session_name} (ID {selectedSession.id})
           </h2>
 
-          {/* -------------------------------------
-                PLAYERS
-          --------------------------------------*/}
+          {/* -----------------------------------------
+              PLAYERS
+          ------------------------------------------ */}
           <div className="card">
             <h3>Players</h3>
 
@@ -326,19 +309,21 @@ export default function MissionManagerPage() {
                 value={newPlayerName}
                 onChange={(e) => setNewPlayerName(e.target.value)}
               />
+
               <input
                 type="text"
                 placeholder="Phone Number"
                 value={newPlayerPhone}
                 onChange={(e) => setNewPlayerPhone(e.target.value)}
               />
+
               <button onClick={handleAddPlayer}>Add Player</button>
             </div>
           </div>
 
-          {/* -------------------------------------
-                EVENTS
-          --------------------------------------*/}
+          {/* -----------------------------------------
+              EVENTS
+          ------------------------------------------ */}
           <div className="card event-panel">
             <h3>Mission Events</h3>
 
@@ -362,12 +347,10 @@ export default function MissionManagerPage() {
                         <div
                           key={ev.id}
                           className={
-                            "event-item " +
+                            `event-item sev-${sev} ` +
                             (selectedEventId === ev.id ? "selected" : "")
                           }
-                          onClick={() => {
-                            setSelectedEventId(ev.id);
-                          }}
+                          onClick={() => setSelectedEventId(ev.id)}
                         >
                           <div className="event-header">
                             <strong>{summary}</strong>
@@ -390,7 +373,7 @@ export default function MissionManagerPage() {
                 )}
               </div>
 
-              {/* RIGHT COLUMN — EVENT EDITOR */}
+              {/* RIGHT COLUMN — EDITOR */}
               <div className="event-editor-column">
                 {selectedEventId === null ? (
                   <div className="empty-events">
@@ -410,9 +393,9 @@ export default function MissionManagerPage() {
             </div>
           </div>
 
-          {/* -------------------------------------
-                LOGS
-          --------------------------------------*/}
+          {/* -----------------------------------------
+              LOGS
+          ------------------------------------------ */}
           <div className="card">
             <h3>Message Logs</h3>
             <div className="log-list">
@@ -424,9 +407,9 @@ export default function MissionManagerPage() {
             </div>
           </div>
 
-          {/* -------------------------------------
-                NPC STATE
-          --------------------------------------*/}
+          {/* -----------------------------------------
+              NPC STATE
+          ------------------------------------------ */}
           <div className="card">
             <h3>NPCs</h3>
 
