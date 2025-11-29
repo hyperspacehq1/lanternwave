@@ -1,139 +1,110 @@
-// src/lib/mission-api.js
-const BASE = "/.netlify/functions";
+// =====================================================
+// mission-api.js — FULLY PATCHED VERSION
+// Matches all MissionManagerPage.jsx imports
+// =====================================================
 
-// ---------- ADMIN KEY STORAGE FIX ----------
-const KEY_NAME = "adminKey"; // <-- unified name
-
-export function getStoredAdminKey() {
-  // Allow fallback in case old versions were used
-  return (
-    localStorage.getItem(KEY_NAME) ||
-    localStorage.getItem("admin_api_key") || 
-    ""
-  );
-}
-
-export function setStoredAdminKey(key) {
-  localStorage.setItem(KEY_NAME, key);
-}
-// -------------------------------------------
-
-// Wrapper for authenticated calls
-async function apiFetch(fnName, method = "GET", body = null, query = "") {
-  const key = getStoredAdminKey();
-
-  const url = `${BASE}/${fnName}${query ? `?${query}` : ""}`;
-
-  const res = await fetch(url, {
-    method,
+async function api(path, options = {}) {
+  const res = await fetch(`/.netlify/functions/${path}`, {
+    method: options.method || "GET",
     headers: {
       "Content-Type": "application/json",
-      "x-admin-key": key,  // MUST MATCH server
     },
-    body: body ? JSON.stringify(body) : undefined,
+    body: options.body ? JSON.stringify(options.body) : undefined,
   });
 
   if (!res.ok) {
-    console.error("[API ERROR]", fnName, res.status);
-    throw new Error(`API Error: ${res.status}`);
+    const text = await res.text();
+    throw new Error(`API Error ${res.status}: ${text}`);
   }
-
   return res.json();
 }
 
-// --------------------------------------------------
-//  Mission Sessions
-// --------------------------------------------------
+// ----------------------------------------------
+// SESSIONS
+// ----------------------------------------------
+
 export function listSessions() {
-  return apiFetch("api-mission-sessions", "GET");
+  return api("api-mission-sessions");
 }
 
-export function createSession(missionId, sessionName, gmNotes = "") {
-  return apiFetch("api-mission-sessions", "POST", {
-    mission_id: missionId,
-    session_name: sessionName,
-    gm_notes: gmNotes,
+export function createSession(missionId, sessionName, gmNotes) {
+  return api("api-mission-sessions", {
+    method: "POST",
+    body: { mission_id: missionId, session_name: sessionName, gm_notes: gmNotes },
   });
 }
 
-export function getSession(id) {
-  return apiFetch("api-mission-session", "GET", null, `id=${id}`);
-}
+// ----------------------------------------------
+// PLAYERS (add/remove/list)
+// ----------------------------------------------
 
-export function updateSession(id, { session_name, gm_notes, status }) {
-  return apiFetch(
-    "api-mission-session",
-    "PUT",
-    { session_name, gm_notes, status },
-    `id=${id}`
-  );
-}
-
-export function resetSession(id) {
-  return apiFetch("api-mission-session", "DELETE", null, `id=${id}`);
-}
-
-// --------------------------------------------------
-// Players
-// --------------------------------------------------
 export function listSessionPlayers(sessionId) {
-  return apiFetch(
-    "api-session-players",
-    "GET",
-    null,
-    `session_id=${sessionId}`
-  );
+  return api(`api-mission-session?session_id=${sessionId}&players=1`);
 }
 
-export function addSessionPlayer(sessionId, phone_number, player_name = "") {
-  return apiFetch(
-    "api-session-players",
-    "POST",
-    { phone_number, player_name },
-    `session_id=${sessionId}`
-  );
+export function addPlayerToSession(sessionId, playerName, phoneNumber) {
+  return api("api-mission-session", {
+    method: "POST",
+    body: {
+      action: "add_player",
+      session_id: sessionId,
+      player_name: playerName,
+      phone_number: phoneNumber,
+    },
+  });
 }
 
-export function removeSessionPlayer(sessionId, phone_number) {
-  return apiFetch(
-    "api-session-players",
-    "DELETE",
-    null,
-    `session_id=${sessionId}&phone=${encodeURIComponent(phone_number)}`
-  );
+export function removePlayer(playerRecordId) {
+  return api("api-mission-session", {
+    method: "POST",
+    body: {
+      action: "remove_player",
+      player_id: playerRecordId,
+    },
+  });
 }
 
-// --------------------------------------------------
-// Events
-// --------------------------------------------------
+// ----------------------------------------------
+// EVENTS
+// ----------------------------------------------
+
 export function listSessionEvents(sessionId) {
-  return apiFetch("api-events", "GET", null, `session_id=${sessionId}`);
+  return api(`api-events?session_id=${sessionId}`);
 }
 
-// --------------------------------------------------
-// Logs
-// --------------------------------------------------
-export function listSessionLogs(sessionId) {
-  return apiFetch("api-session-logs", "GET", null, `session_id=${sessionId}`);
+export function createSessionEvent(eventData) {
+  return api("api-events", {
+    method: "POST",
+    body: { action: "create", ...eventData },
+  });
 }
 
-// --------------------------------------------------
-// NPC State
-// --------------------------------------------------
-export function getNpcState(sessionId, npcId, phone) {
-  return apiFetch(
-    "api-npc-state",
-    "GET",
-    null,
-    `session_id=${sessionId}&npc_id=${npcId}&phone=${encodeURIComponent(phone)}`
-  );
+export function updateSessionEvent(eventData) {
+  return api("api-events", {
+    method: "POST",
+    body: { action: "update", ...eventData },
+  });
 }
 
-export function updateNpcState(sessionId, npcId, phone, body) {
-  return apiFetch(
-    "api-npc-state",
-    "POST",
-    body,
-    `session_id=${sessionId}&npc_id=${npcId}&phone=${encodeURIComponent(phone)}`
-  );
+export function archiveSessionEvent(eventId) {
+  return api("api-events", {
+    method: "POST",
+    body: { action: "archive", id: eventId },
+  });
+}
+
+// ----------------------------------------------
+// LOGS / MESSAGES
+// ----------------------------------------------
+
+export function listSessionMessages(sessionId) {
+  return api(`api-mission-messages?session_id=${sessionId}`);
+}
+
+// ----------------------------------------------
+// NPC STATE
+// ----------------------------------------------
+
+export function getNPCState(sessionId, npcId) {
+  return api(`api-npc-state?session_id=${sessionId}&npc_id=${npcId}`);
 }
