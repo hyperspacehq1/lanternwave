@@ -884,3 +884,189 @@ body {
   font-size: 0.75rem;
   white-space: pre-wrap;
 }
+
+/* ============================================================
+   ACCESS GATE / BOOT SEQUENCE — RESTORED + NOSTROMO THEME
+   Safe namespace (.access-*, .boot-*, .privacy-*)
+   ============================================================ */
+
+/* Fullscreen wrapper */
+.access-gate-screen {
+  width: 100%;
+  height: 100vh;
+  background: radial-gradient(circle at center, #071107 0%, #020402 100%);
+  color: var(--terminal-text, #c7f8c7);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding-top: 80px;
+  position: relative;
+  overflow: hidden;
+  font-family: "VT323", monospace;
+}
+
+/* Scanline effect */
+.access-gate-screen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.1) 0px,
+    rgba(0, 0, 0, 0.1) 2px,
+    transparent 4px
+  );
+  opacity: 0.25;
+}
+
+/* Boot Box container */
+.boot-box {
+  width: 70%;
+  max-width: 700px;
+  padding: 40px;
+  border: 1px solid rgba(140, 255, 140, 0.25);
+  border-radius: 8px;
+  box-shadow: 0 0 15px rgba(140, 255, 140, 0.15);
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(3px);
+}
+
+/* Booting text */
+.boot-sequence {
+  color: #b4ffb4;
+  font-size: 1.2rem;
+  letter-spacing: 1px;
+  white-space: pre-wrap;
+  animation: terminal-blink 0.75s infinite alternate;
+}
+
+@keyframes terminal-blink {
+  from { opacity: 1; }
+  to   { opacity: 0.65; }
+}
+
+/* Access form */
+.access-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.access-form label {
+  font-size: 1.3rem;
+  color: #c8ffc8;
+}
+
+.access-form input {
+  background: #000;
+  border: 1px solid #8aff8a;
+  color: #d2ffd2;
+  font-size: 1.2rem;
+  padding: 6px 10px;
+  outline: none;
+  width: 250px;
+}
+
+.access-form input:focus {
+  box-shadow: 0 0 8px rgba(140, 255, 140, 0.7);
+}
+
+.access-form button {
+  width: 120px;
+  background: #0c0;
+  color: #000;
+  font-weight: bold;
+  border: none;
+  padding: 6px 10px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.access-form button:hover {
+  background: #9f0;
+  box-shadow: 0 0 8px #8f8;
+}
+
+/* Errors */
+.access-error {
+  color: #ff6666;
+  font-size: 1.1rem;
+  margin-top: 5px;
+}
+
+/* Approved */
+.access-approved {
+  font-size: 2rem;
+  color: #9f9;
+  animation: approved-pulse 1s infinite alternate;
+}
+
+@keyframes approved-pulse {
+  from { text-shadow: 0 0 6px #6f6; }
+  to   { text-shadow: 0 0 18px #9f9; }
+}
+
+/* ============================================================
+   PRIVACY MODAL
+   ============================================================ */
+
+.privacy-button {
+  position: absolute;
+  right: 20px;
+  top: 20px;
+  font-size: 1.4rem;
+  cursor: pointer;
+  color: #c6ffc6;
+  text-shadow: 0 0 6px #8f8;
+}
+
+.privacy-button:hover {
+  color: #fff;
+  text-shadow: 0 0 12px #bfffbf;
+}
+
+.privacy-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.privacy-modal {
+  width: 80%;
+  max-width: 900px;
+  background: #010801;
+  border: 1px solid #8f8;
+  padding: 20px;
+  border-radius: 6px;
+  position: relative;
+  box-shadow: 0 0 25px rgba(140,255,140,0.4);
+}
+
+.privacy-close {
+  position: absolute;
+  top: 10px;
+  right: 15px;
+  cursor: pointer;
+  color: #c8ffc8;
+  font-size: 1.5rem;
+}
+
+.privacy-close:hover {
+  color: white;
+}
+
+.privacy-content {
+  font-family: var(--font-body, monospace);
+  font-size: 1rem;
+  line-height: 1.5;
+  color: #e0ffe0;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
