@@ -2,9 +2,10 @@ import React, { useState, useEffect, useMemo } from "react";
 import "./mission-manager.css";
 
 import {
-  createSession,
   listMissions,
+  listSessions,
   createMission,
+  createSession,
   listSessionPlayers,
   addPlayerToSession,
   removePlayer,
@@ -21,16 +22,7 @@ import {
   createNPC,
 } from "../lib/mission-api";
 
-// Direct calls for sessions + mission meta
-async function fetchSessions() {
-  const res = await fetch("/.netlify/functions/api-mission-sessions");
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`API Error (api-mission-sessions): ${res.status} — ${text}`);
-  }
-  return res.json();
-}
-
+// helper to fetch a single mission by id
 async function fetchMissionById(id) {
   if (!id) return null;
   const res = await fetch(`/.netlify/functions/api-missions?id=${id}`);
@@ -41,7 +33,7 @@ async function fetchMissionById(id) {
   return res.json();
 }
 
-// Skeleton components
+// skeleton loaders
 const SkeletonRow = ({ width = "100%" }) => (
   <div className="mm-skeleton-row" style={{ width }} />
 );
@@ -51,9 +43,7 @@ const SkeletonBlock = ({ height = "2rem" }) => (
 );
 
 export default function MissionManagerPage() {
-  // ============================
-  // PERSISTED TAB
-  // ============================
+  // persisted tab
   const [activeTab, setActiveTab] = useState("sessions");
 
   useEffect(() => {
@@ -73,14 +63,11 @@ export default function MissionManagerPage() {
     }
   }, [activeTab]);
 
-  // ============================
-  // CAMPAIGNS (MISSIONS)
-  // ============================
+  // campaigns (missions)
   const [missionList, setMissionList] = useState([]);
-  const [loadingMissions, setLoadingMissions] = useState(false);
   const [selectedMissionId, setSelectedMissionId] = useState(null);
+  const [loadingMissions, setLoadingMissions] = useState(false);
 
-  // New campaign modal
   const [showNewCampaignModal, setShowNewCampaignModal] = useState(false);
   const [newCampaignName, setNewCampaignName] = useState("");
   const [newCampaignRegion, setNewCampaignRegion] = useState("");
@@ -88,25 +75,26 @@ export default function MissionManagerPage() {
   const [newCampaignSummaryUnknown, setNewCampaignSummaryUnknown] =
     useState("");
 
-  // ============================
-  // SESSIONS
-  // ============================
+  // sessions
   const [sessionList, setSessionList] = useState([]);
   const [selectedSession, setSelectedSession] = useState(null);
+  const [loadingSessions, setLoadingSessions] = useState(false);
 
-  // Players
+  // players
   const [playerList, setPlayerList] = useState([]);
   const [newPlayerName, setNewPlayerName] = useState("");
   const [newPlayerPhone, setNewPlayerPhone] = useState("");
+  const [loadingPlayers, setLoadingPlayers] = useState(false);
 
-  // Events
+  // events
   const [eventList, setEventList] = useState([]);
   const [editingEvent, setEditingEvent] = useState(null);
   const [payloadIsValid, setPayloadIsValid] = useState(true);
+  const [loadingEvents, setLoadingEvents] = useState(false);
 
   // NPCs
-  const [campaignNPCs, setCampaignNPCs] = useState([]); // mission_npcs join
-  const [allNPCs, setAllNPCs] = useState([]); // npcs table
+  const [campaignNPCs, setCampaignNPCs] = useState([]);
+  const [allNPCs, setAllNPCs] = useState([]);
   const [selectedNPC, setSelectedNPC] = useState(null);
   const [npcState, setNPCState] = useState(null);
   const [loadingNpcState, setLoadingNpcState] = useState(false);
@@ -128,23 +116,14 @@ export default function MissionManagerPage() {
   const [npcTruthPolicyJson, setNpcTruthPolicyJson] = useState("{}");
   const [npcJsonValid, setNpcJsonValid] = useState(true);
 
-  // Messages (for GM logs + director prompt)
+  // messages + logs
   const [messageList, setMessageList] = useState([]);
-
-  // GM Logs
+  const [loadingMessages, setLoadingMessages] = useState(false);
   const [showInspector, setShowInspector] = useState(false);
   const [missionMeta, setMissionMeta] = useState(null);
-
-  // Loading flags
-  const [loadingSessions, setLoadingSessions] = useState(false);
-  const [loadingPlayers, setLoadingPlayers] = useState(false);
-  const [loadingEvents, setLoadingEvents] = useState(false);
-  const [loadingMessages, setLoadingMessages] = useState(false);
   const [loadingMissionMeta, setLoadingMissionMeta] = useState(false);
 
-  // ============================
-  // INITIAL LOAD
-  // ============================
+  // initial load
   useEffect(() => {
     loadMissions();
     loadSessions();
@@ -155,12 +134,11 @@ export default function MissionManagerPage() {
     try {
       const missions = await listMissions();
       setMissionList(missions || []);
-
       if (missions?.length && !selectedMissionId) {
         setSelectedMissionId(missions[0].id);
       }
-    } catch (error) {
-      console.error("Failed loading missions:", error);
+    } catch (err) {
+      console.error("Failed loading missions:", err);
     } finally {
       setLoadingMissions(false);
     }
@@ -169,22 +147,19 @@ export default function MissionManagerPage() {
   async function loadSessions() {
     setLoadingSessions(true);
     try {
-      const sessions = await fetchSessions();
+      const sessions = await listSessions();
       setSessionList(sessions || []);
-
       if (!selectedSession && sessions?.length) {
-        await handleSelectSession(sessions[0]);
+        handleSelectSession(sessions[0]);
       }
-    } catch (error) {
-      console.error("Failed loading sessions:", error);
+    } catch (err) {
+      console.error("Failed loading sessions:", err);
     } finally {
       setLoadingSessions(false);
     }
   }
 
-  // ============================
-  // CAMPAIGN NPC ROSTER LOAD
-  // ============================
+  // campaign NPC roster load when mission changes
   useEffect(() => {
     if (!selectedMissionId) return;
     refreshCampaignNPCs(selectedMissionId);
@@ -210,8 +185,8 @@ export default function MissionManagerPage() {
   }
 
   const availableNPCs = useMemo(() => {
-    const usedIds = new Set(campaignNPCs.map((r) => r.npc_id));
-    return allNPCs.filter((n) => !usedIds.has(n.id));
+    const used = new Set(campaignNPCs.map((r) => r.npc_id));
+    return allNPCs.filter((n) => !used.has(n.id));
   }, [campaignNPCs, allNPCs]);
 
   async function handleAddNPCToCampaign(npc) {
@@ -251,7 +226,7 @@ export default function MissionManagerPage() {
         personalityObj = JSON.parse(npcPersonalityJson || "{}");
         truthPolicyObj = JSON.parse(npcTruthPolicyJson || "{}");
         setNpcJsonValid(true);
-      } catch (e) {
+      } catch {
         setNpcJsonValid(false);
         alert("Personality / Truth Policy JSON is invalid.");
         return;
@@ -301,9 +276,7 @@ export default function MissionManagerPage() {
     }
   }
 
-  // ============================
-  // SESSION SELECTION & CREATION
-  // ============================
+  // session selection
   async function handleSelectSession(session) {
     setSelectedSession(session);
     setMissionMeta(null);
@@ -316,6 +289,19 @@ export default function MissionManagerPage() {
     refreshEvents(session.id);
     refreshMessages(session.id);
     fetchMissionMeta(session);
+  }
+
+  async function fetchMissionMeta(session) {
+    if (!session?.mission_id) return;
+    setLoadingMissionMeta(true);
+    try {
+      const mission = await fetchMissionById(session.mission_id);
+      setMissionMeta(mission || null);
+    } catch (err) {
+      console.error("Failed loading mission meta:", err);
+    } finally {
+      setLoadingMissionMeta(false);
+    }
   }
 
   async function handleCreateNewCampaign() {
@@ -340,8 +326,8 @@ export default function MissionManagerPage() {
       setNewCampaignRegion("");
       setNewCampaignSummaryKnown("");
       setNewCampaignSummaryUnknown("");
-    } catch (error) {
-      console.error("Failed creating campaign:", error);
+    } catch (err) {
+      console.error("Failed creating campaign:", err);
       alert("Failed to create campaign. Check logs.");
     }
   }
@@ -360,34 +346,19 @@ export default function MissionManagerPage() {
 
       await loadSessions();
       await handleSelectSession(session);
-    } catch (error) {
-      console.error("Failed creating session:", error);
+    } catch (err) {
+      console.error("Failed creating session:", err);
     }
   }
 
-  async function fetchMissionMeta(session) {
-    if (!session?.mission_id) return;
-    setLoadingMissionMeta(true);
-    try {
-      const mission = await fetchMissionById(session.mission_id);
-      setMissionMeta(mission || null);
-    } catch (error) {
-      console.error("Failed loading mission meta:", error);
-    } finally {
-      setLoadingMissionMeta(false);
-    }
-  }
-
-  // ============================
-  // PLAYERS
-  // ============================
+  // players
   async function refreshPlayers(sessionId) {
     setLoadingPlayers(true);
     try {
       const players = await listSessionPlayers(sessionId);
       setPlayerList(players || []);
-    } catch (error) {
-      console.error("Failed loading players:", error);
+    } catch (err) {
+      console.error("Failed loading players:", err);
     } finally {
       setLoadingPlayers(false);
     }
@@ -404,8 +375,8 @@ export default function MissionManagerPage() {
       setNewPlayerName("");
       setNewPlayerPhone("");
       refreshPlayers(selectedSession.id);
-    } catch (error) {
-      console.error("Failed adding player:", error);
+    } catch (err) {
+      console.error("Failed adding player:", err);
     }
   }
 
@@ -414,21 +385,19 @@ export default function MissionManagerPage() {
     try {
       await removePlayer(selectedSession.id, player.phone_number);
       refreshPlayers(selectedSession.id);
-    } catch (error) {
-      console.error("Failed removing player:", error);
+    } catch (err) {
+      console.error("Failed removing player:", err);
     }
   }
 
-  // ============================
-  // EVENTS
-  // ============================
+  // events
   async function refreshEvents(sessionId) {
     setLoadingEvents(true);
     try {
       const events = await listSessionEvents(sessionId);
       setEventList(events || []);
-    } catch (error) {
-      console.error("Failed loading events:", error);
+    } catch (err) {
+      console.error("Failed loading events:", err);
     } finally {
       setLoadingEvents(false);
     }
@@ -458,8 +427,8 @@ export default function MissionManagerPage() {
       }
       setEditingEvent(null);
       refreshEvents(selectedSession.id);
-    } catch (error) {
-      console.error("Failed saving event:", error);
+    } catch (err) {
+      console.error("Failed saving event:", err);
     }
   }
 
@@ -468,46 +437,40 @@ export default function MissionManagerPage() {
     try {
       await archiveSessionEvent(selectedSession.id, evt.id);
       refreshEvents(selectedSession.id);
-    } catch (error) {
-      console.error("Failed archiving event:", error);
+    } catch (err) {
+      console.error("Failed archiving event:", err);
     }
   }
 
-  // ============================
-  // NPC STATE
-  // ============================
-  async function handleSelectNPC(npcEntry) {
+  // NPC state
+  async function handleSelectNPC(entry) {
     if (!selectedSession) return;
-    setSelectedNPC(npcEntry);
+    setSelectedNPC(entry);
     setLoadingNpcState(true);
     try {
-      const state = await getNPCState(selectedSession.id, npcEntry.npc_id);
+      const state = await getNPCState(selectedSession.id, entry.npc_id);
       setNPCState(state || {});
-    } catch (error) {
-      console.error("Failed loading NPC state:", error);
+    } catch (err) {
+      console.error("Failed loading NPC state:", err);
     } finally {
       setLoadingNpcState(false);
     }
   }
 
-  // ============================
-  // MESSAGES
-  // ============================
+  // messages
   async function refreshMessages(sessionId) {
     setLoadingMessages(true);
     try {
       const msgs = await listSessionMessages(sessionId);
       setMessageList(msgs || []);
-    } catch (error) {
-      console.error("Failed loading messages:", error);
+    } catch (err) {
+      console.error("Failed loading messages:", err);
     } finally {
       setLoadingMessages(false);
     }
   }
 
-  // ============================
-  // GM LOGS / DIRECTOR PROMPT
-  // ============================
+  // director prompt preview
   const directorPromptPreview = useMemo(() => {
     if (!selectedSession || !selectedNPC) {
       return "Select a session and an NPC from the roster to see the Director prompt.";
@@ -547,14 +510,11 @@ export default function MissionManagerPage() {
     ].join("\n");
   }, [selectedSession, selectedNPC, missionMeta, messageList]);
 
-  // ============================
-  // RENDER
-  // ============================
   const hasSession = !!selectedSession;
 
   return (
     <div className="mission-manager">
-      {/* HEADER */}
+      {/* Header */}
       <div className="mm-header-row">
         <h1>Campaign Manager</h1>
         <div className="mm-header-meta">
@@ -572,7 +532,7 @@ export default function MissionManagerPage() {
         </div>
       </div>
 
-      {/* TABS */}
+      {/* Tabs */}
       <div className="mm-tabs">
         <div
           className={`mm-tab ${activeTab === "sessions" ? "active" : ""}`}
@@ -606,7 +566,7 @@ export default function MissionManagerPage() {
       <div className="mm-container">
         {/* LEFT PANEL */}
         <div className="mm-left-panel">
-          {/* SESSIONS TAB */}
+          {/* Sessions tab */}
           {activeTab === "sessions" && (
             <>
               <h2>Campaign Sessions</h2>
@@ -681,7 +641,7 @@ export default function MissionManagerPage() {
             </>
           )}
 
-          {/* PLAYERS TAB */}
+          {/* Players tab */}
           {activeTab === "players" && hasSession && (
             <>
               <h2>Players</h2>
@@ -729,7 +689,7 @@ export default function MissionManagerPage() {
             </>
           )}
 
-          {/* EVENTS TAB */}
+          {/* Events tab */}
           {activeTab === "events" && hasSession && (
             <>
               <h2>Events</h2>
@@ -776,7 +736,7 @@ export default function MissionManagerPage() {
             </>
           )}
 
-          {/* NPC TAB (ROSTER + AVAILABLE) */}
+          {/* NPC tab */}
           {activeTab === "npc" && hasSession && (
             <>
               <h2>Campaign NPC Roster</h2>
@@ -856,7 +816,7 @@ export default function MissionManagerPage() {
 
         {/* RIGHT PANEL */}
         <div className="mm-right-panel">
-          {/* EVENT EDITOR */}
+          {/* Event editor */}
           {activeTab === "events" && editingEvent && (
             <div className="mm-panel-card">
               <h2>{editingEvent.id ? "Edit Event" : "New Event"}</h2>
@@ -934,14 +894,13 @@ export default function MissionManagerPage() {
             </div>
           )}
 
-          {/* NPC MEMORY VIEW */}
+          {/* NPC memory view */}
           {activeTab === "npc" && selectedNPC && (
             <div className="mm-panel-card">
               <h2>{selectedNPC.display_name}</h2>
               <p className="mm-note">
-                Memory is per session and per phone number. When a new group
-                runs this campaign in a new session, this NPC starts fresh for
-                them.
+                Memory is per session and per phone number. New sessions start
+                fresh for new groups.
               </p>
 
               {loadingNpcState && <SkeletonBlock height="200px" />}
@@ -954,10 +913,10 @@ export default function MissionManagerPage() {
             </div>
           )}
 
-          {/* DEFAULT EMPTY STATE */}
+          {/* default empty state */}
           {((activeTab === "sessions" && !editingEvent) ||
             (activeTab === "players" && !editingEvent) ||
-            (activeTab === "events" && !editingEvent && !selectedNPC) ||
+            (activeTab === "events" && !editingEvent) ||
             (activeTab === "npc" && !selectedNPC)) && (
             <div className="mm-panel-card mm-panel-empty">
               <p className="mm-note">
@@ -968,7 +927,7 @@ export default function MissionManagerPage() {
         </div>
       </div>
 
-      {/* GM LOGS INSPECTOR */}
+      {/* GM logs inspector */}
       <div className={`mm-logs-panel ${showInspector ? "open" : ""}`}>
         <div className="mm-logs-header">
           <div>
@@ -1043,7 +1002,7 @@ export default function MissionManagerPage() {
         </div>
       </div>
 
-      {/* NEW CAMPAIGN MODAL */}
+      {/* New campaign modal */}
       {showNewCampaignModal && (
         <div className="mm-modal-backdrop">
           <div className="mm-modal">
@@ -1097,17 +1056,10 @@ export default function MissionManagerPage() {
         </div>
       )}
 
-      {/* NEW NPC MODAL */}
+      {/* New NPC modal */}
       {showNewNPCModal && (
         <div className="mm-modal-backdrop">
-          <div
-            className="mm-modal"
-            style={{
-              maxWidth: "600px",
-              maxHeight: "80vh",
-              overflowY: "auto",
-            }}
-          >
+          <div className="mm-modal mm-modal-npc">
             <h2>New NPC</h2>
 
             <label>Display Name *</label>
@@ -1136,9 +1088,7 @@ export default function MissionManagerPage() {
             <input
               type="text"
               value={npcSecondarySubtype}
-              onChange={(e) =>
-                setNpcSecondarySubtype(e.target.value)
-              }
+              onChange={(e) => setNpcSecondarySubtype(e.target.value)}
               placeholder="BARTENDER, COP, CULTIST, etc."
             />
 
