@@ -142,6 +142,11 @@ export function getNPCState(sessionId, npcId) {
   return api(`api-npc-state?session_id=${sessionId}&npc_id=${npcId}`);
 }
 
+// Create a new global NPC (full schema)
+export function createNPC(npc) {
+  return api("api-npcs", "POST", npc);
+}
+
 /* ============================================================
    MESSAGES
    ============================================================ */

@@ -18,6 +18,7 @@ import {
   addNPCToMission,
   removeNPCFromMission,
   getNPCState,
+  createNPC,
 } from "../lib/mission-api";
 
 // Direct calls for sessions + mission meta
@@ -25,9 +26,7 @@ async function fetchSessions() {
   const res = await fetch("/.netlify/functions/api-mission-sessions");
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(
-      `API Error (api-mission-sessions): ${res.status} — ${text}`
-    );
+    throw new Error(`API Error (api-mission-sessions): ${res.status} — ${text}`);
   }
   return res.json();
 }
@@ -85,8 +84,7 @@ export default function MissionManagerPage() {
   const [showNewCampaignModal, setShowNewCampaignModal] = useState(false);
   const [newCampaignName, setNewCampaignName] = useState("");
   const [newCampaignRegion, setNewCampaignRegion] = useState("");
-  const [newCampaignSummaryKnown, setNewCampaignSummaryKnown] =
-    useState("");
+  const [newCampaignSummaryKnown, setNewCampaignSummaryKnown] = useState("");
   const [newCampaignSummaryUnknown, setNewCampaignSummaryUnknown] =
     useState("");
 
@@ -112,6 +110,23 @@ export default function MissionManagerPage() {
   const [selectedNPC, setSelectedNPC] = useState(null);
   const [npcState, setNPCState] = useState(null);
   const [loadingNpcState, setLoadingNpcState] = useState(false);
+
+  // New NPC modal
+  const [showNewNPCModal, setShowNewNPCModal] = useState(false);
+  const [npcDisplayName, setNpcDisplayName] = useState("");
+  const [npcTrueName, setNpcTrueName] = useState("");
+  const [npcPrimaryCategory, setNpcPrimaryCategory] = useState("");
+  const [npcSecondarySubtype, setNpcSecondarySubtype] = useState("");
+  const [npcIntent, setNpcIntent] = useState("");
+  const [npcDescriptionPublic, setNpcDescriptionPublic] = useState("");
+  const [npcDescriptionSecret, setNpcDescriptionSecret] = useState("");
+  const [npcGoalsText, setNpcGoalsText] = useState("");
+  const [npcSecretsText, setNpcSecretsText] = useState("");
+  const [npcToneText, setNpcToneText] = useState("");
+  const [npcNotes, setNpcNotes] = useState("");
+  const [npcPersonalityJson, setNpcPersonalityJson] = useState("{}");
+  const [npcTruthPolicyJson, setNpcTruthPolicyJson] = useState("{}");
+  const [npcJsonValid, setNpcJsonValid] = useState(true);
 
   // Messages (for GM logs + director prompt)
   const [messageList, setMessageList] = useState([]);
@@ -220,6 +235,69 @@ export default function MissionManagerPage() {
       }
     } catch (err) {
       console.error("Failed removing NPC from campaign:", err);
+    }
+  }
+
+  async function handleCreateNewNPC() {
+    try {
+      if (!npcDisplayName.trim()) {
+        alert("Display Name is required.");
+        return;
+      }
+
+      let personalityObj = {};
+      let truthPolicyObj = {};
+      try {
+        personalityObj = JSON.parse(npcPersonalityJson || "{}");
+        truthPolicyObj = JSON.parse(npcTruthPolicyJson || "{}");
+        setNpcJsonValid(true);
+      } catch (e) {
+        setNpcJsonValid(false);
+        alert("Personality / Truth Policy JSON is invalid.");
+        return;
+      }
+
+      const npc = await createNPC({
+        display_name: npcDisplayName,
+        true_name: npcTrueName,
+        description_public: npcDescriptionPublic,
+        description_secret: npcDescriptionSecret,
+        primary_category: npcPrimaryCategory,
+        secondary_subtype: npcSecondarySubtype,
+        intent: npcIntent,
+        notes: npcNotes,
+        personality_json: personalityObj,
+        goals_text: npcGoalsText,
+        secrets_text: npcSecretsText,
+        truth_policy_json: truthPolicyObj,
+        tone_text: npcToneText,
+      });
+
+      if (selectedMissionId && npc?.id) {
+        await addNPCToMission(selectedMissionId, npc.id, false, "");
+      }
+
+      await refreshAllNPCs();
+      await refreshCampaignNPCs(selectedMissionId);
+
+      setShowNewNPCModal(false);
+      setNpcDisplayName("");
+      setNpcTrueName("");
+      setNpcPrimaryCategory("");
+      setNpcSecondarySubtype("");
+      setNpcIntent("");
+      setNpcDescriptionPublic("");
+      setNpcDescriptionSecret("");
+      setNpcGoalsText("");
+      setNpcSecretsText("");
+      setNpcToneText("");
+      setNpcNotes("");
+      setNpcPersonalityJson("{}");
+      setNpcTruthPolicyJson("{}");
+      setNpcJsonValid(true);
+    } catch (err) {
+      console.error("Failed creating NPC:", err);
+      alert("Failed creating NPC. Check logs.");
     }
   }
 
@@ -482,8 +560,7 @@ export default function MissionManagerPage() {
         <div className="mm-header-meta">
           {hasSession && (
             <span className="mm-session-pill">
-              Active Session:{" "}
-              <strong>{selectedSession.session_name}</strong>
+              Active Session: <strong>{selectedSession.session_name}</strong>
             </span>
           )}
           <button
@@ -556,9 +633,7 @@ export default function MissionManagerPage() {
                       {m.name}
                     </option>
                   ))}
-                  <option value="__create_new__">
-                    ➕ Create New Campaign…
-                  </option>
+                  <option value="__create_new__">➕ Create New Campaign…</option>
                 </select>
               )}
 
@@ -592,9 +667,7 @@ export default function MissionManagerPage() {
                       }`}
                       onClick={() => handleSelectSession(s)}
                     >
-                      <div className="mm-session-title">
-                        {s.session_name}
-                      </div>
+                      <div className="mm-session-title">{s.session_name}</div>
                       <div className="mm-session-sub">
                         {s.status} —{" "}
                         {s.started_at
@@ -641,12 +714,8 @@ export default function MissionManagerPage() {
                 <div className="mm-session-list">
                   {playerList.map((p) => (
                     <div key={p.id} className="mm-session-row">
-                      <div className="mm-session-title">
-                        {p.player_name}
-                      </div>
-                      <div className="mm-session-sub">
-                        {p.phone_number}
-                      </div>
+                      <div className="mm-session-title">{p.player_name}</div>
+                      <div className="mm-session-sub">{p.phone_number}</div>
                       <button
                         className="mm-btn"
                         onClick={() => handleRemovePlayer(p)}
@@ -717,9 +786,7 @@ export default function MissionManagerPage() {
                   <div
                     key={entry.id}
                     className={`mm-session-row ${
-                      selectedNPC?.npc_id === entry.npc_id
-                        ? "selected"
-                        : ""
+                      selectedNPC?.npc_id === entry.npc_id ? "selected" : ""
                     }`}
                   >
                     <div
@@ -748,12 +815,23 @@ export default function MissionManagerPage() {
               </div>
 
               <h3 style={{ marginTop: "1rem" }}>Available NPCs</h3>
+
+              <div
+                className="mm-session-actions"
+                style={{ marginBottom: "0.5rem" }}
+              >
+                <button
+                  className="mm-btn"
+                  onClick={() => setShowNewNPCModal(true)}
+                >
+                  + New NPC
+                </button>
+              </div>
+
               <div className="mm-session-list">
                 {availableNPCs.map((npc) => (
                   <div key={npc.id} className="mm-session-row">
-                    <div className="mm-session-title">
-                      {npc.display_name}
-                    </div>
+                    <div className="mm-session-title">{npc.display_name}</div>
                     <div className="mm-session-sub">
                       {npc.primary_category || ""}
                     </div>
@@ -815,11 +893,7 @@ export default function MissionManagerPage() {
               <label>Payload (JSON)</label>
               <textarea
                 className={payloadIsValid ? "" : "mm-json-error"}
-                value={JSON.stringify(
-                  editingEvent.payload || {},
-                  null,
-                  2
-                )}
+                value={JSON.stringify(editingEvent.payload || {}, null, 2)}
                 onChange={(e) => {
                   try {
                     const parsed = JSON.parse(e.target.value);
@@ -865,9 +939,9 @@ export default function MissionManagerPage() {
             <div className="mm-panel-card">
               <h2>{selectedNPC.display_name}</h2>
               <p className="mm-note">
-                Memory is per session and per phone number. When a new
-                group runs this campaign in a new session, this NPC
-                starts fresh for them.
+                Memory is per session and per phone number. When a new group
+                runs this campaign in a new session, this NPC starts fresh for
+                them.
               </p>
 
               {loadingNpcState && <SkeletonBlock height="200px" />}
@@ -948,11 +1022,7 @@ export default function MissionManagerPage() {
             <h3>Messages (last 100)</h3>
             {!loadingMessages ? (
               <pre className="mm-logs-pre">
-                {JSON.stringify(
-                  (messageList || []).slice(-100),
-                  null,
-                  2
-                )}
+                {JSON.stringify((messageList || []).slice(-100), null, 2)}
               </pre>
             ) : (
               <SkeletonBlock height="120px" />
@@ -1019,6 +1089,143 @@ export default function MissionManagerPage() {
               <button
                 className="mm-btn mm-btn-secondary"
                 onClick={() => setShowNewCampaignModal(false)}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* NEW NPC MODAL */}
+      {showNewNPCModal && (
+        <div className="mm-modal-backdrop">
+          <div
+            className="mm-modal"
+            style={{
+              maxWidth: "600px",
+              maxHeight: "80vh",
+              overflowY: "auto",
+            }}
+          >
+            <h2>New NPC</h2>
+
+            <label>Display Name *</label>
+            <input
+              type="text"
+              value={npcDisplayName}
+              onChange={(e) => setNpcDisplayName(e.target.value)}
+            />
+
+            <label>True Name</label>
+            <input
+              type="text"
+              value={npcTrueName}
+              onChange={(e) => setNpcTrueName(e.target.value)}
+            />
+
+            <label>Primary Category</label>
+            <input
+              type="text"
+              value={npcPrimaryCategory}
+              onChange={(e) => setNpcPrimaryCategory(e.target.value)}
+              placeholder="DIRECTOR, HANDLER, CONTACT, etc."
+            />
+
+            <label>Secondary Subtype</label>
+            <input
+              type="text"
+              value={npcSecondarySubtype}
+              onChange={(e) =>
+                setNpcSecondarySubtype(e.target.value)
+              }
+              placeholder="BARTENDER, COP, CULTIST, etc."
+            />
+
+            <label>Intent</label>
+            <input
+              type="text"
+              value={npcIntent}
+              onChange={(e) => setNpcIntent(e.target.value)}
+              placeholder="protect players, test loyalty, mislead, etc."
+            />
+
+            <label>Public Description</label>
+            <textarea
+              value={npcDescriptionPublic}
+              onChange={(e) =>
+                setNpcDescriptionPublic(e.target.value)
+              }
+              placeholder="What players initially see / know."
+            />
+
+            <label>Secret Description (GM Only)</label>
+            <textarea
+              value={npcDescriptionSecret}
+              onChange={(e) =>
+                setNpcDescriptionSecret(e.target.value)
+              }
+              placeholder="Hidden background, true motives, connections."
+            />
+
+            <label>Goals</label>
+            <textarea
+              value={npcGoalsText}
+              onChange={(e) => setNpcGoalsText(e.target.value)}
+              placeholder="What this NPC ultimately wants."
+            />
+
+            <label>Secrets</label>
+            <textarea
+              value={npcSecretsText}
+              onChange={(e) => setNpcSecretsText(e.target.value)}
+              placeholder="Specific secrets they hold."
+            />
+
+            <label>Tone / Voice Notes</label>
+            <textarea
+              value={npcToneText}
+              onChange={(e) => setNpcToneText(e.target.value)}
+              placeholder="How they speak, mannerisms, vibe."
+            />
+
+            <label>Personality JSON</label>
+            <textarea
+              className={npcJsonValid ? "" : "mm-json-error"}
+              value={npcPersonalityJson}
+              onChange={(e) =>
+                setNpcPersonalityJson(e.target.value)
+              }
+              placeholder='e.g. { "traits": ["paranoid","helpful"], "fears": ["exposure"] }'
+            />
+
+            <label>Truth Policy JSON</label>
+            <textarea
+              className={npcJsonValid ? "" : "mm-json-error"}
+              value={npcTruthPolicyJson}
+              onChange={(e) =>
+                setNpcTruthPolicyJson(e.target.value)
+              }
+              placeholder='e.g. { "will_lie_about": ["employer"], "always_truthful_about": ["monsters"] }'
+            />
+
+            <label>GM Notes</label>
+            <textarea
+              value={npcNotes}
+              onChange={(e) => setNpcNotes(e.target.value)}
+              placeholder="Any extra meta notes for you as GM."
+            />
+
+            <div className="mm-modal-actions">
+              <button
+                className="mm-btn"
+                onClick={handleCreateNewNPC}
+              >
+                Save NPC
+              </button>
+              <button
+                className="mm-btn mm-btn-secondary"
+                onClick={() => setShowNewNPCModal(false)}
               >
                 Cancel
               </button>

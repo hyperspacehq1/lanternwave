@@ -356,8 +356,9 @@ export default function ControllerPage() {
               className="lw-preview-media"
             />
           )}
-        </div>
+   </div>
 
+        {/* 
         <div className="lw-volume-block">
           <div className="lw-volume-label">VOLUME</div>
           <input
@@ -370,6 +371,7 @@ export default function ControllerPage() {
           />
           <div className="lw-volume-value">{volume}</div>
         </div>
+        */}
       </section>
     </div>
   );

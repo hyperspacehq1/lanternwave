@@ -1,5 +1,4 @@
 // netlify/functions/api-mission-npcs.js
-
 import { query } from "../util/db.js";
 
 function json(statusCode, data) {
@@ -11,19 +10,17 @@ function json(statusCode, data) {
 }
 
 export const handler = async (event) => {
-  try {
-    const method = event.httpMethod;
+  const method = event.httpMethod;
 
-    // ------------------------------
+  try {
     // GET: /api-mission-npcs?mission_id=123
-    // ------------------------------
     if (method === "GET") {
       const missionId = event.queryStringParameters?.mission_id;
       if (!missionId) {
         return json(400, { error: "mission_id is required" });
       }
 
-      const r = await query(
+      const res = await query(
         `
         SELECT
           mn.id,
@@ -39,22 +36,19 @@ export const handler = async (event) => {
         JOIN npcs n ON n.id = mn.npc_id
         WHERE mn.mission_id = $1
         ORDER BY n.display_name ASC
-      `,
+        `,
         [missionId]
       );
 
-      return json(200, r.rows || []);
+      return json(200, res.rows || []);
     }
 
-    // ------------------------------
     // POST: add / upsert roster entry
-    // ------------------------------
     if (method === "POST") {
       if (!event.body) {
         return json(400, { error: "Missing body" });
       }
       const payload = JSON.parse(event.body);
-
       const { mission_id, npc_id, is_known, gm_only_notes } = payload;
 
       if (!mission_id || !npc_id) {
@@ -63,7 +57,7 @@ export const handler = async (event) => {
         });
       }
 
-      const r = await query(
+      const res = await query(
         `
         INSERT INTO mission_npcs (mission_id, npc_id, is_known, gm_only_notes)
         VALUES ($1, $2, $3, $4)
@@ -71,17 +65,15 @@ export const handler = async (event) => {
         DO UPDATE SET
           is_known = EXCLUDED.is_known,
           gm_only_notes = EXCLUDED.gm_only_notes
-        RETURNING *;
-      `,
+        RETURNING *
+        `,
         [mission_id, npc_id, is_known ?? false, gm_only_notes ?? ""]
       );
 
-      return json(200, r.rows[0]);
+      return json(200, res.rows[0]);
     }
 
-    // ------------------------------
     // DELETE: remove NPC from campaign
-    // ------------------------------
     if (method === "DELETE") {
       if (!event.body) {
         return json(400, { error: "Missing body" });
@@ -103,9 +95,6 @@ export const handler = async (event) => {
       return json(200, { status: "ok" });
     }
 
-    // ------------------------------
-    // METHOD NOT ALLOWED
-    // ------------------------------
     return json(405, { error: "Method Not Allowed" });
   } catch (err) {
     console.error("api-mission-npcs error:", err);
