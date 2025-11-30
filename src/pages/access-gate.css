@@ -436,3 +436,11 @@
     font-size: 1.2rem;
   }
 }
+
+.boot-privacy-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0; /* important to keep SVG centered */
+  line-height: 0; /* prevents text metrics from shifting the icon */
+}
