@@ -1,18 +1,46 @@
 /* ============================================================
-   MISSION MANAGER — Lanternwave Control Console UI
-   All selectors namespaced under .mission-manager
+   MISSION MANAGER — Lanternwave Control Console (Polished)
    ============================================================ */
 
+/* CINEMATIC BACKGROUND + SCANLINES ---------------------------------- */
+
 .mission-manager {
+  position: relative;
   font-family: "VT323", "MU-TH-UR", monospace;
   color: var(--lw-green, #6cc417);
-  background: var(--lw-bg, #020302);
+  background: radial-gradient(
+      circle at 50% 20%,
+      rgba(108, 196, 23, 0.08),
+      rgba(0, 0, 0, 1) 60%
+    ),
+    #000;
   padding: 2rem;
   padding-top: 5rem;
   min-height: 100vh;
 }
 
-/* HEADER ---------------------------------------------------- */
+/* subtle CRT scanlines */
+.mission-manager::before {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(0, 255, 70, 0.025) 0px,
+    rgba(0, 255, 70, 0.02) 1px,
+    rgba(0, 255, 70, 0) 2px
+  );
+  opacity: 0.22;
+  z-index: 1;
+}
+
+.mission-manager * {
+  position: relative;
+  z-index: 2;
+}
+
+/* HEADER ------------------------------------------------------------- */
 
 .mission-manager .mm-header-row {
   display: flex;
@@ -29,6 +57,16 @@
   color: var(--lw-green, #6cc417);
   text-shadow: 0 0 12px rgba(108, 196, 23, 0.7);
   margin: 0;
+  animation: lw-flicker 6s infinite;
+}
+
+/* flicker keyframes */
+@keyframes lw-flicker {
+  0%, 95% { opacity: 1; }
+  96% { opacity: 0.45; }
+  97% { opacity: 0.8; }
+  98% { opacity: 0.3; }
+  99% { opacity: 1; }
 }
 
 .mission-manager .mm-header-meta {
@@ -51,7 +89,7 @@
   );
 }
 
-/* TABS ------------------------------------------------------ */
+/* TABS --------------------------------------------------------------- */
 
 .mission-manager .mm-tabs {
   display: inline-flex;
@@ -71,11 +109,34 @@
   letter-spacing: 0.16em;
   text-transform: uppercase;
   transition: 0.15s ease;
+  position: relative;
+  overflow: hidden;
 }
 
 .mission-manager .mm-tab:hover {
   border-color: rgba(108, 196, 23, 0.85);
   box-shadow: 0 0 12px rgba(108, 196, 23, 0.45);
+}
+
+/* glow sweep effect */
+.mission-manager .mm-tab::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -120%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    to right,
+    transparent,
+    rgba(108, 196, 23, 0.25),
+    transparent
+  );
+  transition: transform 0.35s ease;
+}
+
+.mission-manager .mm-tab:hover::after {
+  transform: translateX(250%);
 }
 
 .mission-manager .mm-tab.active {
@@ -88,15 +149,16 @@
   box-shadow: 0 0 16px rgba(108, 196, 23, 0.7);
 }
 
-/* MAIN GRID LAYOUT — FIXED! -------------------------------- */
+/* MAIN GRID LAYOUT (FIXED) ------------------------------------------- */
 
 .mission-manager .mm-container {
-  /* THE FIX — restore proper 2-col layout */
   display: grid !important;
   grid-template-columns: 380px 1fr !important;
   gap: 2rem !important;
   overflow-x: hidden;
 }
+
+/* PANELS -------------------------------------------------------------- */
 
 .mission-manager .mm-left-panel,
 .mission-manager .mm-right-panel {
@@ -106,10 +168,11 @@
     rgba(0, 0, 0, 0.96)
   );
   border-radius: 22px;
-  border: 1px solid rgba(108, 196, 23, 0.35);
+  border: 1px solid rgba(108, 196, 23, 0.55);
   box-shadow:
-    0 0 40px rgba(0, 0, 0, 0.95),
-    0 0 24px rgba(108, 196, 23, 0.32);
+    0 0 35px rgba(108, 196, 23, 0.15),
+    0 0 70px rgba(0, 0, 0, 0.95),
+    inset 0 0 18px rgba(108, 196, 23, 0.12);
   padding: 1.5rem;
 }
 
@@ -124,7 +187,7 @@
   min-width: 0 !important;
 }
 
-/* HEADINGS -------------------------------------------------- */
+/* HEADINGS ------------------------------------------------------------- */
 
 .mission-manager h2 {
   font-family: "MU-TH-UR", "VT323", monospace;
@@ -144,7 +207,7 @@
   text-transform: uppercase;
 }
 
-/* BUTTONS --------------------------------------------------- */
+/* BUTTONS --------------------------------------------------------------- */
 
 .mission-manager .mm-btn {
   font-family: "VT323", monospace;
@@ -160,16 +223,15 @@
   transition: 0.15s ease;
 }
 
+/* neon pulse */
 .mission-manager .mm-btn:hover {
   border-color: rgba(108, 196, 23, 1);
-  box-shadow: 0 0 14px rgba(108, 196, 23, 0.7);
+  box-shadow:
+    0 0 6px rgba(108, 196, 23, 0.8),
+    0 0 16px rgba(108, 196, 23, 0.5),
+    0 0 28px rgba(108, 196, 23, 0.25);
   background: rgba(10, 20, 10, 0.98);
   transform: translateY(-1px);
-}
-
-.mission-manager .mm-btn-secondary {
-  border-color: rgba(108, 196, 23, 0.4);
-  color: rgba(229, 255, 227, 0.8);
 }
 
 .mission-manager .mm-btn-small {
@@ -177,7 +239,7 @@
   padding: 0.25rem 0.7rem;
 }
 
-/* FORM FIELDS ---------------------------------------------- */
+/* FORM FIELDS ------------------------------------------------------------ */
 
 .mission-manager input,
 .mission-manager select,
@@ -189,7 +251,7 @@
   border-radius: 6px;
   border: 1px solid rgba(108, 196, 23, 0.5);
   background: rgba(0, 0, 0, 0.85);
-  color: var(--lw-text, #e5ffe3);
+  color: #d4ffd0;
   font-family: "VT323", monospace;
   font-size: 0.95rem;
   outline: none;
@@ -206,7 +268,7 @@
   box-shadow: 0 0 10px rgba(108, 196, 23, 0.7);
 }
 
-/* SESSION LISTS -------------------------------------------- */
+/* SESSION LIST ----------------------------------------------------------- */
 
 .mission-manager .mm-session-actions {
   display: flex;
@@ -241,14 +303,19 @@
 }
 
 .mission-manager .mm-session-row:hover {
-  background: rgba(108, 196, 23, 0.08);
+  background: rgba(108, 196, 23, 0.15);
   border-color: rgba(108, 196, 23, 0.55);
+  box-shadow:
+    0 0 14px rgba(108, 196, 23, 0.6),
+    inset 0 0 6px rgba(108, 196, 23, 0.15);
 }
 
 .mission-manager .mm-session-row.selected {
   background: rgba(108, 196, 23, 0.12);
   border-color: rgba(108, 196, 23, 0.9);
-  box-shadow: 0 0 10px rgba(108, 196, 23, 0.7);
+  box-shadow:
+    0 0 10px rgba(108, 196, 23, 0.7),
+    inset 0 0 6px rgba(108, 196, 23, 0.15);
 }
 
 .mission-manager .mm-session-title {
@@ -263,7 +330,7 @@
   color: rgba(229, 255, 227, 0.75);
 }
 
-/* EVENT CARDS ---------------------------------------------- */
+/* EVENT CARDS ------------------------------------------------------------ */
 
 .mission-manager .mm-event-card {
   border-radius: 10px;
@@ -277,7 +344,9 @@
 
 .mission-manager .mm-event-card:hover {
   border-color: rgba(108, 196, 23, 0.9);
-  box-shadow: 0 0 12px rgba(108, 196, 23, 0.6);
+  box-shadow:
+    0 0 14px rgba(108, 196, 23, 0.6),
+    inset 0 0 6px rgba(108, 196, 23, 0.15);
   background: rgba(8, 18, 8, 0.98);
 }
 
@@ -312,14 +381,7 @@
   overflow: auto;
 }
 
-/* NOTES ----------------------------------------------------- */
-
-.mission-manager .mm-note {
-  font-size: 0.85rem;
-  color: rgba(229, 255, 227, 0.75);
-}
-
-/* RIGHT PANEL ------------------------------------------------ */
+/* RIGHT PANEL ----------------------------------------------------------- */
 
 .mission-manager .mm-panel-card {
   border-radius: 18px;
@@ -332,7 +394,8 @@
   padding: 1rem 1.2rem;
   box-shadow:
     0 0 34px rgba(0, 0, 0, 0.98),
-    0 0 18px rgba(108, 196, 23, 0.45);
+    0 0 18px rgba(108, 196, 23, 0.45),
+    inset 0 0 12px rgba(108, 196, 23, 0.12);
 }
 
 .mission-manager .mm-panel-empty {
@@ -340,9 +403,13 @@
   align-items: center;
   justify-content: center;
   min-height: 260px;
+  font-size: 1rem;
+  color: rgba(180, 255, 180, 0.75);
+  letter-spacing: 0.08em;
+  text-shadow: 0 0 8px rgba(108, 196, 23, 0.3);
 }
 
-/* LOGS PANEL ------------------------------------------------ */
+/* GM LOGS PANEL -------------------------------------------------------- */
 
 .mission-manager .mm-logs-panel {
   position: fixed;
@@ -367,7 +434,7 @@
   transform: translateY(0%);
 }
 
-/* MODALS (M1 centered fixed + neon glow) -------------------- */
+/* MODALS --------------------------------------------------------------- */
 
 .mission-manager .mm-modal-backdrop {
   position: fixed;
@@ -380,6 +447,23 @@
   justify-content: center;
 }
 
+/* cinematic modal entrance */
+@keyframes mm-modal-cinematic {
+  0% {
+    transform: scale(0.9) translateY(12px);
+    opacity: 0;
+    filter: blur(2px);
+  }
+  70% {
+    transform: scale(1.02);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    filter: blur(0);
+  }
+}
+
 .mission-manager .mm-modal {
   background: radial-gradient(
     circle at top left,
@@ -387,16 +471,17 @@
     rgba(0, 0, 0, 0.98)
   );
   border-radius: 22px;
-  border: 1px solid rgba(108, 196, 23, 0.85);
+  border: 1px solid rgba(108, 196, 23, 0.9);
   box-shadow:
-    0 0 40px rgba(108, 196, 23, 0.75),
-    0 0 60px rgba(0, 0, 0, 0.9);
+    0 0 45px rgba(108, 196, 23, 0.7),
+    0 0 90px rgba(0, 0, 0, 0.9),
+    inset 0 0 20px rgba(108, 196, 23, 0.15);
   padding: 1.25rem 1.5rem;
   width: 100%;
   max-width: 580px;
   max-height: 80vh;
   overflow-y: auto;
-  animation: mm-modal-pop 0.16s ease-out;
+  animation: mm-modal-cinematic 0.24s ease-out;
 }
 
 .mission-manager .mm-modal-actions {
@@ -406,18 +491,7 @@
   margin-top: 0.75rem;
 }
 
-@keyframes mm-modal-pop {
-  0% {
-    transform: translateY(10px) scale(0.97);
-    opacity: 0;
-  }
-  100% {
-    transform: translateY(0) scale(1);
-    opacity: 1;
-  }
-}
-
-/* RESPONSIVE ------------------------------------------------ */
+/* RESPONSIVE ------------------------------------------------------------ */
 
 @media (max-width: 900px) {
   .mission-manager {

@@ -4,7 +4,7 @@ import PrivacyPolicy from "./PrivacyPolicy.jsx";
 import "./access-gate.css";
 
 const ACCESS_CODE = "10241972";
-const TYPE_SPEED = 15; // ms per character
+const TYPE_SPEED = 15;
 const MAX_VISIBLE_LINES = 10;
 
 const BOOT_LINES = [
@@ -44,7 +44,7 @@ const BOOT_LINES = [
 ];
 
 export default function AccessGate({ onUnlock }) {
-  const [stage, setStage] = useState("intro"); // intro | boot | code | approved
+  const [stage, setStage] = useState("intro");
   const [bootLines, setBootLines] = useState([]);
   const [showPrivacy, setShowPrivacy] = useState(false);
   const [code, setCode] = useState("");
@@ -60,7 +60,6 @@ export default function AccessGate({ onUnlock }) {
 
     const interval = setInterval(() => {
       if (lineIndex >= BOOT_LINES.length) {
-        // Finished all lines
         setBootLines([...currentLines]);
         clearInterval(interval);
         setTimeout(() => setStage("code"), 400);
@@ -73,11 +72,9 @@ export default function AccessGate({ onUnlock }) {
         currentLines[lineIndex] = "";
       }
 
-      // Append next character for current line
       currentLines[lineIndex] += fullLine.charAt(charIndex);
 
       if (charIndex >= fullLine.length) {
-        // Move to next line
         lineIndex += 1;
         charIndex = 0;
       } else {
@@ -90,21 +87,17 @@ export default function AccessGate({ onUnlock }) {
     return () => clearInterval(interval);
   }, [stage]);
 
-  // Auto-fade + unlock after approval
+  // Auto-fade after approval
   useEffect(() => {
     if (stage !== "approved") return;
-    const t = setTimeout(() => {
-      if (onUnlock) onUnlock();
-    }, 1200);
+    const t = setTimeout(() => onUnlock && onUnlock(), 1200);
     return () => clearTimeout(t);
   }, [stage, onUnlock]);
 
   const visibleLines = bootLines.slice(-MAX_VISIBLE_LINES);
 
   const handleInitialize = () => {
-    if (stage === "intro") {
-      setStage("boot");
-    }
+    if (stage === "intro") setStage("boot");
   };
 
   const handleSubmit = (e) => {
@@ -120,52 +113,33 @@ export default function AccessGate({ onUnlock }) {
 
   return (
     <div className={`boot-screen ${stage === "approved" ? "boot-screen-fade" : ""}`}>
-      {/* Privacy button */}
-      <button
-  type="button"
-  className="boot-privacy-close"
-  onClick={() => setShowPrivacy(false)}
-  aria-label="Close"
->
-  <svg
-    width="18"
-    height="18"
-    viewBox="0 0 24 24"
-    stroke="currentColor"
-    strokeWidth="2.5"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    fill="none"
-    style={{ display: "block", margin: "0 auto" }}
-  >
-    <line x1="5" y1="5" x2="19" y2="19" />
-    <line x1="19" y1="5" x2="5" y2="19" />
-  </svg>
-</button>
 
-      {/* Intro: logo + click to initialize */}
+      {/* Top-right PRIVACY POLICY button */}
+      <button
+        type="button"
+        className="boot-privacy-button"
+        onClick={() => setShowPrivacy(true)}
+      >
+        PRIVACY POLICY
+      </button>
+
+      {/* Intro screen */}
       {stage === "intro" && (
         <div className="boot-intro" onClick={handleInitialize}>
           <div className="boot-logo-wrap">
-            <img
-              src="/lanterwave-logo.png"
-              alt="LanternWave"
-              className="boot-logo"
-            />
+            <img src="/lanterwave-logo.png" alt="LanternWave" className="boot-logo" />
           </div>
           <h1 className="boot-title">LANTERNWAVE</h1>
           <p className="boot-subtitle">CLICK TO INITIALIZE</p>
         </div>
       )}
 
-      {/* Terminal + code stages */}
+      {/* Boot + Code Entry */}
       {stage !== "intro" && (
         <div className="boot-terminal-frame">
           <div className="boot-terminal-lines">
             {visibleLines.map((line, idx) => (
-              <div key={idx} className="boot-line">
-                {line}
-              </div>
+              <div key={idx} className="boot-line">{line}</div>
             ))}
           </div>
 
@@ -179,9 +153,7 @@ export default function AccessGate({ onUnlock }) {
                 onChange={(e) => setCode(e.target.value)}
                 autoFocus
               />
-              <button type="submit" className="boot-code-button">
-                CONFIRM
-              </button>
+              <button type="submit" className="boot-code-button">CONFIRM</button>
               {error && <div className="boot-error">{error}</div>}
             </form>
           )}
@@ -192,17 +164,34 @@ export default function AccessGate({ onUnlock }) {
         </div>
       )}
 
-      {/* Privacy modal overlay */}
+      {/* Privacy modal */}
       {showPrivacy && (
         <div className="boot-privacy-overlay">
           <div className="boot-privacy-modal">
+
+            {/* FIXED centered SVG X button */}
             <button
               type="button"
               className="boot-privacy-close"
               onClick={() => setShowPrivacy(false)}
+              aria-label="Close"
             >
-              ✕
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                fill="none"
+                style={{ display: "block", margin: "0 auto" }}
+              >
+                <line x1="5" y1="5" x2="19" y2="19" />
+                <line x1="19" y1="5" x2="5" y2="19" />
+              </svg>
             </button>
+
             <div className="boot-privacy-content">
               <PrivacyPolicy />
             </div>
