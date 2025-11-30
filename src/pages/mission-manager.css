@@ -213,7 +213,7 @@
   max-width: 100% !important;
 
   display: grid !important;
-  grid-template-columns: 448px 1fr !important; /* LEFT PANEL FIXED WIDTH */
+  grid-template-columns: 600px 1fr !important; /* LEFT PANEL FIXED WIDTH */
 
   gap: 2rem !important;
   overflow-x: hidden;
@@ -242,7 +242,7 @@
 }
 
 .mission-manager .mm-left-panel {
-  max-width: 448px !important;
+  max-width: 600px !important;
   overflow-y: auto;
   overflow-x: hidden;
 }
