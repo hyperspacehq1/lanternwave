@@ -24,12 +24,12 @@ const LoopIcon = ({ active = false }) => (
     height="24"
     viewBox="0 0 24 24"
     fill="none"
-    stroke={active ? "var(--lw-green)" : "var(--lw-text-dim)"}
+    stroke={active ? "#7CFF6B" : "#4A6B44"} 
     strokeWidth="2"
     strokeLinecap="round"
     strokeLinejoin="round"
     style={{
-      filter: active ? "drop-shadow(0 0 6px var(--lw-green))" : "none",
+      filter: active ? "drop-shadow(0 0 6px #7CFF6B)" : "none",
       transition: "0.2s ease-in-out",
     }}
   >
