@@ -508,3 +508,24 @@
     right: 1rem;
   }
 }
+
+/* ============================================================
+   FORCE FULL-WIDTH OVERRIDE (break out of global .container)
+   ============================================================ */
+
+.mission-manager {
+  width: 100vw !important;
+  max-width: 100vw !important;
+  margin-left: calc(-50vw + 50%) !important;
+  padding-left: 2rem;
+  padding-right: 2rem;
+}
+
+/* Ensure the grid expands across full width */
+.mission-manager .mm-container {
+  width: 100% !important;
+  max-width: 100% !important;
+  display: grid !important;
+  grid-template-columns: 380px 1fr !important;
+  gap: 2rem !important;
+}

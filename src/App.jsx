@@ -62,7 +62,7 @@ function App() {
               "lw-nav-link" + (isActive ? " lw-nav-link-active" : "")
             }
           >
-            Mission Manager
+            Campaign Manager
           </NavLink>
 
           <NavLink
