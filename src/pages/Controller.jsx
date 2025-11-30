@@ -15,35 +15,59 @@ import { clipTypeFromKey, displayNameFromKey } from "../lib/ui.js";
 const VOLUME_MIN = 0;
 const VOLUME_MAX = 100;
 
+// ------------------------------
+// LanternWave Minimal Loop Icon
+// ------------------------------
+const LoopIcon = ({ active = false }) => (
+  <svg
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke={active ? "var(--lw-green)" : "var(--lw-text-dim)"}
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    style={{
+      filter: active ? "drop-shadow(0 0 6px var(--lw-green))" : "none",
+      transition: "0.2s ease-in-out",
+    }}
+  >
+    <path d="M21 12a9 9 0 1 1-3-6.7" />
+    <polyline points="21 3 21 9 15 9" />
+  </svg>
+);
+
 export default function ControllerPage() {
   const location = useLocation();
-  const isActive = location.pathname === "/"; // 🔥 ONLY RUN CONTROLLER ON "/"
+  const isActive = location.pathname === "/";
 
   const [clips, setClips] = useState([]);
   const [loadingList, setLoadingList] = useState(false);
 
-  // ✅ use null when idle; show bar whenever not null (including 0%)
   const [uploadProgress, setUploadProgress] = useState(null);
-
   const [uploadMessage, setUploadMessage] = useState("");
   const [deleteMessage, setDeleteMessage] = useState("");
+
   const [volume, setVolume] = useState(80);
   const [nowPlaying, setNowPlayingState] = useState(null);
 
   const [previewKey, setPreviewKey] = useState(null);
   const previewMediaRef = useRef(null);
 
-  /** -------------------------------------------
-   * LIST CLIPS
-   * ------------------------------------------- */
+  // NEW: Loop toggle state
+  const [loopEnabled, setLoopEnabled] = useState(false);
+
+  // -------------------------------------------
+  // LIST CLIPS
+  // -------------------------------------------
   async function refreshClips() {
-    if (!isActive) return; // 🔥 Guard everything
+    if (!isActive) return;
     setLoadingList(true);
     try {
       const items = await listClips();
       items.sort((a, b) => new Date(b.lastModified) - new Date(a.lastModified));
       setClips(items);
-      console.log("[LW Controller] listClips ->", items);
     } catch (err) {
       console.error("[LW Controller] listClips error", err);
     } finally {
@@ -51,20 +75,18 @@ export default function ControllerPage() {
     }
   }
 
-  /** -------------------------------------------
-   * NOW PLAYING NORMALIZATION
-   * ------------------------------------------- */
+  // -------------------------------------------
+  // NOW PLAYING NORMALIZATION
+  // -------------------------------------------
   async function refreshNowPlaying() {
-    if (!isActive) return; // 🔥 Guard everything
+    if (!isActive) return;
     try {
       const np = await getNowPlaying();
-      console.log("[LW Controller] getNowPlaying ->", np);
 
       if (np && np.key) {
         const bare = np.key.replace(/^clips\//, "");
         const fullKey = `clips/${bare}`;
-        const normalized = { ...np, key: fullKey };
-        setNowPlayingState(normalized);
+        setNowPlayingState({ ...np, key: fullKey });
         setPreviewKey(fullKey);
       } else {
         setNowPlayingState(null);
@@ -75,42 +97,30 @@ export default function ControllerPage() {
     }
   }
 
-  /** -------------------------------------------
-   * CONTROLLER LOGIC (GUARDED BY ROUTE)
-   * ------------------------------------------- */
+  // -------------------------------------------
+  // CONTROLLER LOGIC
+  // -------------------------------------------
   useEffect(() => {
-    if (!isActive) {
-      console.log("[LW Controller] Page NOT active — controller disabled.");
-      return;
-    }
-
-    console.log("[LW Controller] Controller ACTIVE on route '/'");
+    if (!isActive) return;
 
     refreshClips();
     refreshNowPlaying();
-
-    return () => {
-      console.log("[LW Controller] Controller UNMOUNTED (leaving '/')");
-    };
   }, [isActive]);
 
-  /** -------------------------------------------
-   * UPLOAD
-   * ------------------------------------------- */
+  // -------------------------------------------
+  // UPLOAD
+  // -------------------------------------------
   const handleFileChange = async (evt) => {
-    if (!isActive) return; // 🔥 Guard
+    if (!isActive) return;
 
     const file = evt.target.files?.[0];
     if (!file) return;
 
-    // Show bar immediately at 0%
     setUploadProgress(0);
     setUploadMessage("");
 
     try {
       const res = await uploadClip(file, (pct) => setUploadProgress(pct));
-      console.log("[LW Controller] uploadClip ->", res);
-
       setUploadMessage("Your file has been uploaded.");
       await refreshClips();
       setPreviewKey(res.key);
@@ -119,20 +129,18 @@ export default function ControllerPage() {
       setUploadMessage("There was an error uploading your file");
     } finally {
       evt.target.value = "";
-      // Fade out bar after a short delay
       setTimeout(() => setUploadProgress(null), 1500);
     }
   };
 
-  /** -------------------------------------------
-   * DELETE
-   * ------------------------------------------- */
+  // -------------------------------------------
+  // DELETE
+  // -------------------------------------------
   const handleDelete = async (key) => {
-    if (!isActive) return; // 🔥 Guard
+    if (!isActive) return;
 
     setDeleteMessage("");
     try {
-      console.log("[LW Controller] deleteClip", key);
       await deleteClip(key);
       setDeleteMessage("Your file has been deleted.");
       await refreshClips();
@@ -146,16 +154,14 @@ export default function ControllerPage() {
     }
   };
 
-  /** -------------------------------------------
-   * PLAY (SHOW/PLAY)
-   * ------------------------------------------- */
+  // -------------------------------------------
+  // PLAY
+  // -------------------------------------------
   const handlePlay = async (key) => {
-    if (!isActive) return; // 🔥 Guard
+    if (!isActive) return;
 
     try {
-      console.log("[LW Controller] setNowPlaying ->", key);
       const np = await setNowPlaying(key);
-
       const normalized = np?.key ? { ...np, key } : np;
 
       setNowPlayingState(normalized);
@@ -165,23 +171,17 @@ export default function ControllerPage() {
     }
   };
 
-  /** -------------------------------------------
-   * STOP (HIDE)
-   * ------------------------------------------- */
+  // -------------------------------------------
+  // STOP
+  // -------------------------------------------
   const handleStop = async () => {
-    if (!isActive) return; // 🔥 Guard
+    if (!isActive) return;
 
     try {
-      console.log("[LW Controller] setNowPlaying -> null (STOP/HIDE)");
-
       if (previewMediaRef.current) {
-        try {
-          previewMediaRef.current.pause();
-          previewMediaRef.current.removeAttribute("src");
-          previewMediaRef.current.load();
-        } catch (err) {
-          console.warn("[LW Controller] previewMediaRef stop error", err);
-        }
+        previewMediaRef.current.pause();
+        previewMediaRef.current.removeAttribute("src");
+        previewMediaRef.current.load();
       }
 
       const np = await setNowPlaying(null);
@@ -192,14 +192,15 @@ export default function ControllerPage() {
     }
   };
 
-  /** -------------------------------------------
-   * PREVIEW
-   * ------------------------------------------- */
+  // -------------------------------------------
+  // PREVIEW
+  // -------------------------------------------
   const previewUrl = previewKey ? streamUrlForKey(previewKey) : null;
   const previewType = previewKey ? clipTypeFromKey(previewKey) : null;
 
   return (
     <div className="lw-console">
+
       {/* UPLOAD PANEL */}
       <section className="lw-panel lw-panel-upload">
         <h2 className="lw-panel-title">UPLOAD CLIP</h2>
@@ -213,7 +214,6 @@ export default function ControllerPage() {
           />
         </label>
 
-        {/* ✅ Show bar whenever uploadProgress is not null (0–100) */}
         {uploadProgress !== null && (
           <div className="lw-progress-wrap">
             <div className="lw-progress-bar">
@@ -242,19 +242,22 @@ export default function ControllerPage() {
             const type = clipTypeFromKey(clip.key);
             const isNow = nowPlaying?.key === clip.key;
 
-            const rowClass =
-              "lw-clip-row" + (isNow ? " lw-clip-row-active" : "");
-            const rowStyle = isNow
-              ? {
-                  boxShadow: "0 0 14px rgba(0, 255, 120, 0.7)",
-                  borderColor: "var(--lw-green)",
-                  background: "rgba(0, 255, 80, 0.10)",
-                  position: "relative",
-                }
-              : undefined;
-
             return (
-              <div key={clip.key} className={rowClass} style={rowStyle}>
+              <div
+                key={clip.key}
+                className={
+                  "lw-clip-row" + (isNow ? " lw-clip-row-active" : "")
+                }
+                style={
+                  isNow
+                    ? {
+                        boxShadow: "0 0 14px rgba(0, 255, 120, 0.7)",
+                        borderColor: "var(--lw-green)",
+                        background: "rgba(0, 255, 80, 0.10)",
+                      }
+                    : undefined
+                }
+              >
                 <div className="lw-clip-main">
                   <span className="lw-clip-type">{type.toUpperCase()}</span>
                   <span className="lw-clip-name">
@@ -279,10 +282,7 @@ export default function ControllerPage() {
                 <div className="lw-clip-actions">
                   {(type === "audio" || type === "video") && (
                     <>
-                      <button
-                        className="lw-btn"
-                        onClick={() => handlePlay(clip.key)}
-                      >
+                      <button className="lw-btn" onClick={() => handlePlay(clip.key)}>
                         PLAY
                       </button>
                       <button className="lw-btn" onClick={handleStop}>
@@ -293,10 +293,7 @@ export default function ControllerPage() {
 
                   {type === "image" && (
                     <>
-                      <button
-                        className="lw-btn"
-                        onClick={() => handlePlay(clip.key)}
-                      >
+                      <button className="lw-btn" onClick={() => handlePlay(clip.key)}>
                         SHOW
                       </button>
                       <button className="lw-btn" onClick={handleStop}>
@@ -342,6 +339,7 @@ export default function ControllerPage() {
                 src={previewUrl}
                 autoPlay
                 controls={false}
+                loop={loopEnabled}   // ← LOOP ENABLED HERE
                 style={{ display: "none" }}
               />
             </div>
@@ -353,25 +351,27 @@ export default function ControllerPage() {
               src={previewUrl}
               autoPlay
               controls
+              loop={loopEnabled}     // ← LOOP ENABLED HERE
               className="lw-preview-media"
             />
           )}
-   </div>
-
-        {/* 
-        <div className="lw-volume-block">
-          <div className="lw-volume-label">VOLUME</div>
-          <input
-            type="range"
-            min={VOLUME_MIN}
-            max={VOLUME_MAX}
-            value={volume}
-            onChange={(e) => setVolume(Number(e.target.value))}
-            className="lw-volume-slider"
-          />
-          <div className="lw-volume-value">{volume}</div>
         </div>
-        */}
+
+        {/* Loop Toggle Button */}
+        <div className="lw-loop-toggle" style={{ marginTop: "12px" }}>
+          <button
+            className="lw-btn"
+            onClick={() => setLoopEnabled(!loopEnabled)}
+            style={{
+              padding: "6px 10px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <LoopIcon active={loopEnabled} />
+          </button>
+        </div>
       </section>
     </div>
   );

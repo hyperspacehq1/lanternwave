@@ -725,3 +725,8 @@ body {
   white-space: pre-wrap;
 }
 
+.lw-btn-glow {
+  box-shadow: 0 0 12px var(--lw-green);
+  border-color: var(--lw-green);
+  color: var(--lw-green);
+}
