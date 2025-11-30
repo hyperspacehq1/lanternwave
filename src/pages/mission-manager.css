@@ -550,3 +550,50 @@
     right: 1rem;
   }
 }
+
+/* GM LOGS toggle button */
+.mm-logs-toggle {
+  font-family: "MU-TH-UR", monospace;
+  font-size: 0.9rem;
+  padding: 6px 12px;
+  border: 1px solid var(--lw-green);
+  background: rgba(0, 0, 0, 0.4);
+  color: var(--lw-green);
+  border-radius: 4px;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  transition: box-shadow 0.2s ease, background 0.2s ease;
+}
+
+/* Normal hover glow */
+.mm-logs-toggle:hover {
+  box-shadow: 0 0 6px var(--lw-green);
+}
+
+/* ACTIVE (logs panel open) — persistent glow */
+.mm-logs-toggle.active {
+  background: rgba(30, 100, 30, 0.25);
+  box-shadow: 0 0 12px var(--lw-green), 0 0 6px var(--lw-green) inset;
+}
+
+/* Expand left panel so content fits */
+.mm-left-panel {
+  width: 420px; /* formerly 340px */
+  padding-right: 1.2rem;
+  overflow-y: auto; /* vertical scroll only if needed */
+  overflow-x: hidden; /* prevent sideways scroll */
+}
+
+/* Right panel shrinks slightly but still gets full remaining space */
+.mm-right-panel {
+  flex: 1;
+  min-width: 0; /* prevents overflow, critical for flexbox */
+}
+
+/* Ensures the main body never creates horizontal scrollbars */
+.mm-container {
+  display: flex;
+  gap: 1.2rem;
+  overflow-x: hidden;
+}
