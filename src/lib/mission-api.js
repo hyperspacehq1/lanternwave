@@ -31,7 +31,7 @@ export function createMission(name, region, summaryKnown, summaryUnknown) {
     name,
     region,
     summary_known: summaryKnown || "",
-    summary_unknown: summaryUnknown || ""
+    summary_unknown: summaryUnknown || "",
   });
 }
 
@@ -39,11 +39,11 @@ export function createMission(name, region, summaryKnown, summaryUnknown) {
    SESSIONS
    ============================================================ */
 
-export function createSession(missionId, sessionName, gmNotes) {
+export function createSession(missionId, sessionName, gmNotes = "") {
   return api("api-mission-sessions", "POST", {
     mission_id: missionId,
     session_name: sessionName,
-    gm_notes: gmNotes
+    gm_notes: gmNotes,
   });
 }
 
@@ -52,17 +52,17 @@ export function listSessionPlayers(sessionId) {
 }
 
 export function addPlayerToSession(sessionId, playerName, phoneNumber) {
-  return api(`api-mission-session`, "POST", {
+  return api("api-mission-session", "POST", {
     session_id: sessionId,
     player_name: playerName,
-    phone_number: phoneNumber
+    phone_number: phoneNumber,
   });
 }
 
 export function removePlayer(sessionId, phoneNumber) {
-  return api(`api-mission-session`, "DELETE", {
+  return api("api-mission-session", "DELETE", {
     session_id: sessionId,
-    phone_number: phoneNumber
+    phone_number: phoneNumber,
   });
 }
 
@@ -79,7 +79,7 @@ export function createSessionEvent(sessionId, event) {
     session_id: sessionId,
     severity: event.severity,
     summary: event.summary,
-    payload: event.payload
+    payload: event.payload,
   });
 }
 
@@ -89,14 +89,14 @@ export function updateSessionEvent(sessionId, eventId, event) {
     event_id: eventId,
     severity: event.severity,
     summary: event.summary,
-    payload: event.payload
+    payload: event.payload,
   });
 }
 
 export function archiveSessionEvent(sessionId, eventId) {
   return api("api-events", "DELETE", {
     session_id: sessionId,
-    event_id: eventId
+    event_id: eventId,
   });
 }
 
@@ -104,10 +104,40 @@ export function archiveSessionEvent(sessionId, eventId) {
    NPCs
    ============================================================ */
 
-export function listNPCs() {
-  return api("api-mission-npcs");
+// Global NPC definitions (from `npcs`)
+export function listAllNPCs() {
+  return api("api-npcs");
 }
 
+// NPC roster for a specific campaign (from `mission_npcs` + join to `npcs`)
+export function listMissionNPCs(missionId) {
+  return api(`api-mission-npcs?mission_id=${missionId}`);
+}
+
+// Add NPC to a campaign (upsert into mission_npcs)
+export function addNPCToMission(
+  missionId,
+  npcId,
+  isKnown = false,
+  gmNotes = ""
+) {
+  return api("api-mission-npcs", "POST", {
+    mission_id: missionId,
+    npc_id: npcId,
+    is_known: isKnown,
+    gm_only_notes: gmNotes,
+  });
+}
+
+// Remove NPC from a campaign
+export function removeNPCFromMission(missionId, npcId) {
+  return api("api-mission-npcs", "DELETE", {
+    mission_id: missionId,
+    npc_id: npcId,
+  });
+}
+
+// Per-session NPC memory (mission_npc_state)
 export function getNPCState(sessionId, npcId) {
   return api(`api-npc-state?session_id=${sessionId}&npc_id=${npcId}`);
 }
