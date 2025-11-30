@@ -232,6 +232,9 @@ body {
   border-radius: 9px;
   border: 1px solid transparent;
   font-size: 0.7rem;
+
+  /* NEW LINE SPACING */
+  margin: 5px 0;
 }
 
 .lw-clip-row:nth-child(odd) {
