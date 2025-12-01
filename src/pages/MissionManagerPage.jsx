@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 
 import {
   listMissions,
-  listSessionsByCampaign,
+  listMissionSessions,     // ✅ FIXED
   createMission,
   createSession,
   listSessionPlayers,
@@ -17,7 +17,7 @@ import {
   createNPC,
 } from "../lib/mission-api";
 
-// ✅ FIXED CSS IMPORT — CORRECT PATH
+// Correct CSS path (already fixed)
 import "./mission-manager.css";
 
 export default function MissionManagerPage() {
@@ -55,10 +55,10 @@ export default function MissionManagerPage() {
   });
 
   /* -------------------------------------------------------------
-     INITIAL LOAD
+     1) LOAD MISSIONS + GLOBAL NPC LIST ONCE
   ------------------------------------------------------------- */
   useEffect(() => {
-    async function load() {
+    async function loadInitial() {
       try {
         const m = await listMissions();
         setMissions(m || []);
@@ -70,22 +70,22 @@ export default function MissionManagerPage() {
         const npcRes = await getAllNPCs();
         setAllNPCs(npcRes.npcs || []);
       } catch (err) {
-        console.error("Error loading global NPC list:", err);
+        console.error("Error loading NPCs:", err);
       }
     }
 
-    load();
+    loadInitial();
   }, []);
 
   /* -------------------------------------------------------------
-     LOAD SESSIONS WHEN CAMPAIGN CHANGES
+     2) LOAD SESSIONS WHEN CAMPAIGN CHANGES
   ------------------------------------------------------------- */
   useEffect(() => {
     if (!selectedMissionId) return;
 
     async function loadSessions() {
       try {
-        const s = await listSessionsByCampaign(selectedMissionId);
+        const s = await listMissionSessions(selectedMissionId);  // ✅ FIXED
         setSessions(s || []);
 
         if (s?.length > 0) {
@@ -100,7 +100,7 @@ export default function MissionManagerPage() {
   }, [selectedMissionId]);
 
   /* -------------------------------------------------------------
-     LOAD SESSION DETAILS WHEN SESSION CHANGES
+     3) LOAD SESSION DETAILS WHEN SESSION CHANGES
   ------------------------------------------------------------- */
   useEffect(() => {
     if (!selectedSession) return;
@@ -300,6 +300,7 @@ export default function MissionManagerPage() {
         </div>
       </div>
 
+      {/* NPC CREATION MODAL */}
       {npcModalOpen && (
         <div className="npc-modal">
           <div className="npc-modal-content">
