@@ -1,45 +1,71 @@
-import { query } from "../util/db.js";
+// api-npc-state.js
+import db from "./util/db.js";
 
-function json(statusCode, data) {
-  return {
-    statusCode,
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
-  };
-}
-
-export const handler = async (event) => {
-  const qs = event.queryStringParameters || {};
-
+export async function handler(event) {
   try {
-    if (event.httpMethod !== "GET") {
-      return json(405, { error: "Method Not Allowed" });
+
+    // GET NPC STATE FOR SESSION
+    if (event.httpMethod === "GET") {
+      const { session_id, npc_id } = event.queryStringParameters;
+
+      if (!session_id || !npc_id) {
+        return { statusCode: 400, body: JSON.stringify({ error: "session_id and npc_id are required" }) };
+      }
+
+      const result = await db.query(
+        `SELECT *
+         FROM npc_state
+         WHERE session_id = $1 AND npc_id = $2`,
+        [session_id, npc_id]
+      );
+
+      return {
+        statusCode: 200,
+        body: JSON.stringify({ npc_state: result.rows[0] || null })
+      };
     }
 
-    const { session_id, npc_id } = qs;
+    // UPDATE NPC STATE
+    if (event.httpMethod === "POST") {
+      const body = JSON.parse(event.body || "{}");
 
-    if (!session_id || !npc_id) {
-      return json(400, {
-        error: "session_id and npc_id are required",
-      });
+      const { session_id, npc_id, memory, phone_number } = body;
+
+      if (!session_id || !npc_id) {
+        return {
+          statusCode: 400,
+          body: JSON.stringify({ error: "session_id and npc_id required" })
+        };
+      }
+
+      const result = await db.query(
+        `INSERT INTO npc_state
+          (session_id, npc_id, phone_number, memory, last_updated)
+         VALUES ($1,$2,$3,$4, NOW())
+         ON CONFLICT (session_id, npc_id)
+         DO UPDATE
+           SET phone_number = EXCLUDED.phone_number,
+               memory = EXCLUDED.memory,
+               last_updated = NOW()
+         RETURNING *`,
+        [
+          session_id,
+          npc_id,
+          phone_number || null,
+          memory || {}
+        ]
+      );
+
+      return {
+        statusCode: 200,
+        body: JSON.stringify({ npc_state: result.rows[0] })
+      };
     }
 
-    const r = await query(
-      `SELECT *
-       FROM mission_npc_state
-       WHERE session_id=$1 AND npc_id=$2
-       ORDER BY last_interaction DESC NULLS LAST, id DESC
-       LIMIT 1`,
-      [session_id, npc_id]
-    );
+    return { statusCode: 405, body: "Method Not Allowed" };
 
-    if (r.rows.length === 0) {
-      return json(200, {});
-    }
-
-    return json(200, r.rows[0]);
   } catch (err) {
     console.error("api-npc-state error:", err);
-    return json(500, { error: "Internal Server Error" });
+    return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
   }
-};
+}

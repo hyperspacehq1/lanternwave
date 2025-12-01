@@ -1,164 +1,179 @@
-// src/lib/mission-api.js
+// mission-api.js
+// Patched version with admin-key support for NPC endpoints
 
-async function api(path, method = "GET", body = null) {
-  const opts = { method, headers: {} };
+async function apiFetch(path, options = {}) {
+  const base = "/.netlify/functions";
+  const url = `${base}${path}`;
 
-  if (body) {
-    opts.headers["Content-Type"] = "application/json";
-    opts.body = JSON.stringify(body);
+  const defaultHeaders = {
+    "Content-Type": "application/json",
+  };
+
+  // Merge headers (ensures admin key or others are included)
+  options.headers = {
+    ...defaultHeaders,
+    ...(options.headers || {})
+  };
+
+  const res = await fetch(url, options);
+  let out;
+  try {
+    out = await res.json();
+  } catch (err) {
+    out = null;
   }
-
-  const res = await fetch(`/.netlify/functions/${path}`, opts);
 
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`API Error (${path}): ${res.status} — ${text}`);
+    console.error("API Error (" + path + "):", res.status, out);
+    throw new Error(
+      "API Error (" + path + "): " + res.status + " — " + JSON.stringify(out)
+    );
   }
 
-  return res.json();
+  return out;
 }
 
-/* ============================================================
-   CAMPAIGNS (MISSIONS)
-   ============================================================ */
+/* ----------------------------------------------------------
+   MISSIONS
+---------------------------------------------------------- */
 
-export function listMissions() {
-  return api("api-missions");
+export async function listMissions() {
+  return apiFetch("/api-missions", { method: "GET" });
 }
 
-export function createMission(name, region, summaryKnown, summaryUnknown) {
-  return api("api-missions", "POST", {
-    name,
-    region,
-    summary_known: summaryKnown || "",
-    summary_unknown: summaryUnknown || "",
+export async function createMission(data) {
+  return apiFetch("/api-missions", {
+    method: "POST",
+    body: JSON.stringify(data),
   });
 }
 
-/* ============================================================
+/* ----------------------------------------------------------
    SESSIONS
-   ============================================================ */
+---------------------------------------------------------- */
 
-export function createSession(missionId, sessionName, gmNotes = "") {
-  return api("api-mission-sessions", "POST", {
-    mission_id: missionId,
-    session_name: sessionName,
-    gm_notes: gmNotes,
+export async function listMissionSessions(missionId) {
+  return apiFetch(`/api-mission-sessions?mission_id=${missionId}`, {
+    method: "GET",
   });
 }
 
-export function listSessionPlayers(sessionId) {
-  return api(`api-mission-session?id=${sessionId}&players=1`);
-}
-
-export function addPlayerToSession(sessionId, playerName, phoneNumber) {
-  return api("api-mission-session", "POST", {
-    session_id: sessionId,
-    player_name: playerName,
-    phone_number: phoneNumber,
+export async function createMissionSession(data) {
+  return apiFetch("/api-mission-sessions", {
+    method: "POST",
+    body: JSON.stringify(data),
   });
 }
 
-export function removePlayer(sessionId, phoneNumber) {
-  return api("api-mission-session", "DELETE", {
-    session_id: sessionId,
-    phone_number: phoneNumber,
+export async function getMissionSession(sessionId) {
+  return apiFetch(`/api-mission-session?session_id=${sessionId}`, {
+    method: "GET",
   });
 }
 
-/* ============================================================
+/* ----------------------------------------------------------
    EVENTS
-   ============================================================ */
+---------------------------------------------------------- */
 
-export function listSessionEvents(sessionId) {
-  return api(`api-events?session_id=${sessionId}`);
-}
-
-export function createSessionEvent(sessionId, event) {
-  return api("api-events", "POST", {
-    session_id: sessionId,
-    severity: event.severity,
-    summary: event.summary,
-    payload: event.payload,
+export async function listMissionEvents(sessionId) {
+  return apiFetch(`/api-events?session_id=${sessionId}`, {
+    method: "GET",
   });
 }
 
-export function updateSessionEvent(sessionId, eventId, event) {
-  return api("api-events", "PUT", {
-    session_id: sessionId,
-    event_id: eventId,
-    severity: event.severity,
-    summary: event.summary,
-    payload: event.payload,
+export async function createMissionEvent(data) {
+  return apiFetch("/api-events", {
+    method: "POST",
+    body: JSON.stringify(data),
   });
 }
 
-export function archiveSessionEvent(sessionId, eventId) {
-  return api("api-events", "DELETE", {
-    session_id: sessionId,
-    event_id: eventId,
-  });
-}
-
-/* ============================================================
-   SESSIONS
-   ============================================================ */
-
-export function listSessions() {
-  return api("api-mission-sessions");
-}
-
-/* ============================================================
-   NPCs
-   ============================================================ */
-
-// Global NPC definitions (from `npcs`)
-export function listAllNPCs() {
-  return api("api-npcs");
-}
-
-// NPC roster for a specific campaign (from `mission_npcs` + join to `npcs`)
-export function listMissionNPCs(missionId) {
-  return api(`api-mission-npcs?mission_id=${missionId}`);
-}
-
-// Add NPC to a campaign (upsert into mission_npcs)
-export function addNPCToMission(
-  missionId,
-  npcId,
-  isKnown = false,
-  gmNotes = ""
-) {
-  return api("api-mission-npcs", "POST", {
-    mission_id: missionId,
-    npc_id: npcId,
-    is_known: isKnown,
-    gm_only_notes: gmNotes,
-  });
-}
-
-// Remove NPC from a campaign
-export function removeNPCFromMission(missionId, npcId) {
-  return api("api-mission-npcs", "DELETE", {
-    mission_id: missionId,
-    npc_id: npcId,
-  });
-}
-
-// Per-session NPC memory (mission_npc_state)
-export function getNPCState(sessionId, npcId) {
-  return api(`api-npc-state?session_id=${sessionId}&npc_id=${npcId}`);
-}
-
-// Create a new global NPC (full schema)
-export function createNPC(npc) {
-  return api("api-npcs", "POST", npc);
-}
-
-/* ============================================================
+/* ----------------------------------------------------------
    MESSAGES
-   ============================================================ */
+---------------------------------------------------------- */
 
-export function listSessionMessages(sessionId) {
-  return api(`api-mission-messages?session_id=${sessionId}`);
+export async function listMissionMessages(missionId) {
+  return apiFetch(`/api-mission-messages?mission_id=${missionId}`, {
+    method: "GET",
+  });
+}
+
+/* ----------------------------------------------------------
+   PLAYERS
+---------------------------------------------------------- */
+
+export async function listSessionPlayers(sessionId) {
+  return apiFetch(`/api-session-players?session_id=${sessionId}`, {
+    method: "GET",
+  });
+}
+
+export async function addPlayerToSession(data) {
+  return apiFetch("/api-session-players", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+/* ----------------------------------------------------------
+   NPCs (Admin Protected Endpoints)
+---------------------------------------------------------- */
+
+// LIST ALL NPCs — Requires Admin Key
+export async function getAllNPCs() {
+  return apiFetch("/api-npcs", {
+    method: "GET",
+    headers: {
+      "x-admin-key": import.meta.env.VITE_ADMIN_API_KEY
+    }
+  });
+}
+
+// CREATE NPC — Requires Admin Key
+export async function createNPC(data) {
+  return apiFetch("/api-npcs", {
+    method: "POST",
+    headers: {
+      "x-admin-key": import.meta.env.VITE_ADMIN_API_KEY,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(data)
+  });
+}
+
+/* ----------------------------------------------------------
+   MISSION NPC LINKING
+---------------------------------------------------------- */
+
+export async function listMissionNPCs(missionId) {
+  return apiFetch(`/api-mission-npcs?mission_id=${missionId}`, {
+    method: "GET",
+  });
+}
+
+export async function addNPCtoMission(data) {
+  return apiFetch("/api-mission-npcs", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+/* ----------------------------------------------------------
+   NPC STATE
+---------------------------------------------------------- */
+
+export async function getNPCState(sessionId, npcId) {
+  return apiFetch(
+    `/api-npc-state?session_id=${sessionId}&npc_id=${npcId}`,
+    {
+      method: "GET",
+    }
+  );
+}
+
+export async function updateNPCState(data) {
+  return apiFetch("/api-npc-state", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
 }
