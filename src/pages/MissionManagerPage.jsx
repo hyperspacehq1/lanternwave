@@ -17,7 +17,8 @@ import {
   createNPC,
 } from "../lib/mission-api";
 
-import "../styles/mission-manager.css";
+// ✅ FIXED CSS IMPORT — CORRECT PATH
+import "./mission-manager.css";
 
 export default function MissionManagerPage() {
   /* -------------------------------------------------------------
@@ -54,7 +55,7 @@ export default function MissionManagerPage() {
   });
 
   /* -------------------------------------------------------------
-     INITIAL LOAD: MISSIONS & NPC LIST
+     INITIAL LOAD
   ------------------------------------------------------------- */
   useEffect(() => {
     async function load() {
@@ -77,7 +78,7 @@ export default function MissionManagerPage() {
   }, []);
 
   /* -------------------------------------------------------------
-     LOAD SESSIONS WHEN A MISSION IS SELECTED
+     LOAD SESSIONS WHEN CAMPAIGN CHANGES
   ------------------------------------------------------------- */
   useEffect(() => {
     if (!selectedMissionId) return;
@@ -99,7 +100,7 @@ export default function MissionManagerPage() {
   }, [selectedMissionId]);
 
   /* -------------------------------------------------------------
-     LOAD SESSION DETAILS WHEN SELECTED
+     LOAD SESSION DETAILS WHEN SESSION CHANGES
   ------------------------------------------------------------- */
   useEffect(() => {
     if (!selectedSession) return;
@@ -220,10 +221,7 @@ export default function MissionManagerPage() {
       <h1>Campaign Manager</h1>
 
       <div className="columns">
-        {/* LEFT COLUMN */}
         <div className="left-col">
-
-          {/* CAMPAIGN SELECT */}
           <label>Campaign</label>
           <select
             value={selectedMissionId || ""}
@@ -239,7 +237,6 @@ export default function MissionManagerPage() {
 
           <button onClick={handleCreateMission}>Create Campaign</button>
 
-          {/* SESSIONS */}
           <label>Sessions</label>
           <select
             value={selectedSession?.id || ""}
@@ -257,7 +254,6 @@ export default function MissionManagerPage() {
 
           <button onClick={handleCreateSession}>New Session</button>
 
-          {/* NPCs */}
           <label>NPCs Assigned To Campaign</label>
           <ul className="npc-list">
             {missionNPCs.map((npc) => (
@@ -278,7 +274,6 @@ export default function MissionManagerPage() {
           </select>
         </div>
 
-        {/* RIGHT COLUMN */}
         <div className="right-col">
           <h2>Session Data</h2>
 
@@ -305,7 +300,6 @@ export default function MissionManagerPage() {
         </div>
       </div>
 
-      {/* NPC CREATION MODAL */}
       {npcModalOpen && (
         <div className="npc-modal">
           <div className="npc-modal-content">
