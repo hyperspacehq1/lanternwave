@@ -2,12 +2,12 @@ import React, { useEffect, useState } from "react";
 
 import {
   listMissions,
-  listMissionSessions,     // ✅ FIXED
+  listMissionSessions,      // ✔ VALID
   createMission,
   createSession,
   listSessionPlayers,
   addPlayerToSession,
-  listSessionEvents,
+  listMissionEvents,        // ✔ VALID
   createSessionEvent,
   listSessionMessages,
   getAllNPCs,
@@ -17,14 +17,12 @@ import {
   createNPC,
 } from "../lib/mission-api";
 
-// Correct CSS path (already fixed)
 import "./mission-manager.css";
 
 export default function MissionManagerPage() {
   /* -------------------------------------------------------------
      STATE
   ------------------------------------------------------------- */
-
   const [missions, setMissions] = useState([]);
   const [selectedMissionId, setSelectedMissionId] = useState(null);
 
@@ -55,10 +53,10 @@ export default function MissionManagerPage() {
   });
 
   /* -------------------------------------------------------------
-     1) LOAD MISSIONS + GLOBAL NPC LIST ONCE
+     LOAD MISSIONS + GLOBAL NPCS (ONCE)
   ------------------------------------------------------------- */
   useEffect(() => {
-    async function loadInitial() {
+    async function init() {
       try {
         const m = await listMissions();
         setMissions(m || []);
@@ -70,27 +68,25 @@ export default function MissionManagerPage() {
         const npcRes = await getAllNPCs();
         setAllNPCs(npcRes.npcs || []);
       } catch (err) {
-        console.error("Error loading NPCs:", err);
+        console.error("Error loading NPC list:", err);
       }
     }
 
-    loadInitial();
+    init();
   }, []);
 
   /* -------------------------------------------------------------
-     2) LOAD SESSIONS WHEN CAMPAIGN CHANGES
+     LOAD SESSIONS WHEN CAMPAIGN CHANGES
   ------------------------------------------------------------- */
   useEffect(() => {
     if (!selectedMissionId) return;
 
     async function loadSessions() {
       try {
-        const s = await listMissionSessions(selectedMissionId);  // ✅ FIXED
+        const s = await listMissionSessions(selectedMissionId);  // ✔ VALID
         setSessions(s || []);
 
-        if (s?.length > 0) {
-          setSelectedSession(s[0]);
-        }
+        if (s?.length) setSelectedSession(s[0]);
       } catch (err) {
         console.error("Error loading sessions:", err);
       }
@@ -100,7 +96,7 @@ export default function MissionManagerPage() {
   }, [selectedMissionId]);
 
   /* -------------------------------------------------------------
-     3) LOAD SESSION DETAILS WHEN SESSION CHANGES
+     LOAD SESSION DETAILS
   ------------------------------------------------------------- */
   useEffect(() => {
     if (!selectedSession) return;
@@ -114,7 +110,7 @@ export default function MissionManagerPage() {
       }
 
       try {
-        const e = await listSessionEvents(selectedSession.id);
+        const e = await listMissionEvents(selectedSession.id); // ✔ VALID
         setEvents(e || []);
       } catch (err) {
         console.error("Error loading events:", err);
@@ -150,15 +146,12 @@ export default function MissionManagerPage() {
       const result = await createMission({ name });
       setMissions([...missions, result.mission]);
     } catch (err) {
-      console.error("Create mission failed:", err);
+      console.error("Failed creating mission:", err);
     }
   }
 
   async function handleCreateSession() {
-    if (!selectedMissionId) {
-      alert("Please select a campaign first.");
-      return;
-    }
+    if (!selectedMissionId) return alert("Select campaign first.");
 
     const name = prompt("Enter session name:");
     if (!name) return;
@@ -208,8 +201,8 @@ export default function MissionManagerPage() {
 
       setMissionNPCs([...missionNPCs, res.mission_npc]);
     } catch (err) {
-      console.error("Failed assigning NPC:", err);
-      alert("Error assigning NPC");
+      console.error("Error assigning NPC:", err);
+      alert("Failed to assign NPC");
     }
   }
 
@@ -221,6 +214,7 @@ export default function MissionManagerPage() {
       <h1>Campaign Manager</h1>
 
       <div className="columns">
+        {/* LEFT COLUMN */}
         <div className="left-col">
           <label>Campaign</label>
           <select
@@ -267,13 +261,14 @@ export default function MissionManagerPage() {
           <select onChange={(e) => handleAssignNPC(Number(e.target.value))}>
             <option value="">Choose NPC</option>
             {allNPCs.map((npc) => (
-              <option value={npc.id} key={npc.id}>
+              <option key={npc.id} value={npc.id}>
                 {npc.display_name}
               </option>
             ))}
           </select>
         </div>
 
+        {/* RIGHT COLUMN */}
         <div className="right-col">
           <h2>Session Data</h2>
 
@@ -300,7 +295,7 @@ export default function MissionManagerPage() {
         </div>
       </div>
 
-      {/* NPC CREATION MODAL */}
+      {/* NPC MODAL */}
       {npcModalOpen && (
         <div className="npc-modal">
           <div className="npc-modal-content">
