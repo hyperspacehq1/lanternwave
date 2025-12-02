@@ -1,11 +1,8 @@
-// api-mission-npcs.js
 import db from "../util/db.js";
-
 
 export async function handler(event) {
   try {
 
-    // LIST NPCs IN A MISSION
     if (event.httpMethod === "GET") {
       const missionId = event.queryStringParameters?.mission_id;
       if (!missionId) {
@@ -27,10 +24,8 @@ export async function handler(event) {
       };
     }
 
-    // ADD NPC → MISSION
     if (event.httpMethod === "POST") {
       const body = JSON.parse(event.body || "{}");
-
       const { mission_id, npc_id, is_known, gm_only_notes } = body;
 
       if (!mission_id || !npc_id) {

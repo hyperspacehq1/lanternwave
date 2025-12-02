@@ -1,10 +1,7 @@
-// api-npc-state.js
 import db from "../util/db.js";
 
 export async function handler(event) {
   try {
-
-    // GET NPC STATE FOR SESSION
     if (event.httpMethod === "GET") {
       const { session_id, npc_id } = event.queryStringParameters;
 
@@ -25,10 +22,8 @@ export async function handler(event) {
       };
     }
 
-    // UPDATE NPC STATE
     if (event.httpMethod === "POST") {
       const body = JSON.parse(event.body || "{}");
-
       const { session_id, npc_id, memory, phone_number } = body;
 
       if (!session_id || !npc_id) {
