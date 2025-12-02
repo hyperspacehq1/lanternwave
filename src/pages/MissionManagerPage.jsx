@@ -2,14 +2,14 @@ import React, { useEffect, useState } from "react";
 
 import {
   listMissions,
-  listMissionSessions,
+  listMissionSessions,      // ✔ VALID
   createMission,
-  createMissionSession,   // ✔ FIXED
+  createSession,
   listSessionPlayers,
   addPlayerToSession,
-  listMissionEvents,      // ✔ VALID
-  createMissionEvent,     // ✔ FIXED
-  listMissionMessages,    // ✔ FIXED
+  listMissionEvents,        // ✔ VALID
+  createSessionEvent,
+  listSessionMessages,
   getAllNPCs,
   listMissionNPCs,
   addNPCtoMission,
@@ -20,6 +20,9 @@ import {
 import "./mission-manager.css";
 
 export default function MissionManagerPage() {
+  /* -------------------------------------------------------------
+     STATE
+  ------------------------------------------------------------- */
   const [missions, setMissions] = useState([]);
   const [selectedMissionId, setSelectedMissionId] = useState(null);
 
@@ -49,7 +52,9 @@ export default function MissionManagerPage() {
     description_secret: "",
   });
 
-  // LOAD MISSIONS + GLOBAL NPCs
+  /* -------------------------------------------------------------
+     LOAD MISSIONS + GLOBAL NPCS (ONCE)
+  ------------------------------------------------------------- */
   useEffect(() => {
     async function init() {
       try {
@@ -70,13 +75,15 @@ export default function MissionManagerPage() {
     init();
   }, []);
 
-  // LOAD SESSIONS WHEN MISSION CHANGES
+  /* -------------------------------------------------------------
+     LOAD SESSIONS WHEN CAMPAIGN CHANGES
+  ------------------------------------------------------------- */
   useEffect(() => {
     if (!selectedMissionId) return;
 
     async function loadSessions() {
       try {
-        const s = await listMissionSessions(selectedMissionId);
+        const s = await listMissionSessions(selectedMissionId);  // ✔ VALID
         setSessions(s || []);
 
         if (s?.length) setSelectedSession(s[0]);
@@ -88,7 +95,9 @@ export default function MissionManagerPage() {
     loadSessions();
   }, [selectedMissionId]);
 
-  // LOAD SESSION DETAILS
+  /* -------------------------------------------------------------
+     LOAD SESSION DETAILS
+  ------------------------------------------------------------- */
   useEffect(() => {
     if (!selectedSession) return;
 
@@ -101,14 +110,14 @@ export default function MissionManagerPage() {
       }
 
       try {
-        const e = await listMissionEvents(selectedSession.id);
+        const e = await listMissionEvents(selectedSession.id); // ✔ VALID
         setEvents(e || []);
       } catch (err) {
         console.error("Error loading events:", err);
       }
 
       try {
-        const msg = await listMissionMessages(selectedMissionId); // ✔ FIXED
+        const msg = await listSessionMessages(selectedMissionId);
         setMessages(msg || []);
       } catch (err) {
         console.error("Error loading messages:", err);
@@ -125,7 +134,10 @@ export default function MissionManagerPage() {
     loadDetails();
   }, [selectedSession, selectedMissionId]);
 
-  // HANDLERS
+  /* -------------------------------------------------------------
+     HANDLERS
+  ------------------------------------------------------------- */
+
   async function handleCreateMission() {
     const name = prompt("Enter campaign name:");
     if (!name) return;
@@ -145,7 +157,7 @@ export default function MissionManagerPage() {
     if (!name) return;
 
     try {
-      const s = await createMissionSession({
+      const s = await createSession({
         mission_id: selectedMissionId,
         session_name: name,
       });
@@ -194,12 +206,15 @@ export default function MissionManagerPage() {
     }
   }
 
-  // UI
+  /* -------------------------------------------------------------
+     RENDER
+  ------------------------------------------------------------- */
   return (
     <div className="mission-manager">
       <h1>Campaign Manager</h1>
 
       <div className="columns">
+        {/* LEFT COLUMN */}
         <div className="left-col">
           <label>Campaign</label>
           <select
@@ -253,6 +268,7 @@ export default function MissionManagerPage() {
           </select>
         </div>
 
+        {/* RIGHT COLUMN */}
         <div className="right-col">
           <h2>Session Data</h2>
 
@@ -279,6 +295,7 @@ export default function MissionManagerPage() {
         </div>
       </div>
 
+      {/* NPC MODAL */}
       {npcModalOpen && (
         <div className="npc-modal">
           <div className="npc-modal-content">
