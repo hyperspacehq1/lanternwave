@@ -34,11 +34,13 @@ export default function MissionManagerPage() {
   const [missionNPCs, setMissionNPCs] = useState([]);
 
   /* ======================================================
-     MODALS STATE (Campaign, Session, NPC)
+     MODALS STATE (Campaign, Session, NPC, NPC Import)
   ====================================================== */
   const [campaignModalOpen, setCampaignModalOpen] = useState(false);
   const [sessionModalOpen, setSessionModalOpen] = useState(false);
   const [npcModalOpen, setNpcModalOpen] = useState(false);
+  const [npcImportModalOpen, setNpcImportModalOpen] = useState(false);
+  const [csvErrors, setCsvErrors] = useState([]);
 
   const [campaignName, setCampaignName] = useState("");
   const [sessionName, setSessionName] = useState("");
@@ -230,6 +232,150 @@ export default function MissionManagerPage() {
   }
 
   /* ======================================================
+     CSV TEMPLATE GENERATOR (1 NPC CSV)
+  ====================================================== */
+  function downloadNPCcsvTemplate() {
+    const headers = [
+      "display_name",
+      "true_name",
+      "primary_category",
+      "secondary_subtype",
+      "intent",
+      "personality_json",
+      "goals_text",
+      "secrets_text",
+      "tone_text",
+      "truth_policy_json",
+      "description_public",
+      "description_secret",
+    ];
+
+    const defaultRow = [
+      "NPC Name",
+      "True Name",
+      "HUMAN",
+      "Subtype",
+      "Intent description",
+      '{"traits":[]}',
+      "Goals here...",
+      "Secrets here...",
+      "Tone here...",
+      '{"policy":"minimal"}',
+      "Public description...",
+      "Secret description...",
+    ];
+
+    const csvContent = headers.join(",") + "\n" + defaultRow.join(",");
+    const blob = new Blob([csvContent], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "npc_template.csv";
+    a.click();
+
+    URL.revokeObjectURL(url);
+  }
+
+  /* ======================================================
+     CSV PARSING + AUTO VALIDATION (1 NPC PER CSV)
+  ====================================================== */
+  async function handleCSVUploadWithValidation(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setCsvErrors([]);
+
+    try {
+      const text = await file.text();
+      const parsed = parseSingleNPCcsvValidated(text);
+
+      if (parsed.errors.length) {
+        setCsvErrors(parsed.errors);
+        return;
+      }
+
+      const data = parsed.data;
+
+      const payload = {
+        ...data,
+        personality_json: safeJson(data.personality_json),
+        truth_policy_json: safeJson(data.truth_policy_json),
+      };
+
+      const res = await createNPC(payload);
+      setAllNPCs([...allNPCs, res.npc]);
+
+      alert("NPC successfully imported from CSV!");
+      setNpcImportModalOpen(false);
+    } catch (err) {
+      console.error("CSV Import Failed:", err);
+      alert("Error reading CSV. Check console.");
+    }
+  }
+
+  function parseSingleNPCcsvValidated(text) {
+    const errors = [];
+    const rows = text.trim().split("\n");
+    if (rows.length < 2) {
+      errors.push("CSV must contain headers + one NPC row.");
+      return { errors, data: null };
+    }
+
+    const headers = rows[0].split(",").map((h) => h.trim());
+    const values = rows[1].split(",").map((v) => v.trim());
+
+    const requiredFields = [
+      "display_name",
+      "true_name",
+      "primary_category",
+      "secondary_subtype",
+      "intent",
+      "personality_json",
+      "goals_text",
+      "secrets_text",
+      "tone_text",
+      "truth_policy_json",
+      "description_public",
+      "description_secret",
+    ];
+
+    requiredFields.forEach((field) => {
+      if (!headers.includes(field)) {
+        errors.push(`Missing required field: ${field}`);
+      }
+    });
+
+    if (values.length !== headers.length) {
+      errors.push("Number of CSV values does not match the number of headers.");
+    }
+
+    const npc = {};
+    headers.forEach((h, i) => {
+      npc[h] = values[i] || "";
+    });
+
+    // Validate JSON fields
+    ["personality_json", "truth_policy_json"].forEach((field) => {
+      try {
+        JSON.parse(npc[field]);
+      } catch {
+        errors.push(`Invalid JSON in field: ${field}`);
+      }
+    });
+
+    return { errors, data: npc };
+  }
+
+  function safeJson(str) {
+    try {
+      return JSON.parse(str);
+    } catch {
+      return {};
+    }
+  }
+
+  /* ======================================================
      UI RENDER
   ====================================================== */
   return (
@@ -283,6 +429,10 @@ export default function MissionManagerPage() {
           </ul>
 
           <button onClick={openNPCModal}>Add New NPC</button>
+
+          <button onClick={() => setNpcImportModalOpen(true)}>
+            Import NPC from CSV
+          </button>
 
           <label>Assign Existing NPC</label>
           <select onChange={(e) => handleAssignNPC(Number(e.target.value))}>
@@ -363,7 +513,7 @@ export default function MissionManagerPage() {
       )}
 
       {/* ======================================================
-         MODAL — CREATE NPC (already existed, now styled)
+         MODAL — CREATE NPC
       ====================================================== */}
       {npcModalOpen && (
         <div className="npc-modal">
@@ -384,6 +534,58 @@ export default function MissionManagerPage() {
 
             <button onClick={submitNewNPC}>Save NPC</button>
             <button onClick={() => setNpcModalOpen(false)}>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================
+         MODAL — IMPORT NPC FROM CSV
+      ====================================================== */}
+      {npcImportModalOpen && (
+        <div className="npc-modal">
+          <div className="npc-modal-content">
+            <h2>Import NPC from CSV</h2>
+
+            <p style={{ color: "rgb(180,220,180)", fontSize: "11px" }}>
+              Upload a CSV file containing exactly <strong>one NPC</strong>.
+              The CSV must include all required fields.
+            </p>
+
+            <button
+              onClick={downloadNPCcsvTemplate}
+              style={{ marginBottom: "0.5rem" }}
+            >
+              Download CSV Template
+            </button>
+
+            <input
+              type="file"
+              accept=".csv"
+              onChange={handleCSVUploadWithValidation}
+            />
+
+            {csvErrors.length > 0 && (
+              <div
+                style={{
+                  marginTop: "1rem",
+                  padding: "0.75rem",
+                  background: "rgba(80,0,0,0.45)",
+                  border: "1px solid red",
+                  borderRadius: "6px",
+                  color: "#ffbfbf",
+                  fontSize: "11px",
+                }}
+              >
+                <strong>Errors detected:</strong>
+                <ul>
+                  {csvErrors.map((err, idx) => (
+                    <li key={idx}>{err}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <button onClick={() => setNpcImportModalOpen(false)}>Close</button>
           </div>
         </div>
       )}
