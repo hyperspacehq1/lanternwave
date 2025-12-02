@@ -2,18 +2,19 @@ import React, { useEffect, useState } from "react";
 
 import {
   listMissions,
-  listMissionSessions,      // ✔ VALID
+  listMissionSessions,
   createMission,
-  createSession,
+  createMissionSession,
   listSessionPlayers,
   addPlayerToSession,
-  listMissionEvents,        // ✔ VALID
-  createSessionEvent,
-  listSessionMessages,
+  listMissionEvents,
+  createMissionEvent,
+  listMissionMessages,
   getAllNPCs,
   listMissionNPCs,
   addNPCtoMission,
   getNPCState,
+  updateNPCState,
   createNPC,
 } from "../lib/mission-api";
 
@@ -37,6 +38,7 @@ export default function MissionManagerPage() {
   const [missionNPCs, setMissionNPCs] = useState([]);
 
   const [npcModalOpen, setNpcModalOpen] = useState(false);
+
   const [npcForm, setNpcForm] = useState({
     display_name: "",
     true_name: "",
@@ -53,7 +55,7 @@ export default function MissionManagerPage() {
   });
 
   /* -------------------------------------------------------------
-     LOAD MISSIONS + GLOBAL NPCS (ONCE)
+     LOAD MISSIONS + NPC LIST
   ------------------------------------------------------------- */
   useEffect(() => {
     async function init() {
@@ -68,7 +70,7 @@ export default function MissionManagerPage() {
         const npcRes = await getAllNPCs();
         setAllNPCs(npcRes.npcs || []);
       } catch (err) {
-        console.error("Error loading NPC list:", err);
+        console.error("Error loading NPCs:", err);
       }
     }
 
@@ -76,17 +78,19 @@ export default function MissionManagerPage() {
   }, []);
 
   /* -------------------------------------------------------------
-     LOAD SESSIONS WHEN CAMPAIGN CHANGES
+     LOAD SESSIONS WHEN MISSION CHANGES
   ------------------------------------------------------------- */
   useEffect(() => {
     if (!selectedMissionId) return;
 
     async function loadSessions() {
       try {
-        const s = await listMissionSessions(selectedMissionId);  // ✔ VALID
+        const s = await listMissionSessions(selectedMissionId);
         setSessions(s || []);
 
-        if (s?.length) setSelectedSession(s[0]);
+        if (s?.length) {
+          setSelectedSession(s[0]);
+        }
       } catch (err) {
         console.error("Error loading sessions:", err);
       }
@@ -96,7 +100,7 @@ export default function MissionManagerPage() {
   }, [selectedMissionId]);
 
   /* -------------------------------------------------------------
-     LOAD SESSION DETAILS
+     LOAD SESSION DETAILS WHEN SESSION CHANGES
   ------------------------------------------------------------- */
   useEffect(() => {
     if (!selectedSession) return;
@@ -110,14 +114,14 @@ export default function MissionManagerPage() {
       }
 
       try {
-        const e = await listMissionEvents(selectedSession.id); // ✔ VALID
-        setEvents(e || []);
+        const ev = await listMissionEvents(selectedSession.id);
+        setEvents(ev || []);
       } catch (err) {
         console.error("Error loading events:", err);
       }
 
       try {
-        const msg = await listSessionMessages(selectedMissionId);
+        const msg = await listMissionMessages(selectedMissionId);
         setMessages(msg || []);
       } catch (err) {
         console.error("Error loading messages:", err);
@@ -135,9 +139,8 @@ export default function MissionManagerPage() {
   }, [selectedSession, selectedMissionId]);
 
   /* -------------------------------------------------------------
-     HANDLERS
+     CREATE MISSION / SESSION
   ------------------------------------------------------------- */
-
   async function handleCreateMission() {
     const name = prompt("Enter campaign name:");
     if (!name) return;
@@ -151,13 +154,16 @@ export default function MissionManagerPage() {
   }
 
   async function handleCreateSession() {
-    if (!selectedMissionId) return alert("Select campaign first.");
+    if (!selectedMissionId) {
+      alert("Select a campaign first.");
+      return;
+    }
 
     const name = prompt("Enter session name:");
     if (!name) return;
 
     try {
-      const s = await createSession({
+      const s = await createMissionSession({
         mission_id: selectedMissionId,
         session_name: name,
       });
@@ -165,9 +171,13 @@ export default function MissionManagerPage() {
       setSessions([...sessions, s.session]);
     } catch (err) {
       console.error("Failed creating session:", err);
+      alert("Could not create session");
     }
   }
 
+  /* -------------------------------------------------------------
+     NPC CREATION
+  ------------------------------------------------------------- */
   async function handleAddNPC() {
     setNpcModalOpen(true);
   }
@@ -182,16 +192,21 @@ export default function MissionManagerPage() {
 
       const res = await createNPC(payload);
 
-      setNpcModalOpen(false);
       setAllNPCs([...allNPCs, res.npc]);
+      setNpcModalOpen(false);
       alert("NPC created!");
     } catch (err) {
-      console.error("Failed to create NPC:", err);
-      alert("Error creating NPC. Check console.");
+      console.error("Failed creating NPC:", err);
+      alert("NPC creation error.");
     }
   }
 
+  /* -------------------------------------------------------------
+     ASSIGN NPC TO MISSION
+  ------------------------------------------------------------- */
   async function handleAssignNPC(npcId) {
+    if (!selectedMissionId) return;
+
     try {
       const res = await addNPCtoMission({
         mission_id: selectedMissionId,
@@ -202,7 +217,7 @@ export default function MissionManagerPage() {
       setMissionNPCs([...missionNPCs, res.mission_npc]);
     } catch (err) {
       console.error("Error assigning NPC:", err);
-      alert("Failed to assign NPC");
+      alert("Could not assign NPC.");
     }
   }
 
@@ -235,7 +250,9 @@ export default function MissionManagerPage() {
           <select
             value={selectedSession?.id || ""}
             onChange={(e) => {
-              const found = sessions.find((s) => s.id === Number(e.target.value));
+              const found = sessions.find(
+                (s) => s.id === Number(e.target.value)
+              );
               setSelectedSession(found);
             }}
           >
@@ -248,16 +265,17 @@ export default function MissionManagerPage() {
 
           <button onClick={handleCreateSession}>New Session</button>
 
-          <label>NPCs Assigned To Campaign</label>
+          {/* NPCs */}
+          <label>NPCs in Campaign</label>
           <ul className="npc-list">
             {missionNPCs.map((npc) => (
               <li key={npc.id}>{npc.display_name || `NPC #${npc.npc_id}`}</li>
             ))}
           </ul>
 
-          <button onClick={handleAddNPC}>Add New NPC</button>
+          <button onClick={handleAddNPC}>Create New NPC</button>
 
-          <label>Assign Existing NPC</label>
+          <label>Assign NPC</label>
           <select onChange={(e) => handleAssignNPC(Number(e.target.value))}>
             <option value="">Choose NPC</option>
             {allNPCs.map((npc) => (
