@@ -1,6 +1,4 @@
 import React, { useEffect, useState } from "react";
-import * as XLSX from "xlsx";
-
 import {
   listMissions,
   listMissionSessions,
@@ -9,13 +7,11 @@ import {
   listSessionPlayers,
   addPlayerToSession,
   listMissionEvents,
-  createMissionEvent,
   listMissionMessages,
   getAllNPCs,
   listMissionNPCs,
   addNPCtoMission,
-  getNPCState,
-  createNPC,
+  createNPC
 } from "../lib/mission-api";
 
 import "./mission-manager.css";
@@ -30,22 +26,26 @@ export default function MissionManagerPage() {
   const [players, setPlayers] = useState([]);
   const [events, setEvents] = useState([]);
   const [messages, setMessages] = useState([]);
-
   const [allNPCs, setAllNPCs] = useState([]);
   const [missionNPCs, setMissionNPCs] = useState([]);
 
-  /* ======================================================
-     MODALS STATE (Campaign, Session, NPC, NPC Import)
-  ====================================================== */
+  /* -------------------------
+     MODALS
+  ------------------------- */
   const [campaignModalOpen, setCampaignModalOpen] = useState(false);
   const [sessionModalOpen, setSessionModalOpen] = useState(false);
   const [npcModalOpen, setNpcModalOpen] = useState(false);
-  const [npcImportModalOpen, setNpcImportModalOpen] = useState(false);
+  const [npcJsonModalOpen, setNpcJsonModalOpen] = useState(false);
+  const [jsonErrors, setJsonErrors] = useState([]);
 
-  const [importErrors, setImportErrors] = useState([]);
-
+  /* -------------------------
+     FORM STATE
+  ------------------------- */
   const [campaignName, setCampaignName] = useState("");
   const [sessionName, setSessionName] = useState("");
+
+  const [newPlayerName, setNewPlayerName] = useState("");
+  const [newPlayerPhone, setNewPlayerPhone] = useState("");
 
   const [npcForm, setNpcForm] = useState({
     display_name: "",
@@ -59,41 +59,35 @@ export default function MissionManagerPage() {
     tone_text: "",
     truth_policy_json: "{}",
     description_public: "",
-    description_secret: "",
+    description_secret: ""
   });
 
-  /* ======================================================
-     PLAYER INPUT STATE (restored behavior)
-  ====================================================== */
-  const [newPlayerName, setNewPlayerName] = useState("");
-  const [newPlayerPhone, setNewPlayerPhone] = useState("");
-
-  /* ======================================================
-     INITIAL DATA LOAD
-  ====================================================== */
+  /* -------------------------
+     INITIAL LOAD
+  ------------------------- */
   useEffect(() => {
     async function init() {
       try {
         const m = await listMissions();
         setMissions(m || []);
-      } catch (err) {
-        console.error("Error loading missions:", err);
+      } catch (e) {
+        console.error("Load missions:", e);
       }
 
       try {
         const npcRes = await getAllNPCs();
         setAllNPCs(npcRes.npcs || []);
-      } catch (err) {
-        console.error("Error loading NPC list:", err);
+      } catch (e) {
+        console.error("Load NPCs:", e);
       }
     }
 
     init();
   }, []);
 
-  /* ======================================================
-     LOAD SESSIONS WHEN MISSION CHANGES
-  ====================================================== */
+  /* -------------------------
+     LOAD SESSIONS FOR MISSION
+  ------------------------- */
   useEffect(() => {
     if (!selectedMissionId) return;
 
@@ -101,19 +95,18 @@ export default function MissionManagerPage() {
       try {
         const s = await listMissionSessions(selectedMissionId);
         setSessions(s || []);
-
         if (s?.length) setSelectedSession(s[0]);
-      } catch (err) {
-        console.error("Error loading sessions:", err);
+      } catch (e) {
+        console.error("Load sessions:", e);
       }
     }
 
     loadSessions();
   }, [selectedMissionId]);
 
-  /* ======================================================
-     LOAD SESSION DETAILS (players/events/messages/npcs)
-  ====================================================== */
+  /* -------------------------
+     LOAD SESSION DETAILS
+  ------------------------- */
   useEffect(() => {
     if (!selectedSession) return;
 
@@ -121,131 +114,114 @@ export default function MissionManagerPage() {
       try {
         const p = await listSessionPlayers(selectedSession.id);
         setPlayers(p || []);
-      } catch (err) {
-        console.error("Error loading players:", err);
+      } catch (e) {
+        console.error("Load players:", e);
       }
 
       try {
-        const e = await listMissionEvents(selectedSession.id);
-        setEvents(e || []);
-      } catch (err) {
-        console.error("Error loading events:", err);
+        const ev = await listMissionEvents(selectedSession.id);
+        setEvents(ev || []);
+      } catch (e) {
+        console.error("Load events:", e);
       }
 
       try {
         const msg = await listMissionMessages(selectedMissionId);
         setMessages(msg || []);
-      } catch (err) {
-        console.error("Error loading messages:", err);
+      } catch (e) {
+        console.error("Load messages:", e);
       }
 
       try {
         const mNPC = await listMissionNPCs(selectedMissionId);
         setMissionNPCs(mNPC.mission_npcs || []);
-      } catch (err) {
-        console.error("Error loading mission NPCs:", err);
+      } catch (e) {
+        console.error("Load mission NPCs:", e);
       }
     }
 
     loadDetails();
   }, [selectedSession, selectedMissionId]);
 
-  /* ======================================================
-     HANDLERS — OPEN MODALS
-  ====================================================== */
-  function openCampaignModal() {
-    setCampaignName("");
-    setCampaignModalOpen(true);
-  }
-
-  function openSessionModal() {
-    if (!selectedMissionId) return alert("Select campaign first.");
-    setSessionName("");
-    setSessionModalOpen(true);
-  }
-
-  function openNPCModal() {
-    setNpcModalOpen(true);
-  }
-
-  /* ======================================================
-     HANDLERS — SUBMIT MODALS
-  ====================================================== */
+  /* -------------------------
+     CREATE CAMPAIGN
+  ------------------------- */
   async function submitCampaign() {
     if (!campaignName.trim()) return;
 
     try {
-      const result = await createMission({ name: campaignName.trim() });
-      setMissions([...missions, result.mission]);
+      const r = await createMission({ name: campaignName.trim() });
+      setMissions([...missions, r.mission]);
       setCampaignModalOpen(false);
-    } catch (err) {
-      console.error("Failed creating campaign:", err);
+    } catch (e) {
+      console.error("Create campaign:", e);
     }
   }
 
+  /* -------------------------
+     CREATE SESSION
+  ------------------------- */
   async function submitSession() {
     if (!sessionName.trim()) return;
     if (!selectedMissionId) return;
 
     try {
-      const s = await createMissionSession({
+      const r = await createMissionSession({
         mission_id: selectedMissionId,
-        session_name: sessionName.trim(),
+        session_name: sessionName.trim()
       });
-
-      setSessions([...sessions, s.session]);
+      setSessions([...sessions, r.session]);
       setSessionModalOpen(false);
-    } catch (err) {
-      console.error("Failed creating session:", err);
+    } catch (e) {
+      console.error("Create session:", e);
     }
   }
 
+  /* -------------------------
+     CREATE NPC MANUALLY
+  ------------------------- */
   async function submitNewNPC() {
     try {
       const payload = {
         ...npcForm,
         personality_json: JSON.parse(npcForm.personality_json || "{}"),
-        truth_policy_json: JSON.parse(npcForm.truth_policy_json || "{}"),
+        truth_policy_json: JSON.parse(npcForm.truth_policy_json || "{}")
       };
 
       const res = await createNPC(payload);
-
-      setNpcModalOpen(false);
       setAllNPCs([...allNPCs, res.npc]);
+
       alert("NPC created!");
-    } catch (err) {
-      console.error("Failed to create NPC:", err);
-      alert("Error creating NPC. Check console.");
+      setNpcModalOpen(false);
+    } catch (e) {
+      console.error("Create NPC:", e);
+      alert("Error creating NPC");
     }
   }
 
-  /* ======================================================
-     ASSIGN EXISTING NPC TO CAMPAIGN
-  ====================================================== */
+  /* -------------------------
+     ASSIGN NPC TO CAMPAIGN
+  ------------------------- */
   async function handleAssignNPC(npcId) {
     if (!npcId) return;
-    if (!selectedMissionId) {
-      alert("Select a campaign first.");
-      return;
-    }
+    if (!selectedMissionId) return alert("Select a campaign first.");
 
     try {
-      const res = await addNPCtoMission({
+      const r = await addNPCtoMission({
         mission_id: selectedMissionId,
         npc_id: npcId,
-        is_known: true,
+        is_known: true
       });
 
-      setMissionNPCs([...missionNPCs, res.mission_npc]);
-    } catch (err) {
-      console.error("Error assigning NPC:", err);
-      alert("Failed to assign NPC");
+      setMissionNPCs([...missionNPCs, r.mission_npc]);
+    } catch (e) {
+      console.error("Assign NPC:", e);
     }
   }
 
-  /* ======================================================
-     PLAYER HANDLERS (restored Add Player behavior)
-  ====================================================== */
+  /* -------------------------
+     ADD PLAYER
+  ------------------------- */
   async function handleAddPlayer() {
     if (!selectedSession) {
       alert("Select a session first.");
@@ -253,7 +229,7 @@ export default function MissionManagerPage() {
     }
 
     if (!newPlayerName.trim() && !newPlayerPhone.trim()) {
-      alert("Enter a player name or phone.");
+      alert("Enter player name or phone");
       return;
     }
 
@@ -261,110 +237,59 @@ export default function MissionManagerPage() {
       await addPlayerToSession({
         session_id: selectedSession.id,
         player_name: newPlayerName.trim() || null,
-        phone_number: newPlayerPhone.trim() || null,
+        phone_number: newPlayerPhone.trim() || null
       });
 
-      // Reload players to stay in sync with backend
       const updated = await listSessionPlayers(selectedSession.id);
       setPlayers(updated || []);
+
       setNewPlayerName("");
       setNewPlayerPhone("");
-    } catch (err) {
-      console.error("Failed to add player:", err);
-      alert("Error adding player. Check console.");
+    } catch (e) {
+      console.error("Add player:", e);
     }
   }
 
-  /* ======================================================
-     XLSX TEMPLATE GENERATOR (1 NPC PER SHEET)
-  ====================================================== */
-  function downloadNPCxlsxTemplate() {
-    const headers = [
-      "display_name",
-      "true_name",
-      "primary_category",
-      "secondary_subtype",
-      "intent",
-      "personality_json",
-      "goals_text",
-      "secrets_text",
-      "tone_text",
-      "truth_policy_json",
-      "description_public",
-      "description_secret",
-    ];
-
-    const sample = [
-      {
-        display_name: "NPC Name",
-        true_name: "True Name",
-        primary_category: "HUMAN",
-        secondary_subtype: "Subtype",
-        intent: "Intent description",
-        personality_json: '{"traits":[]}',
-        goals_text: "Goals...",
-        secrets_text: "Secret info...",
-        tone_text: "Tone details...",
-        truth_policy_json: '{"policy":"minimal"}',
-        description_public: "Public description...",
-        description_secret: "Secret description...",
-      },
-    ];
-
-    const worksheet = XLSX.utils.json_to_sheet(sample, { header: headers });
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "NPC");
-
-    XLSX.writeFile(workbook, "npc_template.xlsx");
-  }
-
-  /* ======================================================
-     XLSX IMPORT FOR NPC (1 ROW = 1 NPC)
-  ====================================================== */
-  async function handleXLSXUpload(e) {
+  /* -------------------------
+     JSON NPC IMPORT
+  ------------------------- */
+  async function handleNPCjsonUpload(e) {
     const file = e.target.files[0];
     if (!file) return;
 
-    setImportErrors([]);
+    setJsonErrors([]);
 
     try {
-      const arrayBuffer = await file.arrayBuffer();
-      const workbook = XLSX.read(arrayBuffer);
-      const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-      const json = XLSX.utils.sheet_to_json(firstSheet, { defval: "" });
+      const text = await file.text();
+      const json = JSON.parse(text);
 
-      if (!json.length) {
-        setImportErrors(["XLSX file contains no NPC rows."]);
-        return;
-      }
+      const npc = Array.isArray(json) ? json[0] : json;
 
-      const npc = json[0]; // first row only
-
-      const validationErrors = validateNPC(npc);
-      if (validationErrors.length) {
-        setImportErrors(validationErrors);
+      const errs = validateNPCjson(npc);
+      if (errs.length) {
+        setJsonErrors(errs);
         return;
       }
 
       const payload = {
         ...npc,
-        personality_json: safeJson(npc.personality_json),
-        truth_policy_json: safeJson(npc.truth_policy_json),
+        personality_json: npc.personality_json || {},
+        truth_policy_json: npc.truth_policy_json || {}
       };
 
       const res = await createNPC(payload);
       setAllNPCs([...allNPCs, res.npc]);
 
-      alert("NPC successfully imported from XLSX!");
-      setNpcImportModalOpen(false);
+      alert("NPC imported!");
+      setNpcJsonModalOpen(false);
     } catch (err) {
-      console.error("XLSX Import Error:", err);
-      alert("Failed to read XLSX. Check console.");
+      console.error("JSON Import Error:", err);
+      alert("Invalid JSON file");
     }
   }
 
-  function validateNPC(npc) {
-    const requiredFields = [
+  function validateNPCjson(npc) {
+    const required = [
       "display_name",
       "true_name",
       "primary_category",
@@ -376,46 +301,32 @@ export default function MissionManagerPage() {
       "tone_text",
       "truth_policy_json",
       "description_public",
-      "description_secret",
+      "description_secret"
     ];
 
-    const errors = [];
-
-    requiredFields.forEach((field) => {
-      if (!npc[field]) {
-        errors.push(`Missing field: ${field}`);
-      }
+    const errs = [];
+    required.forEach(f => {
+      if (!npc[f]) errs.push(`Missing field: ${f}`);
     });
 
-    // Validate JSON fields
-    ["personality_json", "truth_policy_json"].forEach((field) => {
-      try {
-        JSON.parse(npc[field]);
-      } catch {
-        errors.push(`Invalid JSON in ${field}`);
-      }
-    });
+    if (typeof npc.personality_json !== "object")
+      errs.push("personality_json must be an object");
 
-    return errors;
+    if (typeof npc.truth_policy_json !== "object")
+      errs.push("truth_policy_json must be an object");
+
+    return errs;
   }
 
-  function safeJson(str) {
-    try {
-      return JSON.parse(str);
-    } catch {
-      return {};
-    }
-  }
-
-  /* ======================================================
-     UI RENDER
-  ====================================================== */
+  /* -------------------------
+     RENDER
+  ------------------------- */
   return (
     <div className="mission-manager">
       <h1>Campaign Manager</h1>
 
       <div className="columns">
-        {/* LEFT PANEL */}
+        {/* LEFT COLUMN */}
         <div className="left-col">
           <label>Campaign</label>
           <select
@@ -430,16 +341,18 @@ export default function MissionManagerPage() {
             ))}
           </select>
 
-          <button onClick={openCampaignModal}>Create Campaign</button>
+          <button onClick={() => setCampaignModalOpen(true)}>
+            Create Campaign
+          </button>
 
           <label>Sessions</label>
           <select
             value={selectedSession?.id || ""}
             onChange={(e) => {
-              const found = sessions.find(
-                (s) => s.id === Number(e.target.value)
+              const s = sessions.find(
+                (ss) => ss.id === Number(e.target.value)
               );
-              setSelectedSession(found || null);
+              setSelectedSession(s || null);
             }}
           >
             {sessions.map((s) => (
@@ -449,21 +362,21 @@ export default function MissionManagerPage() {
             ))}
           </select>
 
-          <button onClick={openSessionModal}>New Session</button>
+          <button onClick={() => setSessionModalOpen(true)}>
+            New Session
+          </button>
 
-          <label>NPCs Assigned To Campaign</label>
+          <label>NPCs in Campaign</label>
           <ul className="npc-list">
             {missionNPCs.map((npc) => (
-              <li key={npc.id}>
-                {npc.display_name || `NPC #${npc.npc_id}`}
-              </li>
+              <li key={npc.id}>{npc.display_name}</li>
             ))}
           </ul>
 
-          <button onClick={openNPCModal}>Add New NPC</button>
+          <button onClick={() => setNpcModalOpen(true)}>Add New NPC</button>
 
-          <button onClick={() => setNpcImportModalOpen(true)}>
-            Import NPC from XLSX
+          <button onClick={() => setNpcJsonModalOpen(true)}>
+            Import NPC JSON
           </button>
 
           <label>Assign Existing NPC</label>
@@ -477,7 +390,7 @@ export default function MissionManagerPage() {
           </select>
         </div>
 
-        {/* RIGHT PANEL */}
+        {/* RIGHT COLUMN */}
         <div className="right-col">
           <h2>Session Data</h2>
 
@@ -488,24 +401,18 @@ export default function MissionManagerPage() {
             ))}
           </ul>
 
-          {/* Restored Add Player UI */}
-          <div style={{ marginBottom: "1.5rem" }}>
-            <label>Player Name</label>
-            <input
-              type="text"
-              value={newPlayerName}
-              onChange={(e) => setNewPlayerName(e.target.value)}
-              placeholder="Optional"
-            />
-            <label>Phone Number</label>
-            <input
-              type="text"
-              value={newPlayerPhone}
-              onChange={(e) => setNewPlayerPhone(e.target.value)}
-              placeholder="Optional"
-            />
-            <button onClick={handleAddPlayer}>Add Player</button>
-          </div>
+          <label>Player Name</label>
+          <input
+            value={newPlayerName}
+            onChange={(e) => setNewPlayerName(e.target.value)}
+          />
+          <label>Player Phone</label>
+          <input
+            value={newPlayerPhone}
+            onChange={(e) => setNewPlayerPhone(e.target.value)}
+          />
+
+          <button onClick={handleAddPlayer}>Add Player</button>
 
           <h3>Events</h3>
           <ul>
@@ -523,49 +430,40 @@ export default function MissionManagerPage() {
         </div>
       </div>
 
-      {/* ======================================================
-         MODAL — CREATE CAMPAIGN
-      ====================================================== */}
+      {/* -------------------------
+         MODALS
+      ------------------------- */}
+      {/* Campaign */}
       {campaignModalOpen && (
         <div className="npc-modal">
           <div className="npc-modal-content">
             <h2>Create Campaign</h2>
-
-            <label>Campaign Name</label>
             <input
               value={campaignName}
               onChange={(e) => setCampaignName(e.target.value)}
             />
-
             <button onClick={submitCampaign}>Save</button>
             <button onClick={() => setCampaignModalOpen(false)}>Cancel</button>
           </div>
         </div>
       )}
 
-      {/* ======================================================
-         MODAL — CREATE SESSION
-      ====================================================== */}
+      {/* Session */}
       {sessionModalOpen && (
         <div className="npc-modal">
           <div className="npc-modal-content">
             <h2>Create Session</h2>
-
-            <label>Session Name</label>
             <input
               value={sessionName}
               onChange={(e) => setSessionName(e.target.value)}
             />
-
             <button onClick={submitSession}>Save</button>
             <button onClick={() => setSessionModalOpen(false)}>Cancel</button>
           </div>
         </div>
       )}
 
-      {/* ======================================================
-         MODAL — CREATE NPC
-      ====================================================== */}
+      {/* Manual NPC */}
       {npcModalOpen && (
         <div className="npc-modal">
           <div className="npc-modal-content">
@@ -589,50 +487,35 @@ export default function MissionManagerPage() {
         </div>
       )}
 
-      {/* ======================================================
-         MODAL — IMPORT NPC FROM XLSX
-      ====================================================== */}
-      {npcImportModalOpen && (
+      {/* JSON NPC IMPORT */}
+      {npcJsonModalOpen && (
         <div className="npc-modal">
           <div className="npc-modal-content">
-            <h2>Import NPC from XLSX</h2>
+            <h2>Import NPC JSON</h2>
+            <input type="file" accept=".json" onChange={handleNPCjsonUpload} />
 
-            <p style={{ color: "rgb(180,220,180)", fontSize: "11px" }}>
-              Upload an <strong>.xlsx</strong> file containing exactly{" "}
-              <strong>one NPC</strong> in the first row.
-            </p>
-
-            <button
-              onClick={downloadNPCxlsxTemplate}
-              style={{ marginBottom: "0.5rem" }}
-            >
-              Download XLSX Template
-            </button>
-
-            <input type="file" accept=".xlsx" onChange={handleXLSXUpload} />
-
-            {importErrors.length > 0 && (
+            {jsonErrors.length > 0 && (
               <div
                 style={{
                   marginTop: "1rem",
                   padding: "0.75rem",
-                  background: "rgba(80,0,0,0.45)",
+                  background: "rgba(80,0,0,0.3)",
                   border: "1px solid red",
-                  borderRadius: "6px",
+                  borderRadius: "8px",
                   color: "#ffbfbf",
-                  fontSize: "11px",
+                  fontSize: "12px"
                 }}
               >
-                <strong>Errors detected:</strong>
+                <strong>Errors:</strong>
                 <ul>
-                  {importErrors.map((err, idx) => (
-                    <li key={idx}>{err}</li>
+                  {jsonErrors.map((e, i) => (
+                    <li key={i}>{e}</li>
                   ))}
                 </ul>
               </div>
             )}
 
-            <button onClick={() => setNpcImportModalOpen(false)}>Close</button>
+            <button onClick={() => setNpcJsonModalOpen(false)}>Close</button>
           </div>
         </div>
       )}
