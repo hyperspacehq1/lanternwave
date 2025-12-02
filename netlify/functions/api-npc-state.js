@@ -1,5 +1,5 @@
 // api-npc-state.js
-import db from "./util/db.js";
+import db from "../util/db.js";
 
 export async function handler(event) {
   try {

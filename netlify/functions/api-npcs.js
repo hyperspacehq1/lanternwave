@@ -1,6 +1,6 @@
 // api-npcs.js
 import { requireAdmin } from "./util/auth.js";
-import db from "./util/db.js";
+import db from "../util/db.js";
 
 export async function handler(event) {
   // ADMIN CHECK
