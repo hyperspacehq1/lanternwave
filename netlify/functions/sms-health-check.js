@@ -1,3 +1,4 @@
+// netlify/functions/sms-health-check.js
 import { query } from "../util/db.js";
 
 function json(statusCode, data) {
@@ -14,17 +15,17 @@ export const handler = async () => {
     openai: { ok: false, error: null },
   };
 
-  // Check Neon / Postgres
+  /* ---------------------- Check Neon / Postgres ---------------------- */
   try {
-    const r = await query("SELECT NOW() AS now");
+    const res = await query("SELECT NOW() AS now");
     result.neon.ok = true;
-    result.neon.now = r.rows[0].now;
+    result.neon.now = res.rows[0].now;
   } catch (err) {
     console.error("Health check Neon error:", err);
-    result.neon.error = String(err.message || err);
+    result.neon.error = err.message || String(err);
   }
 
-  // Check OpenAI
+  /* ---------------------- Check OpenAI ---------------------- */
   try {
     const res = await fetch("https://api.openai.com/v1/models", {
       method: "GET",
@@ -33,9 +34,8 @@ export const handler = async () => {
       },
     });
 
-    if (!res.ok) {
-      throw new Error(`OpenAI HTTP ${res.status}`);
-    }
+    if (!res.ok) throw new Error(`OpenAI HTTP ${res.status}`);
+
     const data = await res.json();
     result.openai.ok = true;
     result.openai.model_count = Array.isArray(data.data)
@@ -43,7 +43,7 @@ export const handler = async () => {
       : null;
   } catch (err) {
     console.error("Health check OpenAI error:", err);
-    result.openai.error = String(err.message || err);
+    result.openai.error = err.message || String(err);
   }
 
   return json(200, result);

@@ -1,6 +1,7 @@
-const db = require("../util/db.js");
+// netlify/functions/api-mission-npcs.js
+import { query } from "../util/db.js";
 
-exports.handler = async (event) => {
+export const handler = async (event) => {
   try {
     /* ---------------------- GET (list mission NPCs) ---------------------- */
     if (event.httpMethod === "GET") {
@@ -13,7 +14,7 @@ exports.handler = async (event) => {
         };
       }
 
-      const result = await db.query(
+      const result = await query(
         `SELECT mn.*, n.display_name
          FROM mission_npcs mn
          LEFT JOIN npcs n ON mn.npc_id = n.id
@@ -42,11 +43,10 @@ exports.handler = async (event) => {
         };
       }
 
-      const result = await db.query(
+      const result = await query(
         `INSERT INTO mission_npcs
            (mission_id, npc_id, is_known, gm_only_notes)
-         VALUES
-           ($1, $2, $3, $4)
+         VALUES ($1, $2, $3, $4)
          RETURNING *`,
         [mission_id, npc_id, is_known ?? true, gm_only_notes || ""]
       );
@@ -57,7 +57,7 @@ exports.handler = async (event) => {
       };
     }
 
-    /* ---------------------- Method not allowed ---------------------- */
+    /* ---------------------- Method Not Allowed ---------------------- */
     return { statusCode: 405, body: "Method Not Allowed" };
 
   } catch (err) {

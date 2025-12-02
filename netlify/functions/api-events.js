@@ -1,6 +1,7 @@
-const db = require("../util/db.js");
+// netlify/functions/api-events.js
+import { query } from "../util/db.js";
 
-exports.handler = async (event) => {
+export const handler = async (event) => {
   try {
     /* ---------------------- GET (list events) ---------------------- */
     if (event.httpMethod === "GET") {
@@ -13,7 +14,7 @@ exports.handler = async (event) => {
         };
       }
 
-      const result = await db.query(
+      const result = await query(
         `SELECT *
          FROM mission_events
          WHERE session_id = $1
@@ -41,12 +42,13 @@ exports.handler = async (event) => {
         };
       }
 
-      const result = await db.query(
-        `INSERT INTO mission_events
+      const result = await query(
+        `
+        INSERT INTO mission_events
            (session_id, event_type, payload, created_at, archived)
-         VALUES
-           ($1, $2, $3, NOW(), false)
-         RETURNING *`,
+         VALUES ($1, $2, $3, NOW(), false)
+         RETURNING *
+        `,
         [session_id, event_type, payload || {}]
       );
 
@@ -56,7 +58,7 @@ exports.handler = async (event) => {
       };
     }
 
-    /* ---------------------- Method not allowed ---------------------- */
+    /* ---------------------- Method Not Allowed ---------------------- */
     return { statusCode: 405, body: "Method Not Allowed" };
 
   } catch (err) {

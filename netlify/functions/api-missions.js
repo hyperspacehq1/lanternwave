@@ -1,19 +1,23 @@
-const db = require("../util/db.js");
+// netlify/functions/api-missions.js
+import { query } from "../util/db.js";
 
-exports.handler = async (event) => {
+export const handler = async (event) => {
   try {
+    /* ---------------------- GET (list missions) ---------------------- */
     if (event.httpMethod === "GET") {
-      const result = await db.query(
-        `SELECT *
-         FROM missions
-         ORDER BY id ASC`
-      );
+      const result = await query(`
+        SELECT *
+        FROM missions
+        ORDER BY id ASC
+      `);
+
       return {
         statusCode: 200,
         body: JSON.stringify(result.rows),
       };
     }
 
+    /* ---------------------- POST (create mission) ---------------------- */
     if (event.httpMethod === "POST") {
       const body = JSON.parse(event.body || "{}");
 
@@ -24,7 +28,7 @@ exports.handler = async (event) => {
         };
       }
 
-      const result = await db.query(
+      const result = await query(
         `INSERT INTO missions (name)
          VALUES ($1)
          RETURNING *`,
@@ -37,10 +41,18 @@ exports.handler = async (event) => {
       };
     }
 
-    return { statusCode: 405, body: "Method Not Allowed" };
+    /* ---------------------- Method Not Allowed ---------------------- */
+    return {
+      statusCode: 405,
+      body: "Method Not Allowed",
+    };
 
   } catch (err) {
     console.error("api-missions error:", err);
-    return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
+
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: err.message }),
+    };
   }
 };

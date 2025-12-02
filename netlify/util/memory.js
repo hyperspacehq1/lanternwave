@@ -1,4 +1,6 @@
-async function extractMemoryUpdates(message, memoryState) {
+// netlify/util/memory.js
+
+export async function extractMemoryUpdates(message, memoryState) {
   const payload = {
     input: message,
     memory: memoryState,
@@ -6,21 +8,20 @@ async function extractMemoryUpdates(message, memoryState) {
 
   const resp = await fetch(process.env.AI_MEMORY_URL, {
     method: "POST",
-    body: JSON.stringify(payload),
     headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
   });
+
+  if (!resp.ok) {
+    throw new Error(`AI_MEMORY_URL HTTP ${resp.status}`);
+  }
 
   return await resp.json();
 }
 
-function mergeMemory(existing, updates) {
+export function mergeMemory(existing, updates) {
   return {
     ...existing,
     ...updates,
   };
 }
-
-module.exports = {
-  extractMemoryUpdates,
-  mergeMemory,
-};

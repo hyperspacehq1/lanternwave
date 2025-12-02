@@ -1,12 +1,14 @@
-const db = require("../util/db.js");
+// netlify/functions/api-mission-session.js
+import { query } from "../util/db.js";
 
-exports.handler = async (event) => {
+export const handler = async (event) => {
   try {
     if (event.httpMethod !== "GET") {
       return { statusCode: 405, body: "Method Not Allowed" };
     }
 
     const sessionId = event.queryStringParameters?.session_id;
+
     if (!sessionId) {
       return {
         statusCode: 400,
@@ -14,7 +16,7 @@ exports.handler = async (event) => {
       };
     }
 
-    const result = await db.query(
+    const result = await query(
       `SELECT *
        FROM mission_sessions
        WHERE id = $1`,
@@ -28,6 +30,10 @@ exports.handler = async (event) => {
 
   } catch (err) {
     console.error("api-mission-session error:", err);
-    return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
+
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: err.message }),
+    };
   }
 };
