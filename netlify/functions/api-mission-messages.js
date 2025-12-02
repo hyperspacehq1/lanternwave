@@ -1,38 +1,42 @@
-import { query } from "../util/db.js";
+const db = require("../util/db.js");
 
-function json(statusCode, data) {
-  return {
-    statusCode,
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
-  };
-}
-
-export const handler = async (event) => {
-  const qs = event.queryStringParameters || {};
-
+exports.handler = async (event) => {
   try {
-    if (event.httpMethod !== "GET") {
-      return json(405, { error: "Method Not Allowed" });
+    /* ---------------------- GET Mission Messages ---------------------- */
+    if (event.httpMethod === "GET") {
+      const missionId = event.queryStringParameters?.mission_id;
+
+      if (!missionId) {
+        return {
+          statusCode: 400,
+          body: JSON.stringify({ error: "mission_id is required" }),
+        };
+      }
+
+      const result = await db.query(
+        `SELECT *
+         FROM messages
+         WHERE mission_id = $1
+         ORDER BY created_at ASC`,
+        [missionId]
+      );
+
+      return {
+        statusCode: 200,
+        body: JSON.stringify(result.rows),
+      };
     }
 
-    const { session_id } = qs;
+    /* -------------------------------------------------------------------
+       NOTE: You never had a POST route for messages in your old version.
+       The system receives messages via SMS → api-sms.js instead.
+       I'm preserving that architecture to avoid breakage.
+    -------------------------------------------------------------------- */
 
-    if (!session_id) {
-      return json(400, { error: "session_id is required" });
-    }
+    return { statusCode: 405, body: "Method Not Allowed" };
 
-    const r = await query(
-      `SELECT id, session_id, phone_number, direction, body, timestamp
-       FROM message_logs
-       WHERE session_id=$1
-       ORDER BY timestamp ASC, id ASC`,
-      [session_id]
-    );
-
-    return json(200, r.rows);
   } catch (err) {
     console.error("api-mission-messages error:", err);
-    return json(500, { error: "Internal Server Error" });
+    return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
   }
 };

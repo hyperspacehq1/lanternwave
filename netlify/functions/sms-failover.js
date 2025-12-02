@@ -1,24 +1,41 @@
-import { query } from "../util/db.js";
+const db = require("../util/db.js");
 
-export const handler = async (event) => {
-  const params = new URLSearchParams(event.body || "");
-  const from = params.get("From");
-  const body = params.get("Body");
-
+exports.handler = async (event) => {
   try {
-    await query(
-      `INSERT INTO sms_failover_log (from_number, body, received_at, processed)
-       VALUES ($1,$2,NOW(),false)`,
-      [from, body]
-    );
-  } catch (err) {
-    console.error("FAILOVER LOG ERROR:", err);
-  }
+    if (event.httpMethod !== "POST") {
+      return { statusCode: 405, body: "Method Not Allowed" };
+    }
 
-  return {
-    statusCode: 200,
-    headers: { "Content-Type": "text/xml" },
-    body:
-      "<Response><Message>Temporary system outage. Your message was saved.</Message></Response>",
-  };
+    const body = event.body;
+    const params = new URLSearchParams(body);
+
+    const from = params.get("From");
+    const msgBody = params.get("Body");
+
+    if (!from || !msgBody) {
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: "Missing From or Body" }),
+      };
+    }
+
+    await db.query(
+      `INSERT INTO sms_failover_log (from_number, body, received_at, processed)
+       VALUES ($1, $2, NOW(), false)`,
+      [from, msgBody]
+    );
+
+    return {
+      statusCode: 200,
+      body: "<Response></Response>",
+      headers: { "Content-Type": "text/xml" },
+    };
+
+  } catch (err) {
+    console.error("sms-failover error:", err);
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: err.message }),
+    };
+  }
 };

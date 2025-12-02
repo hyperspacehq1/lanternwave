@@ -1,29 +1,34 @@
-import db from "../util/db.js";
+const db = require("../util/db.js");
 
-export async function handler(event) {
+exports.handler = async (event) => {
   try {
-
+    /* ---------------------- GET (list mission NPCs) ---------------------- */
     if (event.httpMethod === "GET") {
       const missionId = event.queryStringParameters?.mission_id;
+
       if (!missionId) {
-        return { statusCode: 400, body: JSON.stringify({ error: "mission_id is required" }) };
+        return {
+          statusCode: 400,
+          body: JSON.stringify({ error: "mission_id is required" }),
+        };
       }
 
       const result = await db.query(
-        `SELECT mn.*, n.display_name, n.primary_category
+        `SELECT mn.*, n.display_name
          FROM mission_npcs mn
-         JOIN npcs n ON mn.npc_id = n.id
+         LEFT JOIN npcs n ON mn.npc_id = n.id
          WHERE mn.mission_id = $1
-         ORDER BY n.display_name ASC`,
+         ORDER BY mn.id ASC`,
         [missionId]
       );
 
       return {
         statusCode: 200,
-        body: JSON.stringify({ mission_npcs: result.rows })
+        body: JSON.stringify({ mission_npcs: result.rows }),
       };
     }
 
+    /* ---------------------- POST (assign NPC to mission) ---------------------- */
     if (event.httpMethod === "POST") {
       const body = JSON.parse(event.body || "{}");
       const { mission_id, npc_id, is_known, gm_only_notes } = body;
@@ -31,28 +36,32 @@ export async function handler(event) {
       if (!mission_id || !npc_id) {
         return {
           statusCode: 400,
-          body: JSON.stringify({ error: "mission_id and npc_id are required" })
+          body: JSON.stringify({
+            error: "mission_id and npc_id are required",
+          }),
         };
       }
 
       const result = await db.query(
         `INSERT INTO mission_npcs
-          (mission_id, npc_id, is_known, gm_only_notes)
-         VALUES ($1,$2,$3,$4)
+           (mission_id, npc_id, is_known, gm_only_notes)
+         VALUES
+           ($1, $2, $3, $4)
          RETURNING *`,
-        [mission_id, npc_id, is_known || false, gm_only_notes || ""]
+        [mission_id, npc_id, is_known ?? true, gm_only_notes || ""]
       );
 
       return {
         statusCode: 200,
-        body: JSON.stringify({ mission_npc: result.rows[0] })
+        body: JSON.stringify({ mission_npc: result.rows[0] }),
       };
     }
 
+    /* ---------------------- Method not allowed ---------------------- */
     return { statusCode: 405, body: "Method Not Allowed" };
 
   } catch (err) {
     console.error("api-mission-npcs error:", err);
     return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
   }
-}
+};

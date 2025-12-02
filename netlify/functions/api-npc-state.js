@@ -1,66 +1,73 @@
-import db from "../util/db.js";
+const db = require("../util/db.js");
 
-export async function handler(event) {
+exports.handler = async (event) => {
   try {
+    /* ---------------------- GET NPC STATE ---------------------- */
     if (event.httpMethod === "GET") {
-      const { session_id, npc_id } = event.queryStringParameters;
+      const sessionId = event.queryStringParameters?.session_id;
+      const npcId = event.queryStringParameters?.npc_id;
 
-      if (!session_id || !npc_id) {
-        return { statusCode: 400, body: JSON.stringify({ error: "session_id and npc_id are required" }) };
+      if (!sessionId || !npcId) {
+        return {
+          statusCode: 400,
+          body: JSON.stringify({
+            error: "session_id and npc_id are required",
+          }),
+        };
       }
 
       const result = await db.query(
         `SELECT *
          FROM npc_state
-         WHERE session_id = $1 AND npc_id = $2`,
-        [session_id, npc_id]
+         WHERE session_id = $1
+           AND npc_id = $2`,
+        [sessionId, npcId]
       );
 
       return {
         statusCode: 200,
-        body: JSON.stringify({ npc_state: result.rows[0] || null })
+        body: JSON.stringify(result.rows[0] || {}),
       };
     }
 
+    /* ---------------------- POST (update NPC state) ---------------------- */
     if (event.httpMethod === "POST") {
       const body = JSON.parse(event.body || "{}");
-      const { session_id, npc_id, memory, phone_number } = body;
 
-      if (!session_id || !npc_id) {
+      const { session_id, npc_id, state } = body;
+
+      if (!session_id || !npc_id || typeof state !== "object") {
         return {
           statusCode: 400,
-          body: JSON.stringify({ error: "session_id and npc_id required" })
+          body: JSON.stringify({
+            error: "session_id, npc_id, and state (object) are required",
+          }),
         };
       }
 
       const result = await db.query(
         `INSERT INTO npc_state
-          (session_id, npc_id, phone_number, memory, last_updated)
-         VALUES ($1,$2,$3,$4, NOW())
+           (session_id, npc_id, memory, last_updated)
+         VALUES
+           ($1, $2, $3, NOW())
          ON CONFLICT (session_id, npc_id)
-         DO UPDATE
-           SET phone_number = EXCLUDED.phone_number,
-               memory = EXCLUDED.memory,
-               last_updated = NOW()
+         DO UPDATE SET memory = EXCLUDED.memory,
+                       last_updated = NOW()
          RETURNING *`,
-        [
-          session_id,
-          npc_id,
-          phone_number || null,
-          memory || {}
-        ]
+        [session_id, npc_id, state]
       );
 
       return {
         statusCode: 200,
-        body: JSON.stringify({ npc_state: result.rows[0] })
+        body: JSON.stringify({ npc_state: result.rows[0] }),
       };
     }
 
+    /* ---------------------- Method not allowed ---------------------- */
     return { statusCode: 405, body: "Method Not Allowed" };
 
   } catch (err) {
     console.error("api-npc-state error:", err);
     return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
   }
-}
+};

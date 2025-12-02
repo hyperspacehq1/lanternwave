@@ -1,20 +1,20 @@
-// netlify/util/db.js
-import pkg from "pg";
-const { Client } = pkg;
+const { Client } = require("pg");
 
-function getClient() {
-  return new Client({
+async function query(text, params) {
+  const client = new Client({
     connectionString: process.env.NETLIFY_DATABASE_URL,
-    ssl: { rejectUnauthorized: false }
   });
-}
 
-export const query = async (sql, params = []) => {
-  const client = getClient();
   await client.connect();
 
-  const result = await client.query(sql, params);
+  try {
+    const res = await client.query(text, params);
+    return res;
+  } finally {
+    await client.end();
+  }
+}
 
-  await client.end();
-  return result;
+module.exports = {
+  query,
 };

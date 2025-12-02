@@ -1,71 +1,74 @@
-import { query } from "../util/db.js";
+const db = require("../util/db.js");
 
-function json(statusCode, data) {
-  return {
-    statusCode,
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
-  };
-}
-
-export const handler = async (event) => {
-  const qs = event.queryStringParameters || {};
-
+exports.handler = async (event) => {
   try {
+    /* ---------------------- GET Player Session State ---------------------- */
     if (event.httpMethod === "GET") {
-      const { session_id, phone_number } = qs;
-      if (!session_id || !phone_number) {
-        return json(400, {
-          error: "session_id and phone_number are required",
-        });
+      const sessionId = event.queryStringParameters?.session_id;
+      const phoneNumber = event.queryStringParameters?.phone_number;
+
+      if (!sessionId || !phoneNumber) {
+        return {
+          statusCode: 400,
+          body: JSON.stringify({
+            error: "session_id and phone_number are required",
+          }),
+        };
       }
 
-      const r = await query(
+      const result = await db.query(
         `SELECT *
          FROM mission_player_state
-         WHERE session_id=$1 AND phone_number=$2`,
-        [session_id, phone_number]
+         WHERE session_id = $1 AND phone_number = $2`,
+        [sessionId, phoneNumber]
       );
-      if (r.rows.length === 0) {
-        return json(200, null);
-      }
-      return json(200, r.rows[0]);
+
+      return {
+        statusCode: 200,
+        body: JSON.stringify(result.rows[0] || null),
+      };
     }
 
-    if (event.httpMethod === "PUT") {
+    /* ---------------------- POST (update player state) ---------------------- */
+    if (event.httpMethod === "POST") {
       const body = JSON.parse(event.body || "{}");
-      const { session_id, phone_number, progress_flags, discovered_clues } = body;
+
+      const { session_id, phone_number, progress_flags, discovered_clues } =
+        body;
 
       if (!session_id || !phone_number) {
-        return json(400, {
-          error: "session_id and phone_number are required",
-        });
+        return {
+          statusCode: 400,
+          body: JSON.stringify({
+            error: "session_id and phone_number are required",
+          }),
+        };
       }
 
-      const r = await query(
+      const result = await db.query(
         `INSERT INTO mission_player_state
            (session_id, phone_number, progress_flags, discovered_clues, last_update)
-         VALUES ($1,$2,$3,$4,NOW())
+         VALUES
+           ($1, $2, $3, $4, NOW())
          ON CONFLICT (session_id, phone_number)
          DO UPDATE SET
-           progress_flags=EXCLUDED.progress_flags,
-           discovered_clues=EXCLUDED.discovered_clues,
-           last_update=NOW()
+           progress_flags = EXCLUDED.progress_flags,
+           discovered_clues = EXCLUDED.discovered_clues,
+           last_update = NOW()
          RETURNING *`,
-        [
-          session_id,
-          phone_number,
-          progress_flags || {},
-          discovered_clues || [],
-        ]
+        [session_id, phone_number, progress_flags || {}, discovered_clues || {}]
       );
 
-      return json(200, r.rows[0]);
+      return {
+        statusCode: 200,
+        body: JSON.stringify(result.rows[0]),
+      };
     }
 
-    return json(405, { error: "Method Not Allowed" });
+    return { statusCode: 405, body: "Method Not Allowed" };
+
   } catch (err) {
     console.error("api-player-state error:", err);
-    return json(500, { error: "Internal Server Error" });
+    return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
   }
 };
