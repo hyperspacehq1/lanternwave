@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import * as XLSX from "xlsx";
 
 import {
   listMissions,
@@ -40,7 +41,8 @@ export default function MissionManagerPage() {
   const [sessionModalOpen, setSessionModalOpen] = useState(false);
   const [npcModalOpen, setNpcModalOpen] = useState(false);
   const [npcImportModalOpen, setNpcImportModalOpen] = useState(false);
-  const [csvErrors, setCsvErrors] = useState([]);
+
+  const [importErrors, setImportErrors] = useState([]);
 
   const [campaignName, setCampaignName] = useState("");
   const [sessionName, setSessionName] = useState("");
@@ -59,6 +61,12 @@ export default function MissionManagerPage() {
     description_public: "",
     description_secret: "",
   });
+
+  /* ======================================================
+     PLAYER INPUT STATE (restored behavior)
+  ====================================================== */
+  const [newPlayerName, setNewPlayerName] = useState("");
+  const [newPlayerPhone, setNewPlayerPhone] = useState("");
 
   /* ======================================================
      INITIAL DATA LOAD
@@ -216,6 +224,10 @@ export default function MissionManagerPage() {
   ====================================================== */
   async function handleAssignNPC(npcId) {
     if (!npcId) return;
+    if (!selectedMissionId) {
+      alert("Select a campaign first.");
+      return;
+    }
 
     try {
       const res = await addNPCtoMission({
@@ -232,9 +244,41 @@ export default function MissionManagerPage() {
   }
 
   /* ======================================================
-     CSV TEMPLATE GENERATOR (1 NPC CSV)
+     PLAYER HANDLERS (restored Add Player behavior)
   ====================================================== */
-  function downloadNPCcsvTemplate() {
+  async function handleAddPlayer() {
+    if (!selectedSession) {
+      alert("Select a session first.");
+      return;
+    }
+
+    if (!newPlayerName.trim() && !newPlayerPhone.trim()) {
+      alert("Enter a player name or phone.");
+      return;
+    }
+
+    try {
+      await addPlayerToSession({
+        session_id: selectedSession.id,
+        player_name: newPlayerName.trim() || null,
+        phone_number: newPlayerPhone.trim() || null,
+      });
+
+      // Reload players to stay in sync with backend
+      const updated = await listSessionPlayers(selectedSession.id);
+      setPlayers(updated || []);
+      setNewPlayerName("");
+      setNewPlayerPhone("");
+    } catch (err) {
+      console.error("Failed to add player:", err);
+      alert("Error adding player. Check console.");
+    }
+  }
+
+  /* ======================================================
+     XLSX TEMPLATE GENERATOR (1 NPC PER SHEET)
+  ====================================================== */
+  function downloadNPCxlsxTemplate() {
     const headers = [
       "display_name",
       "true_name",
@@ -250,81 +294,76 @@ export default function MissionManagerPage() {
       "description_secret",
     ];
 
-    const defaultRow = [
-      "NPC Name",
-      "True Name",
-      "HUMAN",
-      "Subtype",
-      "Intent description",
-      '{"traits":[]}',
-      "Goals here...",
-      "Secrets here...",
-      "Tone here...",
-      '{"policy":"minimal"}',
-      "Public description...",
-      "Secret description...",
+    const sample = [
+      {
+        display_name: "NPC Name",
+        true_name: "True Name",
+        primary_category: "HUMAN",
+        secondary_subtype: "Subtype",
+        intent: "Intent description",
+        personality_json: '{"traits":[]}',
+        goals_text: "Goals...",
+        secrets_text: "Secret info...",
+        tone_text: "Tone details...",
+        truth_policy_json: '{"policy":"minimal"}',
+        description_public: "Public description...",
+        description_secret: "Secret description...",
+      },
     ];
 
-    const csvContent = headers.join(",") + "\n" + defaultRow.join(",");
-    const blob = new Blob([csvContent], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
+    const worksheet = XLSX.utils.json_to_sheet(sample, { header: headers });
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "NPC");
 
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "npc_template.csv";
-    a.click();
-
-    URL.revokeObjectURL(url);
+    XLSX.writeFile(workbook, "npc_template.xlsx");
   }
 
   /* ======================================================
-     CSV PARSING + AUTO VALIDATION (1 NPC PER CSV)
+     XLSX IMPORT FOR NPC (1 ROW = 1 NPC)
   ====================================================== */
-  async function handleCSVUploadWithValidation(e) {
+  async function handleXLSXUpload(e) {
     const file = e.target.files[0];
     if (!file) return;
 
-    setCsvErrors([]);
+    setImportErrors([]);
 
     try {
-      const text = await file.text();
-      const parsed = parseSingleNPCcsvValidated(text);
+      const arrayBuffer = await file.arrayBuffer();
+      const workbook = XLSX.read(arrayBuffer);
+      const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+      const json = XLSX.utils.sheet_to_json(firstSheet, { defval: "" });
 
-      if (parsed.errors.length) {
-        setCsvErrors(parsed.errors);
+      if (!json.length) {
+        setImportErrors(["XLSX file contains no NPC rows."]);
         return;
       }
 
-      const data = parsed.data;
+      const npc = json[0]; // first row only
+
+      const validationErrors = validateNPC(npc);
+      if (validationErrors.length) {
+        setImportErrors(validationErrors);
+        return;
+      }
 
       const payload = {
-        ...data,
-        personality_json: safeJson(data.personality_json),
-        truth_policy_json: safeJson(data.truth_policy_json),
+        ...npc,
+        personality_json: safeJson(npc.personality_json),
+        truth_policy_json: safeJson(npc.truth_policy_json),
       };
 
       const res = await createNPC(payload);
       setAllNPCs([...allNPCs, res.npc]);
 
-      alert("NPC successfully imported from CSV!");
+      alert("NPC successfully imported from XLSX!");
       setNpcImportModalOpen(false);
     } catch (err) {
-      console.error("CSV Import Failed:", err);
-      alert("Error reading CSV. Check console.");
+      console.error("XLSX Import Error:", err);
+      alert("Failed to read XLSX. Check console.");
     }
   }
 
-  function parseSingleNPCcsvValidated(text) {
-    const errors = [];
-    const rows = text.trim().split("\n");
-    if (rows.length < 2) {
-      errors.push("CSV must contain headers + one NPC row.");
-      return { errors, data: null };
-    }
-
-    const headers = rows[0].split(",").map((h) => h.trim());
-    const values = rows[1].split(",").map((v) => v.trim());
-
+  function validateNPC(npc) {
     const requiredFields = [
       "display_name",
       "true_name",
@@ -340,19 +379,12 @@ export default function MissionManagerPage() {
       "description_secret",
     ];
 
+    const errors = [];
+
     requiredFields.forEach((field) => {
-      if (!headers.includes(field)) {
-        errors.push(`Missing required field: ${field}`);
+      if (!npc[field]) {
+        errors.push(`Missing field: ${field}`);
       }
-    });
-
-    if (values.length !== headers.length) {
-      errors.push("Number of CSV values does not match the number of headers.");
-    }
-
-    const npc = {};
-    headers.forEach((h, i) => {
-      npc[h] = values[i] || "";
     });
 
     // Validate JSON fields
@@ -360,11 +392,11 @@ export default function MissionManagerPage() {
       try {
         JSON.parse(npc[field]);
       } catch {
-        errors.push(`Invalid JSON in field: ${field}`);
+        errors.push(`Invalid JSON in ${field}`);
       }
     });
 
-    return { errors, data: npc };
+    return errors;
   }
 
   function safeJson(str) {
@@ -407,7 +439,7 @@ export default function MissionManagerPage() {
               const found = sessions.find(
                 (s) => s.id === Number(e.target.value)
               );
-              setSelectedSession(found);
+              setSelectedSession(found || null);
             }}
           >
             {sessions.map((s) => (
@@ -431,7 +463,7 @@ export default function MissionManagerPage() {
           <button onClick={openNPCModal}>Add New NPC</button>
 
           <button onClick={() => setNpcImportModalOpen(true)}>
-            Import NPC from CSV
+            Import NPC from XLSX
           </button>
 
           <label>Assign Existing NPC</label>
@@ -455,6 +487,25 @@ export default function MissionManagerPage() {
               <li key={p.id}>{p.player_name || p.phone_number}</li>
             ))}
           </ul>
+
+          {/* Restored Add Player UI */}
+          <div style={{ marginBottom: "1.5rem" }}>
+            <label>Player Name</label>
+            <input
+              type="text"
+              value={newPlayerName}
+              onChange={(e) => setNewPlayerName(e.target.value)}
+              placeholder="Optional"
+            />
+            <label>Phone Number</label>
+            <input
+              type="text"
+              value={newPlayerPhone}
+              onChange={(e) => setNewPlayerPhone(e.target.value)}
+              placeholder="Optional"
+            />
+            <button onClick={handleAddPlayer}>Add Player</button>
+          </div>
 
           <h3>Events</h3>
           <ul>
@@ -539,32 +590,28 @@ export default function MissionManagerPage() {
       )}
 
       {/* ======================================================
-         MODAL — IMPORT NPC FROM CSV
+         MODAL — IMPORT NPC FROM XLSX
       ====================================================== */}
       {npcImportModalOpen && (
         <div className="npc-modal">
           <div className="npc-modal-content">
-            <h2>Import NPC from CSV</h2>
+            <h2>Import NPC from XLSX</h2>
 
             <p style={{ color: "rgb(180,220,180)", fontSize: "11px" }}>
-              Upload a CSV file containing exactly <strong>one NPC</strong>.
-              The CSV must include all required fields.
+              Upload an <strong>.xlsx</strong> file containing exactly{" "}
+              <strong>one NPC</strong> in the first row.
             </p>
 
             <button
-              onClick={downloadNPCcsvTemplate}
+              onClick={downloadNPCxlsxTemplate}
               style={{ marginBottom: "0.5rem" }}
             >
-              Download CSV Template
+              Download XLSX Template
             </button>
 
-            <input
-              type="file"
-              accept=".csv"
-              onChange={handleCSVUploadWithValidation}
-            />
+            <input type="file" accept=".xlsx" onChange={handleXLSXUpload} />
 
-            {csvErrors.length > 0 && (
+            {importErrors.length > 0 && (
               <div
                 style={{
                   marginTop: "1rem",
@@ -578,7 +625,7 @@ export default function MissionManagerPage() {
               >
                 <strong>Errors detected:</strong>
                 <ul>
-                  {csvErrors.map((err, idx) => (
+                  {importErrors.map((err, idx) => (
                     <li key={idx}>{err}</li>
                   ))}
                 </ul>
