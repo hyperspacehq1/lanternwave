@@ -1,7 +1,7 @@
-import { requireAdmin } from "../util/auth.js";
-import db from "../util/db.js";
+const { requireAdmin } = require("../util/auth.js");
+const db = require("../util/db.js");
 
-export async function handler(event) {
+exports.handler = async (event) => {
   const auth = requireAdmin(event.headers);
   if (!auth.ok) return auth.response;
 
@@ -40,7 +40,9 @@ export async function handler(event) {
       if (!display_name || !true_name) {
         return {
           statusCode: 400,
-          body: JSON.stringify({ error: "display_name and true_name are required" }),
+          body: JSON.stringify({
+            error: "display_name and true_name are required"
+          }),
         };
       }
 
@@ -80,4 +82,4 @@ export async function handler(event) {
     console.error("api-npcs error:", err);
     return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
   }
-}
+};
