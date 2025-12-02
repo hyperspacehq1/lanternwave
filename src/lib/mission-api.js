@@ -1,5 +1,5 @@
-// mission-api.js — FINAL, AUTHORITATIVE VERSION
-// Fully synced with backend Netlify functions
+// src/lib/mission-api.js
+// Authoritative client for Lanternwave Netlify functions
 
 async function apiFetch(path, options = {}) {
   const base = "/.netlify/functions";
@@ -19,11 +19,15 @@ async function apiFetch(path, options = {}) {
 
   try {
     json = await res.json();
-  } catch (_) {}
+  } catch (_) {
+    // ignore empty bodies
+  }
 
   if (!res.ok) {
     console.error(`API Error (${path}):`, res.status, json);
-    throw new Error(`API Error (${path}): ${res.status} — ${JSON.stringify(json)}`);
+    throw new Error(
+      `API Error (${path}): ${res.status} — ${JSON.stringify(json)}`
+    );
   }
 
   return json;
@@ -102,7 +106,7 @@ export const addPlayerToSession = (data) =>
   });
 
 /* ----------------------------------------------------------
-   NPCs (Admin-only)
+   NPCs (global catalog, admin only)
 ---------------------------------------------------------- */
 
 export const getAllNPCs = () =>
@@ -138,7 +142,7 @@ export const addNPCtoMission = (data) =>
   });
 
 /* ----------------------------------------------------------
-   NPC STATE
+   NPC STATE (per-session memory)
 ---------------------------------------------------------- */
 
 export const getNPCState = (sessionId, npcId) =>
