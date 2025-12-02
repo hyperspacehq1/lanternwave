@@ -4,12 +4,12 @@ import {
   listMissions,
   listMissionSessions,
   createMission,
-  createMissionSession,   // ✔ FIXED
+  createMissionSession,
   listSessionPlayers,
   addPlayerToSession,
-  listMissionEvents,      // ✔ VALID
-  createMissionEvent,     // ✔ FIXED
-  listMissionMessages,    // ✔ FIXED
+  listMissionEvents,
+  createMissionEvent,
+  listMissionMessages,
   getAllNPCs,
   listMissionNPCs,
   addNPCtoMission,
@@ -33,7 +33,16 @@ export default function MissionManagerPage() {
   const [allNPCs, setAllNPCs] = useState([]);
   const [missionNPCs, setMissionNPCs] = useState([]);
 
+  /* ======================================================
+     MODALS STATE (Campaign, Session, NPC)
+  ====================================================== */
+  const [campaignModalOpen, setCampaignModalOpen] = useState(false);
+  const [sessionModalOpen, setSessionModalOpen] = useState(false);
   const [npcModalOpen, setNpcModalOpen] = useState(false);
+
+  const [campaignName, setCampaignName] = useState("");
+  const [sessionName, setSessionName] = useState("");
+
   const [npcForm, setNpcForm] = useState({
     display_name: "",
     true_name: "",
@@ -49,7 +58,9 @@ export default function MissionManagerPage() {
     description_secret: "",
   });
 
-  // LOAD MISSIONS + GLOBAL NPCs
+  /* ======================================================
+     INITIAL DATA LOAD
+  ====================================================== */
   useEffect(() => {
     async function init() {
       try {
@@ -70,7 +81,9 @@ export default function MissionManagerPage() {
     init();
   }, []);
 
-  // LOAD SESSIONS WHEN MISSION CHANGES
+  /* ======================================================
+     LOAD SESSIONS WHEN MISSION CHANGES
+  ====================================================== */
   useEffect(() => {
     if (!selectedMissionId) return;
 
@@ -88,7 +101,9 @@ export default function MissionManagerPage() {
     loadSessions();
   }, [selectedMissionId]);
 
-  // LOAD SESSION DETAILS
+  /* ======================================================
+     LOAD SESSION DETAILS (players/events/messages/npcs)
+  ====================================================== */
   useEffect(() => {
     if (!selectedSession) return;
 
@@ -108,7 +123,7 @@ export default function MissionManagerPage() {
       }
 
       try {
-        const msg = await listMissionMessages(selectedMissionId); // ✔ FIXED
+        const msg = await listMissionMessages(selectedMissionId);
         setMessages(msg || []);
       } catch (err) {
         console.error("Error loading messages:", err);
@@ -125,39 +140,54 @@ export default function MissionManagerPage() {
     loadDetails();
   }, [selectedSession, selectedMissionId]);
 
-  // HANDLERS
-  async function handleCreateMission() {
-    const name = prompt("Enter campaign name:");
-    if (!name) return;
+  /* ======================================================
+     HANDLERS — OPEN MODALS
+  ====================================================== */
+  function openCampaignModal() {
+    setCampaignName("");
+    setCampaignModalOpen(true);
+  }
+
+  function openSessionModal() {
+    if (!selectedMissionId) return alert("Select campaign first.");
+    setSessionName("");
+    setSessionModalOpen(true);
+  }
+
+  function openNPCModal() {
+    setNpcModalOpen(true);
+  }
+
+  /* ======================================================
+     HANDLERS — SUBMIT MODALS
+  ====================================================== */
+  async function submitCampaign() {
+    if (!campaignName.trim()) return;
 
     try {
-      const result = await createMission({ name });
+      const result = await createMission({ name: campaignName.trim() });
       setMissions([...missions, result.mission]);
+      setCampaignModalOpen(false);
     } catch (err) {
-      console.error("Failed creating mission:", err);
+      console.error("Failed creating campaign:", err);
     }
   }
 
-  async function handleCreateSession() {
-    if (!selectedMissionId) return alert("Select campaign first.");
-
-    const name = prompt("Enter session name:");
-    if (!name) return;
+  async function submitSession() {
+    if (!sessionName.trim()) return;
+    if (!selectedMissionId) return;
 
     try {
       const s = await createMissionSession({
         mission_id: selectedMissionId,
-        session_name: name,
+        session_name: sessionName.trim(),
       });
 
       setSessions([...sessions, s.session]);
+      setSessionModalOpen(false);
     } catch (err) {
       console.error("Failed creating session:", err);
     }
-  }
-
-  async function handleAddNPC() {
-    setNpcModalOpen(true);
   }
 
   async function submitNewNPC() {
@@ -179,7 +209,12 @@ export default function MissionManagerPage() {
     }
   }
 
+  /* ======================================================
+     ASSIGN EXISTING NPC TO CAMPAIGN
+  ====================================================== */
   async function handleAssignNPC(npcId) {
+    if (!npcId) return;
+
     try {
       const res = await addNPCtoMission({
         mission_id: selectedMissionId,
@@ -194,12 +229,15 @@ export default function MissionManagerPage() {
     }
   }
 
-  // UI
+  /* ======================================================
+     UI RENDER
+  ====================================================== */
   return (
     <div className="mission-manager">
       <h1>Campaign Manager</h1>
 
       <div className="columns">
+        {/* LEFT PANEL */}
         <div className="left-col">
           <label>Campaign</label>
           <select
@@ -214,13 +252,15 @@ export default function MissionManagerPage() {
             ))}
           </select>
 
-          <button onClick={handleCreateMission}>Create Campaign</button>
+          <button onClick={openCampaignModal}>Create Campaign</button>
 
           <label>Sessions</label>
           <select
             value={selectedSession?.id || ""}
             onChange={(e) => {
-              const found = sessions.find((s) => s.id === Number(e.target.value));
+              const found = sessions.find(
+                (s) => s.id === Number(e.target.value)
+              );
               setSelectedSession(found);
             }}
           >
@@ -231,16 +271,18 @@ export default function MissionManagerPage() {
             ))}
           </select>
 
-          <button onClick={handleCreateSession}>New Session</button>
+          <button onClick={openSessionModal}>New Session</button>
 
           <label>NPCs Assigned To Campaign</label>
           <ul className="npc-list">
             {missionNPCs.map((npc) => (
-              <li key={npc.id}>{npc.display_name || `NPC #${npc.npc_id}`}</li>
+              <li key={npc.id}>
+                {npc.display_name || `NPC #${npc.npc_id}`}
+              </li>
             ))}
           </ul>
 
-          <button onClick={handleAddNPC}>Add New NPC</button>
+          <button onClick={openNPCModal}>Add New NPC</button>
 
           <label>Assign Existing NPC</label>
           <select onChange={(e) => handleAssignNPC(Number(e.target.value))}>
@@ -253,6 +295,7 @@ export default function MissionManagerPage() {
           </select>
         </div>
 
+        {/* RIGHT PANEL */}
         <div className="right-col">
           <h2>Session Data</h2>
 
@@ -279,6 +322,49 @@ export default function MissionManagerPage() {
         </div>
       </div>
 
+      {/* ======================================================
+         MODAL — CREATE CAMPAIGN
+      ====================================================== */}
+      {campaignModalOpen && (
+        <div className="npc-modal">
+          <div className="npc-modal-content">
+            <h2>Create Campaign</h2>
+
+            <label>Campaign Name</label>
+            <input
+              value={campaignName}
+              onChange={(e) => setCampaignName(e.target.value)}
+            />
+
+            <button onClick={submitCampaign}>Save</button>
+            <button onClick={() => setCampaignModalOpen(false)}>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================
+         MODAL — CREATE SESSION
+      ====================================================== */}
+      {sessionModalOpen && (
+        <div className="npc-modal">
+          <div className="npc-modal-content">
+            <h2>Create Session</h2>
+
+            <label>Session Name</label>
+            <input
+              value={sessionName}
+              onChange={(e) => setSessionName(e.target.value)}
+            />
+
+            <button onClick={submitSession}>Save</button>
+            <button onClick={() => setSessionModalOpen(false)}>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================
+         MODAL — CREATE NPC (already existed, now styled)
+      ====================================================== */}
       {npcModalOpen && (
         <div className="npc-modal">
           <div className="npc-modal-content">

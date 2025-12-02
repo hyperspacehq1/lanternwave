@@ -1,640 +1,224 @@
-/* ============================================================
-   MISSION MANAGER — Lanternwave Control Console (CLEAN + POLISHED + EXPANDED)
-   ============================================================ */
+/* =====================================================================
+   LANTERNWAVE — MISSION MANAGER (FULLY LOCALIZED / NO GLOBAL OVERRIDES)
+   ===================================================================== */
 
-/* ------------------------------------------------------------
-   CINEMATIC BACKGROUND + CRT SCANLINES
-   ------------------------------------------------------------ */
 .mission-manager {
-  position: relative;
-  font-family: "VT323", "MU-TH-UR", monospace;
-  color: var(--lw-green, #6cc417);
-
-  background: radial-gradient(
-      circle at 50% 20%,
-      rgba(108, 196, 23, 0.08),
-      rgba(0, 0, 0, 1) 60%
-    ),
-    #000;
-
+  font-family: "MU-TH-UR", system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 11px;
+  color: rgb(124, 168, 120);
   padding: 2rem;
-  padding-top: 5rem;
   min-height: 100vh;
-
-  /* Force full-width override (escapes global container) */
-  width: 100vw !important;
-  max-width: 100vw !important;
-  margin-left: calc(-50vw + 50%) !important;
-  padding-left: 2rem;
-  padding-right: 2rem;
+  background: #000;
 }
 
-/* CRT scanline overlay */
-.mission-manager::before {
-  content: "";
-  pointer-events: none;
-  position: absolute;
-  inset: 0;
-  background: repeating-linear-gradient(
-    to bottom,
-    rgba(0, 255, 70, 0.025) 0px,
-    rgba(0, 255, 70, 0.02) 1px,
-    rgba(0, 255, 70, 0) 2px
-  );
-  opacity: 0.22;
-  z-index: 1;
-}
-
-.mission-manager * {
-  position: relative;
-  z-index: 2;
-}
-
-
-
-/* ============================================================
-   HEADER
-   ============================================================ */
-
-.mission-manager .mm-header-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 1.75rem;
-}
-
+/* ----------------------------------------------
+   SPACING & GLOBAL TYPE
+---------------------------------------------- */
 .mission-manager h1 {
-  font-family: "MU-TH-UR", "VT323", monospace;
-  font-size: 1.9rem;          /* ↓ reduced size */
-  letter-spacing: 0.3em;
+  margin-top: 0;
+  margin-bottom: 1.8rem; /* Fix cramped header */
+  font-size: 20px;
+  letter-spacing: 0.18em;
+  color: rgb(124, 168, 120);
   text-transform: uppercase;
-  color: var(--lw-green, #6cc417);
-  text-shadow: 0 0 12px rgba(108, 196, 23, 0.7);
-  margin: 0;
-  animation: lw-flicker 6s infinite;
 }
 
-/* MU/TH/UR flicker effect */
-@keyframes lw-flicker {
-  0%,95% { opacity: 1; }
-  96% { opacity: 0.45; }
-  97% { opacity: 0.8; }
-  98% { opacity: 0.35; }
-  99% { opacity: 1; }
+.mission-manager label {
+  display: block;
+  margin-top: 1rem;
+  margin-bottom: 0.35rem;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgb(150, 190, 140);
 }
 
-.mission-manager .mm-header-meta {
+/* ----------------------------------------------
+   LAYOUT (matches your existing JSX)
+---------------------------------------------- */
+.mission-manager .columns {
   display: flex;
-  align-items: center;
-  gap: 0.75rem;
+  gap: 2rem;
 }
 
-.mission-manager .mm-session-pill {
-  border-radius: 999px;
-  border: 1px solid rgba(108, 196, 23, 0.6);
-  padding: 0.3rem 0.9rem;
-  font-size: 0.8rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  background: radial-gradient(
-    circle at top left,
-    rgba(108, 196, 23, 0.18),
-    rgba(0, 0, 0, 0.95)
-  );
+.mission-manager .left-col {
+  width: 320px;
+  padding: 1.25rem;
+  border: 1px solid rgba(124, 168, 120, 0.3);
+  border-radius: 10px;
+  background: rgba(10, 20, 10, 0.45);
 }
 
+.mission-manager .right-col {
+  flex: 1;
+  padding: 1.25rem;
+  border: 1px solid rgba(124, 168, 120, 0.3);
+  border-radius: 10px;
+  background: rgba(10, 20, 10, 0.3);
+  min-height: 500px;
+}
 
+/* ----------------------------------------------
+   FORM ELEMENTS — DROPDOWNS, INPUTS, TEXTAREAS
+---------------------------------------------- */
+.mission-manager select,
+.mission-manager input,
+.mission-manager textarea {
+  width: 100%;
+  padding: 0.45rem 0.6rem;
+  background: rgba(0, 0, 0, 0.85);
+  color: rgb(200, 240, 200);
+  border: 1px solid rgba(124, 168, 120, 0.4);
+  border-radius: 6px;
+  font-family: "MU-TH-UR", system-ui, -apple-system, sans-serif;
+  font-size: 11px;
+  outline: none;
+  margin-bottom: 0.6rem;
+}
 
-/* ============================================================
-   GM LOGS BUTTON
-   ============================================================ */
+/* Custom select arrow */
+.mission-manager select {
+  appearance: none;
+  background-image: url("data:image/svg+xml;utf8,\
+<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%237CA878'>\
+<polygon points='0,0 12,0 6,7' />\
+</svg>");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 12px;
+  padding-right: 32px;
+}
 
-.mission-manager .mm-logs-toggle {
-  font-family: "VT323", monospace;
-  padding: 0.35rem 1rem;
-  border-radius: 999px;
-  border: 1px solid rgba(108, 196, 23, 0.6);
+.mission-manager select:focus,
+.mission-manager input:focus,
+.mission-manager textarea:focus {
+  border-color: rgb(124, 168, 120);
+  box-shadow: 0 0 6px rgba(124, 168, 120, 0.7);
+}
+
+/* ----------------------------------------------
+   BUTTONS (styling normal <button>)
+---------------------------------------------- */
+.mission-manager button {
+  display: inline-block;
+  margin-top: 0.25rem;
+  margin-bottom: 0.75rem;
+  padding: 0.45rem 1rem;
   background: rgba(0, 0, 0, 0.9);
-  color: var(--lw-text, #e5ffe3);
-  letter-spacing: 0.15em;
+  border: 1px solid rgba(124, 168, 120, 0.5);
+  border-radius: 999px;
+  color: rgb(200, 240, 200);
+  font-family: "MU-TH-UR", system-ui, -apple-system, sans-serif;
+  font-size: 11px;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   cursor: pointer;
   transition: 0.15s ease;
 }
 
-.mission-manager .mm-logs-toggle:hover {
-  border-color: rgba(108, 196, 23, 1);
+.mission-manager button:hover {
+  border-color: rgb(124, 168, 120);
+  background: rgba(20, 35, 20, 0.9);
   box-shadow:
-    0 0 6px rgba(108, 196, 23, 0.8),
-    0 0 16px rgba(108, 196, 23, 0.5);
-  background: rgba(10, 20, 10, 0.98);
+    0 0 8px rgba(124, 168, 120, 0.7),
+    0 0 16px rgba(124, 168, 120, 0.4);
 }
 
-.mission-manager .mm-logs-toggle.active {
-  border-color: rgba(108, 196, 23, 1);
-  background: rgba(15, 30, 15, 0.95);
-  box-shadow:
-    0 0 12px rgba(108, 196, 23, 0.7),
-    inset 0 0 8px rgba(108, 196, 23, 0.25);
-}
-
-
-
-/* ============================================================
-   TABS
-   ============================================================ */
-
-.mission-manager .mm-tabs {
-  display: inline-flex;
-  gap: 0.5rem;
+/* ----------------------------------------------
+   LISTS (NPC, PLAYERS, EVENTS, MESSAGES)
+---------------------------------------------- */
+.mission-manager ul {
+  list-style: none;
+  padding-left: 0;
+  margin-top: 0.35rem;
   margin-bottom: 1.5rem;
 }
 
-.mission-manager .mm-tab {
-  min-width: 120px;
-  text-align: center;
-  padding: 0.45rem 1.1rem;
-  border-radius: 999px;
-  border: 1px solid rgba(108, 196, 23, 0.4);
-  background: rgba(0,0,0,0.8);
-  cursor: pointer;
-  font-size: 0.85rem;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  transition: 0.15s ease;
-  position: relative;
-  overflow: hidden;
+.mission-manager li {
+  padding: 0.4rem 0.6rem;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(124, 168, 120, 0.25);
+  border-radius: 6px;
+  margin-bottom: 0.35rem;
+  font-size: 11px;
+  letter-spacing: 0.05em;
 }
 
-.mission-manager .mm-tab:hover {
-  border-color: rgba(108,196,23,0.85);
-  box-shadow: 0 0 12px rgba(108,196,23,0.45);
-}
-
-/* glow sweep */
-.mission-manager .mm-tab::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: -120%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(
-    to right,
-    transparent,
-    rgba(108,196,23,0.25),
-    transparent
-  );
-  transition: transform 0.35s ease;
-}
-
-.mission-manager .mm-tab:hover::after {
-  transform: translateX(250%);
-}
-
-.mission-manager .mm-tab.active {
-  background: radial-gradient(
-    circle at top left,
-    rgba(108,196,23,0.2),
-    rgba(0,0,0,0.95)
-  );
-  border-color: rgba(108,196,23,0.9);
-  box-shadow: 0 0 16px rgba(108,196,23,0.7);
-}
-
-
-
-/* ============================================================
-   MAIN GRID LAYOUT (CLEANED)
-   ============================================================ */
-
-.mission-manager .mm-container {
-  width: 100% !important;
-  max-width: 100% !important;
-
-  display: grid !important;
-  grid-template-columns: 600px 1fr !important; /* LEFT PANEL FIXED WIDTH */
-
-  gap: 2rem !important;
-  overflow-x: hidden;
-}
-
-
-
-/* ============================================================
-   PANELS (LEFT + RIGHT)
-   ============================================================ */
-
-.mission-manager .mm-left-panel,
-.mission-manager .mm-right-panel {
-  background: radial-gradient(
-    circle at top left,
-    rgba(108,196,23,0.06),
-    rgba(0,0,0,0.96)
-  );
-  border-radius: 22px;
-  border: 1px solid rgba(108,196,23,0.55);
-  box-shadow:
-    0 0 35px rgba(108,196,23,0.15),
-    0 0 70px rgba(0,0,0,0.95),
-    inset 0 0 18px rgba(108,196,23,0.12);
-  padding: 1.5rem;
-}
-
-.mission-manager .mm-left-panel {
-  max-width: 600px !important;
-  overflow-y: auto;
-  overflow-x: hidden;
-}
-
-.mission-manager .mm-right-panel {
-  min-width: 0 !important;
-}
-
-
-
-/* ============================================================
-   HEADINGS
-   ============================================================ */
-
-.mission-manager h2 {
-  font-family: "MU-TH-UR", "VT323", monospace;
-  margin-top: 0;
-  margin-bottom: 0.75rem;
-  font-size: 1.4rem;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-}
-
+/* ----------------------------------------------
+   TITLES INSIDE RIGHT PANEL
+---------------------------------------------- */
+.mission-manager h2,
 .mission-manager h3 {
-  font-family: "MU-TH-UR", "VT323", monospace;
   margin-top: 1rem;
   margin-bottom: 0.5rem;
-  font-size: 1rem;
+  font-family: "MU-TH-UR", system-ui, -apple-system, sans-serif;
+  font-size: 13px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
+  color: rgb(150, 200, 150);
 }
 
+/* ----------------------------------------------
+   NPC / SESSION / CAMPAIGN MODALS
+   (reusing npc-modal and npc-modal-content)
+---------------------------------------------- */
 
-
-/* ============================================================
-   FORM FIELDS
-   ============================================================ */
-
-.mission-manager input,
-.mission-manager select,
-.mission-manager textarea {
-  width: 100%;
-  margin-top: 0.15rem;
-  margin-bottom: 0.65rem;
-  padding: 0.35rem 0.55rem;
-  border-radius: 6px;
-  border: 1px solid rgba(108, 196, 23, 0.5);
-  background: rgba(0, 0, 0, 0.85);
-  color: #d4ffd0;
-  font-family: "VT323", monospace;
-  font-size: 0.95rem;
-  outline: none;
-}
-
-.mission-manager textarea {
-  min-height: 120px;
-}
-
-.mission-manager input:focus,
-.mission-manager select:focus,
-.mission-manager textarea:focus {
-  border-color: rgba(108, 196, 23, 0.95);
-  box-shadow: 0 0 10px rgba(108, 196, 23, 0.7);
-}
-
-/* ===============================
-   CUSTOM SELECT — FIX OSX STYLING
-   =============================== */
-.mission-manager select {
-  -webkit-appearance: none !important;
-  -moz-appearance: none !important;
-  appearance: none !important;
-
-  background: rgba(0, 0, 0, 0.88)
-    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 20 20' fill='%236cc417'><polygon points='0,0 20,0 10,10'/></svg>")
-    no-repeat right 10px center;
-
-  background-size: 14px;
-  padding-right: 36px !important;
-
-  border: 1px solid rgba(108, 196, 23, 0.6);
-  border-radius: 6px;
-  color: #d4ffd0;
-  font-size: 1rem;
-}
-
-.mission-manager select:focus {
-  border-color: rgba(108, 196, 23, 1);
-  box-shadow:
-    0 0 10px rgba(108, 196, 23, 0.7),
-    0 0 20px rgba(108, 196, 23, 0.5);
-}
-
-/* ============================================================
-   BUTTONS
-   ============================================================ */
-
-.mission-manager .mm-btn {
-  font-family: "VT323", monospace;
-  font-size: 0.9rem;
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-  padding: 0.35rem 0.9rem;
-  border-radius: 999px;
-  border: 1px solid rgba(108, 196, 23, 0.6);
-  background: rgba(0, 0, 0, 0.9);
-  color: var(--lw-text, #e5ffe3);
-  cursor: pointer;
-  transition: 0.15s ease;
-}
-
-/* neon pulse hover */
-.mission-manager .mm-btn:hover {
-  border-color: rgba(108, 196, 23, 1);
-  box-shadow:
-    0 0 6px rgba(108, 196, 23, 0.8),
-    0 0 16px rgba(108, 196, 23, 0.5),
-    0 0 28px rgba(108, 196, 23, 0.25);
-  background: rgba(10, 20, 10, 0.98);
-  transform: translateY(-1px);
-}
-
-.mission-manager .mm-btn-small {
-  font-size: 0.7rem;
-  padding: 0.25rem 0.7rem;
-}
-
-
-
-/* ============================================================
-   SESSION LIST
-   ============================================================ */
-
-.mission-manager .mm-session-actions {
-  display: flex;
-  gap: 0.5rem;
-  margin: 0.75rem 0;
-  flex-wrap: wrap;
-}
-
-.mission-manager .mm-session-list {
-  border-radius: 16px;
-  border: 1px solid rgba(108, 196, 23, 0.35);
-  background: radial-gradient(
-    circle at top left,
-    rgba(108, 196, 23, 0.04),
-    rgba(0, 0, 0, 0.98)
-  );
-  padding: 0.75rem;
-  max-height: 420px;
-  overflow-y: auto;
-}
-
-.mission-manager .mm-session-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0.4rem 0.55rem;
-  border-radius: 9px;
-  cursor: pointer;
-  border: 1px solid transparent;
-  transition: 0.12s ease;
-}
-
-.mission-manager .mm-session-row:hover {
-  background: rgba(108, 196, 23, 0.15);
-  border-color: rgba(108, 196, 23, 0.55);
-  box-shadow:
-    0 0 14px rgba(108, 196, 23, 0.6),
-    inset 0 0 6px rgba(108, 196, 23, 0.15);
-}
-
-.mission-manager .mm-session-row.selected {
-  background: rgba(108, 196, 23, 0.12);
-  border-color: rgba(108, 196, 23, 0.9);
-  box-shadow:
-    0 0 10px rgba(108, 196, 23, 0.7),
-    inset 0 0 6px rgba(108, 196, 23, 0.15);
-}
-
-.mission-manager .mm-session-title {
-  flex: 1;
-  font-size: 1rem;
-  letter-spacing: 0.08em;
-}
-
-.mission-manager .mm-session-sub {
-  flex-shrink: 0;
-  font-size: 0.75rem;
-  color: rgba(229, 255, 227, 0.75);
-}
-
-
-
-/* ============================================================
-   EVENT CARDS
-   ============================================================ */
-
-.mission-manager .mm-event-card {
-  border-radius: 10px;
-  padding: 0.6rem 0.7rem;
-  border: 1px solid rgba(108, 196, 23, 0.5);
-  background: rgba(0, 0, 0, 0.88);
-  margin-bottom: 0.45rem;
-  cursor: pointer;
-  transition: 0.12s ease;
-}
-
-.mission-manager .mm-event-card:hover {
-  border-color: rgba(108, 196, 23, 0.9);
-  box-shadow:
-    0 0 14px rgba(108, 196, 23, 0.6),
-    inset 0 0 6px rgba(108, 196, 23, 0.15);
-  background: rgba(8, 18, 8, 0.98);
-}
-
-.mission-manager .mm-chip {
-  display: inline-block;
-  padding: 0.1rem 0.4rem;
-  border-radius: 999px;
-  border: 1px solid rgba(108, 196, 23, 0.8);
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  margin-bottom: 0.35rem;
-}
-
-.mission-manager .mm-event-summary {
-  font-size: 1rem;
-  margin-bottom: 0.25rem;
-}
-
-.mission-manager .mm-event-sub {
-  font-size: 0.75rem;
-  color: rgba(229, 255, 227, 0.7);
-}
-
-.mission-manager .mm-event-json {
-  background: rgba(0, 0, 0, 0.8);
-  border: 1px solid rgba(108, 196, 23, 0.45);
-  padding: 0.75rem;
-  border-radius: 10px;
-  font-size: 0.8rem;
-  max-height: 340px;
-  overflow: auto;
-}
-
-
-
-/* ============================================================
-   RIGHT PANEL (Details area)
-   ============================================================ */
-
-.mission-manager .mm-panel-card {
-  border-radius: 18px;
-  border: 1px solid rgba(108, 196, 23, 0.5);
-  background: radial-gradient(
-    circle at top left,
-    rgba(108, 196, 23, 0.06),
-    rgba(0, 0, 0, 0.98)
-  );
-  padding: 1rem 1.2rem;
-  box-shadow:
-    0 0 34px rgba(0, 0, 0, 0.98),
-    0 0 18px rgba(108, 196, 23, 0.45),
-    inset 0 0 12px rgba(108, 196, 23, 0.12);
-}
-
-.mission-manager .mm-panel-empty {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 260px;
-  font-size: 1rem;
-  color: rgba(180, 255, 180, 0.75);
-  letter-spacing: 0.08em;
-  text-shadow: 0 0 8px rgba(108, 196, 23, 0.3);
-}
-
-
-
-/* ============================================================
-   GM LOGS PANEL
-   ============================================================ */
-
-.mission-manager .mm-logs-panel {
-  position: fixed;
-  right: 1.5rem;
-  bottom: 1.5rem;
-  width: 420px;
-  max-height: 70vh;
-  border-radius: 18px;
-  border: 1px solid rgba(108, 196, 23, 0.6);
-  background: rgba(0, 0, 0, 0.96);
-  box-shadow:
-    0 0 30px rgba(0, 0, 0, 0.96),
-    0 0 20px rgba(108, 196, 23, 0.65);
-  transform: translateY(120%);
-  transition: transform 0.2s ease;
-  display: flex;
-  flex-direction: column;
-  z-index: 60;
-}
-
-.mission-manager .mm-logs-panel.open {
-  transform: translateY(0%);
-}
-
-
-
-/* ============================================================
-   MODALS
-   ============================================================ */
-
-.mission-manager .mm-modal-backdrop {
+.mission-manager .npc-modal {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.68);
+  background: rgba(0, 0, 0, 0.75);
   backdrop-filter: blur(3px);
-  z-index: 70;
   display: flex;
   align-items: center;
   justify-content: center;
+  z-index: 2000;
 }
 
-/* cinematic modal entrance */
-@keyframes mm-modal-cinematic {
-  0% {
-    transform: scale(0.9) translateY(12px);
-    opacity: 0;
-    filter: blur(2px);
-  }
-  70% {
-    transform: scale(1.02);
-    opacity: 1;
-  }
-  100% {
-    transform: scale(1);
-    filter: blur(0);
-  }
-}
-
-.mission-manager .mm-modal {
-  background: radial-gradient(
-    circle at top left,
-    rgba(108, 196, 23, 0.12),
-    rgba(0, 0, 0, 0.98)
-  );
-  border-radius: 22px;
-  border: 1px solid rgba(108, 196, 23, 0.9);
-  box-shadow:
-    0 0 45px rgba(108, 196, 23, 0.7),
-    0 0 90px rgba(0, 0, 0, 0.9),
-    inset 0 0 20px rgba(108, 196, 23, 0.15);
-  padding: 1.25rem 1.5rem;
-  width: 100%;
-  max-width: 580px;
+.mission-manager .npc-modal-content {
+  width: 480px;
   max-height: 80vh;
   overflow-y: auto;
-  animation: mm-modal-cinematic 0.24s ease-out;
+  padding: 1.5rem;
+  background: rgba(10, 20, 10, 0.92);
+  border: 1px solid rgb(124, 168, 120);
+  border-radius: 14px;
+  box-shadow:
+    0 0 8px rgba(124, 168, 120, 0.6),
+    0 0 22px rgba(124, 168, 120, 0.35),
+    inset 0 0 12px rgba(124, 168, 120, 0.15);
 }
 
-.mission-manager .mm-modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.5rem;
-  margin-top: 0.75rem;
+.mission-manager .npc-modal-content h2 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  font-size: 14px;
+  letter-spacing: 0.18em;
 }
 
+/* Modal field spacing */
+.mission-manager .npc-modal-content .field {
+  margin-bottom: 1rem;
+}
 
+/* Modal buttons */
+.mission-manager .npc-modal-content button {
+  margin-right: 0.5rem;
+}
 
-/* ============================================================
-   RESPONSIVE
-   ============================================================ */
+/* ----------------------------------------------
+   SMALL SCROLLBAR
+---------------------------------------------- */
 
-@media (max-width: 900px) {
-  .mission-manager {
-    padding: 1rem;
-    padding-top: 4.5rem;
-  }
-
-  .mission-manager .mm-container {
-    grid-template-columns: 1fr !important;
-  }
-
-  .mission-manager .mm-left-panel {
-    max-width: 100% !important;
-  }
-
-  .mission-manager .mm-logs-panel {
-    width: calc(100% - 2rem);
-    right: 1rem;
-  }
+.mission-manager *::-webkit-scrollbar {
+  width: 6px;
+}
+.mission-manager *::-webkit-scrollbar-track {
+  background: rgba(20, 30, 20, 0.4);
+}
+.mission-manager *::-webkit-scrollbar-thumb {
+  background: rgba(124, 168, 120, 0.6);
+  border-radius: 3px;
+}
+.mission-manager *::-webkit-scrollbar-thumb:hover {
+  background: rgba(124, 168, 120, 0.9);
 }
