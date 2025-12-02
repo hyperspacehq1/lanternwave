@@ -3,11 +3,8 @@ import { requireAdmin } from "../util/auth.js";
 import { query } from "../util/db.js";
 
 export const handler = async (event) => {
-  const auth = requireAdmin(event.headers);
-  if (!auth.ok) return auth.response;
-
   try {
-    /* ---------------------- GET (list all NPCs) ---------------------- */
+    /* ---------------------- GET (NO ADMIN KEY REQUIRED) ---------------------- */
     if (event.httpMethod === "GET") {
       const result = await query(
         `SELECT *
@@ -21,7 +18,10 @@ export const handler = async (event) => {
       };
     }
 
-    /* ---------------------- POST (create new NPC) ---------------------- */
+    /* ---------------------- POST (ADMIN REQUIRED) ---------------------- */
+    const auth = requireAdmin(event.headers);
+    if (!auth.ok) return auth.response;
+
     if (event.httpMethod === "POST") {
       const body = JSON.parse(event.body || "{}");
 
@@ -54,7 +54,8 @@ export const handler = async (event) => {
           (display_name, true_name, primary_category, secondary_subtype, intent,
            personality_json, goals_text, secrets_text, tone_text,
            truth_policy_json, description_public, description_secret)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+         VALUES
+          ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
          RETURNING *`,
         [
           display_name,
@@ -78,7 +79,7 @@ export const handler = async (event) => {
       };
     }
 
-    /* ---------------------- Method Not Allowed ---------------------- */
+    /* ---------------------- Method not allowed ---------------------- */
     return { statusCode: 405, body: "Method Not Allowed" };
 
   } catch (err) {
