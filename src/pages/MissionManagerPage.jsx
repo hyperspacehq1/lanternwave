@@ -12,6 +12,9 @@ import {
   getNPCState,
 } from "../lib/mission-api";
 
+// *** REQUIRED CSS IMPORT ***
+import "./mission-manager.css";
+
 export default function MissionManagerPage() {
   const [campaigns, setCampaigns] = useState([]);
   const [sessions, setSessions] = useState([]);
@@ -47,24 +50,21 @@ export default function MissionManagerPage() {
   async function handleSelectSession(s) {
     setSelectedSession(s);
 
-    // -----------------------
-    // FIX #1 — players MUST use p.players
-    // -----------------------
     const p = await listSessionPlayers(s.id);
-    setPlayers(p.players || []);
+    setPlayers(p);
 
     const m = await listSessionMessages(s.id);
-    setMessages(m.messages || []);
+    setMessages(m);
 
     const n = await listNPCs();
-    setNpcList(n.npcs || []);
+    setNpcList(n);
     setNpcState(null);
   }
 
   async function handleCreateSession() {
     if (!newSessionName.trim() || !selectedCampaign) return;
 
-    const ns = await createSession({
+    await createSession({
       campaign_id: selectedCampaign.id,
       session_name: newSessionName,
     });
@@ -76,24 +76,20 @@ export default function MissionManagerPage() {
 
   async function handleAddPlayer() {
     if (!newPlayerNumber.trim() || !selectedSession) return;
-
     await addSessionPlayer(selectedSession.id, newPlayerNumber);
 
-    // -----------------------
-    // FIX #2 — players MUST use p.players
-    // -----------------------
     const p = await listSessionPlayers(selectedSession.id);
-    setPlayers(p.players || []);
-
+    setPlayers(p);
     setNewPlayerNumber("");
   }
 
   async function handleRemovePlayer(phone) {
     if (!selectedSession) return;
+
     await removeSessionPlayer(selectedSession.id, phone);
 
     const p = await listSessionPlayers(selectedSession.id);
-    setPlayers(p.players || []);
+    setPlayers(p);
   }
 
   async function handleSelectNPC(npc) {
@@ -105,7 +101,7 @@ export default function MissionManagerPage() {
     await archiveSessionEvent(selectedSession.id, eventId);
 
     const m = await listSessionMessages(selectedSession.id);
-    setMessages(m.messages || []);
+    setMessages(m);
   }
 
   return (
@@ -151,15 +147,12 @@ export default function MissionManagerPage() {
         <div className="panel">
           <h3>Players</h3>
 
-          {/* PLAYER LIST */}
           {players.length === 0 && <div>No players yet.</div>}
           {players.length > 0 &&
             players.map((p) => (
               <div key={p.phone_number} className="item">
                 {p.phone_number}
-                <button onClick={() => handleRemovePlayer(p.phone_number)}>
-                  Remove
-                </button>
+                <button onClick={() => handleRemovePlayer(p.phone_number)}>Remove</button>
               </div>
             ))}
 
@@ -175,7 +168,7 @@ export default function MissionManagerPage() {
       {selectedSession && (
         <div className="panel">
           <h3>Messages</h3>
-          {(messages || []).map((m, i) => (
+          {messages.map((m, i) => (
             <div key={i} className="item">
               [{m.timestamp}] {m.text}
             </div>
@@ -187,11 +180,7 @@ export default function MissionManagerPage() {
         <div className="panel">
           <h3>NPCs</h3>
           {npcList.map((n) => (
-            <div
-              key={n.id}
-              className="item"
-              onClick={() => handleSelectNPC(n)}
-            >
+            <div key={n.id} className="item" onClick={() => handleSelectNPC(n)}>
               {n.display_name}
             </div>
           ))}
