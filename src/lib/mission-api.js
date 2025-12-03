@@ -1,178 +1,117 @@
 // src/lib/mission-api.js
-// Unified client for Lanternwave Netlify functions (2025-safe)
+// Lanternwave API client — aligned to backend shapes (2025)
 
 async function apiFetch(path, options = {}) {
-  const base = "/.netlify/functions";
-  const url = `${base}${path}`;
+  const res = await fetch(`/.netlify/functions${path}`, {
+    method: options.method || "GET",
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers || {})
+    },
+    body: options.body || null
+  });
 
-  const defaultHeaders = {
-    "Content-Type": "application/json",
-  };
-
-  options.headers = {
-    ...defaultHeaders,
-    ...(options.headers || {}),
-  };
-
-  const res = await fetch(url, options);
   let json = null;
-
   try {
     json = await res.json();
   } catch (_) {}
 
   if (!res.ok) {
     console.error(`API Error (${path}):`, res.status, json);
-    throw new Error(
-      `API Error (${path}): ${res.status} — ${JSON.stringify(json)}`
-    );
+    throw new Error(`API Error (${path}): ${res.status}`);
   }
 
   return json;
 }
 
-/* ----------------------------------------------------------
-   CAMPAIGNS (Renamed from Missions for UI compatibility)
----------------------------------------------------------- */
+/* ------------------------------------------------------------------
+   CAMPAIGNS (MISSIONS)
+   Backend returns: [ {...}, {...} ]
+-------------------------------------------------------------------*/
 
-// UI expects listCampaigns()
-export const listCampaigns = () =>
-  apiFetch("/api-missions", { method: "GET" });
+export async function listCampaigns() {
+  const data = await apiFetch("/api-missions");
+  return Array.isArray(data) ? data : [];
+}
 
-// UI expects createSession() with campaign_id
-export const createSession = (data) =>
-  apiFetch("/api-mission-sessions", {
+/* ------------------------------------------------------------------
+   SESSIONS
+   Backend returns: [ {...}, {...} ]
+-------------------------------------------------------------------*/
+
+export async function listSessions(campaignId) {
+  const data = await apiFetch(`/api-mission-sessions?mission_id=${campaignId}`);
+  return Array.isArray(data) ? data : [];
+}
+
+export async function createSession({ campaign_id, session_name }) {
+  return apiFetch("/api-mission-sessions", {
     method: "POST",
     body: JSON.stringify({
-      mission_id: data.campaign_id,
-      session_name: data.session_name,
-    }),
+      mission_id: campaign_id,
+      session_name
+    })
   });
+}
 
-/* ----------------------------------------------------------
-   SESSIONS
----------------------------------------------------------- */
-
-export const listSessions = (campaignId) =>
-  apiFetch(`/api-mission-sessions?mission_id=${campaignId}`, {
-    method: "GET",
-  });
-
-/* Original names kept too */
-export const listMissionSessions = (missionId) =>
-  apiFetch(`/api-mission-sessions?mission_id=${missionId}`, {
-    method: "GET",
-  });
-
-export const getMissionSession = (sessionId) =>
-  apiFetch(`/api-mission-session?session_id=${sessionId}`, {
-    method: "GET",
-  });
-
-/* ----------------------------------------------------------
+/* ------------------------------------------------------------------
    SESSION PLAYERS
----------------------------------------------------------- */
+   Backend returns: { players: [] }
+-------------------------------------------------------------------*/
 
-// UI expects listSessionPlayers(sessionId)
-export const listSessionPlayers = (sessionId) =>
-  apiFetch(`/api-session-players?session_id=${sessionId}`, {
-    method: "GET",
-  });
+export async function listSessionPlayers(sessionId) {
+  const data = await apiFetch(`/api-session-players?session_id=${sessionId}`);
+  return Array.isArray(data.players) ? data.players : [];
+}
 
-// UI expects addSessionPlayer(sessionId, phone)
-export const addSessionPlayer = (sessionId, phone_number) =>
-  apiFetch("/api-session-players", {
+export async function addSessionPlayer(sessionId, phone_number) {
+  return apiFetch("/api-session-players", {
     method: "POST",
-    body: JSON.stringify({ session_id: sessionId, phone_number }),
+    body: JSON.stringify({ session_id: sessionId, phone_number })
   });
+}
 
-// UI expects removeSessionPlayer(sessionId, phone)
-export const removeSessionPlayer = (sessionId, phone_number) =>
-  apiFetch(
+export async function removeSessionPlayer(sessionId, phone_number) {
+  return apiFetch(
     `/api-session-players?session_id=${sessionId}&phone_number=${phone_number}`,
-    {
-      method: "DELETE",
-    }
+    { method: "DELETE" }
   );
+}
 
-/* New name kept too */
-export const addPlayerToSession = (data) =>
-  apiFetch("/api-session-players", {
-    method: "POST",
-    body: JSON.stringify(data),
-  });
-
-/* ----------------------------------------------------------
+/* ------------------------------------------------------------------
    MESSAGES
----------------------------------------------------------- */
+   Backend returns: [ {...}, {...} ]
+-------------------------------------------------------------------*/
 
-export const listSessionMessages = (sessionId) =>
-  apiFetch(`/api-mission-messages?mission_id=${sessionId}`, {
-    method: "GET",
-  });
+export async function listSessionMessages(sessionId) {
+  const data = await apiFetch(`/api-mission-messages?mission_id=${sessionId}`);
+  return Array.isArray(data) ? data : [];
+}
 
-/* ----------------------------------------------------------
-   NPCs (global catalog)
----------------------------------------------------------- */
+/* ------------------------------------------------------------------
+   NPCs
+   Backend returns: { npcs: [] }
+-------------------------------------------------------------------*/
 
-export const listNPCs = () =>
-  apiFetch("/api-npcs", {
-    method: "GET",
-  });
+export async function listNPCs() {
+  const data = await apiFetch("/api-npcs");
+  return Array.isArray(data.npcs) ? data.npcs : [];
+}
 
-export const getAllNPCs = () =>
-  apiFetch("/api-npcs", {
-    method: "GET",
-    headers: { "x-admin-key": import.meta.env.VITE_ADMIN_API_KEY },
-  });
+/* ------------------------------------------------------------------
+   NPC STATE
+-------------------------------------------------------------------*/
 
-export const createNPC = (data) =>
-  apiFetch("/api-npcs", {
-    method: "POST",
-    headers: { "x-admin-key": import.meta.env.VITE_ADMIN_API_KEY },
-    body: JSON.stringify(data),
-  });
+export async function getNPCState(sessionId, npcId) {
+  return apiFetch(`/api-npc-state?session_id=${sessionId}&npc_id=${npcId}`);
+}
 
-/* ----------------------------------------------------------
-   MISSION NPC LINKING
----------------------------------------------------------- */
-
-export const listMissionNPCs = (missionId) =>
-  apiFetch(`/api-mission-npcs?mission_id=${missionId}`, {
-    method: "GET",
-  });
-
-export const addNPCtoMission = (data) =>
-  apiFetch("/api-mission-npcs", {
-    method: "POST",
-    body: JSON.stringify(data),
-  });
-
-/* ----------------------------------------------------------
-   NPC STATE (per-session)
----------------------------------------------------------- */
-
-export const getNPCState = (sessionId, npcId) =>
-  apiFetch(`/api-npc-state?session_id=${sessionId}&npc_id=${npcId}`, {
-    method: "GET",
-  });
-
-export const updateNPCState = (data) =>
-  apiFetch("/api-npc-state", {
-    method: "POST",
-    body: JSON.stringify(data),
-  });
-
-/* ----------------------------------------------------------
+/* ------------------------------------------------------------------
    EVENTS
----------------------------------------------------------- */
+-------------------------------------------------------------------*/
 
-export const listMissionEvents = (sessionId) =>
-  apiFetch(`/api-events?session_id=${sessionId}`, {
-    method: "GET",
+export async function archiveSessionEvent(sessionId, eventId) {
+  return apiFetch(`/api-events?session_id=${sessionId}&event_id=${eventId}`, {
+    method: "DELETE"
   });
-
-export const archiveSessionEvent = (sessionId, eventId) =>
-  apiFetch(`/api-events?session_id=${sessionId}&event_id=${eventId}`, {
-    method: "DELETE",
-  });
+}
