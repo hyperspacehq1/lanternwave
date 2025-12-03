@@ -71,7 +71,7 @@ export async function removeSessionPlayer(sessionId, phone_number) {
    MESSAGES (raw array)
 ----------------------- */
 export async function listSessionMessages(sessionId) {
-  return await apiFetch(`/api-mission-messages?mission_id=${sessionId}`);
+  return await apiFetch(`/api-mission-messages?session_id=${sessionId}`);
 }
 
 /* ----------------------
@@ -95,5 +95,96 @@ export async function getNPCState(sessionId, npcId) {
 export async function archiveSessionEvent(sessionId, eventId) {
   return apiFetch(`/api-events?session_id=${sessionId}&event_id=${eventId}`, {
     method: "DELETE"
+  });
+}
+
+/* ----------------------
+   CREATE EVENT
+----------------------- */
+export async function createEvent({ session_id, event_type, payload }) {
+  return apiFetch("/api-events", {
+    method: "POST",
+    body: JSON.stringify({
+      session_id,
+      event_type,
+      payload
+    })
+  });
+}
+
+/* ----------------------
+   CREATE NPC
+----------------------- */
+export async function createNPC({
+  display_name,
+  true_name,
+  primary_category,
+  secondary_subtype,
+  intent,
+  personality_json,
+  goals_text,
+  secrets_text,
+  tone_text,
+  truth_policy_json,
+  description_public,
+  description_secret
+}) {
+  return apiFetch("/api-npcs", {
+    method: "POST",
+    body: JSON.stringify({
+      display_name,
+      true_name,
+      primary_category,
+      secondary_subtype,
+      intent,
+      personality_json,
+      goals_text,
+      secrets_text,
+      tone_text,
+      truth_policy_json,
+      description_public,
+      description_secret
+    })
+  });
+}
+/* ----------------------
+   CREATE CAMPAIGN / MISSION
+----------------------- */
+export async function createCampaign({ name }) {
+  return apiFetch("/api-missions", {
+    method: "POST",
+    body: JSON.stringify({ name })
+  });
+}
+/* ----------------------
+   ASSIGN NPC TO MISSION
+----------------------- */
+export async function assignNPCToMission({
+  mission_id,
+  npc_id,
+  is_known = true,
+  gm_only_notes = ""
+}) {
+  return apiFetch("/api-mission-npcs", {
+    method: "POST",
+    body: JSON.stringify({
+      mission_id,
+      npc_id,
+      is_known,
+      gm_only_notes
+    })
+  });
+}
+/* ----------------------
+   UPDATE NPC STATE
+----------------------- */
+export async function updateNPCState({ session_id, npc_id, state }) {
+  return apiFetch("/api-npc-state", {
+    method: "POST",
+    body: JSON.stringify({
+      session_id,
+      npc_id,
+      state
+    })
   });
 }
