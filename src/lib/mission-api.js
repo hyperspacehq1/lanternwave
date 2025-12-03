@@ -53,10 +53,14 @@ export async function listSessionPlayers(sessionId) {
   return data.players || [];
 }
 
-export async function addSessionPlayer(sessionId, phone_number) {
+export async function addSessionPlayer({ session_id, phone_number, player_name }) {
   return apiFetch("/api-session-players", {
     method: "POST",
-    body: JSON.stringify({ session_id: sessionId, phone_number })
+    body: JSON.stringify({
+      session_id,
+      phone_number,
+      player_name,
+    }),
   });
 }
 
