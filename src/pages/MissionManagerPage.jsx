@@ -910,4 +910,28 @@ export default function MissionManagerPage() {
                   className="mm-input"
                   placeholder="Player Name"
                   value={newPlayerName}
-                  on
+                  onChange={(e) => setNewPlayerName(e.target.value)}
+                />
+
+                <input
+                  className="mm-input"
+                  placeholder="Phone Number"
+                  value={newPlayerNumber}
+                  onChange={(e) => setNewPlayerNumber(e.target.value)}
+                />
+
+                <button
+                  className="mm-btn"
+                  onClick={handleAddPlayer}
+                  disabled={!selectedSession}
+                >
+                  Add Player
+                </button>
+              </>
+            )}
+          </div>
+        </section>
+      </div>
+    </div>
+  );
+}
