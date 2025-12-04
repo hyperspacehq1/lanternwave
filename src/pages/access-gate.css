@@ -1,5 +1,5 @@
 /* ============================================================
-   LANTERNWAVE â€“ ACCESS GATE / BOOT SEQUENCE
+   LANTERNWAVE ACCESS GATE / BOOT SEQUENCE
    Now fully override-safe using .boot-screen namespace
 ============================================================ */
 
@@ -364,7 +364,7 @@
   line-height: 1.45rem;
 }
 
-* --- Refined Privacy Policy Heading Scale (More Professional) --- */
+/* --- Refined Privacy Policy Heading Scale (More Professional) --- */
 
 .boot-privacy-text h1,
 .boot-privacy-text h2,
