@@ -1,15 +1,12 @@
 // netlify/functions/api-events.js
+
 import { query } from "../util/db.js";
 
 export const handler = async (event) => {
   try {
-    /* ---------------------------------------------------
-       GET — list mission-level events
-       /api-events?mission_id=2
-    --------------------------------------------------- */
+    /* ---------------- GET EVENTS FOR A MISSION ---------------- */
     if (event.httpMethod === "GET") {
       const mission_id = event.queryStringParameters?.mission_id;
-
       if (!mission_id) {
         return {
           statusCode: 400,
@@ -18,7 +15,7 @@ export const handler = async (event) => {
       }
 
       const result = await query(
-        `SELECT *
+        `SELECT id, mission_id, event_type, payload, archived, created_at
          FROM mission_events
          WHERE mission_id = $1 AND archived = false
          ORDER BY created_at ASC`,
@@ -31,19 +28,16 @@ export const handler = async (event) => {
       };
     }
 
-    /* ---------------------------------------------------
-       POST — create mission event
-       body: { mission_id, event_type, payload }
-    --------------------------------------------------- */
+    /* ---------------- CREATE EVENT (MISSION-SCOPED) ---------------- */
     if (event.httpMethod === "POST") {
       const body = JSON.parse(event.body || "{}");
-      const { mission_id, event_type, payload } = body;
 
+      const { mission_id, event_type, payload } = body;
       if (!mission_id || !event_type) {
         return {
           statusCode: 400,
           body: JSON.stringify({
-            error: "mission_id and event_type are required",
+            error: "mission_id and event_type required",
           }),
         };
       }
@@ -62,10 +56,7 @@ export const handler = async (event) => {
       };
     }
 
-    /* ---------------------------------------------------
-       DELETE — archive mission event
-       /api-events?mission_id=2&event_id=10
-    --------------------------------------------------- */
+    /* ---------------- ARCHIVE EVENT ---------------- */
     if (event.httpMethod === "DELETE") {
       const { mission_id, event_id } = event.queryStringParameters;
 
@@ -93,7 +84,7 @@ export const handler = async (event) => {
 
     return { statusCode: 405, body: "Method Not Allowed" };
   } catch (err) {
-    console.error("api-events.js error:", err);
+    console.error("API EVENTS ERROR:", err);
     return {
       statusCode: 500,
       body: JSON.stringify({ error: err.message }),
