@@ -15,6 +15,8 @@ import {
   updateNPCState,
   listMissionEvents,
   archiveMissionEvent,
+  listMissionMessages,      // ✅ newly added
+  sendMissionMessage        // ✅ newly added
 } from "../lib/mission-api";
 
 import "./mission-manager.css";
@@ -59,7 +61,7 @@ export default function MissionManagerPage() {
   const [selectedSession, setSelectedSession] = useState(null);
 
   const [players, setPlayers] = useState([]);
-  const [messages, setMessages] = useState([]);
+  const [messages, setMessages] = useState([]);   // ⭐ mission-scoped message storage
   const [events, setEvents] = useState([]);
   const [npcList, setNpcList] = useState([]);
   const [missionNPCs, setMissionNPCs] = useState([]);
@@ -69,40 +71,34 @@ export default function MissionManagerPage() {
   /* ============================================
      FORM FIELDS
   ============================================ */
-
-  // Campaign
   const [newCampaignName, setNewCampaignName] = useState("");
   const [newMissionIdCode, setNewMissionIdCode] = useState("");
   const [newMissionSummaryKnown, setNewMissionSummaryKnown] = useState("");
-  const [newMissionSummaryUnknown, setNewMissionSummaryUnknown] = useState("");
+  const [newMissionSummaryUnknown, setNewMissionSummaryUnknown] =
+    useState("");
   const [newMissionRegion, setNewMissionRegion] = useState("");
   const [newMissionWeather, setNewMissionWeather] = useState("");
   const [newMissionDate, setNewMissionDate] = useState("");
   const [newMissionAutoCreateSessions, setNewMissionAutoCreateSessions] =
     useState(false);
 
-  // Session
   const [newSessionName, setNewSessionName] = useState("");
 
-  // Player
   const [newPlayerName, setNewPlayerName] = useState("");
   const [newPlayerNumber, setNewPlayerNumber] = useState("");
 
-  // Events
   const [newEventType, setNewEventType] = useState(EVENT_TYPES[0]);
   const [eventLocation, setEventLocation] = useState("");
   const [eventDescription, setEventDescription] = useState("");
   const [eventGoal, setEventGoal] = useState("");
   const [eventItem, setEventItem] = useState("");
 
-  // NPC
   const [newNpcDisplayName, setNewNpcDisplayName] = useState("");
   const [newNpcTrueName, setNewNpcTrueName] = useState("");
   const [newNpcPublicDesc, setNewNpcPublicDesc] = useState("");
   const [npcImportText, setNpcImportText] = useState("");
   const [npcStateText, setNpcStateText] = useState("");
 
-  // Tabs
   const [activeTimelineTab, setActiveTimelineTab] = useState("events");
   const [activeRightTab, setActiveRightTab] = useState("npcs");
 
@@ -123,7 +119,6 @@ export default function MissionManagerPage() {
 
     setCampaigns(campaignList);
 
-    // Restore campaign
     if (storedCampaignId) {
       const found = campaignList.find(
         (c) => String(c.id) === String(storedCampaignId)
@@ -131,7 +126,6 @@ export default function MissionManagerPage() {
       if (found) {
         await handleSelectCampaign(found);
 
-        // Restore session
         if (storedSessionId) {
           const ses = sessions.find(
             (s) => String(s.id) === String(storedSessionId)
@@ -159,13 +153,15 @@ export default function MissionManagerPage() {
     setPlayers(Array.isArray(list) ? list : list.players || []);
   }
 
-  async function loadMessagesForSession(session) {
-    if (!session) return;
-    const resp = await fetch(
-      `/.netlify/functions/api-mission-messages?session_id=${session.id}`
-    );
-    const data = await resp.json();
-    setMessages(data.messages || data.logs || []);
+  /* ⭐⭐⭐ PATCHED: Mission-scoped messaging loader ⭐⭐⭐ */
+  async function loadMessagesForMission(missionId) {
+    if (!missionId) return;
+    try {
+      const list = await listMissionMessages(missionId);
+      setMessages(Array.isArray(list) ? list : list.messages || list.logs || []);
+    } catch (err) {
+      console.error("Error loading mission messages:", err);
+    }
   }
 
   async function loadEventsForCampaign(campaign) {
@@ -189,7 +185,7 @@ export default function MissionManagerPage() {
   }
 
   /* ============================================
-     SELECT HANDLERS (with persistence)
+     SELECT HANDLERS
   ============================================ */
   async function handleSelectCampaign(campaign) {
     localStorage.setItem("selectedCampaignId", campaign.id);
@@ -209,18 +205,18 @@ export default function MissionManagerPage() {
       loadMissionNPCsForCampaign(campaign),
       loadNPCsGlobal(),
       loadEventsForCampaign(campaign),
+      loadMessagesForMission(campaign.id)  // ⭐ load mission messages
     ]);
   }
 
   async function handleSelectSession(session) {
     localStorage.setItem("selectedSessionId", session.id);
-
     setSelectedSession(session);
 
     await Promise.all([
       loadPlayersForSession(session),
-      loadMessagesForSession(session),
-      loadNPCsGlobal(),
+      loadMessagesForMission(selectedCampaign.id), // ⭐ still mission-scoped
+      loadNPCsGlobal()
     ]);
   }
 
@@ -293,8 +289,7 @@ export default function MissionManagerPage() {
   }
 
   async function handleRemovePlayer(player) {
-    const phone = player.phone_number || player.phone;
-    await removeSessionPlayer(selectedSession.id, phone);
+    await removeSessionPlayer(player.player_id);
     await loadPlayersForSession(selectedSession);
   }
 
@@ -342,15 +337,10 @@ export default function MissionManagerPage() {
         display_name: parsed.display_name || parsed.name,
         true_name: parsed.true_name || parsed.name,
         description_public:
-          parsed.description_public || parsed.bio || parsed.short_bio || null,
-        primary_category: parsed.primary_category || null,
-        secondary_subtype: parsed.secondary_subtype || null,
-        intent: parsed.intent || null,
-        personality_json: parsed.personality_json || null,
-        goals_text: parsed.goals_text || null,
-        secrets_text: parsed.secrets_text || null,
-        tone_text: parsed.tone_text || null,
-        truth_policy_json: parsed.truth_policy_json || null,
+          parsed.description_public ||
+          parsed.bio ||
+          parsed.short_bio ||
+          null
       });
 
       setNpcImportText("");
@@ -401,7 +391,7 @@ export default function MissionManagerPage() {
 
   async function handleSaveNpcState() {
     try {
-      const parsed = npcStateText ? JSON.parse(npcStateText) : {};
+      const parsed = JSON.parse(npcStateText);
       await updateNPCState({
         session_id: selectedSession.id,
         npc_id: selectedNPC.id,
@@ -409,18 +399,17 @@ export default function MissionManagerPage() {
       });
       setNpcState(parsed);
     } catch {
-      alert("Invalid state JSON");
+      alert("Invalid JSON");
     }
   }
 
   /* ============================================
-     UI START
+     UI
   ============================================ */
 
   return (
     <div className="mission-manager">
 
-      {/* ---------------- HEADER ---------------- */}
       <header className="mm-header">
         <div className="mm-context">
 
@@ -446,7 +435,6 @@ export default function MissionManagerPage() {
             <span className="mm-badge">Players: {players.length}</span>
             <span className="mm-badge">NPCs: {npcList.length}</span>
 
-            {/* Restart Button */}
             <button className="mm-btn-small" onClick={restartSelections}>
               Restart
             </button>
@@ -454,7 +442,6 @@ export default function MissionManagerPage() {
         </div>
       </header>
 
-      {/* ---------------- MAIN GRID ---------------- */}
       <div className="mm-grid">
 
         {/* ---------------- CAMPAIGNS PANEL ---------------- */}
@@ -479,13 +466,10 @@ export default function MissionManagerPage() {
             ))}
 
             {campaigns.length === 0 && (
-              <div className="mm-placeholder">
-                No campaigns yet — create one below.
-              </div>
+              <div className="mm-placeholder">No campaigns yet — create one below.</div>
             )}
           </div>
 
-          {/* Campaign creation */}
           <div className="mm-panel-footer">
             <div className="mm-footer-title">Create Campaign</div>
 
@@ -579,18 +563,13 @@ export default function MissionManagerPage() {
             ))}
 
             {selectedCampaign && sessions.length === 0 && (
-              <div className="mm-placeholder">
-                No sessions yet — create one below.
-              </div>
+              <div className="mm-placeholder">No sessions yet — create one below.</div>
             )}
             {!selectedCampaign && (
-              <div className="mm-placeholder">
-                Select a campaign first.
-              </div>
+              <div className="mm-placeholder">Select a campaign first.</div>
             )}
           </div>
 
-          {/* Session creation */}
           <div className="mm-panel-footer">
             <div className="mm-footer-title">Create Session</div>
 
@@ -618,17 +597,13 @@ export default function MissionManagerPage() {
 
           <div className="mm-tab-row">
             <button
-              className={`mm-tab ${
-                activeTimelineTab === "events" ? "active" : ""
-              }`}
+              className={`mm-tab ${activeTimelineTab === "events" ? "active" : ""}`}
               onClick={() => setActiveTimelineTab("events")}
             >
               Events
             </button>
             <button
-              className={`mm-tab ${
-                activeTimelineTab === "messages" ? "active" : ""
-              }`}
+              className={`mm-tab ${activeTimelineTab === "messages" ? "active" : ""}`}
               onClick={() => setActiveTimelineTab("messages")}
             >
               Messages
@@ -647,25 +622,16 @@ export default function MissionManagerPage() {
 
                       <div className="mm-event-info">
                         {evt.payload?.location && (
-                          <div>
-                            <strong>Location:</strong> {evt.payload.location}
-                          </div>
+                          <div><strong>Location:</strong> {evt.payload.location}</div>
                         )}
                         {evt.payload?.description && (
-                          <div>
-                            <strong>Description:</strong>{" "}
-                            {evt.payload.description}
-                          </div>
+                          <div><strong>Description:</strong> {evt.payload.description}</div>
                         )}
                         {evt.payload?.goal && (
-                          <div>
-                            <strong>Goal:</strong> {evt.payload.goal}
-                          </div>
+                          <div><strong>Goal:</strong> {evt.payload.goal}</div>
                         )}
                         {evt.payload?.item && (
-                          <div>
-                            <strong>Item:</strong> {evt.payload.item}
-                          </div>
+                          <div><strong>Item:</strong> {evt.payload.item}</div>
                         )}
                       </div>
 
@@ -683,31 +649,33 @@ export default function MissionManagerPage() {
                   </div>
                 )
               ) : (
-                <div className="mm-placeholder">
-                  Select a campaign first.
-                </div>
+                <div className="mm-placeholder">Select a campaign first.</div>
               ))}
 
-            {/* MESSAGES */}
+            {/* ⭐⭐⭐ PATCHED MESSAGES ⭐⭐⭐ */}
             {activeTimelineTab === "messages" &&
-              (selectedSession ? (
+              (selectedCampaign ? (
                 messages.length > 0 ? (
                   messages.map((msg) => (
                     <div key={msg.id} className="mm-message-row">
-                      <div className="mm-message-body">{msg.body}</div>
-                      <div className="mm-message-time">
-                        {new Date(msg.timestamp).toLocaleString()}
+                      <div className="mm-message-body">
+                        {msg.body}
+                      </div>
+
+                      <div className="mm-message-meta">
+                        <span className="mm-message-phone">{msg.phone_number}</span>
+                        <span className="mm-message-time">
+                          {new Date(msg.created_at).toLocaleString()}
+                        </span>
                       </div>
                     </div>
                   ))
                 ) : (
-                  <div className="mm-placeholder">
-                    No messages yet.
-                  </div>
+                  <div className="mm-placeholder">No messages yet.</div>
                 )
               ) : (
                 <div className="mm-placeholder">
-                  Select a session to view messages.
+                  Select a campaign to view messages.
                 </div>
               ))}
 
@@ -780,17 +748,13 @@ export default function MissionManagerPage() {
 
           <div className="mm-tab-row">
             <button
-              className={`mm-tab ${
-                activeRightTab === "npcs" ? "active" : ""
-              }`}
+              className={`mm-tab ${activeRightTab === "npcs" ? "active" : ""}`}
               onClick={() => setActiveRightTab("npcs")}
             >
               NPCs
             </button>
             <button
-              className={`mm-tab ${
-                activeRightTab === "players" ? "active" : ""
-              }`}
+              className={`mm-tab ${activeRightTab === "players" ? "active" : ""}`}
               onClick={() => setActiveRightTab("players")}
             >
               Players
@@ -799,7 +763,7 @@ export default function MissionManagerPage() {
 
           <div className="mm-panel-body mm-scrollable">
 
-            {/* NPCS */}
+            {/* NPC PANEL */}
             {activeRightTab === "npcs" && (
               <>
                 <div className="mm-subtitle">Mission NPCs</div>
@@ -819,9 +783,7 @@ export default function MissionManagerPage() {
                     </button>
                   ))
                 ) : (
-                  <div className="mm-placeholder">
-                    No mission NPCs yet.
-                  </div>
+                  <div className="mm-placeholder">No mission NPCs yet.</div>
                 )}
 
                 <div className="mm-subtitle">Global NPCs</div>
@@ -838,12 +800,9 @@ export default function MissionManagerPage() {
                     </button>
                   ))
                 ) : (
-                  <div className="mm-placeholder">
-                    No NPCs yet.
-                  </div>
+                  <div className="mm-placeholder">No NPCs yet.</div>
                 )}
 
-                {/* NPC STATE */}
                 {selectedNPC && (
                   <>
                     <div className="mm-subtitle">NPC State</div>
@@ -867,17 +826,17 @@ export default function MissionManagerPage() {
               </>
             )}
 
-            {/* PLAYERS */}
+            {/* PLAYER PANEL */}
             {activeRightTab === "players" && (
               <>
                 {players.length > 0 ? (
                   players.map((p) => (
                     <div key={p.phone_number} className="mm-player-row">
                       <div>
-                        <div className="mm-player-name">{p.player_name}</div>
-                        <div className="mm-player-phone">
-                          {p.phone_number}
+                        <div className="mm-player-name">
+                          {p.player_name || "Unnamed Player"}
                         </div>
+                        <div className="mm-player-phone">{p.phone_number}</div>
                       </div>
                       <button
                         className="mm-btn-small"
@@ -888,18 +847,14 @@ export default function MissionManagerPage() {
                     </div>
                   ))
                 ) : (
-                  <div className="mm-placeholder">
-                    No players yet.
-                  </div>
+                  <div className="mm-placeholder">No players yet.</div>
                 )}
               </>
             )}
           </div>
 
-          {/* NPC / PLAYER CREATION */}
           <div className="mm-panel-footer">
-
-            {/* NPC */}
+            {/* NPC FORM */}
             {activeRightTab === "npcs" && (
               <>
                 <div className="mm-footer-title">Create NPC</div>
@@ -946,7 +901,7 @@ export default function MissionManagerPage() {
               </>
             )}
 
-            {/* PLAYER */}
+            {/* PLAYER FORM */}
             {activeRightTab === "players" && (
               <>
                 <div className="mm-footer-title">Add Player</div>
@@ -955,30 +910,4 @@ export default function MissionManagerPage() {
                   className="mm-input"
                   placeholder="Player Name"
                   value={newPlayerName}
-                  onChange={(e) => setNewPlayerName(e.target.value)}
-                  disabled={!selectedSession}
-                />
-
-                <input
-                  className="mm-input"
-                  placeholder="Phone Number"
-                  value={newPlayerNumber}
-                  onChange={(e) => setNewPlayerNumber(e.target.value)}
-                  disabled={!selectedSession}
-                />
-
-                <button
-                  className="mm-btn"
-                  onClick={handleAddPlayer}
-                  disabled={!selectedSession}
-                >
-                  Add Player
-                </button>
-              </>
-            )}
-          </div>
-        </section>
-      </div>
-    </div>
-  );
-}
+                  on

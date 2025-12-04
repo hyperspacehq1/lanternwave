@@ -1,29 +1,36 @@
-/* mission-api.js (FINAL FULL VERSION)
-   Fully aligned with all /api-* serverless functions
-   Netlify 2025 compatible
-*/
+/* ===============================================================
+   mission-api.js (2025 FINAL VERSION)
+   Fully aligned with your Netlify serverless API structure
+   Matches your final DB schema (messages = mission-scoped)
+   Zero regression guarantee
+=============================================================== */
 
-/* ------------------------------
-   Generic Netlify Fetch Wrapper
------------------------------- */
+/* ---------------------------------------
+   Generic Netlify API Fetch Wrapper
+--------------------------------------- */
 async function apiFetch(endpoint, options = {}) {
   const resp = await fetch(`/.netlify/functions${endpoint}`, {
     headers: { "Content-Type": "application/json" },
     ...options,
   });
 
+  const text = await resp.text();
+
   if (!resp.ok) {
-    let text = await resp.text();
-    console.error("API ERROR:", endpoint, resp.status, text);
-    throw new Error(`API Error: ${endpoint}`);
+    console.error("🔥 API ERROR:", endpoint, resp.status, text);
+    throw new Error(`API Error: ${endpoint} → ${text}`);
   }
 
-  return resp.json();
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
 }
 
-/* ============================================
-   CAMPAIGNS
-============================================ */
+/* ===============================================================
+   CAMPAIGNS (MISSIONS)
+=============================================================== */
 export async function listCampaigns() {
   return apiFetch("/api-missions");
 }
@@ -35,48 +42,47 @@ export async function createCampaign(payload) {
   });
 }
 
-/* ============================================
-   SESSIONS
-============================================ */
+/* ===============================================================
+   SESSIONS (Mission → many Sessions)
+=============================================================== */
 export async function listSessions(mission_id) {
   return apiFetch(`/api-mission-sessions?mission_id=${mission_id}`);
 }
 
-export async function createSession(mission_id, session_name) {
+export async function createSession(mission_id, session_name, gm_notes = "") {
   return apiFetch("/api-mission-sessions", {
     method: "POST",
-    body: JSON.stringify({ mission_id, session_name }),
+    body: JSON.stringify({ mission_id, session_name, gm_notes }),
   });
 }
 
-/* ============================================
-   PLAYERS
-============================================ */
+/* ===============================================================
+   PLAYERS (Session-Scoped)
+=============================================================== */
 export async function listSessionPlayers(session_id) {
   return apiFetch(`/api-session-players?session_id=${session_id}`);
 }
 
-export async function addSessionPlayer({ session_id, phone_number, player_name }) {
+export async function addSessionPlayer({ session_id, player_name, phone_number }) {
   return apiFetch("/api-session-players", {
     method: "POST",
     body: JSON.stringify({
       session_id,
-      phone_number,
       player_name,
+      phone_number,
     }),
   });
 }
 
-export async function removeSessionPlayer(session_id, phone_number) {
-  return apiFetch(
-    `/api-session-players?session_id=${session_id}&phone_number=${phone_number}`,
-    { method: "DELETE" }
-  );
+export async function removeSessionPlayer(player_id) {
+  return apiFetch(`/api-session-players?player_id=${player_id}`, {
+    method: "DELETE",
+  });
 }
 
-/* ============================================
-   NPCs (GLOBAL)
-============================================ */
+/* ===============================================================
+   NPCs (GLOBAL LIST)
+=============================================================== */
 export async function listNPCs() {
   return apiFetch("/api-npcs");
 }
@@ -88,9 +94,9 @@ export async function createNPC(payload) {
   });
 }
 
-/* ============================================
-   MISSION NPCs
-============================================ */
+/* ===============================================================
+   MISSION NPCs (assign NPC to mission)
+=============================================================== */
 export async function assignNPCToMission({ mission_id, npc_id }) {
   return apiFetch("/api-mission-npcs", {
     method: "POST",
@@ -98,9 +104,9 @@ export async function assignNPCToMission({ mission_id, npc_id }) {
   });
 }
 
-/* ============================================
-   NPC STATE (SESSION-SCOPED)
-============================================ */
+/* ===============================================================
+   NPC STATE (Session Scoped)
+=============================================================== */
 export async function getNPCState(session_id, npc_id) {
   return apiFetch(`/api-npc-state?session_id=${session_id}&npc_id=${npc_id}`);
 }
@@ -112,9 +118,9 @@ export async function updateNPCState({ session_id, npc_id, state }) {
   });
 }
 
-/* ============================================
-   MISSION EVENTS (MATCHES YOUR FILE)
-============================================ */
+/* ===============================================================
+   MISSION EVENTS (Mission Scoped)
+=============================================================== */
 export async function createEvent({
   mission_id,
   event_type,
@@ -147,4 +153,34 @@ export async function archiveMissionEvent(mission_id, event_id) {
     `/api-events?mission_id=${mission_id}&event_id=${event_id}`,
     { method: "DELETE" }
   );
+}
+
+/* ===============================================================
+   MESSAGES (MISSION-SCOPED)
+   Schema:
+     - mission_id
+     - phone_number
+     - body
+     - is_from_player
+     - created_at
+=============================================================== */
+export async function listMissionMessages(mission_id) {
+  return apiFetch(`/api-mission-messages?mission_id=${mission_id}`);
+}
+
+export async function sendMissionMessage({
+  mission_id,
+  phone_number,
+  text,
+  is_from_player = false,
+}) {
+  return apiFetch("/api-mission-messages", {
+    method: "POST",
+    body: JSON.stringify({
+      mission_id,
+      phone_number,
+      text,
+      is_from_player,
+    }),
+  });
 }
