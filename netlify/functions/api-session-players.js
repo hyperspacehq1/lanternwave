@@ -1,13 +1,14 @@
 // netlify/functions/api-session-players.js
-import db from "../util/db.js";   // <-- FIXED PATH
+
+import db from "../util/db.js";   // Correct path + ESM
 
 export async function handler(event) {
   try {
     const method = event.httpMethod;
 
-    /* ---------------------------
-       GET — List players
-    --------------------------- */
+    /* =====================================================
+       GET — List players for a session
+    ===================================================== */
     if (method === "GET") {
       const session_id = event.queryStringParameters?.session_id;
 
@@ -32,9 +33,9 @@ export async function handler(event) {
       };
     }
 
-    /* ---------------------------
-       POST — Add player
-    --------------------------- */
+    /* =====================================================
+       POST — Add player to a session
+    ===================================================== */
     if (method === "POST") {
       const body = JSON.parse(event.body || "{}");
       const { session_id, phone_number, player_name } = body;
@@ -43,7 +44,7 @@ export async function handler(event) {
         return {
           statusCode: 400,
           body: JSON.stringify({
-            error: "session_id and phone_number required",
+            error: "session_id and phone_number are required",
           }),
         };
       }
@@ -51,7 +52,7 @@ export async function handler(event) {
       const { rows } = await db.query(
         `INSERT INTO session_players (session_id, phone_number, player_name)
          VALUES ($1, $2, $3)
-         RETURNING id, session_id, phone_number, player_name`,
+         RETURNING id AS player_id, session_id, phone_number, player_name`,
         [session_id, phone_number, player_name || null]
       );
 
@@ -61,20 +62,23 @@ export async function handler(event) {
       };
     }
 
-    /* ---------------------------
-       DELETE — Remove player
-    --------------------------- */
+    /* =====================================================
+       DELETE — Remove a player
+    ===================================================== */
     if (method === "DELETE") {
-      const { player_id } = JSON.parse(event.body || "{}");
+      const body = JSON.parse(event.body || "{}");
+      const { player_id } = body;
 
       if (!player_id) {
         return {
           statusCode: 400,
-          body: JSON.stringify({ error: "player_id required" }),
+          body: JSON.stringify({ error: "player_id is required" }),
         };
       }
 
-      await db.query(`DELETE FROM session_players WHERE id = $1`, [player_id]);
+      await db.query(`DELETE FROM session_players WHERE id = $1`, [
+        player_id,
+      ]);
 
       return {
         statusCode: 200,
@@ -82,9 +86,9 @@ export async function handler(event) {
       };
     }
 
-    /* ---------------------------
-       METHOD NOT ALLOWED
-    --------------------------- */
+    /* =====================================================
+       DEFAULT — Method not allowed
+    ===================================================== */
     return {
       statusCode: 405,
       body: JSON.stringify({ error: "Method Not Allowed" }),
@@ -93,7 +97,7 @@ export async function handler(event) {
     console.error("api-session-players ERROR:", err);
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: err.message || "Server error" }),
+      body: JSON.stringify({ error: err.message }),
     };
   }
 }
