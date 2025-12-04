@@ -1,14 +1,16 @@
-const db = require("../_utils/db"); // your Neon helper
+// netlify/functions/api-session-players.js
+import db from "../_utils/db.js";   // Must exist as a .js file
 
-exports.handler = async function (event) {
+export async function handler(event) {
   try {
     const method = event.httpMethod;
 
-    // --------------------
-    // GET: List players
-    // --------------------
+    /* ------------------------------------------------------------------
+       GET — List players for a session
+    ------------------------------------------------------------------ */
     if (method === "GET") {
-      const session_id = event.queryStringParameters.session_id;
+      const session_id = event.queryStringParameters?.session_id;
+
       if (!session_id) {
         return {
           statusCode: 400,
@@ -30,9 +32,9 @@ exports.handler = async function (event) {
       };
     }
 
-    // --------------------
-    // POST: Add player
-    // --------------------
+    /* ------------------------------------------------------------------
+       POST — Add a player to session
+    ------------------------------------------------------------------ */
     if (method === "POST") {
       const body = JSON.parse(event.body || "{}");
       const { session_id, phone_number, player_name } = body;
@@ -59,9 +61,9 @@ exports.handler = async function (event) {
       };
     }
 
-    // --------------------
-    // DELETE: Remove player
-    // --------------------
+    /* ------------------------------------------------------------------
+       DELETE — Remove a player
+    ------------------------------------------------------------------ */
     if (method === "DELETE") {
       const { player_id } = JSON.parse(event.body || "{}");
 
@@ -82,17 +84,18 @@ exports.handler = async function (event) {
       };
     }
 
-    // --------------------
-    // OTHER METHODS NOT ALLOWED
-    // --------------------
+    /* ------------------------------------------------------------------
+       METHOD NOT ALLOWED
+    ------------------------------------------------------------------ */
     return {
       statusCode: 405,
       body: JSON.stringify({ error: "Method Not Allowed" }),
     };
   } catch (err) {
+    console.error("api-session-players ERROR:", err);
     return {
       statusCode: 500,
       body: JSON.stringify({ error: err.message || "Server error" }),
     };
   }
-};
+}
