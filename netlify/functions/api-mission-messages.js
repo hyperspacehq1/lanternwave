@@ -3,23 +3,23 @@ import { query } from "../util/db.js";
 
 export const handler = async (event) => {
   try {
-    /* ---------------------- GET Session Messages ---------------------- */
+    /* ---------------------- GET Messages (Mission Scoped) ---------------------- */
     if (event.httpMethod === "GET") {
-      const sessionId = event.queryStringParameters?.session_id;
+      const missionId = event.queryStringParameters?.mission_id;
 
-      if (!sessionId) {
+      if (!missionId) {
         return {
           statusCode: 400,
-          body: JSON.stringify({ error: "session_id is required" }),
+          body: JSON.stringify({ error: "mission_id is required" }),
         };
       }
 
       const result = await query(
-        `SELECT id, session_id, sender, message, created_at
+        `SELECT id, mission_id, phone_number, body, is_from_player, created_at
          FROM messages
-         WHERE session_id = $1
+         WHERE mission_id = $1
          ORDER BY created_at ASC`,
-        [sessionId]
+        [missionId]
       );
 
       return {
@@ -31,22 +31,22 @@ export const handler = async (event) => {
     /* ---------------------- POST New Message ---------------------- */
     if (event.httpMethod === "POST") {
       const body = JSON.parse(event.body || "{}");
-      const { session_id, sender, message } = body;
+      const { mission_id, phone_number, text, is_from_player } = body;
 
-      if (!session_id || !sender || !message) {
+      if (!mission_id || !phone_number || !text) {
         return {
           statusCode: 400,
           body: JSON.stringify({
-            error: "session_id, sender, and message are required",
+            error: "mission_id, phone_number, and text are required",
           }),
         };
       }
 
       const result = await query(
-        `INSERT INTO messages (session_id, sender, message, created_at)
-         VALUES ($1, $2, $3, NOW())
+        `INSERT INTO messages (mission_id, phone_number, body, is_from_player, created_at)
+         VALUES ($1, $2, $3, $4, NOW())
          RETURNING *`,
-        [session_id, sender, message]
+        [mission_id, phone_number, text, !!is_from_player]
       );
 
       return {
