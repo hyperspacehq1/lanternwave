@@ -1,10 +1,9 @@
 // netlify/functions/api-npcs.js
-import { requireAdmin } from "../util/auth.js";
 import { query } from "../util/db.js";
 
 export const handler = async (event) => {
   try {
-    /* ---------------------- GET (NO ADMIN KEY REQUIRED) ---------------------- */
+    /* ---------------------- GET (No auth required) ---------------------- */
     if (event.httpMethod === "GET") {
       const result = await query(
         `SELECT *
@@ -18,10 +17,7 @@ export const handler = async (event) => {
       };
     }
 
-    /* ---------------------- POST (ADMIN REQUIRED) ---------------------- */
-    const auth = requireAdmin(event.headers);
-    if (!auth.ok) return auth.response;
-
+    /* ---------------------- POST (Create NPC — No admin required) ---------------------- */
     if (event.httpMethod === "POST") {
       const body = JSON.parse(event.body || "{}");
 
