@@ -1,13 +1,13 @@
 // netlify/functions/api-session-players.js
-import db from "../_utils/db.js";   // Must exist as a .js file
+import db from "../util/db.js";   // <-- FIXED PATH
 
 export async function handler(event) {
   try {
     const method = event.httpMethod;
 
-    /* ------------------------------------------------------------------
-       GET — List players for a session
-    ------------------------------------------------------------------ */
+    /* ---------------------------
+       GET — List players
+    --------------------------- */
     if (method === "GET") {
       const session_id = event.queryStringParameters?.session_id;
 
@@ -32,9 +32,9 @@ export async function handler(event) {
       };
     }
 
-    /* ------------------------------------------------------------------
-       POST — Add a player to session
-    ------------------------------------------------------------------ */
+    /* ---------------------------
+       POST — Add player
+    --------------------------- */
     if (method === "POST") {
       const body = JSON.parse(event.body || "{}");
       const { session_id, phone_number, player_name } = body;
@@ -61,9 +61,9 @@ export async function handler(event) {
       };
     }
 
-    /* ------------------------------------------------------------------
-       DELETE — Remove a player
-    ------------------------------------------------------------------ */
+    /* ---------------------------
+       DELETE — Remove player
+    --------------------------- */
     if (method === "DELETE") {
       const { player_id } = JSON.parse(event.body || "{}");
 
@@ -74,9 +74,7 @@ export async function handler(event) {
         };
       }
 
-      await db.query(`DELETE FROM session_players WHERE id = $1`, [
-        player_id,
-      ]);
+      await db.query(`DELETE FROM session_players WHERE id = $1`, [player_id]);
 
       return {
         statusCode: 200,
@@ -84,9 +82,9 @@ export async function handler(event) {
       };
     }
 
-    /* ------------------------------------------------------------------
+    /* ---------------------------
        METHOD NOT ALLOWED
-    ------------------------------------------------------------------ */
+    --------------------------- */
     return {
       statusCode: 405,
       body: JSON.stringify({ error: "Method Not Allowed" }),
