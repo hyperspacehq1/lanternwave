@@ -854,52 +854,146 @@ export default function MissionManagerPage() {
           </div>
 
           <div className="mm-panel-footer">
-            {/* NPC FORM */}
-            {activeRightTab === "npcs" && (
-              <>
-                <div className="mm-footer-title">Create NPC</div>
 
-                <input
-                  className="mm-input"
-                  placeholder="NPC Display Name"
-                  value={newNpcDisplayName}
-                  onChange={(e) => setNewNpcDisplayName(e.target.value)}
-                />
+          {/* NPC FORM */}
+{activeRightTab === "npcs" && (
+  <>
+    <div className="mm-footer-title">Create NPC</div>
 
-                <input
-                  className="mm-input"
-                  placeholder="NPC True Name"
-                  value={newNpcTrueName}
-                  onChange={(e) => setNewNpcTrueName(e.target.value)}
-                />
+    {/* DISPLAY NAME */}
+    <input
+      className="mm-input"
+      placeholder="NPC Display Name (required)"
+      value={newNpcDisplayName}
+      onChange={(e) => setNewNpcDisplayName(e.target.value)}
+    />
 
-                <textarea
-                  className="mm-input mm-textarea"
-                  placeholder="Public Description"
-                  rows={2}
-                  value={newNpcPublicDesc}
-                  onChange={(e) => setNewNpcPublicDesc(e.target.value)}
-                />
+    {/* TRUE NAME */}
+    <input
+      className="mm-input"
+      placeholder="NPC True Name (required)"
+      value={newNpcTrueName}
+      onChange={(e) => setNewNpcTrueName(e.target.value)}
+    />
 
-                <button className="mm-btn" onClick={handleCreateNPC}>
-                  Add NPC
-                </button>
+    {/* PRIMARY CATEGORY */}
+    <select
+      className="mm-input"
+      value={newNpcPrimaryCategory}
+      onChange={(e) => setNewNpcPrimaryCategory(e.target.value)}
+    >
+      <option value="">Primary Category</option>
+      <option>Civilian</option>
+      <option>Law Enforcement</option>
+      <option>Military</option>
+      <option>Criminal</option>
+      <option>Government / Bureaucracy</option>
+      <option>Medical / Scientific</option>
+      <option>Occultist / Cultist</option>
+      <option>Friendly Asset</option>
+      <option>Unfriendly Asset</option>
+      <option>Mythos (Human)</option>
+      <option>Mythos (Entity / Creature)</option>
+    </select>
 
-                <div className="mm-footer-title">Import NPC (JSON)</div>
+    {/* SECONDARY SUBTYPE */}
+    <input
+      className="mm-input"
+      placeholder="Secondary Subtype"
+      value={newNpcSecondarySubtype}
+      onChange={(e) => setNewNpcSecondarySubtype(e.target.value)}
+    />
 
-                <textarea
-                  className="mm-input mm-textarea"
-                  placeholder="Paste NPC JSON Here"
-                  rows={3}
-                  value={npcImportText}
-                  onChange={(e) => setNpcImportText(e.target.value)}
-                />
+    {/* INTENT */}
+    <input
+      className="mm-input"
+      placeholder="Intent / Motivation"
+      value={newNpcIntent}
+      onChange={(e) => setNewNpcIntent(e.target.value)}
+    />
 
-                <button className="mm-btn" onClick={handleImportNPC}>
-                  Import NPC
-                </button>
-              </>
-            )}
+    {/* PUBLIC DESCRIPTION */}
+    <textarea
+      className="mm-input mm-textarea"
+      placeholder="Public Description"
+      rows={2}
+      value={newNpcPublicDesc}
+      onChange={(e) => setNewNpcPublicDesc(e.target.value)}
+    />
+
+    {/* SECRET DESCRIPTION */}
+    <textarea
+      className="mm-input mm-textarea"
+      placeholder="Secret Description"
+      rows={2}
+      value={newNpcSecretDesc}
+      onChange={(e) => setNewNpcSecretDesc(e.target.value)}
+    />
+
+    {/* GOALS */}
+    <textarea
+      className="mm-input mm-textarea"
+      placeholder="Goals / Objectives"
+      rows={2}
+      value={newNpcGoalsText}
+      onChange={(e) => setNewNpcGoalsText(e.target.value)}
+    />
+
+    {/* SECRETS */}
+    <textarea
+      className="mm-input mm-textarea"
+      placeholder="Secrets"
+      rows={2}
+      value={newNpcSecretsText}
+      onChange={(e) => setNewNpcSecretsText(e.target.value)}
+    />
+
+    {/* NOTES */}
+    <textarea
+      className="mm-input mm-textarea"
+      placeholder="Notes"
+      rows={2}
+      value={newNpcNotes}
+      onChange={(e) => setNewNpcNotes(e.target.value)}
+    />
+
+    {/* CREATE BUTTON */}
+    <button
+      className="mm-btn"
+      onClick={() =>
+        handleCreateNPC({
+          display_name: newNpcDisplayName,
+          true_name: newNpcTrueName,
+          primary_category: newNpcPrimaryCategory,
+          secondary_subtype: newNpcSecondarySubtype,
+          intent: newNpcIntent,
+          description_public: newNpcPublicDesc,
+          description_secret: newNpcSecretDesc,
+          goals_text: newNpcGoalsText,
+          secrets_text: newNpcSecretsText,
+          notes: newNpcNotes,
+        })
+      }
+    >
+      Add NPC
+    </button>
+
+    {/* IMPORT JSON */}
+    <div className="mm-footer-title">Import NPC (JSON)</div>
+
+    <textarea
+      className="mm-input mm-textarea"
+      placeholder="Paste NPC JSON"
+      rows={3}
+      value={npcImportText}
+      onChange={(e) => setNpcImportText(e.target.value)}
+    />
+
+    <button className="mm-btn" onClick={handleImportNPC}>
+      Import NPC
+    </button>
+  </>
+)}
 
             {/* PLAYER FORM */}
             {activeRightTab === "players" && (
