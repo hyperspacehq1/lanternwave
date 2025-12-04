@@ -5,13 +5,15 @@ async function apiFetch(path, options = {}) {
     method: options.method || "GET",
     headers: {
       "Content-Type": "application/json",
-      ...(options.headers || {})
+      ...(options.headers || {}),
     },
-    body: options.body || null
+    body: options.body || null,
   });
 
   let json = null;
-  try { json = await res.json(); } catch (_) {}
+  try {
+    json = await res.json();
+  } catch (_) {}
 
   if (!res.ok) {
     console.error("API ERROR:", path, res.status, json);
@@ -25,7 +27,7 @@ async function apiFetch(path, options = {}) {
    CAMPAIGNS (raw array)
 ----------------------- */
 export async function listCampaigns() {
-  return await apiFetch("/api-missions");  // raw array
+  return await apiFetch("/api-missions"); // raw array of missions
 }
 
 /* ----------------------
@@ -35,13 +37,15 @@ export async function listSessions(campaignId) {
   return await apiFetch(`/api-mission-sessions?mission_id=${campaignId}`);
 }
 
-export async function createSession({ campaign_id, session_name }) {
+// NOTE: Signature now matches MissionManagerPage.jsx usage:
+// createSession(selectedCampaign.id, newSessionName)
+export async function createSession(campaignId, session_name) {
   return apiFetch("/api-mission-sessions", {
     method: "POST",
     body: JSON.stringify({
-      mission_id: campaign_id,
-      session_name
-    })
+      mission_id: campaignId,
+      session_name,
+    }),
   });
 }
 
@@ -53,7 +57,11 @@ export async function listSessionPlayers(sessionId) {
   return data.players || [];
 }
 
-export async function addSessionPlayer({ session_id, phone_number, player_name }) {
+export async function addSessionPlayer({
+  session_id,
+  phone_number,
+  player_name,
+}) {
   return apiFetch("/api-session-players", {
     method: "POST",
     body: JSON.stringify({
@@ -98,7 +106,7 @@ export async function getNPCState(sessionId, npcId) {
 ----------------------- */
 export async function archiveSessionEvent(sessionId, eventId) {
   return apiFetch(`/api-events?session_id=${sessionId}&event_id=${eventId}`, {
-    method: "DELETE"
+    method: "DELETE",
   });
 }
 
@@ -111,8 +119,8 @@ export async function createEvent({ session_id, event_type, payload }) {
     body: JSON.stringify({
       session_id,
       event_type,
-      payload
-    })
+      payload,
+    }),
   });
 }
 
@@ -131,7 +139,7 @@ export async function createNPC({
   tone_text,
   truth_policy_json,
   description_public,
-  description_secret
+  description_secret,
 }) {
   return apiFetch("/api-npcs", {
     method: "POST",
@@ -147,19 +155,33 @@ export async function createNPC({
       tone_text,
       truth_policy_json,
       description_public,
-      description_secret
-    })
+      description_secret,
+    }),
   });
 }
+
 /* ----------------------
    CREATE CAMPAIGN / MISSION
+   (full payload to match DB schema)
 ----------------------- */
-export async function createCampaign({ name }) {
+export async function createCampaign(payload) {
+  // payload is expected to be:
+  // {
+  //   name,
+  //   mission_id_code,
+  //   summary_known,
+  //   summary_unknown,
+  //   region,
+  //   weather,
+  //   mission_date,
+  //   auto_create_sessions
+  // }
   return apiFetch("/api-missions", {
     method: "POST",
-    body: JSON.stringify({ name })
+    body: JSON.stringify(payload),
   });
 }
+
 /* ----------------------
    ASSIGN NPC TO MISSION
 ----------------------- */
@@ -167,7 +189,7 @@ export async function assignNPCToMission({
   mission_id,
   npc_id,
   is_known = true,
-  gm_only_notes = ""
+  gm_only_notes = "",
 }) {
   return apiFetch("/api-mission-npcs", {
     method: "POST",
@@ -175,10 +197,11 @@ export async function assignNPCToMission({
       mission_id,
       npc_id,
       is_known,
-      gm_only_notes
-    })
+      gm_only_notes,
+    }),
   });
 }
+
 /* ----------------------
    UPDATE NPC STATE
 ----------------------- */
@@ -188,7 +211,7 @@ export async function updateNPCState({ session_id, npc_id, state }) {
     body: JSON.stringify({
       session_id,
       npc_id,
-      state
-    })
+      state,
+    }),
   });
 }

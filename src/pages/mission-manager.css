@@ -453,3 +453,11 @@
 .mission-manager *::-webkit-scrollbar-thumb:hover {
   background: rgba(195, 245, 198, 0.9);
 }
+
+.mm-checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: #c3f5c6;
+}
