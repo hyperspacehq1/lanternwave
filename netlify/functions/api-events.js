@@ -3,66 +3,100 @@ import { query } from "../util/db.js";
 
 export const handler = async (event) => {
   try {
-    /* ---------------------- GET (list events) ---------------------- */
+    /* ---------------------------------------------------
+       GET — list mission-level events
+       /api-events?mission_id=2
+    --------------------------------------------------- */
     if (event.httpMethod === "GET") {
-      const sessionId = event.queryStringParameters?.session_id;
+      const mission_id = event.queryStringParameters?.mission_id;
 
-      if (!sessionId) {
+      if (!mission_id) {
         return {
           statusCode: 400,
-          body: JSON.stringify({ error: "session_id is required" }),
+          body: JSON.stringify({ error: "mission_id required" }),
         };
       }
 
       const result = await query(
         `SELECT *
          FROM mission_events
-         WHERE session_id = $1
+         WHERE mission_id = $1 AND archived = false
          ORDER BY created_at ASC`,
-        [sessionId]
+        [mission_id]
       );
 
       return {
         statusCode: 200,
-        body: JSON.stringify(result.rows),
+        body: JSON.stringify({ events: result.rows }),
       };
     }
 
-    /* ---------------------- POST (create event) ---------------------- */
+    /* ---------------------------------------------------
+       POST — create mission event
+       body: { mission_id, event_type, payload }
+    --------------------------------------------------- */
     if (event.httpMethod === "POST") {
       const body = JSON.parse(event.body || "{}");
-      const { session_id, event_type, payload } = body;
+      const { mission_id, event_type, payload } = body;
 
-      if (!session_id || !event_type) {
+      if (!mission_id || !event_type) {
         return {
           statusCode: 400,
           body: JSON.stringify({
-            error: "session_id and event_type are required",
+            error: "mission_id and event_type are required",
           }),
         };
       }
 
       const result = await query(
-        `
-        INSERT INTO mission_events
-           (session_id, event_type, payload, created_at, archived)
-         VALUES ($1, $2, $3, NOW(), false)
-         RETURNING *
-        `,
-        [session_id, event_type, payload || {}]
+        `INSERT INTO mission_events
+         (mission_id, event_type, payload, archived, created_at)
+         VALUES ($1, $2, $3, false, NOW())
+         RETURNING *`,
+        [mission_id, event_type, payload]
       );
 
       return {
         statusCode: 200,
-        body: JSON.stringify(result.rows[0]),
+        body: JSON.stringify({ event: result.rows[0] }),
       };
     }
 
-    /* ---------------------- Method Not Allowed ---------------------- */
-    return { statusCode: 405, body: "Method Not Allowed" };
+    /* ---------------------------------------------------
+       DELETE — archive mission event
+       /api-events?mission_id=2&event_id=10
+    --------------------------------------------------- */
+    if (event.httpMethod === "DELETE") {
+      const { mission_id, event_id } = event.queryStringParameters;
 
+      if (!mission_id || !event_id) {
+        return {
+          statusCode: 400,
+          body: JSON.stringify({
+            error: "mission_id and event_id required",
+          }),
+        };
+      }
+
+      await query(
+        `UPDATE mission_events
+         SET archived = true
+         WHERE id = $1 AND mission_id = $2`,
+        [event_id, mission_id]
+      );
+
+      return {
+        statusCode: 200,
+        body: JSON.stringify({ archived: true }),
+      };
+    }
+
+    return { statusCode: 405, body: "Method Not Allowed" };
   } catch (err) {
-    console.error("api-events error:", err);
-    return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
+    console.error("api-events.js error:", err);
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: err.message }),
+    };
   }
 };
