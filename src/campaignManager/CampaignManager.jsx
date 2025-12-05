@@ -1,22 +1,3 @@
-.lw-cm-detail-panel { ... }
-.lw-cm-detail-panel.visible { ... }
-``` :contentReference[oaicite:0]{index=0}  
-
-So the JS and CSS weren’t actually talking to each other.
-
-Below is a **corrected, merged `CampaignManager.jsx`** that:
-
-- Keeps all of your current Phase 3 behavior (dirty state, breadcrumb, unsaved indicator) :contentReference[oaicite:1]{index=1}  
-- Aligns the right-hand panel with the actual CSS slide-in classes (`lw-cm-detail-panel` + `.visible`)  
-- Doesn’t change any field shapes or layout logic  
-
-You can drop this in as a **full replacement** for `/src/campaignManager/CampaignManager.jsx`.
-
----
-
-### ✅ Updated `/src/campaignManager/CampaignManager.jsx`
-
-```jsx
 // src/campaignManager/CampaignManager.jsx
 import React, { useState, useMemo } from "react";
 import "./campaignManager.css";
@@ -91,6 +72,10 @@ const CampaignManager = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [rememberStateToken, setRememberStateToken] = useState(FAKE_ID());
   const [isDirty, setIsDirty] = useState(false);
+
+  // Fullscreen focus editor state
+  const [focusEditor, setFocusEditor] = useState(null);
+  // focusEditor shape: { label, value, onChange }
 
   const currentList = data[activeType] || [];
 
@@ -256,6 +241,11 @@ const CampaignManager = () => {
     return results.slice(0, 10);
   }, [searchTerm, data]);
 
+  // When a large field wants focus editor
+  const openFocusEditor = ({ label, value, onChange }) => {
+    setFocusEditor({ label, value, onChange });
+  };
+
   return (
     <div className="lw-cm-root" data-state-token={rememberStateToken}>
       <header className="lw-cm-header">
@@ -394,7 +384,7 @@ const CampaignManager = () => {
           </section>
         </main>
 
-        {/* RIGHT: Detail Container (now aligned with .lw-cm-detail-panel CSS) */}
+        {/* RIGHT: Detail Container */}
         <section
           className={
             "lw-cm-detail-panel" + (isDetailOpen ? " visible" : "")
@@ -420,6 +410,7 @@ const CampaignManager = () => {
                 setSelectedRecord(null);
                 setIsDirty(false);
               }}
+              onOpenFocusEditor={openFocusEditor}
             />
           ) : (
             <div className="lw-cm-detail-placeholder">
@@ -428,6 +419,36 @@ const CampaignManager = () => {
           )}
         </section>
       </div>
+
+      {/* FULLSCREEN FOCUS EDITOR (MU/TH/UR STYLE) */}
+      {focusEditor && (
+        <div className="lw-cm-focus-overlay">
+          <div className="lw-cm-focus-panel">
+            <div className="lw-cm-focus-header">
+              <span className="lw-cm-focus-label">{focusEditor.label}</span>
+              <button
+                className="lw-cm-focus-close"
+                onClick={() => setFocusEditor(null)}
+              >
+                ✕
+              </button>
+            </div>
+            <textarea
+              className="lw-cm-focus-textarea"
+              value={focusEditor.value}
+              onChange={(e) => {
+                const newVal = e.target.value;
+                setFocusEditor((prev) =>
+                  prev ? { ...prev, value: newVal } : prev
+                );
+                if (focusEditor.onChange) {
+                  focusEditor.onChange(newVal);
+                }
+              }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -498,6 +519,7 @@ const DetailView = ({
   isDirty,
   onChange,
   onClose,
+  onOpenFocusEditor,
 }) => {
   const updateField = (field, value) => {
     onChange({ ...record, [field]: value });
@@ -506,6 +528,20 @@ const DetailView = ({
   const textAreaProps = {
     rows: 4,
   };
+
+  // Helper: for big fields that use fullscreen editor
+  const focusable = (label, fieldName) => ({
+    enableFocus: true,
+    onOpenFocusEditor: onOpenFocusEditor
+      ? ({ value, onChange }) =>
+          onOpenFocusEditor({
+            label,
+            value,
+            onChange: (newVal) => onChange(newVal),
+          })
+      : null,
+    fieldName,
+  });
 
   return (
     <div className="lw-cm-detail-inner">
@@ -527,6 +563,7 @@ const DetailView = ({
       </div>
 
       <div className="lw-cm-detail-scroll">
+        {/* CAMPAIGNS */}
         {type === "campaigns" && (
           <>
             <DetailField
@@ -540,6 +577,15 @@ const DetailView = ({
               value={record.description || ""}
               onChange={(v) => updateField("description", v)}
               textAreaProps={textAreaProps}
+              enableFocus
+              onOpenFocusEditor={({ value, onChange }) =>
+                onOpenFocusEditor &&
+                onOpenFocusEditor({
+                  label: "Campaign Description",
+                  value,
+                  onChange,
+                })
+              }
             />
             <DetailField
               label="World Setting"
@@ -554,6 +600,7 @@ const DetailView = ({
           </>
         )}
 
+        {/* SESSIONS */}
         {type === "sessions" && (
           <>
             <DetailField
@@ -562,6 +609,15 @@ const DetailView = ({
               value={record.description || ""}
               onChange={(v) => updateField("description", v)}
               textAreaProps={textAreaProps}
+              enableFocus
+              onOpenFocusEditor={({ value, onChange }) =>
+                onOpenFocusEditor &&
+                onOpenFocusEditor({
+                  label: "Session Description",
+                  value,
+                  onChange,
+                })
+              }
             />
             <DetailField
               label="Geography"
@@ -576,6 +632,15 @@ const DetailView = ({
               value={record.notes || ""}
               onChange={(v) => updateField("notes", v)}
               textAreaProps={textAreaProps}
+              enableFocus
+              onOpenFocusEditor={({ value, onChange }) =>
+                onOpenFocusEditor &&
+                onOpenFocusEditor({
+                  label: "Session Notes",
+                  value,
+                  onChange,
+                })
+              }
             />
             <DetailField
               label="History"
@@ -583,10 +648,20 @@ const DetailView = ({
               value={record.history || ""}
               onChange={(v) => updateField("history", v)}
               textAreaProps={textAreaProps}
+              enableFocus
+              onOpenFocusEditor={({ value, onChange }) =>
+                onOpenFocusEditor &&
+                onOpenFocusEditor({
+                  label: "Session History",
+                  value,
+                  onChange,
+                })
+              }
             />
           </>
         )}
 
+        {/* EVENTS */}
         {type === "events" && (
           <>
             <DetailField
@@ -595,6 +670,15 @@ const DetailView = ({
               value={record.description || ""}
               onChange={(v) => updateField("description", v)}
               textAreaProps={textAreaProps}
+              enableFocus
+              onOpenFocusEditor={({ value, onChange }) =>
+                onOpenFocusEditor &&
+                onOpenFocusEditor({
+                  label: "Event Description",
+                  value,
+                  onChange,
+                })
+              }
             />
             <DetailField
               label="Type"
@@ -616,6 +700,7 @@ const DetailView = ({
           </>
         )}
 
+        {/* PLAYER CHARACTERS */}
         {type === "playerCharacters" && (
           <>
             <DetailField
@@ -641,6 +726,7 @@ const DetailView = ({
           </>
         )}
 
+        {/* NPCS */}
         {type === "npcs" && (
           <>
             <DetailField
@@ -692,6 +778,15 @@ const DetailView = ({
               value={record.secrets || ""}
               onChange={(v) => updateField("secrets", v)}
               textAreaProps={textAreaProps}
+              enableFocus
+              onOpenFocusEditor={({ value, onChange }) =>
+                onOpenFocusEditor &&
+                onOpenFocusEditor({
+                  label: "NPC Secrets",
+                  value,
+                  onChange,
+                })
+              }
             />
             <DetailField
               label="State"
@@ -701,6 +796,7 @@ const DetailView = ({
           </>
         )}
 
+        {/* ENCOUNTERS */}
         {type === "encounters" && (
           <>
             <DetailField
@@ -709,6 +805,15 @@ const DetailView = ({
               value={record.description || ""}
               onChange={(v) => updateField("description", v)}
               textAreaProps={textAreaProps}
+              enableFocus
+              onOpenFocusEditor={({ value, onChange }) =>
+                onOpenFocusEditor &&
+                onOpenFocusEditor({
+                  label: "Encounter Description",
+                  value,
+                  onChange,
+                })
+              }
             />
             <DetailField
               label="Notes"
@@ -716,10 +821,20 @@ const DetailView = ({
               value={record.notes || ""}
               onChange={(v) => updateField("notes", v)}
               textAreaProps={textAreaProps}
+              enableFocus
+              onOpenFocusEditor={({ value, onChange }) =>
+                onOpenFocusEditor &&
+                onOpenFocusEditor({
+                  label: "Encounter Notes",
+                  value,
+                  onChange,
+                })
+              }
             />
           </>
         )}
 
+        {/* QUESTS */}
         {type === "quests" && (
           <>
             <DetailField
@@ -728,6 +843,15 @@ const DetailView = ({
               value={record.description || ""}
               onChange={(v) => updateField("description", v)}
               textAreaProps={textAreaProps}
+              enableFocus
+              onOpenFocusEditor={({ value, onChange }) =>
+                onOpenFocusEditor &&
+                onOpenFocusEditor({
+                  label: "Quest Description",
+                  value,
+                  onChange,
+                })
+              }
             />
             <DetailField
               label="Status"
@@ -737,6 +861,7 @@ const DetailView = ({
           </>
         )}
 
+        {/* LOCATIONS */}
         {type === "locations" && (
           <>
             <DetailField
@@ -745,6 +870,15 @@ const DetailView = ({
               value={record.description || ""}
               onChange={(v) => updateField("description", v)}
               textAreaProps={textAreaProps}
+              enableFocus
+              onOpenFocusEditor={({ value, onChange }) =>
+                onOpenFocusEditor &&
+                onOpenFocusEditor({
+                  label: "Location Description",
+                  value,
+                  onChange,
+                })
+              }
             />
             <DetailField
               label="Street"
@@ -772,6 +906,15 @@ const DetailView = ({
               value={record.notes || ""}
               onChange={(v) => updateField("notes", v)}
               textAreaProps={textAreaProps}
+              enableFocus
+              onOpenFocusEditor={({ value, onChange }) =>
+                onOpenFocusEditor &&
+                onOpenFocusEditor({
+                  label: "Location Notes",
+                  value,
+                  onChange,
+                })
+              }
             />
             <DetailField
               label="Secrets"
@@ -779,6 +922,15 @@ const DetailView = ({
               value={record.secrets || ""}
               onChange={(v) => updateField("secrets", v)}
               textAreaProps={textAreaProps}
+              enableFocus
+              onOpenFocusEditor={({ value, onChange }) =>
+                onOpenFocusEditor &&
+                onOpenFocusEditor({
+                  label: "Location Secrets",
+                  value,
+                  onChange,
+                })
+              }
             />
             <DetailField
               label="Points of Interest"
@@ -790,6 +942,7 @@ const DetailView = ({
           </>
         )}
 
+        {/* ITEMS */}
         {type === "items" && (
           <>
             <DetailField
@@ -798,6 +951,15 @@ const DetailView = ({
               value={record.description || ""}
               onChange={(v) => updateField("description", v)}
               textAreaProps={textAreaProps}
+              enableFocus
+              onOpenFocusEditor={({ value, onChange }) =>
+                onOpenFocusEditor &&
+                onOpenFocusEditor({
+                  label: "Item Description",
+                  value,
+                  onChange,
+                })
+              }
             />
             <DetailField
               label="Notes"
@@ -805,10 +967,20 @@ const DetailView = ({
               value={record.notes || ""}
               onChange={(v) => updateField("notes", v)}
               textAreaProps={textAreaProps}
+              enableFocus
+              onOpenFocusEditor={({ value, onChange }) =>
+                onOpenFocusEditor &&
+                onOpenFocusEditor({
+                  label: "Item Notes",
+                  value,
+                  onChange,
+                })
+              }
             />
           </>
         )}
 
+        {/* LORE */}
         {type === "lore" && (
           <>
             <DetailField
@@ -817,6 +989,15 @@ const DetailView = ({
               value={record.description || ""}
               onChange={(v) => updateField("description", v)}
               textAreaProps={textAreaProps}
+              enableFocus
+              onOpenFocusEditor={({ value, onChange }) =>
+                onOpenFocusEditor &&
+                onOpenFocusEditor({
+                  label: "Lore Description",
+                  value,
+                  onChange,
+                })
+              }
             />
             <DetailField
               label="Notes"
@@ -824,10 +1005,20 @@ const DetailView = ({
               value={record.notes || ""}
               onChange={(v) => updateField("notes", v)}
               textAreaProps={textAreaProps}
+              enableFocus
+              onOpenFocusEditor={({ value, onChange }) =>
+                onOpenFocusEditor &&
+                onOpenFocusEditor({
+                  label: "Lore Notes",
+                  value,
+                  onChange,
+                })
+              }
             />
           </>
         )}
 
+        {/* LOGS */}
         {type === "logs" && (
           <>
             <DetailField
@@ -841,6 +1032,15 @@ const DetailView = ({
               value={record.body || ""}
               onChange={(v) => updateField("body", v)}
               textAreaProps={textAreaProps}
+              enableFocus
+              onOpenFocusEditor={({ value, onChange }) =>
+                onOpenFocusEditor &&
+                onOpenFocusEditor({
+                  label: "Session Log Body",
+                  value,
+                  onChange,
+                })
+              }
             />
           </>
         )}
@@ -855,7 +1055,15 @@ const DetailField = ({
   value,
   onChange,
   textAreaProps = {},
+  enableFocus,
+  onOpenFocusEditor,
 }) => {
+  const handleDoubleClick = () => {
+    if (enableFocus && onOpenFocusEditor) {
+      onOpenFocusEditor({ value, onChange });
+    }
+  };
+
   return (
     <div className="lw-cm-field">
       <label className="lw-cm-field-label">{label}</label>
@@ -864,6 +1072,7 @@ const DetailField = ({
           className="lw-cm-field-input lw-cm-field-textarea"
           value={value}
           onChange={(e) => onChange(e.target.value)}
+          onDoubleClick={handleDoubleClick}
           {...textAreaProps}
         />
       ) : (
