@@ -1,4 +1,3 @@
-// src/App.jsx
 import React, { useState } from "react";
 import { Routes, Route, NavLink } from "react-router-dom";
 import ControllerPage from "./pages/Controller.jsx";
@@ -6,6 +5,10 @@ import PlayerPage from "./pages/PlayerPage.jsx";
 import PrivacyPolicy from "./pages/PrivacyPolicy.jsx";
 import AccessGate from "./pages/AccessGate.jsx";
 import { LogoMark } from "./components/LogoMark.jsx";
+
+// NEW IMPORTS
+import CampaignManager from "./campaignManager/CampaignManager.jsx";
+import SearchPage from "./pages/SearchPage.jsx";
 
 function App() {
   // -------------------------------------------------------------
@@ -38,7 +41,7 @@ function App() {
   }
 
   // -------------------------------------------------------------
-  // MAIN LANTERNWAVE APP (header restored)
+  // MAIN LANTERNWAVE APP (header)
   // -------------------------------------------------------------
   return (
     <div className="lw-root">
@@ -53,13 +56,25 @@ function App() {
         </div>
 
         <nav className="lw-nav">
+
+          {/* FIXED: Correct Campaign Manager path */}
           <NavLink
-            to="/mission-manager"
+            to="/campaign-manager"
             className={({ isActive }) =>
               "lw-nav-link" + (isActive ? " lw-nav-link-active" : "")
             }
           >
             Campaign Manager
+          </NavLink>
+
+          {/* NEW: Global Search */}
+          <NavLink
+            to="/search"
+            className={({ isActive }) =>
+              "lw-nav-link" + (isActive ? " lw-nav-link-active" : "")
+            }
+          >
+            Search
           </NavLink>
 
           <NavLink
@@ -88,10 +103,14 @@ function App() {
           <Route path="/" element={<ControllerPage />} />
           <Route path="/player" element={<PlayerPage />} />
 
-          {/* Privacy Policy (for Twilio) */}
+          {/* NEW ROUTES */}
+          <Route path="/campaign-manager" element={<CampaignManager />} />
+          <Route path="/search" element={<SearchPage />} />
+
+          {/* Privacy Policy */}
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
 
-          {/* Fallback */}
+          {/* 404 */}
           <Route
             path="*"
             element={
