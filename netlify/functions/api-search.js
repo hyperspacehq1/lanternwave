@@ -176,7 +176,7 @@ Only rank results actually returned by the DB, never invent anything.
 /* ----------------------------------------------
    MAIN HANDLER — Netlify 2025
 ---------------------------------------------- */
-export default async function handler(request: NetlifyRequest) {
+export default async function handler(request) {
   try {
     const term = request.query.get("q");
 
