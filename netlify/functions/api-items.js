@@ -1,47 +1,47 @@
-// netlify/functions/api-npcs.js
+// netlify/functions/api-items.js
 import { NetlifyRequest, NetlifyResponse } from "@netlify/functions";
 import { query } from "../util/db.js";
 import { requireAdmin } from "../util/auth.js";
 
 /* -----------------------------------------------------------
-   GET /api-npcs
-   - ?id=UUID              → get a single NPC
-   - ?campaign_id=UUID     → NPCs appearing in events for that campaign
-   - ?session_id=UUID      → NPCs appearing in events for that session
-   - none                  → list all NPCs
+   GET /api-items
+   - ?id=UUID             → fetch one item
+   - ?event_id=UUID       → items attached to an event
+   - none                 → list all items
 ------------------------------------------------------------ */
 async function handleGET(request) {
   const id = request.query.get("id");
-  const campaignId = request.query.get("campaign_id");
-  const sessionId = request.query.get("session_id");
+  const eventId = request.query.get("event_id");
 
   /* ---------------------------------------------
-     GET ONE NPC
+     GET SINGLE ITEM + linked events
   --------------------------------------------- */
   if (id) {
-    const npcRes = await query(
+    const itemRes = await query(
       `SELECT *
-       FROM npcs
-       WHERE id = $1
-       LIMIT 1`,
+         FROM items
+         WHERE id = $1
+         LIMIT 1`,
       [id]
     );
 
-    if (npcRes.rows.length === 0) {
+    if (itemRes.rows.length === 0) {
       return NetlifyResponse.json(
-        { error: "NPC not found" },
+        { error: "Item not found" },
         { status: 404 }
       );
     }
 
-    // Also return events this NPC participates in
+    const item = itemRes.rows[0];
+
+    // Also return the events this item is used in
     const events = (
       await query(
         `
         SELECT e.*
-        FROM event_npcs en
-        JOIN events e ON e.id = en.event_id
-        WHERE en.npc_id = $1
+        FROM event_items ei
+        JOIN events e ON e.id = ei.event_id
+        WHERE ei.item_id = $1
         ORDER BY e.created_at ASC
         `,
         [id]
@@ -49,115 +49,75 @@ async function handleGET(request) {
     ).rows;
 
     return NetlifyResponse.json({
-      ...npcRes.rows[0],
+      ...item,
       events,
     });
   }
 
   /* ---------------------------------------------
-     NPCs linked to a CAMPAIGN (via events)
+     GET ITEMS LINKED TO AN EVENT
   --------------------------------------------- */
-  if (campaignId) {
+  if (eventId) {
     const result = await query(
       `
-      SELECT DISTINCT n.*
-      FROM npcs n
-      JOIN event_npcs en ON en.npc_id = n.id
-      JOIN events e ON e.id = en.event_id
-      WHERE e.campaign_id = $1
-      ORDER BY n.first_name ASC, n.last_name ASC
+      SELECT items.*
+      FROM event_items ei
+      JOIN items ON items.id = ei.item_id
+      WHERE ei.event_id = $1
+      ORDER BY items.description ASC
       `,
-      [campaignId]
+      [eventId]
     );
+
     return NetlifyResponse.json(result.rows);
   }
 
   /* ---------------------------------------------
-     NPCs linked to a SESSION (via events)
-  --------------------------------------------- */
-  if (sessionId) {
-    const result = await query(
-      `
-      SELECT DISTINCT n.*
-      FROM npcs n
-      JOIN event_npcs en ON en.npc_id = n.id
-      JOIN events e ON e.id = en.event_id
-      WHERE e.session_id = $1
-      ORDER BY n.first_name ASC, n.last_name ASC
-      `,
-      [sessionId]
-    );
-    return NetlifyResponse.json(result.rows);
-  }
-
-  /* ---------------------------------------------
-     GET ALL NPCs
+     GET ALL ITEMS
   --------------------------------------------- */
   const result = await query(
     `SELECT *
-     FROM npcs
-     ORDER BY first_name ASC, last_name ASC`
+     FROM items
+     ORDER BY description ASC`
   );
 
   return NetlifyResponse.json(result.rows);
 }
 
 /* -----------------------------------------------------------
-   POST /api-npcs
-   Create NPC
+   POST /api-items
+   Create new item
 ------------------------------------------------------------ */
 async function handlePOST(request) {
   const auth = requireAdmin(request.headers);
   if (!auth.ok) return auth.response;
 
   const body = await request.json();
-  const {
-    first_name,
-    last_name,
-    npc_type,
-    data,
-    personality,
-    goals,
-    faction_alignment,
-    secrets,
-    state,
-  } = body;
+  const { description, notes } = body;
 
-  if (!first_name) {
+  if (!description) {
     return NetlifyResponse.json(
-      { error: "first_name is required" },
+      { error: "description is required" },
       { status: 400 }
     );
   }
 
   const result = await query(
     `
-    INSERT INTO npcs
-      (first_name, last_name, npc_type, data, personality,
-       goals, faction_alignment, secrets, state, created_at, updated_at)
-    VALUES ($1, $2, $3, $4, $5,
-            $6, $7, $8, $9, NOW(), NOW())
+    INSERT INTO items
+      (description, notes, created_at, updated_at)
+    VALUES ($1, $2, NOW(), NOW())
     RETURNING *
     `,
-    [
-      first_name,
-      last_name || "",
-      npc_type || "neutral",
-      data || "",
-      personality || "",
-      goals || "",
-      faction_alignment || "",
-      secrets || "",
-      state || "alive",
-    ]
+    [description, notes || ""]
   );
 
   return NetlifyResponse.json(result.rows[0], { status: 201 });
 }
 
 /* -----------------------------------------------------------
-   PUT /api-npcs?id=UUID
-   Update NPC
+   PUT /api-items?id=UUID
+   Update item
 ------------------------------------------------------------ */
 async function handlePUT(request) {
   const auth = requireAdmin(request.headers);
@@ -172,52 +132,23 @@ async function handlePUT(request) {
   }
 
   const body = await request.json();
-
-  const {
-    first_name,
-    last_name,
-    npc_type,
-    data,
-    personality,
-    goals,
-    faction_alignment,
-    secrets,
-    state,
-  } = body;
+  const { description, notes } = body;
 
   const result = await query(
     `
-    UPDATE npcs
-    SET first_name        = COALESCE($2, first_name),
-        last_name         = COALESCE($3, last_name),
-        npc_type          = COALESCE($4, npc_type),
-        data              = COALESCE($5, data),
-        personality       = COALESCE($6, personality),
-        goals             = COALESCE($7, goals),
-        faction_alignment = COALESCE($8, faction_alignment),
-        secrets           = COALESCE($9, secrets),
-        state             = COALESCE($10, state),
-        updated_at        = NOW()
+    UPDATE items
+    SET description = COALESCE($2, description),
+        notes       = COALESCE($3, notes),
+        updated_at  = NOW()
     WHERE id = $1
     RETURNING *
     `,
-    [
-      id,
-      first_name,
-      last_name,
-      npc_type,
-      data,
-      personality,
-      goals,
-      faction_alignment,
-      secrets,
-      state,
-    ]
+    [id, description, notes]
   );
 
   if (result.rows.length === 0) {
     return NetlifyResponse.json(
-      { error: "NPC not found" },
+      { error: "Item not found" },
       { status: 404 }
     );
   }
@@ -226,8 +157,8 @@ async function handlePUT(request) {
 }
 
 /* -----------------------------------------------------------
-   DELETE /api-npcs?id=UUID
-   Deletes NPC + event associations
+   DELETE /api-items?id=UUID
+   Deletes item + event links
 ------------------------------------------------------------ */
 async function handleDELETE(request) {
   const auth = requireAdmin(request.headers);
@@ -242,9 +173,9 @@ async function handleDELETE(request) {
     );
   }
 
-  // Will automatically cascade delete links if FKs use ON DELETE CASCADE
+  // Cascades cleanly if FK uses ON DELETE CASCADE
   const result = await query(
-    `DELETE FROM npcs
+    `DELETE FROM items
      WHERE id = $1
      RETURNING id`,
     [id]
@@ -252,7 +183,7 @@ async function handleDELETE(request) {
 
   if (result.rows.length === 0) {
     return NetlifyResponse.json(
-      { error: "NPC not found" },
+      { error: "Item not found" },
       { status: 404 }
     );
   }
@@ -286,7 +217,7 @@ export default async function handler(request: NetlifyRequest) {
         );
     }
   } catch (err) {
-    console.error("api-npcs error:", err);
+    console.error("api-items error:", err);
     return NetlifyResponse.json(
       { error: err.message || "Internal Server Error" },
       { status: 500 }

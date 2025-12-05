@@ -1,47 +1,51 @@
-// netlify/functions/api-npcs.js
+// netlify/functions/api-locations.js
 import { NetlifyRequest, NetlifyResponse } from "@netlify/functions";
 import { query } from "../util/db.js";
 import { requireAdmin } from "../util/auth.js";
 
 /* -----------------------------------------------------------
-   GET /api-npcs
-   - ?id=UUID              → get a single NPC
-   - ?campaign_id=UUID     → NPCs appearing in events for that campaign
-   - ?session_id=UUID      → NPCs appearing in events for that session
-   - none                  → list all NPCs
+   GET /api-locations
+   - ?id=UUID             → fetch one location + events
+   - ?event_id=UUID       → locations linked to an event
+   - ?session_id=UUID     → locations used in that session’s events
+   - ?campaign_id=UUID    → locations used in that campaign’s events
+   - none                 → list all locations
 ------------------------------------------------------------ */
 async function handleGET(request) {
   const id = request.query.get("id");
-  const campaignId = request.query.get("campaign_id");
+  const eventId = request.query.get("event_id");
   const sessionId = request.query.get("session_id");
+  const campaignId = request.query.get("campaign_id");
 
   /* ---------------------------------------------
-     GET ONE NPC
+     GET SINGLE LOCATION + linked events
   --------------------------------------------- */
   if (id) {
-    const npcRes = await query(
+    const locRes = await query(
       `SELECT *
-       FROM npcs
+       FROM locations
        WHERE id = $1
        LIMIT 1`,
       [id]
     );
 
-    if (npcRes.rows.length === 0) {
+    if (locRes.rows.length === 0) {
       return NetlifyResponse.json(
-        { error: "NPC not found" },
+        { error: "Location not found" },
         { status: 404 }
       );
     }
 
-    // Also return events this NPC participates in
+    const location = locRes.rows[0];
+
+    // Fetch events where this location appears
     const events = (
       await query(
         `
         SELECT e.*
-        FROM event_npcs en
-        JOIN events e ON e.id = en.event_id
-        WHERE en.npc_id = $1
+        FROM event_locations el
+        JOIN events e ON e.id = el.event_id
+        WHERE el.location_id = $1
         ORDER BY e.created_at ASC
         `,
         [id]
@@ -49,41 +53,40 @@ async function handleGET(request) {
     ).rows;
 
     return NetlifyResponse.json({
-      ...npcRes.rows[0],
+      ...location,
       events,
     });
   }
 
   /* ---------------------------------------------
-     NPCs linked to a CAMPAIGN (via events)
+     GET LOCATIONS LINKED TO A SPECIFIC EVENT
   --------------------------------------------- */
-  if (campaignId) {
+  if (eventId) {
     const result = await query(
       `
-      SELECT DISTINCT n.*
-      FROM npcs n
-      JOIN event_npcs en ON en.npc_id = n.id
-      JOIN events e ON e.id = en.event_id
-      WHERE e.campaign_id = $1
-      ORDER BY n.first_name ASC, n.last_name ASC
+      SELECT l.*
+      FROM event_locations el
+      JOIN locations l ON l.id = el.location_id
+      WHERE el.event_id = $1
+      ORDER BY l.description ASC
       `,
-      [campaignId]
+      [eventId]
     );
     return NetlifyResponse.json(result.rows);
   }
 
   /* ---------------------------------------------
-     NPCs linked to a SESSION (via events)
+     GET LOCATIONS USED BY A SESSION'S EVENTS
   --------------------------------------------- */
   if (sessionId) {
     const result = await query(
       `
-      SELECT DISTINCT n.*
-      FROM npcs n
-      JOIN event_npcs en ON en.npc_id = n.id
-      JOIN events e ON e.id = en.event_id
+      SELECT DISTINCT l.*
+      FROM event_locations el
+      JOIN locations l ON l.id = el.location_id
+      JOIN events e ON e.id = el.event_id
       WHERE e.session_id = $1
-      ORDER BY n.first_name ASC, n.last_name ASC
+      ORDER BY l.description ASC
       `,
       [sessionId]
     );
@@ -91,20 +94,38 @@ async function handleGET(request) {
   }
 
   /* ---------------------------------------------
-     GET ALL NPCs
+     GET LOCATIONS USED BY A CAMPAIGN'S EVENTS
+  --------------------------------------------- */
+  if (campaignId) {
+    const result = await query(
+      `
+      SELECT DISTINCT l.*
+      FROM event_locations el
+      JOIN locations l ON l.id = el.location_id
+      JOIN events e ON e.id = el.event_id
+      WHERE e.campaign_id = $1
+      ORDER BY l.description ASC
+      `,
+      [campaignId]
+    );
+    return NetlifyResponse.json(result.rows);
+  }
+
+  /* ---------------------------------------------
+     GET ALL LOCATIONS
   --------------------------------------------- */
   const result = await query(
     `SELECT *
-     FROM npcs
-     ORDER BY first_name ASC, last_name ASC`
+     FROM locations
+     ORDER BY description ASC`
   );
 
   return NetlifyResponse.json(result.rows);
 }
 
 /* -----------------------------------------------------------
-   POST /api-npcs
-   Create NPC
+   POST /api-locations
+   Create new location
 ------------------------------------------------------------ */
 async function handlePOST(request) {
   const auth = requireAdmin(request.headers);
@@ -112,43 +133,41 @@ async function handlePOST(request) {
 
   const body = await request.json();
   const {
-    first_name,
-    last_name,
-    npc_type,
-    data,
-    personality,
-    goals,
-    faction_alignment,
-    secrets,
+    description,
+    street,
+    city,
     state,
+    zip,
+    notes,
+    secrets,
+    points_of_interest,
   } = body;
 
-  if (!first_name) {
+  if (!description) {
     return NetlifyResponse.json(
-      { error: "first_name is required" },
+      { error: "description is required" },
       { status: 400 }
     );
   }
 
   const result = await query(
     `
-    INSERT INTO npcs
-      (first_name, last_name, npc_type, data, personality,
-       goals, faction_alignment, secrets, state, created_at, updated_at)
-    VALUES ($1, $2, $3, $4, $5,
-            $6, $7, $8, $9, NOW(), NOW())
+    INSERT INTO locations
+      (description, street, city, state, zip, notes,
+       secrets, points_of_interest, created_at, updated_at)
+    VALUES ($1, $2, $3, $4, $5, $6,
+            $7, $8, NOW(), NOW())
     RETURNING *
     `,
     [
-      first_name,
-      last_name || "",
-      npc_type || "neutral",
-      data || "",
-      personality || "",
-      goals || "",
-      faction_alignment || "",
+      description,
+      street || "",
+      city || "",
+      state || "",
+      zip || "",
+      notes || "",
       secrets || "",
-      state || "alive",
+      points_of_interest || "",
     ]
   );
 
@@ -156,8 +175,8 @@ async function handlePOST(request) {
 }
 
 /* -----------------------------------------------------------
-   PUT /api-npcs?id=UUID
-   Update NPC
+   PUT /api-locations?id=UUID
+   Update a location
 ------------------------------------------------------------ */
 async function handlePUT(request) {
   const auth = requireAdmin(request.headers);
@@ -172,52 +191,48 @@ async function handlePUT(request) {
   }
 
   const body = await request.json();
-
   const {
-    first_name,
-    last_name,
-    npc_type,
-    data,
-    personality,
-    goals,
-    faction_alignment,
-    secrets,
+    description,
+    street,
+    city,
     state,
+    zip,
+    notes,
+    secrets,
+    points_of_interest,
   } = body;
 
   const result = await query(
     `
-    UPDATE npcs
-    SET first_name        = COALESCE($2, first_name),
-        last_name         = COALESCE($3, last_name),
-        npc_type          = COALESCE($4, npc_type),
-        data              = COALESCE($5, data),
-        personality       = COALESCE($6, personality),
-        goals             = COALESCE($7, goals),
-        faction_alignment = COALESCE($8, faction_alignment),
-        secrets           = COALESCE($9, secrets),
-        state             = COALESCE($10, state),
-        updated_at        = NOW()
+    UPDATE locations
+    SET description        = COALESCE($2, description),
+        street             = COALESCE($3, street),
+        city               = COALESCE($4, city),
+        state              = COALESCE($5, state),
+        zip                = COALESCE($6, zip),
+        notes              = COALESCE($7, notes),
+        secrets            = COALESCE($8, secrets),
+        points_of_interest = COALESCE($9, points_of_interest),
+        updated_at         = NOW()
     WHERE id = $1
     RETURNING *
     `,
     [
       id,
-      first_name,
-      last_name,
-      npc_type,
-      data,
-      personality,
-      goals,
-      faction_alignment,
-      secrets,
+      description,
+      street,
+      city,
       state,
+      zip,
+      notes,
+      secrets,
+      points_of_interest,
     ]
   );
 
   if (result.rows.length === 0) {
     return NetlifyResponse.json(
-      { error: "NPC not found" },
+      { error: "Location not found" },
       { status: 404 }
     );
   }
@@ -226,15 +241,14 @@ async function handlePUT(request) {
 }
 
 /* -----------------------------------------------------------
-   DELETE /api-npcs?id=UUID
-   Deletes NPC + event associations
+   DELETE /api-locations?id=UUID
+   Deletes location + event links
 ------------------------------------------------------------ */
 async function handleDELETE(request) {
   const auth = requireAdmin(request.headers);
   if (!auth.ok) return auth.response;
 
   const id = request.query.get("id");
-
   if (!id) {
     return NetlifyResponse.json(
       { error: "id is required" },
@@ -242,17 +256,18 @@ async function handleDELETE(request) {
     );
   }
 
-  // Will automatically cascade delete links if FKs use ON DELETE CASCADE
   const result = await query(
-    `DELETE FROM npcs
-     WHERE id = $1
-     RETURNING id`,
+    `
+    DELETE FROM locations
+    WHERE id = $1
+    RETURNING id
+    `,
     [id]
   );
 
   if (result.rows.length === 0) {
     return NetlifyResponse.json(
-      { error: "NPC not found" },
+      { error: "Location not found" },
       { status: 404 }
     );
   }
@@ -286,7 +301,7 @@ export default async function handler(request: NetlifyRequest) {
         );
     }
   } catch (err) {
-    console.error("api-npcs error:", err);
+    console.error("api-locations error:", err);
     return NetlifyResponse.json(
       { error: err.message || "Internal Server Error" },
       { status: 500 }

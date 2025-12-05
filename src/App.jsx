@@ -1,12 +1,9 @@
 // src/App.jsx
 import React, { useState } from "react";
 import { Routes, Route, NavLink } from "react-router-dom";
-
 import ControllerPage from "./pages/Controller.jsx";
 import PlayerPage from "./pages/PlayerPage.jsx";
-import MissionManagerPage from "./pages/MissionManagerPage.jsx";
 import PrivacyPolicy from "./pages/PrivacyPolicy.jsx";
-
 import AccessGate from "./pages/AccessGate.jsx";
 import { LogoMark } from "./components/LogoMark.jsx";
 
@@ -90,7 +87,6 @@ function App() {
         <Routes>
           <Route path="/" element={<ControllerPage />} />
           <Route path="/player" element={<PlayerPage />} />
-          <Route path="/mission-manager" element={<MissionManagerPage />} />
 
           {/* Privacy Policy (for Twilio) */}
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
