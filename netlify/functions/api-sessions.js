@@ -184,7 +184,7 @@ async function handleDELETE(request) {
 /* -----------------------------------------------------------
    MAIN HANDLER — Netlify 2025
 ------------------------------------------------------------ */
-export default async function handler(request: NetlifyRequest) {
+export default async function handler(request) {
   try {
     switch (request.method) {
       case "GET":

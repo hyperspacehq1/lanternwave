@@ -65,7 +65,7 @@ async function generateEmbedding(text) {
 /* ----------------------------------------------
    MAIN HANDLER — Netlify 2025
 ---------------------------------------------- */
-export default async function handler(request: NetlifyRequest) {
+export default async function handler(request) {
   try {
     const table = request.query.get("table");
 

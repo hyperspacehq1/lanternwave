@@ -104,7 +104,7 @@ async function searchAllTables(term) {
 /* -----------------------------------------------------------
    Main Handler — Netlify 2025 format
 ------------------------------------------------------------ */
-export default async function handler(request: NetlifyRequest) {
+export default async function handler(request) {
   try {
     const term = request.query.get("q") || "";
     if (!term.trim()) {
