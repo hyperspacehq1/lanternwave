@@ -1,11 +1,11 @@
-/* Root isolation: prevents style.css from overriding */
+/* Root isolation */
 .search-root .lw-search-root {
   padding: 50px;
   min-height: calc(100vh - 90px);
   background: rgba(0, 0, 0, 0.82);
 }
 
-/* TITLES */
+/* ------------ TITLES ------------- */
 .search-root .lw-search-title {
   font-family: "MU-TH-UR";
   text-transform: uppercase;
@@ -14,7 +14,6 @@
   letter-spacing: 0.22em;
   margin-bottom: 10px;
 }
-
 .search-root .lw-search-subtitle {
   font-family: "MU-TH-UR";
   text-transform: uppercase;
@@ -24,10 +23,10 @@
   margin-bottom: 25px;
 }
 
-/* INPUT */
+/* ------------ INPUT ------------- */
 .search-root .lw-search-input {
   width: 540px;
-  padding: 16px 18px;
+  padding: 16px 20px;
   background: rgba(0, 0, 0, 0.45);
   border: 1px solid rgba(108, 196, 23, 0.5);
   border-radius: 12px;
@@ -35,111 +34,158 @@
   font-size: 22px;
   color: rgb(229, 255, 227);
 }
-
-.search-root .lw-search-input::placeholder {
-  color: rgba(229, 255, 227, 0.4);
-}
-
 .search-root .lw-search-input:focus {
   outline: none;
   border-color: rgb(108, 196, 23);
   box-shadow: 0 0 14px rgba(108, 196, 23, 0.7);
 }
 
-/* AI SUMMARY PANEL */
+/* ------------ AI SUMMARY ------------- */
 .search-root .lw-ai-summary {
   background: rgba(0, 0, 0, 0.35);
   border: 1px solid rgba(108, 196, 23, 0.4);
-  margin-top: 28px;
   border-radius: 12px;
-  overflow: hidden;
+  margin-top: 28px;
 }
-
 .search-root .lw-ai-summary-header {
   padding: 14px 18px;
   font-family: "MU-TH-UR";
-  font-size: 18px;
   letter-spacing: 0.15em;
-  text-transform: uppercase;
-  color: rgb(124, 168, 120);
   display: flex;
   justify-content: space-between;
   cursor: pointer;
+  color: rgb(124, 168, 120);
 }
-
 .search-root .lw-ai-body {
   padding: 18px;
-  font-family: "VT323", monospace;
-  font-size: 20px;
-  line-height: 28px;
+  font-family: "VT323";
   color: rgb(229, 255, 227);
+  font-size: 20px;
 }
 
-/* RESULTS LIST */
+/* ------------ CARD LIST----------- */
 .search-root .lw-results-list {
-  margin-top: 34px;
+  margin-top: 40px;
   display: grid;
-  gap: 25px;
-  max-width: 900px;
+  gap: 28px;
 }
 
-/* CARD */
+/* Smooth fade/slide animation */
+.fade-in {
+  animation: fadeUp 0.4s ease;
+}
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ------------ RESULT CARDS ----------- */
 .search-root .lw-result-card {
-  border: 1px solid rgba(108, 196, 23, 0.35);
   background: rgba(0, 0, 0, 0.55);
-  padding: 20px;
   border-radius: 12px;
-  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+  padding: 20px;
+  cursor: pointer;
+  transition: 0.18s ease;
+  border-right: 1px solid rgba(108, 196, 23, 0.25);
 }
 
 .search-root .lw-result-card:hover {
-  border-color: rgba(108, 196, 23, 0.8);
-  box-shadow: 0 0 14px rgba(108, 196, 23, 0.65);
+  transform: scale(1.015);
+  box-shadow: 0 0 16px rgba(108, 196, 23, 0.55);
 }
 
-/* TYPE CHIP / SIMILARITY */
+/* header */
 .search-root .lw-result-header {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
+/* type chip */
 .search-root .lw-type-chip {
   padding: 4px 10px;
-  font-family: "VT323", monospace;
-  font-size: 16px;
   border-radius: 6px;
-  text-transform: uppercase;
+  font-family: "VT323";
+  font-size: 14px;
   color: #000;
 }
 
+/* similarity */
 .search-root .lw-similarity {
-  font-family: "VT323", monospace;
+  font-family: "VT323";
   font-size: 16px;
   color: rgb(229, 255, 227);
 }
 
-/* TITLE */
+/* title */
 .search-root .lw-result-title {
   font-family: "MU-TH-UR";
   font-size: 20px;
-  color: rgb(124, 168, 120);
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  margin-bottom: 12px;
+  color: rgb(124, 168, 120);
+  margin-bottom: 10px;
 }
 
-/* BODY */
+/* body */
 .search-root .lw-result-body {
-  font-family: "VT323", monospace;
-  color: rgb(229, 255, 227);
+  font-family: "VT323";
   font-size: 20px;
+  color: rgb(229, 255, 227);
   line-height: 30px;
 }
 
-/* NO RESULTS */
-.search-root .lw-no-results {
+/* ------------ MODAL ----------- */
+.search-root .lw-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.75);
+  backdrop-filter: blur(4px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.search-root .lw-modal {
+  width: 620px;
+  max-height: 80vh;
+  overflow-y: auto;
+  background: rgba(0,0,0,0.85);
+  border: 1px solid rgba(108,196,23,0.4);
+  border-radius: 16px;
+  padding: 20px;
+  animation: fadeUp 0.3s ease;
+}
+
+.search-root .lw-modal-header {
+  font-family: "MU-TH-UR";
+  font-size: 22px;
+  color: rgb(124,168,120);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.search-root .lw-modal-close {
+  background: transparent;
+  border: 1px solid rgba(255,80,80,0.8);
+  color: rgba(255,80,80,1);
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.search-root .lw-modal-meta {
   font-family: "VT323";
-  color: rgba(229, 255, 227, 0.4);
-  margin-top: 20px;
+  font-size: 18px;
+  color: rgb(229,255,227);
+  margin-bottom: 14px;
+}
+
+.search-root .lw-modal-body {
+  font-family: "VT323";
+  color: rgb(229,255,227);
+  font-size: 20px;
+  line-height: 30px;
 }
