@@ -1,7 +1,13 @@
-// src/campaignManager/CampaignManager.jsx
-import React, { useState, useMemo } from "react";
+// ===== CampaignManager.jsx — Part 1 of 4 =====
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useRef,
+} from "react";
 import "./campaignManager.css";
 
+// Available containers (left sidebar)
 const CONTAINER_TYPES = [
   { id: "campaigns", label: "Campaigns" },
   { id: "sessions", label: "Sessions" },
@@ -18,121 +24,307 @@ const CONTAINER_TYPES = [
 
 const FAKE_ID = () => Math.random().toString(36).substring(2, 10);
 
-const createMockData = () => ({
-  campaigns: [
-    {
-      id: FAKE_ID(),
-      name: "Echoes of Beacon Island",
-      description:
-        "A coastal horror campaign with creeping fog and missing fishermen.",
-      worldSetting: "1920s New England",
-      date: "11/29/2025",
-    },
-  ],
-  sessions: [
-    {
-      id: FAKE_ID(),
-      campaignId: "",
-      description: "Session 1: The Ferry to Beacon Island",
-      geography: "Harbor, ferry, shoreline",
-      notes: "Open with the fog rolling in...",
-      history: "Player intro session.",
-      events: [],
-      encounters: [],
-    },
-  ],
-  events: [
-    {
-      id: FAKE_ID(),
-      description: "Fog Horn Malfunction",
-      type: "Normal",
-      weather: "Fog / Mist",
-      triggerDetail: "",
-      npcs: [],
-      locations: [],
-      items: [],
-      priority: 3,
-      countdownMinutes: null,
-    },
-  ],
-  playerCharacters: [],
-  npcs: [],
-  encounters: [],
-  quests: [],
-  locations: [],
-  items: [],
-  lore: [],
-  logs: [],
-});
-
-/* Collapsible section for detail view */
-const CMSection = ({ title, children }) => {
-  const [open, setOpen] = useState(true);
-  return (
-    <section className="lw-cm-section">
-      <header
-        className="lw-cm-section-header"
-        onClick={() => setOpen((prev) => !prev)}
-      >
-        <span>{title}</span>
-        <span className="lw-cm-section-toggle">{open ? "▲" : "▼"}</span>
-      </header>
-      <div
-        className={
-          "lw-cm-section-content" + (open ? " lw-cm-section-content-open" : "")
-        }
-      >
-        {children}
-      </div>
-    </section>
-  );
+// Netlify 2025 endpoint map
+const API_ENDPOINTS = {
+  campaigns: "/.netlify/functions/api-campaigns",
+  sessions: "/.netlify/functions/api-sessions",
+  events: "/.netlify/functions/api-events",
+  playerCharacters: "/.netlify/functions/api-player-characters",
+  npcs: "/.netlify/functions/api-npcs",
+  encounters: "/.netlify/functions/api-encounters",
+  quests: "/.netlify/functions/api-quests",
+  locations: "/.netlify/functions/api-locations",
+  items: "/.netlify/functions/api-items",
+  lore: "/.netlify/functions/api-lore",
+  logs: "/.netlify/functions/api-logs",
 };
 
-const CampaignManager = () => {
-  const [data, setData] = useState(createMockData);
+// Read admin key used by requireAdmin() in Netlify functions
+const getAdminKey = () =>
+  typeof window === "undefined"
+    ? ""
+    : window.localStorage.getItem("lwAdminKey") || "";
+
+/**
+ * Map DB row -> UI shape (snake_case -> camelCase)
+ */
+function fromApi(type, row) {
+  if (!row) return null;
+
+  switch (type) {
+    case "campaigns":
+      return {
+        id: row.id,
+        name: row.name || "",
+        description: row.description || "",
+        worldSetting: row.world_setting || "",
+        date: row.campaign_date || "",
+      };
+
+    case "sessions":
+      return {
+        id: row.id,
+        campaignId: row.campaign_id,
+        description: row.description || "",
+        geography: row.geography || "",
+        notes: row.notes || "",
+        history: row.history || "",
+      };
+
+    case "locations":
+      return {
+        id: row.id,
+        description: row.description || "",
+        street: row.street || "",
+        city: row.city || "",
+        state: row.state || "",
+        zip: row.zip || "",
+        notes: row.notes || "",
+        secrets: row.secrets || "",
+        pointsOfInterest: row.points_of_interest || "",
+      };
+
+    default:
+      // For entities not yet normalized, just pass through
+      return { ...row };
+  }
+}
+
+/**
+ * Map UI record -> payload expected by Netlify 2025 functions (camelCase -> snake_case)
+ */
+function toApi(type, record) {
+  switch (type) {
+    case "campaigns":
+      return {
+        name: record.name,
+        description: record.description,
+        world_setting: record.worldSetting,
+        campaign_date: record.date || null,
+      };
+
+    case "sessions":
+      return {
+        campaign_id: record.campaignId,
+        description: record.description,
+        geography: record.geography,
+        notes: record.notes,
+        history: record.history,
+      };
+
+    case "locations":
+      return {
+        description: record.description,
+        street: record.street,
+        city: record.city,
+        state: record.state,
+        zip: record.zip,
+        notes: record.notes,
+        secrets: record.secrets,
+        points_of_interest: record.pointsOfInterest,
+      };
+
+    default: {
+      // For now, just strip the _isNew flag and send everything else
+      const { _isNew, ...rest } = record;
+      return rest;
+    }
+  }
+}
+export default function CampaignManager() {
+  // ----- GLOBAL STATE -----
   const [activeType, setActiveType] = useState("campaigns");
+
+  const [data, setData] = useState({
+    campaigns: [],
+    sessions: [],
+    events: [],
+    playerCharacters: [],
+    npcs: [],
+    encounters: [],
+    quests: [],
+    locations: [],
+    items: [],
+    lore: [],
+    logs: [],
+  });
+
   const [selectedRecord, setSelectedRecord] = useState(null);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [rememberStateToken] = useState(FAKE_ID());
-  const [isDirty, setIsDirty] = useState(false);
+  const [selectedCampaignGlobal, setSelectedCampaignGlobal] = useState(null);
 
-  // fullscreen MU-TH-UR focus editor
-  const [focusEditor, setFocusEditor] = useState(null); // { label, value, onChange }
+  const [saveStatus, setSaveStatus] = useState("idle"); // idle | unsaved | saving | saved | error
+  const autosaveTimer = useRef(null);
 
-  const currentList = data[activeType] || [];
+  // MU/TH/UR Modal Warning for Sessions
+  const [warningMessage, setWarningMessage] = useState("");
+  const [showWarningModal, setShowWarningModal] = useState(false);
 
-  const filteredList = useMemo(() => {
-    if (!searchTerm.trim()) return currentList;
-    const term = searchTerm.toLowerCase();
-    return currentList.filter((item) =>
-      JSON.stringify(item).toLowerCase().includes(term)
+  const showCampaignWarning = () => {
+    setWarningMessage(
+      "Select or create a Campaign before you select/create a Session."
     );
-  }, [currentList, searchTerm]);
+    setShowWarningModal(true);
+  };
 
-  const metaSearchResults = useMemo(() => {
-    if (!searchTerm.trim()) return [];
-    const term = searchTerm.toLowerCase();
-    const results = [];
-    CONTAINER_TYPES.forEach((t) => {
-      const list = data[t.id] || [];
-      list.forEach((record) => {
-        const haystack = JSON.stringify(record).toLowerCase();
-        if (haystack.includes(term)) {
-          results.push({
-            typeId: t.id,
-            typeLabel: t.label,
-            record,
-          });
-        }
+  // ---------------------------------------------
+  // LOAD INITIAL DATA FROM NETLIFY 2025 FUNCTIONS
+  // ---------------------------------------------
+  useEffect(() => {
+    loadInitialData();
+  }, []);
+
+  async function loadInitialData() {
+    const adminKey = getAdminKey();
+    const headers = adminKey ? { "x-admin-key": adminKey } : {};
+
+    try {
+      // 1) Load campaigns
+      const campaignsRes = await fetch(API_ENDPOINTS.campaigns, {
+        headers,
       });
-    });
-    return results.slice(0, 10);
-  }, [searchTerm, data]);
 
-  const isDetailOpen = !!selectedRecord;
+      if (campaignsRes.ok) {
+        const rows = await campaignsRes.json();
+        const campaigns = rows.map((r) => fromApi("campaigns", r));
 
+        setData((prev) => ({ ...prev, campaigns }));
+
+        if (campaigns.length > 0) {
+          setSelectedCampaignGlobal(campaigns[0]);
+        }
+      }
+    } catch (err) {
+      console.error("Error loading campaigns:", err);
+    }
+  }
+
+  // once a campaign is selected, load sessions for that campaign
+  useEffect(() => {
+    if (selectedCampaignGlobal?.id) {
+      loadSessionsForCampaign(selectedCampaignGlobal.id);
+    }
+  }, [selectedCampaignGlobal]);
+
+  async function loadSessionsForCampaign(campaignId) {
+    const adminKey = getAdminKey();
+    const headers = adminKey ? { "x-admin-key": adminKey } : {};
+
+    try {
+      const res = await fetch(
+        `${API_ENDPOINTS.sessions}?campaign_id=${encodeURIComponent(
+          campaignId
+        )}`,
+        { headers }
+      );
+
+      if (!res.ok) return;
+
+      const rows = await res.json();
+      const sessions = rows.map((r) => fromApi("sessions", r));
+
+      setData((prev) => ({ ...prev, sessions }));
+    } catch (err) {
+      console.error("Error loading sessions:", err);
+    }
+  }
+
+  // ---------------------------------------------
+  // AUTOSAVE ENGINE
+  // ---------------------------------------------
+  const triggerAutosave = (updatedRecord) => {
+    setSaveStatus("unsaved");
+
+    if (autosaveTimer.current) {
+      clearTimeout(autosaveTimer.current);
+    }
+
+    autosaveTimer.current = setTimeout(() => {
+      saveRecord(updatedRecord);
+    }, 400);
+  };
+
+  async function saveRecord(record) {
+    if (!record) return;
+    setSaveStatus("saving");
+
+    const adminKey = getAdminKey();
+    const headers = {
+      "Content-Type": "application/json",
+      ...(adminKey ? { "x-admin-key": adminKey } : {}),
+    };
+
+    const endpoint = API_ENDPOINTS[activeType];
+    if (!endpoint) {
+      console.warn("No API endpoint for type:", activeType);
+      return;
+    }
+
+    const isNew = record._isNew || !record.id;
+    const payload = toApi(activeType, record);
+
+    try {
+      const url = isNew
+        ? endpoint // POST
+        : `${endpoint}?id=${encodeURIComponent(record.id)}`; // PUT
+
+      const method = isNew ? "POST" : "PUT";
+
+      const res = await fetch(url, {
+        method,
+        headers,
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        console.error("Save failed:", res.status, await res.text());
+        setSaveStatus("error");
+        return;
+      }
+
+      const saved = await res.json();
+      const normalized = fromApi(activeType, saved);
+
+      // Update local state with saved record
+      setData((prev) => ({
+        ...prev,
+        [activeType]: prev[activeType].map((item) =>
+          item.id === normalized.id ? normalized : item
+        ),
+      }));
+
+      setSaveStatus("saved");
+      setSelectedRecord(normalized);
+    } catch (err) {
+      console.error("Autosave error:", err);
+      setSaveStatus("error");
+    }
+  }
+
+  // ---------------------------------------------
+  // HANDLE SIDEBAR SWITCHING
+  // ---------------------------------------------
+  const handleSelectType = (typeId) => {
+    // Prevent selecting sessions unless a campaign exists
+    if (typeId === "sessions" && !selectedCampaignGlobal) {
+      showCampaignWarning();
+      return;
+    }
+
+    setActiveType(typeId);
+    setSelectedRecord(null);
+  };
+
+  // ---------------------------------------------
+  // CREATE NEW RECORD
+  // ---------------------------------------------
   const handleCreate = () => {
-    const common = { id: FAKE_ID() };
+    // sessions require a selected campaign
+    if (activeType === "sessions" && !selectedCampaignGlobal) {
+      showCampaignWarning();
+      return;
+    }
+
+    const common = { id: FAKE_ID(), _isNew: true };
 
     const newItemByType = {
       campaigns: {
@@ -144,62 +336,20 @@ const CampaignManager = () => {
       },
       sessions: {
         ...common,
+        campaignId: selectedCampaignGlobal?.id || null,
         description: "New Session",
         geography: "",
         notes: "",
         history: "",
-        events: [],
-        encounters: [],
       },
-      events: {
-        ...common,
-        description: "New Event",
-        type: "Normal",
-        weather: "",
-        triggerDetail: "",
-        npcs: [],
-        locations: [],
-        items: [],
-        priority: 1,
-        countdownMinutes: null,
-      },
-      playerCharacters: {
-        ...common,
-        firstName: "New",
-        lastName: "PC",
-        phone: "",
-        email: "",
-      },
-      npcs: {
-        ...common,
-        firstName: "New",
-        lastName: "NPC",
-        type: "neutral",
-        data: "",
-        personality: "",
-        goals: "",
-        factionAlignment: "",
-        secrets: "",
-        state: "alive",
-      },
-      encounters: {
-        ...common,
-        description: "New Encounter",
-        types: [],
-        notes: "",
-        priority: 1,
-        lore: [],
-        locations: [],
-        items: [],
-      },
-      quests: {
-        ...common,
-        description: "New Quest / Mission",
-        status: "active",
-      },
+      events: { ...common, description: "", eventType: "", weather: "" },
+      playerCharacters: { ...common, name: "New Character" },
+      npcs: { ...common, name: "New NPC" },
+      encounters: { ...common, description: "" },
+      quests: { ...common, title: "New Quest" },
       locations: {
         ...common,
-        description: "New Location",
+        description: "",
         street: "",
         city: "",
         state: "",
@@ -208,825 +358,462 @@ const CampaignManager = () => {
         secrets: "",
         pointsOfInterest: "",
       },
-      items: {
-        ...common,
-        description: "New Item / Artifact",
-        notes: "",
-      },
-      lore: {
-        ...common,
-        description: "New Lore / Secret",
-        notes: "",
-      },
-      logs: {
-        ...common,
-        title: "New Session Log",
-        body: "",
-      },
+      items: { ...common, name: "New Item" },
+      lore: { ...common, title: "New Lore" },
+      logs: { ...common, content: "" },
     };
 
     const newItem = newItemByType[activeType];
+    if (!newItem) return;
+
+    // Auto-set selectedRecord + append to data list
     setData((prev) => ({
       ...prev,
-      [activeType]: [...prev[activeType], newItem],
+      [activeType]: [newItem, ...prev[activeType]],
     }));
+
     setSelectedRecord(newItem);
-    setIsDirty(false);
-  };
 
-  const handleArchive = () => {
-    if (!selectedRecord) return;
-    setData((prev) => ({
-      ...prev,
-      [activeType]: prev[activeType].filter(
-        (item) => item.id !== selectedRecord.id
-      ),
-    }));
-    setSelectedRecord(null);
-    setIsDirty(false);
-  };
-
-  const handleRefresh = () => {
-    setSearchTerm("");
-    setSelectedRecord(null);
-    setIsDirty(false);
-  };
-
-  const handleMetaSearchSelect = (typeId, record) => {
-    setActiveType(typeId);
-    setSelectedRecord(record);
-    setIsDirty(false);
-  };
-
-  const openFocusEditor = ({ label, value, onChange }) => {
-    setFocusEditor({ label, value, onChange });
-  };
-
-  return (
-    <div
-      className="cm-root lw-cm-root"
-      data-state-token={rememberStateToken}
-    >
-      {/* Header - matches Lanternwave app hierarchy but slightly smaller */}
-      <header className="lw-cm-header">
-        <div className="lw-cm-header-title">
-          <span className="lw-cm-header-prefix">Lanternwave</span>
-          <span className="lw-cm-header-main">Campaign Manager</span>
-        </div>
-        <div className="lw-cm-header-actions">
-          {isDirty && <span className="lw-cm-unsaved-dot">● Unsaved</span>}
-          <button className="lw-cm-button" onClick={handleRefresh}>
-            Refresh
-          </button>
-        </div>
-      </header>
-
-      <div
-        className={
-          "lw-cm-layout" + (isDetailOpen ? " lw-cm-layout-detail-open" : "")
-        }
-      >
-        {/* LEFT: Sidebar */}
-        <aside className="lw-cm-sidebar">
-          <div className="lw-cm-sidebar-section">
-            <div className="lw-cm-sidebar-label">Containers</div>
-            <nav className="lw-cm-sidebar-nav">
-              {CONTAINER_TYPES.map((t) => (
-                <button
-                  key={t.id}
-                  className={
-                    "lw-cm-sidebar-item" +
-                    (t.id === activeType ? " lw-cm-sidebar-item-active" : "")
-                  }
-                  onClick={() => {
-                    setActiveType(t.id);
-                    setSelectedRecord(null);
-                    setIsDirty(false);
-                  }}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </nav>
-          </div>
-        </aside>
-
-        {/* CENTER: Search + List */}
-        <main className="lw-cm-main">
-          <section className="lw-cm-search-section">
-            <div className="lw-cm-search-bar">
-              <input
-                type="text"
-                placeholder="Search campaigns, sessions, NPCs, locations, events, items..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-
-            {searchTerm.trim() && metaSearchResults.length > 0 && (
-              <div className="lw-cm-meta-results">
-                <div className="lw-cm-meta-results-title">
-                  Meta Results (jump to container)
-                </div>
-                <ul>
-                  {metaSearchResults.map((r) => (
-                    <li key={`${r.typeId}-${r.record.id}`}>
-                      <button
-                        className="lw-cm-meta-result"
-                        onClick={() =>
-                          handleMetaSearchSelect(r.typeId, r.record)
-                        }
-                      >
-                        <span className="lw-cm-meta-result-type">
-                          {r.typeLabel}
-                        </span>
-                        <span className="lw-cm-meta-result-text">
-                          {getRecordDisplayName(r.typeId, r.record)}
-                        </span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </section>
-
-          <section className="lw-cm-list-section">
-            <div className="lw-cm-list-header">
-              <h2 className="lw-cm-list-title">
-                {CONTAINER_TYPES.find((t) => t.id === activeType)?.label}
-              </h2>
-              <div className="lw-cm-list-actions">
-                <button className="lw-cm-button" onClick={handleCreate}>
-                  Create
-                </button>
-                <button
-                  className="lw-cm-button lw-cm-button-ghost lw-cm-button-danger"
-                  onClick={handleArchive}
-                  disabled={!selectedRecord}
-                >
-                  Archive
-                </button>
-              </div>
-            </div>
-
-            <div className="lw-cm-list-body">
-              {filteredList.length === 0 ? (
-                <div className="lw-cm-empty-state">
-                  No records yet. Click <strong>Create</strong> to add one.
-                </div>
-              ) : (
-                <ul className="lw-cm-card-list">
-                  {filteredList.map((item) => (
-                    <li key={item.id}>
-                      <button
-                        className={
-                          "lw-cm-card" +
-                          (selectedRecord && selectedRecord.id === item.id
-                            ? " lw-cm-card-active"
-                            : "")
-                        }
-                        onClick={() => setSelectedRecord(item)}
-                      >
-                        <div className="lw-cm-card-title">
-                          {getRecordDisplayName(activeType, item)}
-                        </div>
-                        <div className="lw-cm-card-subtitle">
-                          {getRecordSubtitle(activeType, item)}
-                        </div>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </section>
-        </main>
-
-        {/* RIGHT: Detail Panel */}
-        <section
-          className={
-            "lw-cm-detail-panel" + (isDetailOpen ? " visible" : "")
-          }
-        >
-          {selectedRecord ? (
-            <DetailView
-              type={activeType}
-              record={selectedRecord}
-              isDirty={isDirty}
-              onChange={(updated) => {
-                setSelectedRecord(updated);
-                setData((prev) => ({
-                  ...prev,
-                  [activeType]: prev[activeType].map((r) =>
-                    r.id === updated.id ? updated : r
-                  ),
-                }));
-                setIsDirty(true);
-              }}
-              onClose={() => {
-                setSelectedRecord(null);
-                setIsDirty(false);
-              }}
-              onOpenFocusEditor={openFocusEditor}
-            />
-          ) : (
-            <div className="lw-cm-detail-placeholder">
-              Select an item to view details
-            </div>
-          )}
-        </section>
-      </div>
-
-      {/* FULLSCREEN FOCUS EDITOR (MU-TH-UR / VT323) */}
-      {focusEditor && (
-        <div className="lw-cm-focus-overlay">
-          <div className="lw-cm-focus-panel">
-            <div className="lw-cm-focus-header">
-              <span className="lw-cm-focus-label">{focusEditor.label}</span>
-              <button
-                className="lw-cm-focus-close"
-                onClick={() => setFocusEditor(null)}
-              >
-                ✕
-              </button>
-            </div>
-            <textarea
-              className="lw-cm-focus-textarea"
-              value={focusEditor.value}
-              onChange={(e) => {
-                const newVal = e.target.value;
-                setFocusEditor((prev) => {
-                  if (prev && typeof prev.onChange === "function") {
-                    prev.onChange(newVal);
-                  }
-                  return prev ? { ...prev, value: newVal } : prev;
-                });
-              }}
-            />
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-/* -------- DETAIL VIEW -------- */
-
-const DetailView = ({
-  type,
-  record,
-  isDirty,
-  onChange,
-  onClose,
-  onOpenFocusEditor,
-}) => {
-  const updateField = (field, value) => {
-    onChange({ ...record, [field]: value });
-  };
-
-  const openBigField = (label, fieldKey) => (value, setter) => {
-    onOpenFocusEditor({
-      label,
-      value,
-      onChange: (newVal) => setter(newVal),
-    });
-  };
-
-  return (
-    <div className="lw-cm-detail-inner">
-      <div className="lw-cm-detail-header-row">
-        <div className="lw-cm-detail-header-left">
-          <div className="lw-cm-breadcrumb">
-            {typeLabel(type)} ▸ {getRecordDisplayName(type, record)}
-          </div>
-          <h2 className="lw-cm-detail-title">
-            {getRecordDisplayName(type, record)}
-          </h2>
-        </div>
-        <div className="lw-cm-detail-header-right">
-          {isDirty && <span className="lw-cm-unsaved-dot">● Unsaved</span>}
-          <button className="lw-cm-detail-close" onClick={onClose}>
-            ✕
-          </button>
-        </div>
-      </div>
-
-      <div className="lw-cm-detail-scroll">
-        {/* CAMPAIGNS */}
-        {type === "campaigns" && (
-          <>
-            <CMSection title="Campaign Core">
-              <DetailField
-                label="Campaign Name"
-                value={record.name || ""}
-                onChange={(v) => updateField("name", v)}
-              />
-              <DetailField
-                label="World Setting"
-                value={record.worldSetting || ""}
-                onChange={(v) => updateField("worldSetting", v)}
-              />
-              <DetailField
-                label="Date (MM/DD/YYYY)"
-                value={record.date || ""}
-                onChange={(v) => updateField("date", v)}
-              />
-            </CMSection>
-
-            <CMSection title="Description">
-              <DetailField
-                type="textarea"
-                value={record.description || ""}
-                onChange={(v) => updateField("description", v)}
-                onOpenFocusEditor={openBigField(
-                  "Campaign Description",
-                  "description"
-                )}
-                rows={5}
-              />
-            </CMSection>
-          </>
-        )}
-
-        {/* SESSIONS */}
-        {type === "sessions" && (
-          <>
-            <CMSection title="Session Summary">
-              <DetailField
-                label="Description"
-                type="textarea"
-                value={record.description || ""}
-                onChange={(v) => updateField("description", v)}
-                onOpenFocusEditor={openBigField(
-                  "Session Description",
-                  "description"
-                )}
-                rows={4}
-              />
-            </CMSection>
-            <CMSection title="Geography">
-              <DetailField
-                type="textarea"
-                value={record.geography || ""}
-                onChange={(v) => updateField("geography", v)}
-                rows={3}
-              />
-            </CMSection>
-            <CMSection title="Notes & History">
-              <DetailField
-                label="Notes"
-                type="textarea"
-                value={record.notes || ""}
-                onChange={(v) => updateField("notes", v)}
-                onOpenFocusEditor={openBigField("Session Notes", "notes")}
-                rows={4}
-              />
-              <DetailField
-                label="History"
-                type="textarea"
-                value={record.history || ""}
-                onChange={(v) => updateField("history", v)}
-                onOpenFocusEditor={openBigField("Session History", "history")}
-                rows={4}
-              />
-            </CMSection>
-          </>
-        )}
-
-        {/* EVENTS */}
-        {type === "events" && (
-          <>
-            <CMSection title="Event Description">
-              <DetailField
-                type="textarea"
-                value={record.description || ""}
-                onChange={(v) => updateField("description", v)}
-                onOpenFocusEditor={openBigField("Event Description", "description")}
-                rows={4}
-              />
-            </CMSection>
-            <CMSection title="Event Details">
-              <DetailField
-                label="Type"
-                value={record.type || ""}
-                onChange={(v) => updateField("type", v)}
-              />
-              <DetailField
-                label="Weather"
-                value={record.weather || ""}
-                onChange={(v) => updateField("weather", v)}
-              />
-              <DetailField
-                label="Trigger Detail"
-                type="textarea"
-                value={record.triggerDetail || ""}
-                onChange={(v) => updateField("triggerDetail", v)}
-                rows={3}
-              />
-            </CMSection>
-          </>
-        )}
-
-        {/* PLAYER CHARACTERS */}
-        {type === "playerCharacters" && (
-          <CMSection title="Player Character">
-            <DetailField
-              label="First Name"
-              value={record.firstName || ""}
-              onChange={(v) => updateField("firstName", v)}
-            />
-            <DetailField
-              label="Last Name"
-              value={record.lastName || ""}
-              onChange={(v) => updateField("lastName", v)}
-            />
-            <DetailField
-              label="Phone"
-              value={record.phone || ""}
-              onChange={(v) => updateField("phone", v)}
-            />
-            <DetailField
-              label="Email"
-              value={record.email || ""}
-              onChange={(v) => updateField("email", v)}
-            />
-          </CMSection>
-        )}
-
-        {/* NPCS */}
-        {type === "npcs" && (
-          <>
-            <CMSection title="Identity">
-              <DetailField
-                label="First Name"
-                value={record.firstName || ""}
-                onChange={(v) => updateField("firstName", v)}
-              />
-              <DetailField
-                label="Last Name"
-                value={record.lastName || ""}
-                onChange={(v) => updateField("lastName", v)}
-              />
-              <DetailField
-                label="Type"
-                value={record.type || "neutral"}
-                onChange={(v) => updateField("type", v)}
-              />
-            </CMSection>
-
-            <CMSection title="Profile">
-              <DetailField
-                label="NPC Data"
-                type="textarea"
-                value={record.data || ""}
-                onChange={(v) => updateField("data", v)}
-                onOpenFocusEditor={openBigField("NPC Data", "data")}
-                rows={5}
-              />
-              <DetailField
-                label="Personality"
-                type="textarea"
-                value={record.personality || ""}
-                onChange={(v) => updateField("personality", v)}
-                rows={4}
-              />
-              <DetailField
-                label="Goals"
-                type="textarea"
-                value={record.goals || ""}
-                onChange={(v) => updateField("goals", v)}
-                rows={4}
-              />
-              <DetailField
-                label="Faction Alignment"
-                type="textarea"
-                value={record.factionAlignment || ""}
-                onChange={(v) => updateField("factionAlignment", v)}
-                rows={3}
-              />
-              <DetailField
-                label="Secrets"
-                type="textarea"
-                value={record.secrets || ""}
-                onChange={(v) => updateField("secrets", v)}
-                onOpenFocusEditor={openBigField("NPC Secrets", "secrets")}
-                rows={4}
-              />
-              <DetailField
-                label="State"
-                value={record.state || "alive"}
-                onChange={(v) => updateField("state", v)}
-              />
-            </CMSection>
-          </>
-        )}
-
-        {/* ENCOUNTERS */}
-        {type === "encounters" && (
-          <>
-            <CMSection title="Encounter Description">
-              <DetailField
-                type="textarea"
-                value={record.description || ""}
-                onChange={(v) => updateField("description", v)}
-                onOpenFocusEditor={openBigField(
-                  "Encounter Description",
-                  "description"
-                )}
-                rows={4}
-              />
-            </CMSection>
-            <CMSection title="Details">
-              <DetailField
-                label="Types (comma separated)"
-                type="textarea"
-                value={record.types?.join(", ") || ""}
-                onChange={(v) =>
-                  updateField(
-                    "types",
-                    v
-                      .split(",")
-                      .map((s) => s.trim())
-                      .filter(Boolean)
-                  )
-                }
-                rows={3}
-              />
-              <DetailField
-                label="Notes"
-                type="textarea"
-                value={record.notes || ""}
-                onChange={(v) => updateField("notes", v)}
-                onOpenFocusEditor={openBigField("Encounter Notes", "notes")}
-                rows={4}
-              />
-              <DetailField
-                label="Priority"
-                value={record.priority ?? 1}
-                onChange={(v) => updateField("priority", Number(v || 0))}
-              />
-            </CMSection>
-          </>
-        )}
-
-        {/* QUESTS */}
-        {type === "quests" && (
-          <>
-            <CMSection title="Quest">
-              <DetailField
-                label="Description"
-                type="textarea"
-                value={record.description || ""}
-                onChange={(v) => updateField("description", v)}
-                onOpenFocusEditor={openBigField("Quest Description", "description")}
-                rows={4}
-              />
-              <DetailField
-                label="Status"
-                value={record.status || "active"}
-                onChange={(v) => updateField("status", v)}
-              />
-            </CMSection>
-          </>
-        )}
-
-        {/* LOCATIONS */}
-        {type === "locations" && (
-          <>
-            <CMSection title="Location Overview">
-              <DetailField
-                label="Description"
-                type="textarea"
-                value={record.description || ""}
-                onChange={(v) => updateField("description", v)}
-                onOpenFocusEditor={openBigField(
-                  "Location Description",
-                  "description"
-                )}
-                rows={4}
-              />
-            </CMSection>
-            <CMSection title="Address">
-              <DetailField
-                label="Street"
-                value={record.street || ""}
-                onChange={(v) => updateField("street", v)}
-              />
-              <DetailField
-                label="City"
-                value={record.city || ""}
-                onChange={(v) => updateField("city", v)}
-              />
-              <DetailField
-                label="State"
-                value={record.state || ""}
-                onChange={(v) => updateField("state", v)}
-              />
-              <DetailField
-                label="Zip"
-                value={record.zip || ""}
-                onChange={(v) => updateField("zip", v)}
-              />
-            </CMSection>
-            <CMSection title="Notes & Secrets">
-              <DetailField
-                label="Notes"
-                type="textarea"
-                value={record.notes || ""}
-                onChange={(v) => updateField("notes", v)}
-                onOpenFocusEditor={openBigField("Location Notes", "notes")}
-                rows={3}
-              />
-              <DetailField
-                label="Secrets"
-                type="textarea"
-                value={record.secrets || ""}
-                onChange={(v) => updateField("secrets", v)}
-                onOpenFocusEditor={openBigField("Location Secrets", "secrets")}
-                rows={3}
-              />
-              <DetailField
-                label="Points of Interest"
-                type="textarea"
-                value={record.pointsOfInterest || ""}
-                onChange={(v) => updateField("pointsOfInterest", v)}
-                rows={3}
-              />
-            </CMSection>
-          </>
-        )}
-
-        {/* ITEMS */}
-        {type === "items" && (
-          <>
-            <CMSection title="Item">
-              <DetailField
-                label="Description"
-                type="textarea"
-                value={record.description || ""}
-                onChange={(v) => updateField("description", v)}
-                onOpenFocusEditor={openBigField("Item Description", "description")}
-                rows={4}
-              />
-              <DetailField
-                label="Notes"
-                type="textarea"
-                value={record.notes || ""}
-                onChange={(v) => updateField("notes", v)}
-                onOpenFocusEditor={openBigField("Item Notes", "notes")}
-                rows={3}
-              />
-            </CMSection>
-          </>
-        )}
-
-        {/* LORE */}
-        {type === "lore" && (
-          <>
-            <CMSection title="Lore">
-              <DetailField
-                label="Description"
-                type="textarea"
-                value={record.description || ""}
-                onChange={(v) => updateField("description", v)}
-                onOpenFocusEditor={openBigField("Lore Description", "description")}
-                rows={4}
-              />
-              <DetailField
-                label="Notes"
-                type="textarea"
-                value={record.notes || ""}
-                onChange={(v) => updateField("notes", v)}
-                onOpenFocusEditor={openBigField("Lore Notes", "notes")}
-                rows={3}
-              />
-            </CMSection>
-          </>
-        )}
-
-        {/* LOGS */}
-        {type === "logs" && (
-          <>
-            <CMSection title="Session Log">
-              <DetailField
-                label="Title"
-                value={record.title || ""}
-                onChange={(v) => updateField("title", v)}
-              />
-              <DetailField
-                label="Body"
-                type="textarea"
-                value={record.body || ""}
-                onChange={(v) => updateField("body", v)}
-                onOpenFocusEditor={openBigField("Session Log Body", "body")}
-                rows={6}
-              />
-            </CMSection>
-          </>
-        )}
-      </div>
-    </div>
-  );
-};
-
-const DetailField = ({
-  label,
-  type = "text",
-  value,
-  onChange,
-  onOpenFocusEditor,
-  rows = 3,
-}) => {
-  const handleDoubleClick = () => {
-    if (onOpenFocusEditor) {
-      onOpenFocusEditor(value, onChange);
+    // If a new campaign is created, set global campaign
+    if (activeType === "campaigns") {
+      setSelectedCampaignGlobal(newItem);
     }
   };
 
+  // ---------------------------------------------
+  // SELECTING A RECORD
+  // ---------------------------------------------
+  const handleSelectRecord = (item) => {
+    if (activeType === "sessions" && !selectedCampaignGlobal) {
+      showCampaignWarning();
+      return;
+    }
+
+    // sessions must match selected campaign
+    if (
+      activeType === "sessions" &&
+      item.campaignId !== selectedCampaignGlobal?.id
+    ) {
+      showCampaignWarning();
+      return;
+    }
+
+    setSelectedRecord(item);
+
+    // update global campaign when selecting a campaign
+    if (activeType === "campaigns") {
+      setSelectedCampaignGlobal(item);
+    }
+  };
+
+  // ---------------------------------------------
+  // FILTERED LIST
+  // ---------------------------------------------
+  let currentList = data[activeType] || [];
+
+  if (activeType === "sessions" && selectedCampaignGlobal) {
+    currentList = currentList.filter(
+      (s) => s.campaignId === selectedCampaignGlobal.id
+    );
+  }
+
+  const filteredList = currentList; // can add search later
+return (
+  <div className="cm-root lw-cm-root">
+    {/* ========== SIDEBAR ========== */}
+    <div className="lw-cm-sidebar">
+      <div className="lw-cm-sidebar-header">CAMPAIGN MANAGER</div>
+
+      {CONTAINER_TYPES.map((t) => (
+        <button
+          key={t.id}
+          className={
+            "lw-cm-sidebar-item" +
+            (t.id === activeType ? " lw-cm-sidebar-item-active" : "")
+          }
+          onClick={() => handleSelectType(t.id)}
+        >
+          {t.label}
+        </button>
+      ))}
+    </div>
+
+    {/* ========== MAIN PANEL ========== */}
+    <div className="lw-cm-main">
+
+      {/* Top controls */}
+      <div className="lw-cm-main-header">
+        <h2 className="lw-cm-title">
+          {activeType.charAt(0).toUpperCase() + activeType.slice(1)}
+        </h2>
+
+        <div className="lw-cm-header-controls">
+          {saveStatus === "unsaved" && (
+            <span className="lw-cm-status lw-cm-status-unsaved">● Unsaved</span>
+          )}
+          {saveStatus === "saving" && (
+            <span className="lw-cm-status lw-cm-status-saving">● Saving…</span>
+          )}
+          {saveStatus === "saved" && (
+            <span className="lw-cm-status lw-cm-status-saved">● Saved</span>
+          )}
+          {saveStatus === "error" && (
+            <span className="lw-cm-status lw-cm-status-error">● Error</span>
+          )}
+
+          <button className="lw-cm-button" onClick={handleCreate}>
+            + Create
+          </button>
+        </div>
+      </div>
+
+      {/* Layout split: List (left) + Detail (right) */}
+      <div className="lw-cm-content">
+        {/* ========== LIST PANEL ========== */}
+        <div className="lw-cm-list">
+          {filteredList.length === 0 && (
+            <div className="lw-cm-list-empty">No records found.</div>
+          )}
+
+          {filteredList.map((item) => (
+            <div
+              key={item.id}
+              className={
+                "lw-cm-list-item" +
+                (selectedRecord?.id === item.id
+                  ? " lw-cm-list-item-selected"
+                  : "")
+              }
+              onClick={() => handleSelectRecord(item)}
+            >
+              <div className="lw-cm-list-title">
+                {item.name || item.title || item.description || "(Untitled)"}
+              </div>
+
+              {/* Session association preview */}
+              {activeType === "sessions" && (
+                <div className="lw-cm-list-sub">
+                  Linked to Campaign #{item.campaignId}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* ========== DETAIL PANEL ========== */}
+        <div className="lw-cm-detail">
+
+          {!selectedRecord && (
+            <div className="lw-cm-detail-empty">
+              Select or create a {activeType.slice(0, -1)} to begin.
+            </div>
+          )}
+
+          {selectedRecord && (
+            <div className="lw-cm-detail-inner">
+              {/* ------ CAMPAIGNS ------ */}
+              {activeType === "campaigns" && (
+                <>
+                  <label className="lw-cm-label">Campaign Name</label>
+                  <input
+                    className="lw-cm-input"
+                    value={selectedRecord.name || ""}
+                    onChange={(e) => {
+                      const updated = {
+                        ...selectedRecord,
+                        name: e.target.value,
+                      };
+                      setSelectedRecord(updated);
+                      triggerAutosave(updated);
+                    }}
+                  />
+
+                  <label className="lw-cm-label">World Setting</label>
+                  <input
+                    className="lw-cm-input"
+                    value={selectedRecord.worldSetting || ""}
+                    onChange={(e) => {
+                      const updated = {
+                        ...selectedRecord,
+                        worldSetting: e.target.value,
+                      };
+                      setSelectedRecord(updated);
+                      triggerAutosave(updated);
+                    }}
+                  />
+
+                  <label className="lw-cm-label">Date</label>
+                  <input
+                    className="lw-cm-input"
+                    value={selectedRecord.date || ""}
+                    onChange={(e) => {
+                      const updated = {
+                        ...selectedRecord,
+                        date: e.target.value,
+                      };
+                      setSelectedRecord(updated);
+                      triggerAutosave(updated);
+                    }}
+                  />
+
+                  <label className="lw-cm-label">Description</label>
+                  <textarea
+                    className="lw-cm-textarea"
+                    value={selectedRecord.description || ""}
+                    onChange={(e) => {
+                      const updated = {
+                        ...selectedRecord,
+                        description: e.target.value,
+                      };
+                      setSelectedRecord(updated);
+                      triggerAutosave(updated);
+                    }}
+                  />
+                </>
+              )}
+
+              {/* ------ SESSIONS ------ */}
+              {activeType === "sessions" && (
+                <>
+                  <label className="lw-cm-label">Description</label>
+                  <textarea
+                    className="lw-cm-textarea"
+                    value={selectedRecord.description || ""}
+                    onChange={(e) => {
+                      const updated = {
+                        ...selectedRecord,
+                        description: e.target.value,
+                      };
+                      setSelectedRecord(updated);
+                      triggerAutosave(updated);
+                    }}
+                  />
+
+                  <label className="lw-cm-label">Geography</label>
+                  <input
+                    className="lw-cm-input"
+                    value={selectedRecord.geography || ""}
+                    onChange={(e) => {
+                      const updated = {
+                        ...selectedRecord,
+                        geography: e.target.value,
+                      };
+                      setSelectedRecord(updated);
+                      triggerAutosave(updated);
+                    }}
+                  />
+
+                  <label className="lw-cm-label">Notes</label>
+                  <textarea
+                    className="lw-cm-textarea"
+                    value={selectedRecord.notes || ""}
+                    onChange={(e) => {
+                      const updated = {
+                        ...selectedRecord,
+                        notes: e.target.value,
+                      };
+                      setSelectedRecord(updated);
+                      triggerAutosave(updated);
+                    }}
+                  />
+
+                  <label className="lw-cm-label">History</label>
+                  <textarea
+                    className="lw-cm-textarea"
+                    value={selectedRecord.history || ""}
+                    onChange={(e) => {
+                      const updated = {
+                        ...selectedRecord,
+                        history: e.target.value,
+                      };
+                      setSelectedRecord(updated);
+                      triggerAutosave(updated);
+                    }}
+                  />
+                </>
+              )}
+
+              {/* ------ LOCATIONS ------ */}
+              {activeType === "locations" && (
+                <>
+                  <label className="lw-cm-label">Description</label>
+                  <textarea
+                    className="lw-cm-textarea"
+                    value={selectedRecord.description || ""}
+                    onChange={(e) => {
+                      const updated = {
+                        ...selectedRecord,
+                        description: e.target.value,
+                      };
+                      setSelectedRecord(updated);
+                      triggerAutosave(updated);
+                    }}
+                  />
+
+                  <label className="lw-cm-label">Street</label>
+                  <input
+                    className="lw-cm-input"
+                    value={selectedRecord.street || ""}
+                    onChange={(e) => {
+                      const updated = {
+                        ...selectedRecord,
+                        street: e.target.value,
+                      };
+                      setSelectedRecord(updated);
+                      triggerAutosave(updated);
+                    }}
+                  />
+
+                  <label className="lw-cm-label">City</label>
+                  <input
+                    className="lw-cm-input"
+                    value={selectedRecord.city || ""}
+                    onChange={(e) => {
+                      const updated = {
+                        ...selectedRecord,
+                        city: e.target.value,
+                      };
+                      setSelectedRecord(updated);
+                      triggerAutosave(updated);
+                    }}
+                  />
+
+                  <label className="lw-cm-label">State</label>
+                  <input
+                    className="lw-cm-input"
+                    value={selectedRecord.state || ""}
+                    onChange={(e) => {
+                      const updated = {
+                        ...selectedRecord,
+                        state: e.target.value,
+                      };
+                      setSelectedRecord(updated);
+                      triggerAutosave(updated);
+                    }}
+                  />
+
+                  <label className="lw-cm-label">ZIP</label>
+                  <input
+                    className="lw-cm-input"
+                    value={selectedRecord.zip || ""}
+                    onChange={(e) => {
+                      const updated = {
+                        ...selectedRecord,
+                        zip: e.target.value,
+                      };
+                      setSelectedRecord(updated);
+                      triggerAutosave(updated);
+                    }}
+                  />
+
+                  <label className="lw-cm-label">Notes</label>
+                  <textarea
+                    className="lw-cm-textarea"
+                    value={selectedRecord.notes || ""}
+                    onChange={(e) => {
+                      const updated = {
+                        ...selectedRecord,
+                        notes: e.target.value,
+                      };
+                      setSelectedRecord(updated);
+                      triggerAutosave(updated);
+                    }}
+                  />
+
+                  <label className="lw-cm-label">Secrets</label>
+                  <textarea
+                    className="lw-cm-textarea"
+                    value={selectedRecord.secrets || ""}
+                    onChange={(e) => {
+                      const updated = {
+                        ...selectedRecord,
+                        secrets: e.target.value,
+                      };
+                      setSelectedRecord(updated);
+                      triggerAutosave(updated);
+                    }}
+                  />
+
+                  <label className="lw-cm-label">Points of Interest</label>
+                  <textarea
+                    className="lw-cm-textarea"
+                    value={selectedRecord.pointsOfInterest || ""}
+                    onChange={(e) => {
+                      const updated = {
+                        ...selectedRecord,
+                        pointsOfInterest: e.target.value,
+                      };
+                      setSelectedRecord(updated);
+                      triggerAutosave(updated);
+                    }}
+                  />
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+
+    {/* ========== MU/TH/UR WARNING MODAL ========== */}
+    {showWarningModal && (
+      <div className="lw-cm-modal-overlay">
+        <div className="lw-cm-modal">
+          <div className="lw-cm-modal-header">
+            <span className="lw-cm-modal-prefix">MU/TH/UR 182</span>
+            <span className="lw-cm-modal-title">SYSTEM NOTICE</span>
+          </div>
+
+          <div className="lw-cm-modal-body">
+            <p>{warningMessage}</p>
+          </div>
+
+          <div className="lw-cm-modal-footer">
+            <button
+              className="lw-cm-button lw-cm-button-primary"
+              onClick={() => setShowWarningModal(false)}
+            >
+              ACKNOWLEDGE
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+  </div>
+);
+function FallbackDetail({ record, onChange }) {
+  if (!record) return null;
+
   return (
-    <div className="lw-cm-field">
-      {label && <label className="lw-cm-field-label">{label}</label>}
-      {type === "textarea" ? (
-        <textarea
-          className="lw-cm-field-input lw-cm-field-textarea"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          onDoubleClick={handleDoubleClick}
-          rows={rows}
-        />
-      ) : (
-        <input
-          className="lw-cm-field-input"
-          type={type}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-        />
-      )}
+    <div className="lw-cm-detail-inner">
+      <div className="lw-cm-label">Record JSON</div>
+      <textarea
+        className="lw-cm-textarea"
+        value={JSON.stringify(record, null, 2)}
+        onChange={(e) => {
+          try {
+            const updated = JSON.parse(e.target.value);
+            onChange(updated);
+          } catch (err) {
+            // ignore parse errors
+          }
+        }}
+      />
     </div>
   );
-};
-
-/* Utility helpers */
-
-function typeLabel(type) {
-  const t = CONTAINER_TYPES.find((c) => c.id === type);
-  return t ? t.label : type;
 }
 
-function getRecordDisplayName(type, record) {
-  switch (type) {
-    case "campaigns":
-      return record.name || "(Untitled Campaign)";
-    case "sessions":
-      return record.description || "(Session)";
-    case "events":
-      return record.description || "(Event)";
-    case "playerCharacters":
-      return (
-        `${record.firstName || ""} ${record.lastName || ""}`.trim() ||
-        "(Player Character)"
-      );
-    case "npcs":
-      return (
-        `${record.firstName || ""} ${record.lastName || ""}`.trim() || "(NPC)"
-      );
-    case "encounters":
-      return record.description || "(Encounter)";
-    case "quests":
-      return record.description || "(Quest / Mission)";
-    case "locations":
-      return record.description || "(Location)";
-    case "items":
-      return record.description || "(Item / Artifact)";
-    case "lore":
-      return record.description || "(Lore / Secret)";
-    case "logs":
-      return record.title || "(Session Log)";
-    default:
-      return "(Record)";
-  }
-}
+// If you later implement NPCs, Items, Events, Lore, Quests, Encounters, Logs,
+// plug them in where needed. FallbackDetail keeps the UI from breaking.
 
-function getRecordSubtitle(type, record) {
-  switch (type) {
-    case "campaigns":
-      return record.worldSetting || record.description || "";
-    case "sessions":
-      return record.geography || record.notes || "";
-    case "events":
-      return record.weather || "";
-    case "npcs":
-      return record.type || "";
-    case "encounters":
-      return record.types?.join(", ") || "";
-    case "quests":
-      return record.status || "";
-    case "locations":
-      return `${record.city || ""} ${record.state || ""}`.trim();
-    default:
-      return "";
-  }
-}
 
-export default CampaignManager;
+// ------------ CLOSE COMPONENT -------------
+} // <-- closes the CampaignManager() component
+
+// Safe export  
+// (not strictly necessary because we exported default above,
+//  but kept for clarity in multi-part large-file assembly)
+export { CampaignManager };
+
+// ===== END PART 4 of 4 =====
+
