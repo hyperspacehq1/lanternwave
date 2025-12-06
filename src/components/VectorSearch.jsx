@@ -2,10 +2,13 @@ import React, { useState, useEffect, useRef } from "react";
 import "./vectorSearch.css";
 
 /**
- * VectorSearch Component
- * Connects to:
- *   - /.netlify/functions/api-vector-search
- *   - /.netlify/functions/api-search (AI ranking summary)
+ * Lanternwave Vector Search (Phase 2)
+ *
+ * - Debounced query
+ * - Vector Search + AI hybrid summary
+ * - Type chips w/ color coding
+ * - Expand/collapse summary
+ * - Cleaner, console-style layout
  */
 export default function VectorSearch() {
   const [query, setQuery] = useState("");
@@ -19,7 +22,7 @@ export default function VectorSearch() {
   const debounceRef = useRef(null);
 
   /* --------------------------------------------
-     Debounce user input so we don't over-query
+     Debounce query input
   -------------------------------------------- */
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -32,10 +35,10 @@ export default function VectorSearch() {
   }, [query]);
 
   /* --------------------------------------------
-     Perform vector + hybrid search
+     Execute Search → vector + hybrid
   -------------------------------------------- */
   useEffect(() => {
-    async function doSearch() {
+    async function runSearch() {
       if (!debounced || debounced.length < 2) {
         setVectorResults([]);
         setHybridSummary("");
@@ -46,7 +49,7 @@ export default function VectorSearch() {
         setLoading(true);
         setError("");
 
-        // 1. VECTOR SIMILARITY SEARCH
+        // 1️⃣ VECTOR SEARCH
         const vec = await fetch(
           `/.netlify/functions/api-vector-search?q=${encodeURIComponent(
             debounced
@@ -56,13 +59,13 @@ export default function VectorSearch() {
         if (vec.error) throw new Error(vec.error);
         setVectorResults(vec.results || []);
 
-        // 2. HYBRID AI SUMMARY (optional)
-        const hybrid = await fetch(
+        // 2️⃣ AI HYBRID SUMMARY
+        const summaryResp = await fetch(
           `/.netlify/functions/api-search?q=${encodeURIComponent(debounced)}`
         ).then((r) => r.json());
 
-        if (!hybrid.error) {
-          setHybridSummary(hybrid.ai_summary || "");
+        if (!summaryResp.error) {
+          setHybridSummary(summaryResp.ai_summary || "");
         }
       } catch (err) {
         setError(err.message);
@@ -71,11 +74,11 @@ export default function VectorSearch() {
       }
     }
 
-    doSearch();
+    runSearch();
   }, [debounced]);
 
   /* --------------------------------------------
-     Label colors for result types
+     Type chip colors
   -------------------------------------------- */
   const typeColor = {
     campaign: "#7FD1B9",
@@ -89,34 +92,24 @@ export default function VectorSearch() {
   };
 
   /* --------------------------------------------
-     Format a human-readable title
+     Human-readable titles
   -------------------------------------------- */
   function labelFor(row) {
     if (!row) return "";
     switch (row.type) {
-      case "campaign":
-        return row.name || "(Unnamed Campaign)";
-      case "session":
-        return row.description?.slice(0, 120) || "Session";
-      case "event":
-        return row.description?.slice(0, 120) || "Event";
-      case "encounter":
-        return row.description?.slice(0, 120) || "Encounter";
-      case "npc":
-        return `${row.first_name || ""} ${row.last_name || ""}`;
-      case "item":
-      case "lore":
-      case "location":
-        return row.description || row.notes || "(No description)";
-      default:
-        return row.search_body?.slice(0, 120) || "(Unknown)";
+      case "campaign": return row.name || "(Untitled Campaign)";
+      case "npc": return `${row.first_name || ""} ${row.last_name || ""}`.trim();
+      default: return row.description || row.notes || row.search_body?.slice(0, 200) || "(No description)";
     }
   }
 
   return (
-    <div className="lw-vector-search-container">
-      <h2 className="lw-search-title">Semantic Search</h2>
+    <div className="lw-search-root search-root">
+      {/* TITLE */}
+      <h1 className="lw-search-title">Search</h1>
+      <h2 className="lw-search-subtitle">Semantic Search</h2>
 
+      {/* INPUT */}
       <input
         type="text"
         className="lw-search-input"
@@ -128,9 +121,7 @@ export default function VectorSearch() {
       {error && <div className="lw-error">{error}</div>}
       {loading && <div className="lw-loading">Searching…</div>}
 
-      {/* -----------------------------------------
-          AI SUMMARY PANEL
-      ----------------------------------------- */}
+      {/* AI SUMMARY */}
       {hybridSummary && (
         <div className="lw-ai-summary">
           <div
@@ -140,23 +131,20 @@ export default function VectorSearch() {
             <span>AI Summary</span>
             <span className="lw-toggle">{expanded ? "▲" : "▼"}</span>
           </div>
-
           {expanded && (
             <div className="lw-ai-body">{hybridSummary}</div>
           )}
         </div>
       )}
 
-      {/* -----------------------------------------
-          VECTOR RESULTS LIST
-      ----------------------------------------- */}
+      {/* RESULTS */}
       <div className="lw-results-list">
         {vectorResults.map((row, idx) => (
           <div key={idx} className="lw-result-card">
             <div className="lw-result-header">
               <span
                 className="lw-type-chip"
-                style={{ backgroundColor: typeColor[row.type] || "#888" }}
+                style={{ backgroundColor: typeColor[row.type] || "#999" }}
               >
                 {row.type}
               </span>
@@ -168,7 +156,7 @@ export default function VectorSearch() {
             <div className="lw-result-title">{labelFor(row)}</div>
 
             <div className="lw-result-body">
-              {row.search_body?.slice(0, 240)}
+              {row.search_body?.slice(0, 280)}
             </div>
           </div>
         ))}
