@@ -15,7 +15,7 @@
   status = 200
 
 [[redirects]]
-  from = "/mission-manager"
+  from = "/campaign-manager"
   to = "/index.html"
   status = 200
 
