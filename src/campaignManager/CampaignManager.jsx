@@ -65,17 +65,39 @@ const createMockData = () => ({
   logs: [],
 });
 
+/* Collapsible section for detail view */
+const CMSection = ({ title, children }) => {
+  const [open, setOpen] = useState(true);
+  return (
+    <section className="lw-cm-section">
+      <header
+        className="lw-cm-section-header"
+        onClick={() => setOpen((prev) => !prev)}
+      >
+        <span>{title}</span>
+        <span className="lw-cm-section-toggle">{open ? "▲" : "▼"}</span>
+      </header>
+      <div
+        className={
+          "lw-cm-section-content" + (open ? " lw-cm-section-content-open" : "")
+        }
+      >
+        {children}
+      </div>
+    </section>
+  );
+};
+
 const CampaignManager = () => {
   const [data, setData] = useState(createMockData);
   const [activeType, setActiveType] = useState("campaigns");
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [rememberStateToken, setRememberStateToken] = useState(FAKE_ID());
+  const [rememberStateToken] = useState(FAKE_ID());
   const [isDirty, setIsDirty] = useState(false);
 
-  // Fullscreen focus editor state
-  const [focusEditor, setFocusEditor] = useState(null);
-  // focusEditor shape: { label, value, onChange }
+  // fullscreen MU-TH-UR focus editor
+  const [focusEditor, setFocusEditor] = useState(null); // { label, value, onChange }
 
   const currentList = data[activeType] || [];
 
@@ -87,9 +109,25 @@ const CampaignManager = () => {
     );
   }, [currentList, searchTerm]);
 
-  const activeTypeDef = CONTAINER_TYPES.find((t) => t.id === activeType);
-  const activeTypeLabel =
-    activeTypeDef && activeTypeDef.label ? activeTypeDef.label : activeType;
+  const metaSearchResults = useMemo(() => {
+    if (!searchTerm.trim()) return [];
+    const term = searchTerm.toLowerCase();
+    const results = [];
+    CONTAINER_TYPES.forEach((t) => {
+      const list = data[t.id] || [];
+      list.forEach((record) => {
+        const haystack = JSON.stringify(record).toLowerCase();
+        if (haystack.includes(term)) {
+          results.push({
+            typeId: t.id,
+            typeLabel: t.label,
+            record,
+          });
+        }
+      });
+    });
+    return results.slice(0, 10);
+  }, [searchTerm, data]);
 
   const isDetailOpen = !!selectedRecord;
 
@@ -209,45 +247,27 @@ const CampaignManager = () => {
   };
 
   const handleRefresh = () => {
-    setSelectedRecord(null);
     setSearchTerm("");
-    setRememberStateToken(FAKE_ID());
+    setSelectedRecord(null);
     setIsDirty(false);
   };
 
-  const handleMetaSearchSelect = (type, record) => {
-    setActiveType(type);
+  const handleMetaSearchSelect = (typeId, record) => {
+    setActiveType(typeId);
     setSelectedRecord(record);
     setIsDirty(false);
   };
 
-  const metaSearchResults = useMemo(() => {
-    if (!searchTerm.trim()) return [];
-    const term = searchTerm.toLowerCase();
-    const results = [];
-    CONTAINER_TYPES.forEach((t) => {
-      const list = data[t.id] || [];
-      list.forEach((record) => {
-        const haystack = JSON.stringify(record).toLowerCase();
-        if (haystack.includes(term)) {
-          results.push({
-            typeId: t.id,
-            typeLabel: t.label,
-            record,
-          });
-        }
-      });
-    });
-    return results.slice(0, 10);
-  }, [searchTerm, data]);
-
-  // When a large field wants focus editor
   const openFocusEditor = ({ label, value, onChange }) => {
     setFocusEditor({ label, value, onChange });
   };
 
   return (
-    <div className="lw-cm-root" data-state-token={rememberStateToken}>
+    <div
+      className="cm-root lw-cm-root"
+      data-state-token={rememberStateToken}
+    >
+      {/* Header - matches Lanternwave app hierarchy but slightly smaller */}
       <header className="lw-cm-header">
         <div className="lw-cm-header-title">
           <span className="lw-cm-header-prefix">Lanternwave</span>
@@ -266,7 +286,7 @@ const CampaignManager = () => {
           "lw-cm-layout" + (isDetailOpen ? " lw-cm-layout-detail-open" : "")
         }
       >
-        {/* LEFT: Container Navigation */}
+        {/* LEFT: Sidebar */}
         <aside className="lw-cm-sidebar">
           <div className="lw-cm-sidebar-section">
             <div className="lw-cm-sidebar-label">Containers</div>
@@ -291,7 +311,7 @@ const CampaignManager = () => {
           </div>
         </aside>
 
-        {/* MIDDLE: List / Cards */}
+        {/* CENTER: Search + List */}
         <main className="lw-cm-main">
           <section className="lw-cm-search-section">
             <div className="lw-cm-search-bar">
@@ -313,7 +333,9 @@ const CampaignManager = () => {
                     <li key={`${r.typeId}-${r.record.id}`}>
                       <button
                         className="lw-cm-meta-result"
-                        onClick={() => handleMetaSearchSelect(r.typeId, r.record)}
+                        onClick={() =>
+                          handleMetaSearchSelect(r.typeId, r.record)
+                        }
                       >
                         <span className="lw-cm-meta-result-type">
                           {r.typeLabel}
@@ -339,7 +361,7 @@ const CampaignManager = () => {
                   Create
                 </button>
                 <button
-                  className="lw-cm-button lw-cm-button-ghost"
+                  className="lw-cm-button lw-cm-button-ghost lw-cm-button-danger"
                   onClick={handleArchive}
                   disabled={!selectedRecord}
                 >
@@ -364,10 +386,7 @@ const CampaignManager = () => {
                             ? " lw-cm-card-active"
                             : "")
                         }
-                        onClick={() => {
-                          setSelectedRecord(item);
-                          setIsDirty(false);
-                        }}
+                        onClick={() => setSelectedRecord(item)}
                       >
                         <div className="lw-cm-card-title">
                           {getRecordDisplayName(activeType, item)}
@@ -384,7 +403,7 @@ const CampaignManager = () => {
           </section>
         </main>
 
-        {/* RIGHT: Detail Container */}
+        {/* RIGHT: Detail Panel */}
         <section
           className={
             "lw-cm-detail-panel" + (isDetailOpen ? " visible" : "")
@@ -393,7 +412,6 @@ const CampaignManager = () => {
           {selectedRecord ? (
             <DetailView
               type={activeType}
-              typeLabel={activeTypeLabel}
               record={selectedRecord}
               isDirty={isDirty}
               onChange={(updated) => {
@@ -420,7 +438,7 @@ const CampaignManager = () => {
         </section>
       </div>
 
-      {/* FULLSCREEN FOCUS EDITOR (MU/TH/UR STYLE) */}
+      {/* FULLSCREEN FOCUS EDITOR (MU-TH-UR / VT323) */}
       {focusEditor && (
         <div className="lw-cm-focus-overlay">
           <div className="lw-cm-focus-panel">
@@ -438,12 +456,12 @@ const CampaignManager = () => {
               value={focusEditor.value}
               onChange={(e) => {
                 const newVal = e.target.value;
-                setFocusEditor((prev) =>
-                  prev ? { ...prev, value: newVal } : prev
-                );
-                if (focusEditor.onChange) {
-                  focusEditor.onChange(newVal);
-                }
+                setFocusEditor((prev) => {
+                  if (prev && typeof prev.onChange === "function") {
+                    prev.onChange(newVal);
+                  }
+                  return prev ? { ...prev, value: newVal } : prev;
+                });
               }}
             />
           </div>
@@ -453,7 +471,508 @@ const CampaignManager = () => {
   );
 };
 
+/* -------- DETAIL VIEW -------- */
+
+const DetailView = ({
+  type,
+  record,
+  isDirty,
+  onChange,
+  onClose,
+  onOpenFocusEditor,
+}) => {
+  const updateField = (field, value) => {
+    onChange({ ...record, [field]: value });
+  };
+
+  const openBigField = (label, fieldKey) => (value, setter) => {
+    onOpenFocusEditor({
+      label,
+      value,
+      onChange: (newVal) => setter(newVal),
+    });
+  };
+
+  return (
+    <div className="lw-cm-detail-inner">
+      <div className="lw-cm-detail-header-row">
+        <div className="lw-cm-detail-header-left">
+          <div className="lw-cm-breadcrumb">
+            {typeLabel(type)} ▸ {getRecordDisplayName(type, record)}
+          </div>
+          <h2 className="lw-cm-detail-title">
+            {getRecordDisplayName(type, record)}
+          </h2>
+        </div>
+        <div className="lw-cm-detail-header-right">
+          {isDirty && <span className="lw-cm-unsaved-dot">● Unsaved</span>}
+          <button className="lw-cm-detail-close" onClick={onClose}>
+            ✕
+          </button>
+        </div>
+      </div>
+
+      <div className="lw-cm-detail-scroll">
+        {/* CAMPAIGNS */}
+        {type === "campaigns" && (
+          <>
+            <CMSection title="Campaign Core">
+              <DetailField
+                label="Campaign Name"
+                value={record.name || ""}
+                onChange={(v) => updateField("name", v)}
+              />
+              <DetailField
+                label="World Setting"
+                value={record.worldSetting || ""}
+                onChange={(v) => updateField("worldSetting", v)}
+              />
+              <DetailField
+                label="Date (MM/DD/YYYY)"
+                value={record.date || ""}
+                onChange={(v) => updateField("date", v)}
+              />
+            </CMSection>
+
+            <CMSection title="Description">
+              <DetailField
+                type="textarea"
+                value={record.description || ""}
+                onChange={(v) => updateField("description", v)}
+                onOpenFocusEditor={openBigField(
+                  "Campaign Description",
+                  "description"
+                )}
+                rows={5}
+              />
+            </CMSection>
+          </>
+        )}
+
+        {/* SESSIONS */}
+        {type === "sessions" && (
+          <>
+            <CMSection title="Session Summary">
+              <DetailField
+                label="Description"
+                type="textarea"
+                value={record.description || ""}
+                onChange={(v) => updateField("description", v)}
+                onOpenFocusEditor={openBigField(
+                  "Session Description",
+                  "description"
+                )}
+                rows={4}
+              />
+            </CMSection>
+            <CMSection title="Geography">
+              <DetailField
+                type="textarea"
+                value={record.geography || ""}
+                onChange={(v) => updateField("geography", v)}
+                rows={3}
+              />
+            </CMSection>
+            <CMSection title="Notes & History">
+              <DetailField
+                label="Notes"
+                type="textarea"
+                value={record.notes || ""}
+                onChange={(v) => updateField("notes", v)}
+                onOpenFocusEditor={openBigField("Session Notes", "notes")}
+                rows={4}
+              />
+              <DetailField
+                label="History"
+                type="textarea"
+                value={record.history || ""}
+                onChange={(v) => updateField("history", v)}
+                onOpenFocusEditor={openBigField("Session History", "history")}
+                rows={4}
+              />
+            </CMSection>
+          </>
+        )}
+
+        {/* EVENTS */}
+        {type === "events" && (
+          <>
+            <CMSection title="Event Description">
+              <DetailField
+                type="textarea"
+                value={record.description || ""}
+                onChange={(v) => updateField("description", v)}
+                onOpenFocusEditor={openBigField("Event Description", "description")}
+                rows={4}
+              />
+            </CMSection>
+            <CMSection title="Event Details">
+              <DetailField
+                label="Type"
+                value={record.type || ""}
+                onChange={(v) => updateField("type", v)}
+              />
+              <DetailField
+                label="Weather"
+                value={record.weather || ""}
+                onChange={(v) => updateField("weather", v)}
+              />
+              <DetailField
+                label="Trigger Detail"
+                type="textarea"
+                value={record.triggerDetail || ""}
+                onChange={(v) => updateField("triggerDetail", v)}
+                rows={3}
+              />
+            </CMSection>
+          </>
+        )}
+
+        {/* PLAYER CHARACTERS */}
+        {type === "playerCharacters" && (
+          <CMSection title="Player Character">
+            <DetailField
+              label="First Name"
+              value={record.firstName || ""}
+              onChange={(v) => updateField("firstName", v)}
+            />
+            <DetailField
+              label="Last Name"
+              value={record.lastName || ""}
+              onChange={(v) => updateField("lastName", v)}
+            />
+            <DetailField
+              label="Phone"
+              value={record.phone || ""}
+              onChange={(v) => updateField("phone", v)}
+            />
+            <DetailField
+              label="Email"
+              value={record.email || ""}
+              onChange={(v) => updateField("email", v)}
+            />
+          </CMSection>
+        )}
+
+        {/* NPCS */}
+        {type === "npcs" && (
+          <>
+            <CMSection title="Identity">
+              <DetailField
+                label="First Name"
+                value={record.firstName || ""}
+                onChange={(v) => updateField("firstName", v)}
+              />
+              <DetailField
+                label="Last Name"
+                value={record.lastName || ""}
+                onChange={(v) => updateField("lastName", v)}
+              />
+              <DetailField
+                label="Type"
+                value={record.type || "neutral"}
+                onChange={(v) => updateField("type", v)}
+              />
+            </CMSection>
+
+            <CMSection title="Profile">
+              <DetailField
+                label="NPC Data"
+                type="textarea"
+                value={record.data || ""}
+                onChange={(v) => updateField("data", v)}
+                onOpenFocusEditor={openBigField("NPC Data", "data")}
+                rows={5}
+              />
+              <DetailField
+                label="Personality"
+                type="textarea"
+                value={record.personality || ""}
+                onChange={(v) => updateField("personality", v)}
+                rows={4}
+              />
+              <DetailField
+                label="Goals"
+                type="textarea"
+                value={record.goals || ""}
+                onChange={(v) => updateField("goals", v)}
+                rows={4}
+              />
+              <DetailField
+                label="Faction Alignment"
+                type="textarea"
+                value={record.factionAlignment || ""}
+                onChange={(v) => updateField("factionAlignment", v)}
+                rows={3}
+              />
+              <DetailField
+                label="Secrets"
+                type="textarea"
+                value={record.secrets || ""}
+                onChange={(v) => updateField("secrets", v)}
+                onOpenFocusEditor={openBigField("NPC Secrets", "secrets")}
+                rows={4}
+              />
+              <DetailField
+                label="State"
+                value={record.state || "alive"}
+                onChange={(v) => updateField("state", v)}
+              />
+            </CMSection>
+          </>
+        )}
+
+        {/* ENCOUNTERS */}
+        {type === "encounters" && (
+          <>
+            <CMSection title="Encounter Description">
+              <DetailField
+                type="textarea"
+                value={record.description || ""}
+                onChange={(v) => updateField("description", v)}
+                onOpenFocusEditor={openBigField(
+                  "Encounter Description",
+                  "description"
+                )}
+                rows={4}
+              />
+            </CMSection>
+            <CMSection title="Details">
+              <DetailField
+                label="Types (comma separated)"
+                type="textarea"
+                value={record.types?.join(", ") || ""}
+                onChange={(v) =>
+                  updateField(
+                    "types",
+                    v
+                      .split(",")
+                      .map((s) => s.trim())
+                      .filter(Boolean)
+                  )
+                }
+                rows={3}
+              />
+              <DetailField
+                label="Notes"
+                type="textarea"
+                value={record.notes || ""}
+                onChange={(v) => updateField("notes", v)}
+                onOpenFocusEditor={openBigField("Encounter Notes", "notes")}
+                rows={4}
+              />
+              <DetailField
+                label="Priority"
+                value={record.priority ?? 1}
+                onChange={(v) => updateField("priority", Number(v || 0))}
+              />
+            </CMSection>
+          </>
+        )}
+
+        {/* QUESTS */}
+        {type === "quests" && (
+          <>
+            <CMSection title="Quest">
+              <DetailField
+                label="Description"
+                type="textarea"
+                value={record.description || ""}
+                onChange={(v) => updateField("description", v)}
+                onOpenFocusEditor={openBigField("Quest Description", "description")}
+                rows={4}
+              />
+              <DetailField
+                label="Status"
+                value={record.status || "active"}
+                onChange={(v) => updateField("status", v)}
+              />
+            </CMSection>
+          </>
+        )}
+
+        {/* LOCATIONS */}
+        {type === "locations" && (
+          <>
+            <CMSection title="Location Overview">
+              <DetailField
+                label="Description"
+                type="textarea"
+                value={record.description || ""}
+                onChange={(v) => updateField("description", v)}
+                onOpenFocusEditor={openBigField(
+                  "Location Description",
+                  "description"
+                )}
+                rows={4}
+              />
+            </CMSection>
+            <CMSection title="Address">
+              <DetailField
+                label="Street"
+                value={record.street || ""}
+                onChange={(v) => updateField("street", v)}
+              />
+              <DetailField
+                label="City"
+                value={record.city || ""}
+                onChange={(v) => updateField("city", v)}
+              />
+              <DetailField
+                label="State"
+                value={record.state || ""}
+                onChange={(v) => updateField("state", v)}
+              />
+              <DetailField
+                label="Zip"
+                value={record.zip || ""}
+                onChange={(v) => updateField("zip", v)}
+              />
+            </CMSection>
+            <CMSection title="Notes & Secrets">
+              <DetailField
+                label="Notes"
+                type="textarea"
+                value={record.notes || ""}
+                onChange={(v) => updateField("notes", v)}
+                onOpenFocusEditor={openBigField("Location Notes", "notes")}
+                rows={3}
+              />
+              <DetailField
+                label="Secrets"
+                type="textarea"
+                value={record.secrets || ""}
+                onChange={(v) => updateField("secrets", v)}
+                onOpenFocusEditor={openBigField("Location Secrets", "secrets")}
+                rows={3}
+              />
+              <DetailField
+                label="Points of Interest"
+                type="textarea"
+                value={record.pointsOfInterest || ""}
+                onChange={(v) => updateField("pointsOfInterest", v)}
+                rows={3}
+              />
+            </CMSection>
+          </>
+        )}
+
+        {/* ITEMS */}
+        {type === "items" && (
+          <>
+            <CMSection title="Item">
+              <DetailField
+                label="Description"
+                type="textarea"
+                value={record.description || ""}
+                onChange={(v) => updateField("description", v)}
+                onOpenFocusEditor={openBigField("Item Description", "description")}
+                rows={4}
+              />
+              <DetailField
+                label="Notes"
+                type="textarea"
+                value={record.notes || ""}
+                onChange={(v) => updateField("notes", v)}
+                onOpenFocusEditor={openBigField("Item Notes", "notes")}
+                rows={3}
+              />
+            </CMSection>
+          </>
+        )}
+
+        {/* LORE */}
+        {type === "lore" && (
+          <>
+            <CMSection title="Lore">
+              <DetailField
+                label="Description"
+                type="textarea"
+                value={record.description || ""}
+                onChange={(v) => updateField("description", v)}
+                onOpenFocusEditor={openBigField("Lore Description", "description")}
+                rows={4}
+              />
+              <DetailField
+                label="Notes"
+                type="textarea"
+                value={record.notes || ""}
+                onChange={(v) => updateField("notes", v)}
+                onOpenFocusEditor={openBigField("Lore Notes", "notes")}
+                rows={3}
+              />
+            </CMSection>
+          </>
+        )}
+
+        {/* LOGS */}
+        {type === "logs" && (
+          <>
+            <CMSection title="Session Log">
+              <DetailField
+                label="Title"
+                value={record.title || ""}
+                onChange={(v) => updateField("title", v)}
+              />
+              <DetailField
+                label="Body"
+                type="textarea"
+                value={record.body || ""}
+                onChange={(v) => updateField("body", v)}
+                onOpenFocusEditor={openBigField("Session Log Body", "body")}
+                rows={6}
+              />
+            </CMSection>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const DetailField = ({
+  label,
+  type = "text",
+  value,
+  onChange,
+  onOpenFocusEditor,
+  rows = 3,
+}) => {
+  const handleDoubleClick = () => {
+    if (onOpenFocusEditor) {
+      onOpenFocusEditor(value, onChange);
+    }
+  };
+
+  return (
+    <div className="lw-cm-field">
+      {label && <label className="lw-cm-field-label">{label}</label>}
+      {type === "textarea" ? (
+        <textarea
+          className="lw-cm-field-input lw-cm-field-textarea"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onDoubleClick={handleDoubleClick}
+          rows={rows}
+        />
+      ) : (
+        <input
+          className="lw-cm-field-input"
+          type={type}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      )}
+    </div>
+  );
+};
+
 /* Utility helpers */
+
+function typeLabel(type) {
+  const t = CONTAINER_TYPES.find((c) => c.id === type);
+  return t ? t.label : type;
+}
 
 function getRecordDisplayName(type, record) {
   switch (type) {
@@ -509,582 +1028,5 @@ function getRecordSubtitle(type, record) {
       return "";
   }
 }
-
-/* Detail view */
-
-const DetailView = ({
-  type,
-  typeLabel,
-  record,
-  isDirty,
-  onChange,
-  onClose,
-  onOpenFocusEditor,
-}) => {
-  const updateField = (field, value) => {
-    onChange({ ...record, [field]: value });
-  };
-
-  const textAreaProps = {
-    rows: 4,
-  };
-
-  // Helper: for big fields that use fullscreen editor
-  const focusable = (label, fieldName) => ({
-    enableFocus: true,
-    onOpenFocusEditor: onOpenFocusEditor
-      ? ({ value, onChange }) =>
-          onOpenFocusEditor({
-            label,
-            value,
-            onChange: (newVal) => onChange(newVal),
-          })
-      : null,
-    fieldName,
-  });
-
-  return (
-    <div className="lw-cm-detail-inner">
-      <div className="lw-cm-detail-header-row">
-        <div className="lw-cm-detail-header-left">
-          <div className="lw-cm-breadcrumb">
-            {typeLabel || type} ▸ {getRecordDisplayName(type, record)}
-          </div>
-          <h2 className="lw-cm-detail-title">
-            {getRecordDisplayName(type, record)}
-          </h2>
-        </div>
-        <div className="lw-cm-detail-header-right">
-          {isDirty && <span className="lw-cm-unsaved-dot">● Unsaved</span>}
-          <button className="lw-cm-detail-close" onClick={onClose}>
-            ✕
-          </button>
-        </div>
-      </div>
-
-      <div className="lw-cm-detail-scroll">
-        {/* CAMPAIGNS */}
-        {type === "campaigns" && (
-          <>
-            <DetailField
-              label="Campaign Name"
-              value={record.name || ""}
-              onChange={(v) => updateField("name", v)}
-            />
-            <DetailField
-              label="Description"
-              type="textarea"
-              value={record.description || ""}
-              onChange={(v) => updateField("description", v)}
-              textAreaProps={textAreaProps}
-              enableFocus
-              onOpenFocusEditor={({ value, onChange }) =>
-                onOpenFocusEditor &&
-                onOpenFocusEditor({
-                  label: "Campaign Description",
-                  value,
-                  onChange,
-                })
-              }
-            />
-            <DetailField
-              label="World Setting"
-              value={record.worldSetting || ""}
-              onChange={(v) => updateField("worldSetting", v)}
-            />
-            <DetailField
-              label="Date (MM/DD/YYYY)"
-              value={record.date || ""}
-              onChange={(v) => updateField("date", v)}
-            />
-          </>
-        )}
-
-        {/* SESSIONS */}
-        {type === "sessions" && (
-          <>
-            <DetailField
-              label="Description"
-              type="textarea"
-              value={record.description || ""}
-              onChange={(v) => updateField("description", v)}
-              textAreaProps={textAreaProps}
-              enableFocus
-              onOpenFocusEditor={({ value, onChange }) =>
-                onOpenFocusEditor &&
-                onOpenFocusEditor({
-                  label: "Session Description",
-                  value,
-                  onChange,
-                })
-              }
-            />
-            <DetailField
-              label="Geography"
-              type="textarea"
-              value={record.geography || ""}
-              onChange={(v) => updateField("geography", v)}
-              textAreaProps={textAreaProps}
-            />
-            <DetailField
-              label="Notes"
-              type="textarea"
-              value={record.notes || ""}
-              onChange={(v) => updateField("notes", v)}
-              textAreaProps={textAreaProps}
-              enableFocus
-              onOpenFocusEditor={({ value, onChange }) =>
-                onOpenFocusEditor &&
-                onOpenFocusEditor({
-                  label: "Session Notes",
-                  value,
-                  onChange,
-                })
-              }
-            />
-            <DetailField
-              label="History"
-              type="textarea"
-              value={record.history || ""}
-              onChange={(v) => updateField("history", v)}
-              textAreaProps={textAreaProps}
-              enableFocus
-              onOpenFocusEditor={({ value, onChange }) =>
-                onOpenFocusEditor &&
-                onOpenFocusEditor({
-                  label: "Session History",
-                  value,
-                  onChange,
-                })
-              }
-            />
-          </>
-        )}
-
-        {/* EVENTS */}
-        {type === "events" && (
-          <>
-            <DetailField
-              label="Description"
-              type="textarea"
-              value={record.description || ""}
-              onChange={(v) => updateField("description", v)}
-              textAreaProps={textAreaProps}
-              enableFocus
-              onOpenFocusEditor={({ value, onChange }) =>
-                onOpenFocusEditor &&
-                onOpenFocusEditor({
-                  label: "Event Description",
-                  value,
-                  onChange,
-                })
-              }
-            />
-            <DetailField
-              label="Type"
-              value={record.type || ""}
-              onChange={(v) => updateField("type", v)}
-            />
-            <DetailField
-              label="Weather"
-              value={record.weather || ""}
-              onChange={(v) => updateField("weather", v)}
-            />
-            <DetailField
-              label="Trigger Detail"
-              type="textarea"
-              value={record.triggerDetail || ""}
-              onChange={(v) => updateField("triggerDetail", v)}
-              textAreaProps={textAreaProps}
-            />
-          </>
-        )}
-
-        {/* PLAYER CHARACTERS */}
-        {type === "playerCharacters" && (
-          <>
-            <DetailField
-              label="First Name"
-              value={record.firstName || ""}
-              onChange={(v) => updateField("firstName", v)}
-            />
-            <DetailField
-              label="Last Name"
-              value={record.lastName || ""}
-              onChange={(v) => updateField("lastName", v)}
-            />
-            <DetailField
-              label="Phone"
-              value={record.phone || ""}
-              onChange={(v) => updateField("phone", v)}
-            />
-            <DetailField
-              label="Email"
-              value={record.email || ""}
-              onChange={(v) => updateField("email", v)}
-            />
-          </>
-        )}
-
-        {/* NPCS */}
-        {type === "npcs" && (
-          <>
-            <DetailField
-              label="First Name"
-              value={record.firstName || ""}
-              onChange={(v) => updateField("firstName", v)}
-            />
-            <DetailField
-              label="Last Name"
-              value={record.lastName || ""}
-              onChange={(v) => updateField("lastName", v)}
-            />
-            <DetailField
-              label="Type"
-              value={record.type || "neutral"}
-              onChange={(v) => updateField("type", v)}
-            />
-            <DetailField
-              label="NPC Data"
-              type="textarea"
-              value={record.data || ""}
-              onChange={(v) => updateField("data", v)}
-              textAreaProps={textAreaProps}
-            />
-            <DetailField
-              label="Personality"
-              type="textarea"
-              value={record.personality || ""}
-              onChange={(v) => updateField("personality", v)}
-              textAreaProps={textAreaProps}
-            />
-            <DetailField
-              label="Goals"
-              type="textarea"
-              value={record.goals || ""}
-              onChange={(v) => updateField("goals", v)}
-              textAreaProps={textAreaProps}
-            />
-            <DetailField
-              label="Faction Alignment"
-              type="textarea"
-              value={record.factionAlignment || ""}
-              onChange={(v) => updateField("factionAlignment", v)}
-              textAreaProps={textAreaProps}
-            />
-            <DetailField
-              label="Secrets"
-              type="textarea"
-              value={record.secrets || ""}
-              onChange={(v) => updateField("secrets", v)}
-              textAreaProps={textAreaProps}
-              enableFocus
-              onOpenFocusEditor={({ value, onChange }) =>
-                onOpenFocusEditor &&
-                onOpenFocusEditor({
-                  label: "NPC Secrets",
-                  value,
-                  onChange,
-                })
-              }
-            />
-            <DetailField
-              label="State"
-              value={record.state || ""}
-              onChange={(v) => updateField("state", v)}
-            />
-          </>
-        )}
-
-        {/* ENCOUNTERS */}
-        {type === "encounters" && (
-          <>
-            <DetailField
-              label="Description"
-              type="textarea"
-              value={record.description || ""}
-              onChange={(v) => updateField("description", v)}
-              textAreaProps={textAreaProps}
-              enableFocus
-              onOpenFocusEditor={({ value, onChange }) =>
-                onOpenFocusEditor &&
-                onOpenFocusEditor({
-                  label: "Encounter Description",
-                  value,
-                  onChange,
-                })
-              }
-            />
-            <DetailField
-              label="Notes"
-              type="textarea"
-              value={record.notes || ""}
-              onChange={(v) => updateField("notes", v)}
-              textAreaProps={textAreaProps}
-              enableFocus
-              onOpenFocusEditor={({ value, onChange }) =>
-                onOpenFocusEditor &&
-                onOpenFocusEditor({
-                  label: "Encounter Notes",
-                  value,
-                  onChange,
-                })
-              }
-            />
-          </>
-        )}
-
-        {/* QUESTS */}
-        {type === "quests" && (
-          <>
-            <DetailField
-              label="Description"
-              type="textarea"
-              value={record.description || ""}
-              onChange={(v) => updateField("description", v)}
-              textAreaProps={textAreaProps}
-              enableFocus
-              onOpenFocusEditor={({ value, onChange }) =>
-                onOpenFocusEditor &&
-                onOpenFocusEditor({
-                  label: "Quest Description",
-                  value,
-                  onChange,
-                })
-              }
-            />
-            <DetailField
-              label="Status"
-              value={record.status || ""}
-              onChange={(v) => updateField("status", v)}
-            />
-          </>
-        )}
-
-        {/* LOCATIONS */}
-        {type === "locations" && (
-          <>
-            <DetailField
-              label="Description"
-              type="textarea"
-              value={record.description || ""}
-              onChange={(v) => updateField("description", v)}
-              textAreaProps={textAreaProps}
-              enableFocus
-              onOpenFocusEditor={({ value, onChange }) =>
-                onOpenFocusEditor &&
-                onOpenFocusEditor({
-                  label: "Location Description",
-                  value,
-                  onChange,
-                })
-              }
-            />
-            <DetailField
-              label="Street"
-              value={record.street || ""}
-              onChange={(v) => updateField("street", v)}
-            />
-            <DetailField
-              label="City"
-              value={record.city || ""}
-              onChange={(v) => updateField("city", v)}
-            />
-            <DetailField
-              label="State"
-              value={record.state || ""}
-              onChange={(v) => updateField("state", v)}
-            />
-            <DetailField
-              label="Zip"
-              value={record.zip || ""}
-              onChange={(v) => updateField("zip", v)}
-            />
-            <DetailField
-              label="Notes"
-              type="textarea"
-              value={record.notes || ""}
-              onChange={(v) => updateField("notes", v)}
-              textAreaProps={textAreaProps}
-              enableFocus
-              onOpenFocusEditor={({ value, onChange }) =>
-                onOpenFocusEditor &&
-                onOpenFocusEditor({
-                  label: "Location Notes",
-                  value,
-                  onChange,
-                })
-              }
-            />
-            <DetailField
-              label="Secrets"
-              type="textarea"
-              value={record.secrets || ""}
-              onChange={(v) => updateField("secrets", v)}
-              textAreaProps={textAreaProps}
-              enableFocus
-              onOpenFocusEditor={({ value, onChange }) =>
-                onOpenFocusEditor &&
-                onOpenFocusEditor({
-                  label: "Location Secrets",
-                  value,
-                  onChange,
-                })
-              }
-            />
-            <DetailField
-              label="Points of Interest"
-              type="textarea"
-              value={record.pointsOfInterest || ""}
-              onChange={(v) => updateField("pointsOfInterest", v)}
-              textAreaProps={textAreaProps}
-            />
-          </>
-        )}
-
-        {/* ITEMS */}
-        {type === "items" && (
-          <>
-            <DetailField
-              label="Description"
-              type="textarea"
-              value={record.description || ""}
-              onChange={(v) => updateField("description", v)}
-              textAreaProps={textAreaProps}
-              enableFocus
-              onOpenFocusEditor={({ value, onChange }) =>
-                onOpenFocusEditor &&
-                onOpenFocusEditor({
-                  label: "Item Description",
-                  value,
-                  onChange,
-                })
-              }
-            />
-            <DetailField
-              label="Notes"
-              type="textarea"
-              value={record.notes || ""}
-              onChange={(v) => updateField("notes", v)}
-              textAreaProps={textAreaProps}
-              enableFocus
-              onOpenFocusEditor={({ value, onChange }) =>
-                onOpenFocusEditor &&
-                onOpenFocusEditor({
-                  label: "Item Notes",
-                  value,
-                  onChange,
-                })
-              }
-            />
-          </>
-        )}
-
-        {/* LORE */}
-        {type === "lore" && (
-          <>
-            <DetailField
-              label="Description"
-              type="textarea"
-              value={record.description || ""}
-              onChange={(v) => updateField("description", v)}
-              textAreaProps={textAreaProps}
-              enableFocus
-              onOpenFocusEditor={({ value, onChange }) =>
-                onOpenFocusEditor &&
-                onOpenFocusEditor({
-                  label: "Lore Description",
-                  value,
-                  onChange,
-                })
-              }
-            />
-            <DetailField
-              label="Notes"
-              type="textarea"
-              value={record.notes || ""}
-              onChange={(v) => updateField("notes", v)}
-              textAreaProps={textAreaProps}
-              enableFocus
-              onOpenFocusEditor={({ value, onChange }) =>
-                onOpenFocusEditor &&
-                onOpenFocusEditor({
-                  label: "Lore Notes",
-                  value,
-                  onChange,
-                })
-              }
-            />
-          </>
-        )}
-
-        {/* LOGS */}
-        {type === "logs" && (
-          <>
-            <DetailField
-              label="Title"
-              value={record.title || ""}
-              onChange={(v) => updateField("title", v)}
-            />
-            <DetailField
-              label="Body"
-              type="textarea"
-              value={record.body || ""}
-              onChange={(v) => updateField("body", v)}
-              textAreaProps={textAreaProps}
-              enableFocus
-              onOpenFocusEditor={({ value, onChange }) =>
-                onOpenFocusEditor &&
-                onOpenFocusEditor({
-                  label: "Session Log Body",
-                  value,
-                  onChange,
-                })
-              }
-            />
-          </>
-        )}
-      </div>
-    </div>
-  );
-};
-
-const DetailField = ({
-  label,
-  type = "text",
-  value,
-  onChange,
-  textAreaProps = {},
-  enableFocus,
-  onOpenFocusEditor,
-}) => {
-  const handleDoubleClick = () => {
-    if (enableFocus && onOpenFocusEditor) {
-      onOpenFocusEditor({ value, onChange });
-    }
-  };
-
-  return (
-    <div className="lw-cm-field">
-      <label className="lw-cm-field-label">{label}</label>
-      {type === "textarea" ? (
-        <textarea
-          className="lw-cm-field-input lw-cm-field-textarea"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          onDoubleClick={handleDoubleClick}
-          {...textAreaProps}
-        />
-      ) : (
-        <input
-          className="lw-cm-field-input"
-          type={type}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-        />
-      )}
-    </div>
-  );
-};
 
 export default CampaignManager;
