@@ -1,167 +1,100 @@
 // netlify/functions/api-search.js
-import { NetlifyRequest, NetlifyResponse } from "@netlify/functions";
-import { query } from "../util/db.js";
 import OpenAI from "openai";
+import { query } from "../util/db.js";
 
 /* ----------------------------------------------
-   Initialize OpenAI client
+   OpenAI client
 ---------------------------------------------- */
-const openai = new OpenAI({
+const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
 /* ----------------------------------------------
-   Build a TSVECTOR full-text clause
+   Convert search term to TSQUERY safely
 ---------------------------------------------- */
 function tsv(term) {
-  // safely converts "fog horn malfunction" → "fog & horn & malfunction"
   return term.trim().split(/\s+/).join(" & ");
 }
 
 /* ----------------------------------------------
-   Execute full-text search across all tables
+   Perform full-text search across all entities
 ---------------------------------------------- */
 async function searchAll(term) {
   const vector = tsv(term);
 
-  const sections = {};
+  async function run(sql) {
+    return (await query(sql, [vector])).rows;
+  }
 
-  sections.campaigns = (
-    await query(
-      `
+  return {
+    campaigns: await run(`
       SELECT id, name, description, 'campaign' AS type,
-             ts_rank(search_tsv, to_tsquery('english', $1)) AS rank
-      FROM campaigns
-      WHERE search_tsv @@ to_tsquery('english', $1)
+      ts_rank(search_tsv, to_tsquery('english', $1)) AS rank
+      FROM campaigns WHERE search_tsv @@ to_tsquery('english', $1)
       ORDER BY rank DESC
-      `,
-      [vector]
-    )
-  ).rows;
-
-  sections.sessions = (
-    await query(
-      `
+    `),
+    sessions: await run(`
       SELECT id, campaign_id, description, geography, 'session' AS type,
-             ts_rank(search_tsv, to_tsquery('english', $1)) AS rank
-      FROM sessions
-      WHERE search_tsv @@ to_tsquery('english', $1)
+      ts_rank(search_tsv, to_tsquery('english', $1)) AS rank
+      FROM sessions WHERE search_tsv @@ to_tsquery('english', $1)
       ORDER BY rank DESC
-      `,
-      [vector]
-    )
-  ).rows;
-
-  sections.events = (
-    await query(
-      `
+    `),
+    events: await run(`
       SELECT id, campaign_id, session_id, description, event_type, weather,
-             priority, 'event' AS type,
-             ts_rank(search_tsv, to_tsquery('english', $1)) AS rank
-      FROM events
-      WHERE search_tsv @@ to_tsquery('english', $1)
+      priority, 'event' AS type,
+      ts_rank(search_tsv, to_tsquery('english', $1)) AS rank
+      FROM events WHERE search_tsv @@ to_tsquery('english', $1)
       ORDER BY rank DESC
-      `,
-      [vector]
-    )
-  ).rows;
-
-  sections.encounters = (
-    await query(
-      `
+    `),
+    encounters: await run(`
       SELECT id, campaign_id, session_id, description, notes,
-             priority, 'encounter' AS type,
-             ts_rank(search_tsv, to_tsquery('english', $1)) AS rank
-      FROM encounters
-      WHERE search_tsv @@ to_tsquery('english', $1)
+      priority, 'encounter' AS type,
+      ts_rank(search_tsv, to_tsquery('english', $1)) AS rank
+      FROM encounters WHERE search_tsv @@ to_tsquery('english', $1)
       ORDER BY rank DESC
-      `,
-      [vector]
-    )
-  ).rows;
-
-  sections.npcs = (
-    await query(
-      `
+    `),
+    npcs: await run(`
       SELECT id, first_name, last_name, npc_type, personality, goals,
-             'npc' AS type,
-             ts_rank(search_tsv, to_tsquery('english', $1)) AS rank
-      FROM npcs
-      WHERE search_tsv @@ to_tsquery('english', $1)
+      'npc' AS type,
+      ts_rank(search_tsv, to_tsquery('english', $1)) AS rank
+      FROM npcs WHERE search_tsv @@ to_tsquery('english', $1)
       ORDER BY rank DESC
-      `,
-      [vector]
-    )
-  ).rows;
-
-  sections.items = (
-    await query(
-      `
+    `),
+    items: await run(`
       SELECT id, description, notes, 'item' AS type,
-             ts_rank(search_tsv, to_tsquery('english', $1)) AS rank
-      FROM items
-      WHERE search_tsv @@ to_tsquery('english', $1)
+      ts_rank(search_tsv, to_tsquery('english', $1)) AS rank
+      FROM items WHERE search_tsv @@ to_tsquery('english', $1)
       ORDER BY rank DESC
-      `,
-      [vector]
-    )
-  ).rows;
-
-  sections.locations = (
-    await query(
-      `
+    `),
+    locations: await run(`
       SELECT id, description, city, state, notes,
-             'location' AS type,
-             ts_rank(search_tsv, to_tsquery('english', $1)) AS rank
-      FROM locations
-      WHERE search_tsv @@ to_tsquery('english', $1)
+      'location' AS type,
+      ts_rank(search_tsv, to_tsquery('english', $1)) AS rank
+      FROM locations WHERE search_tsv @@ to_tsquery('english', $1)
       ORDER BY rank DESC
-      `,
-      [vector]
-    )
-  ).rows;
-
-  sections.lore = (
-    await query(
-      `
+    `),
+    lore: await run(`
       SELECT id, description, notes, 'lore' AS type,
-             ts_rank(search_tsv, to_tsquery('english', $1)) AS rank
-      FROM lore
-      WHERE search_tsv @@ to_tsquery('english', $1)
+      ts_rank(search_tsv, to_tsquery('english', $1)) AS rank
+      FROM lore WHERE search_tsv @@ to_tsquery('english', $1)
       ORDER BY rank DESC
-      `,
-      [vector]
-    )
-  ).rows;
-
-  return sections;
+    `),
+  };
 }
 
 /* ----------------------------------------------
-   AI ranking using GPT-4.1
+   AI ranking via GPT-4.1
 ---------------------------------------------- */
 async function aiRank(term, sections) {
-  const completion = await openai.chat.completions.create({
+  const completion = await client.chat.completions.create({
     model: "gpt-4.1-mini",
     temperature: 0.1,
-    max_tokens: 800,
+    max_tokens: 700,
     messages: [
       {
         role: "system",
-        content: `
-You are an expert GM assistant.
-Your task: take structured database search results and produce:
-
-1. A relevance-ranked list of results.
-2. Group by type (campaign, session, event, encounter, npc, item, location, lore).
-3. For each entry, provide:
-   - Type
-   - Name/Title/Short description
-   - Why it is relevant to the search term
-4. The output must be easy for a GM to skim.
-
-Only rank results actually returned by the DB, never invent anything.
-        `,
+        content:
+          "You are a GM assistant. Rank these search results by relevance. Only use provided data.",
       },
       {
         role: "user",
@@ -174,35 +107,43 @@ Only rank results actually returned by the DB, never invent anything.
 }
 
 /* ----------------------------------------------
-   MAIN HANDLER — Netlify 2025
+   Netlify Function Handler
 ---------------------------------------------- */
-export default async function handler(request) {
+export async function handler(event) {
   try {
-    const term = request.query.get("q");
+    const q = event.queryStringParameters?.q || "";
 
-    if (!term || term.trim().length < 2) {
-      return NetlifyResponse.json(
-        { error: "Query 'q' must be at least 2 characters." },
-        { status: 400 }
-      );
+    if (!q || q.trim().length < 2) {
+      return {
+        statusCode: 400,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ error: "Query 'q' must be at least 2 characters." }),
+      };
     }
 
-    // 1. DB Search
-    const sections = await searchAll(term);
+    // DB search
+    const sections = await searchAll(q);
 
-    // 2. AI Ranking
-    const ai_summary = await aiRank(term, sections);
+    // AI ranking summary
+    const ai_summary = await aiRank(q, sections);
 
-    return NetlifyResponse.json({
-      term,
-      raw: sections,
-      ai_summary,
-    });
+    return {
+      statusCode: 200,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        term: q,
+        raw: sections,
+        ai_summary,
+      }),
+    };
   } catch (err) {
     console.error("api-search error:", err);
-    return NetlifyResponse.json(
-      { error: err.message || "Internal Server Error" },
-      { status: 500 }
-    );
+    return {
+      statusCode: 500,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        error: err.message,
+      }),
+    };
   }
 }
