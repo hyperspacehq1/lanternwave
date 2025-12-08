@@ -1,5 +1,8 @@
 // ===== CampaignManager.jsx — Part 1 of 4 =====
-import { v4 as uuidv4 } from "uuid";
+// Native UUID generator (no external dependency required)
+const uuidv4 = () =>
+  (globalThis.crypto?.randomUUID?.()) ||
+  (Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2));
 import React, {
   useState,
   useEffect,
