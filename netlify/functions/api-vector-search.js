@@ -1,8 +1,10 @@
 // netlify/functions/api-vector-search.js
-import { NetlifyRequest, NetlifyResponse } from "@netlify/functions";
 import { query } from "../util/db.js";
 import OpenAI from "openai";
 
+/* ----------------------------------------------
+   Init OpenAI client (classic compatible)
+---------------------------------------------- */
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
@@ -11,61 +13,71 @@ const openai = new OpenAI({
    Generate embedding for search query
 ---------------------------------------------- */
 async function embed(text) {
-  const e = await openai.embeddings.create({
+  const out = await openai.embeddings.create({
     model: "text-embedding-3-large",
     input: text,
   });
 
-  return e.data[0].embedding;
+  return out.data[0].embedding;
 }
 
 /* ----------------------------------------------
    Query a table for vector similarity
 ---------------------------------------------- */
 async function vectorQuery(table, embedding, limit = 10) {
-  return (
-    await query(
-      `
-      SELECT id,
-             search_body,
-             1 - (embedding <=> $1) AS similarity,
-             '${table}' AS type
-      FROM ${table}
-      WHERE embedding IS NOT NULL
-      ORDER BY embedding <=> $1 ASC
-      LIMIT $2
-      `,
-      [embedding, limit]
-    )
-  ).rows;
+  const res = await query(
+    `
+    SELECT
+      id,
+      search_body,
+      1 - (embedding <=> $1) AS similarity,
+      '${table}' AS type
+    FROM ${table}
+    WHERE embedding IS NOT NULL
+    ORDER BY embedding <=> $1 ASC
+    LIMIT $2
+    `,
+    [embedding, limit]
+  );
+
+  return res.rows;
 }
 
 /* ----------------------------------------------
-   MAIN HANDLER — Netlify 2025
+   Helper for JSON responses
 ---------------------------------------------- */
-export default async function handler(request) {
+function json(status, payload) {
+  return {
+    statusCode: status,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  };
+}
+
+/* ----------------------------------------------
+   MAIN HANDLER — Netlify Classic (2024)
+---------------------------------------------- */
+export const handler = async (event, context) => {
   try {
-    const q = request.query.get("q");
-    const table = request.query.get("table");
-    const limit = Number(request.query.get("limit") || 10);
+    const qs = event.queryStringParameters || {};
+    const q = qs.q;
+    const table = qs.table;
+    const limit = Number(qs.limit || 10);
 
     if (!q || q.length < 2) {
-      return NetlifyResponse.json(
-        { error: "Query 'q' must be at least 2 characters." },
-        { status: 400 }
-      );
+      return json(400, { error: "Query 'q' must be at least 2 characters." });
     }
 
-    // 1. Embed the query text
+    // 1. Embed query
     const embedding = await embed(q);
 
-    // 2. Query one table
+    // 2. Query specific table
     if (table) {
       const rows = await vectorQuery(table, embedding, limit);
-      return NetlifyResponse.json({ q, results: rows });
+      return json(200, { q, results: rows });
     }
 
-    // 3. Query ALL tables
+    // 3. Query all tables
     const tables = [
       "campaigns",
       "sessions",
@@ -78,23 +90,21 @@ export default async function handler(request) {
     ];
 
     let all = [];
+
     for (const t of tables) {
       const rows = await vectorQuery(t, embedding, limit);
       all = all.concat(rows);
     }
 
-    // sort globally by similarity score
+    // Global rank sort
     all.sort((a, b) => b.similarity - a.similarity);
 
-    return NetlifyResponse.json({
+    return json(200, {
       q,
       results: all.slice(0, limit),
     });
   } catch (err) {
     console.error("api-vector-search error:", err);
-    return NetlifyResponse.json(
-      { error: err.message || "Internal Server Error" },
-      { status: 500 }
-    );
+    return json(500, { error: err.message || "Internal Server Error" });
   }
-}
+};

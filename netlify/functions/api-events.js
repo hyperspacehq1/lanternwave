@@ -1,118 +1,118 @@
 // netlify/functions/api-events.js
-import { NetlifyRequest, NetlifyResponse } from "@netlify/functions";
 import { query } from "../util/db.js";
 import { requireAdmin } from "../util/auth.js";
 
+const json = (status, payload) => ({
+  statusCode: status,
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify(payload),
+});
+
 /* -----------------------------------------------------------
    GET /api-events
-   - ?id=UUID → get a single event
-   - ?session_id=UUID → list events for a session
-   - ?campaign_id=UUID → list events for a campaign
 ------------------------------------------------------------ */
-async function handleGET(request) {
-  const id = request.query.get("id");
-  const sessionId = request.query.get("session_id");
-  const campaignId = request.query.get("campaign_id");
+async function handleGET(event) {
+  const qs = event.queryStringParameters || {};
+  const id = qs.id;
+  const sessionId = qs.session_id;
+  const campaignId = qs.campaign_id;
 
+  // ────────────────────────
+  // SINGLE EVENT
+  // ────────────────────────
   if (id) {
-    // Get one event + linked NPCs, Locations, Items
     const eventRes = await query(
-      `SELECT *
-       FROM events
-       WHERE id = $1
-       LIMIT 1`,
+      `SELECT * FROM events WHERE id=$1 LIMIT 1`,
       [id]
     );
 
-    if (eventRes.rows.length === 0) {
-      return NetlifyResponse.json(
-        { error: "Event not found" },
-        { status: 404 }
-      );
-    }
+    if (eventRes.rows.length === 0)
+      return json(404, { error: "Event not found" });
 
-    const event = eventRes.rows[0];
+    const eventRow = eventRes.rows[0];
 
-    // Linked NPCs
     const npcs = (
       await query(
-        `SELECT npcs.*
-         FROM event_npcs en
-         JOIN npcs ON npcs.id = en.npc_id
-         WHERE en.event_id = $1`,
+        `
+        SELECT npcs.*
+        FROM event_npcs en
+        JOIN npcs ON npcs.id = en.npc_id
+        WHERE en.event_id=$1
+        `,
         [id]
       )
     ).rows;
 
-    // Linked Locations
     const locations = (
       await query(
-        `SELECT locations.*
-         FROM event_locations el
-         JOIN locations ON locations.id = el.location_id
-         WHERE el.event_id = $1`,
+        `
+        SELECT l.*
+        FROM event_locations el
+        JOIN locations l ON l.id = el.location_id
+        WHERE el.event_id=$1
+        `,
         [id]
       )
     ).rows;
 
-    // Linked Items
     const items = (
       await query(
-        `SELECT items.*
-         FROM event_items ei
-         JOIN items ON items.id = ei.item_id
-         WHERE ei.event_id = $1`,
+        `
+        SELECT i.*
+        FROM event_items ei
+        JOIN items i ON i.id = ei.item_id
+        WHERE ei.event_id=$1
+        `,
         [id]
       )
     ).rows;
 
-    return NetlifyResponse.json({
-      ...event,
-      npcs,
-      locations,
-      items,
-    });
+    return json(200, { ...eventRow, npcs, locations, items });
   }
 
-  // Events by session
+  // ────────────────────────
+  // EVENTS FOR SESSION
+  // ────────────────────────
   if (sessionId) {
     const result = await query(
-      `SELECT *
-       FROM events
-       WHERE session_id = $1
-       ORDER BY priority DESC, created_at ASC`,
+      `
+      SELECT *
+      FROM events
+      WHERE session_id=$1
+      ORDER BY priority DESC, created_at ASC
+      `,
       [sessionId]
     );
-    return NetlifyResponse.json(result.rows);
+    return json(200, result.rows);
   }
 
-  // Events by campaign
+  // ────────────────────────
+  // EVENTS FOR CAMPAIGN
+  // ────────────────────────
   if (campaignId) {
     const result = await query(
-      `SELECT *
-       FROM events
-       WHERE campaign_id = $1
-       ORDER BY priority DESC, created_at ASC`,
+      `
+      SELECT *
+      FROM events
+      WHERE campaign_id=$1
+      ORDER BY priority DESC, created_at ASC
+      `,
       [campaignId]
     );
-    return NetlifyResponse.json(result.rows);
+    return json(200, result.rows);
   }
 
-  return NetlifyResponse.json(
-    { error: "id, session_id, or campaign_id required" },
-    { status: 400 }
-  );
+  return json(400, { error: "id, session_id, or campaign_id required" });
 }
 
 /* -----------------------------------------------------------
    POST /api-events
-   Create a new event
 ------------------------------------------------------------ */
-async function handlePOST(request) {
-  const auth = requireAdmin(request.headers);
+async function handlePOST(event) {
+  const auth = requireAdmin(event.headers);
   if (!auth.ok) return auth.response;
 
-  const body = await request.json();
+  const body = JSON.parse(event.body || "{}");
 
   const {
     campaign_id,
@@ -128,20 +128,15 @@ async function handlePOST(request) {
     item_ids = [],
   } = body;
 
-  if (!description) {
-    return NetlifyResponse.json(
-      { error: "description is required" },
-      { status: 400 }
-    );
-  }
+  if (!description)
+    return json(400, { error: "description is required" });
 
   const result = await query(
     `
     INSERT INTO events
       (campaign_id, session_id, description, event_type, weather,
        trigger_detail, priority, countdown_minutes, created_at, updated_at)
-    VALUES ($1, $2, $3, $4, $5,
-            $6, $7, $8, NOW(), NOW())
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8, NOW(), NOW())
     RETURNING *
     `,
     [
@@ -156,60 +151,53 @@ async function handlePOST(request) {
     ]
   );
 
-  const event = result.rows[0];
-  const eventId = event.id;
+  const eventRow = result.rows[0];
+  const eventId = eventRow.id;
 
-  /* -----------------------------------------
-     Attach NPCs / Locations / Items
-  ----------------------------------------- */
-
+  // Attach NPCs
   for (const npcId of npc_ids) {
     await query(
       `INSERT INTO event_npcs (event_id, npc_id)
-       VALUES ($1, $2)
+       VALUES ($1,$2)
        ON CONFLICT DO NOTHING`,
       [eventId, npcId]
     );
   }
 
+  // Attach Locations
   for (const locId of location_ids) {
     await query(
       `INSERT INTO event_locations (event_id, location_id)
-       VALUES ($1, $2)
+       VALUES ($1,$2)
        ON CONFLICT DO NOTHING`,
       [eventId, locId]
     );
   }
 
+  // Attach Items
   for (const itemId of item_ids) {
     await query(
       `INSERT INTO event_items (event_id, item_id)
-       VALUES ($1, $2)
+       VALUES ($1,$2)
        ON CONFLICT DO NOTHING`,
       [eventId, itemId]
     );
   }
 
-  return NetlifyResponse.json(event, { status: 201 });
+  return json(201, eventRow);
 }
 
 /* -----------------------------------------------------------
-   PUT /api-events?id=UUID
-   Update an event
+   PUT /api-events?id=
 ------------------------------------------------------------ */
-async function handlePUT(request) {
-  const auth = requireAdmin(request.headers);
+async function handlePUT(event) {
+  const auth = requireAdmin(event.headers);
   if (!auth.ok) return auth.response;
 
-  const id = request.query.get("id");
-  if (!id) {
-    return NetlifyResponse.json(
-      { error: "id is required" },
-      { status: 400 }
-    );
-  }
+  const id = (event.queryStringParameters || {}).id;
+  if (!id) return json(400, { error: "id is required" });
 
-  const body = await request.json();
+  const body = JSON.parse(event.body || "{}");
 
   const {
     description,
@@ -226,15 +214,15 @@ async function handlePUT(request) {
   const result = await query(
     `
     UPDATE events
-    SET description        = COALESCE($2, description),
-        event_type         = COALESCE($3, event_type),
-        weather            = COALESCE($4, weather),
-        trigger_detail     = COALESCE($5, trigger_detail),
-        priority           = COALESCE($6, priority),
-        countdown_minutes  = COALESCE($7, countdown_minutes),
-        updated_at         = NOW()
-    WHERE id = $1
-    RETURNING *
+       SET description       = COALESCE($2, description),
+           event_type        = COALESCE($3, event_type),
+           weather           = COALESCE($4, weather),
+           trigger_detail    = COALESCE($5, trigger_detail),
+           priority          = COALESCE($6, priority),
+           countdown_minutes = COALESCE($7, countdown_minutes),
+           updated_at        = NOW()
+     WHERE id=$1
+     RETURNING *
     `,
     [
       id,
@@ -247,118 +235,81 @@ async function handlePUT(request) {
     ]
   );
 
-  if (result.rows.length === 0) {
-    return NetlifyResponse.json(
-      { error: "Event not found" },
-      { status: 404 }
-    );
-  }
+  if (result.rows.length === 0)
+    return json(404, { error: "Event not found" });
 
   const updated = result.rows[0];
 
-  /* -----------------------------------------
-     Replace linked tables (if provided)
-  ----------------------------------------- */
-
+  // Replace join tables
   if (npc_ids) {
-    await query(`DELETE FROM event_npcs WHERE event_id = $1`, [id]);
+    await query(`DELETE FROM event_npcs WHERE event_id=$1`, [id]);
     for (const npcId of npc_ids) {
       await query(
-        `INSERT INTO event_npcs (event_id, npc_id)
-         VALUES ($1, $2)`,
+        `INSERT INTO event_npcs (event_id,npc_id) VALUES ($1,$2)`,
         [id, npcId]
       );
     }
   }
 
   if (location_ids) {
-    await query(`DELETE FROM event_locations WHERE event_id = $1`, [id]);
+    await query(`DELETE FROM event_locations WHERE event_id=$1`, [id]);
     for (const locId of location_ids) {
       await query(
-        `INSERT INTO event_locations (event_id, location_id)
-         VALUES ($1, $2)`,
+        `INSERT INTO event_locations (event_id,location_id) VALUES ($1,$2)`,
         [id, locId]
       );
     }
   }
 
   if (item_ids) {
-    await query(`DELETE FROM event_items WHERE event_id = $1`, [id]);
+    await query(`DELETE FROM event_items WHERE event_id=$1`, [id]);
     for (const itemId of item_ids) {
       await query(
-        `INSERT INTO event_items (event_id, item_id)
-         VALUES ($1, $2)`,
+        `INSERT INTO event_items (event_id,item_id) VALUES ($1,$2)`,
         [id, itemId]
       );
     }
   }
 
-  return NetlifyResponse.json(updated);
+  return json(200, updated);
 }
 
 /* -----------------------------------------------------------
-   DELETE /api-events?id=UUID
+   DELETE /api-events?id=
 ------------------------------------------------------------ */
-async function handleDELETE(request) {
-  const auth = requireAdmin(request.headers);
+async function handleDELETE(event) {
+  const auth = requireAdmin(event.headers);
   if (!auth.ok) return auth.response;
 
-  const id = request.query.get("id");
-  if (!id) {
-    return NetlifyResponse.json(
-      { error: "id is required" },
-      { status: 400 }
-    );
-  }
+  const id = (event.queryStringParameters || {}).id;
+  if (!id) return json(400, { error: "id is required" });
 
-  // delete join table references automatically due to FK ON DELETE CASCADE
   const result = await query(
-    `DELETE FROM events
-     WHERE id = $1
-     RETURNING id`,
+    `DELETE FROM events WHERE id=$1 RETURNING id`,
     [id]
   );
 
-  if (result.rows.length === 0) {
-    return NetlifyResponse.json(
-      { error: "Event not found" },
-      { status: 404 }
-    );
-  }
+  if (result.rows.length === 0)
+    return json(404, { error: "Event not found" });
 
-  return NetlifyResponse.json({ success: true, id });
+  return json(200, { success: true, id });
 }
 
 /* -----------------------------------------------------------
-   MAIN HANDLER — Netlify 2025
+   MAIN HANDLER — Classic Runtime
 ------------------------------------------------------------ */
-export default async function handler(request) {
+export const handler = async (event, context) => {
   try {
-    switch (request.method) {
-      case "GET":
-        return await handleGET(request);
-
-      case "POST":
-        return await handlePOST(request);
-
+    switch (event.httpMethod) {
+      case "GET": return await handleGET(event);
+      case "POST": return await handlePOST(event);
       case "PUT":
-      case "PATCH":
-        return await handlePUT(request);
-
-      case "DELETE":
-        return await handleDELETE(request);
-
-      default:
-        return NetlifyResponse.json(
-          { error: "Method Not Allowed" },
-          { status: 405 }
-        );
+      case "PATCH": return await handlePUT(event);
+      case "DELETE": return await handleDELETE(event);
+      default: return json(405, { error: "Method Not Allowed" });
     }
   } catch (err) {
     console.error("api-events error:", err);
-    return NetlifyResponse.json(
-      { error: err.message || "Internal error" },
-      { status: 500 }
-    );
+    return json(500, { error: err.message || "Internal Server Error" });
   }
-}
+};

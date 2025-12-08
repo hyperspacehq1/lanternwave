@@ -1,25 +1,27 @@
 // netlify/functions/api-locations.js
-import { NetlifyRequest, NetlifyResponse } from "@netlify/functions";
 import { query } from "../util/db.js";
 import { requireAdmin } from "../util/auth.js";
 
+// JSON helper
+const json = (status, payload) => ({
+  statusCode: status,
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify(payload),
+});
+
 /* -----------------------------------------------------------
    GET /api-locations
-   - ?id=UUID             → fetch one location + events
-   - ?event_id=UUID       → locations linked to an event
-   - ?session_id=UUID     → locations used in that session’s events
-   - ?campaign_id=UUID    → locations used in that campaign’s events
-   - none                 → list all locations
 ------------------------------------------------------------ */
-async function handleGET(request) {
-  const id = request.query.get("id");
-  const eventId = request.query.get("event_id");
-  const sessionId = request.query.get("session_id");
-  const campaignId = request.query.get("campaign_id");
+async function handleGET(event) {
+  const qs = event.queryStringParameters || {};
+  const id = qs.id;
+  const eventId = qs.event_id;
+  const sessionId = qs.session_id;
+  const campaignId = qs.campaign_id;
 
-  /* ---------------------------------------------
-     GET SINGLE LOCATION + linked events
-  --------------------------------------------- */
+  // ────────────────────────────────
+  // GET SINGLE LOCATION + linked events
+  // ────────────────────────────────
   if (id) {
     const locRes = await query(
       `SELECT *
@@ -30,15 +32,11 @@ async function handleGET(request) {
     );
 
     if (locRes.rows.length === 0) {
-      return NetlifyResponse.json(
-        { error: "Location not found" },
-        { status: 404 }
-      );
+      return json(404, { error: "Location not found" });
     }
 
     const location = locRes.rows[0];
 
-    // Fetch events where this location appears
     const events = (
       await query(
         `
@@ -52,17 +50,14 @@ async function handleGET(request) {
       )
     ).rows;
 
-    return NetlifyResponse.json({
-      ...location,
-      events,
-    });
+    return json(200, { ...location, events });
   }
 
-  /* ---------------------------------------------
-     GET LOCATIONS LINKED TO A SPECIFIC EVENT
-  --------------------------------------------- */
+  // ────────────────────────────────
+  // GET LOCATIONS FOR EVENT
+  // ────────────────────────────────
   if (eventId) {
-    const result = await query(
+    const out = await query(
       `
       SELECT l.*
       FROM event_locations el
@@ -72,14 +67,14 @@ async function handleGET(request) {
       `,
       [eventId]
     );
-    return NetlifyResponse.json(result.rows);
+    return json(200, out.rows);
   }
 
-  /* ---------------------------------------------
-     GET LOCATIONS USED BY A SESSION'S EVENTS
-  --------------------------------------------- */
+  // ────────────────────────────────
+  // GET LOCATIONS FOR SESSION
+  // ────────────────────────────────
   if (sessionId) {
-    const result = await query(
+    const out = await query(
       `
       SELECT DISTINCT l.*
       FROM event_locations el
@@ -90,14 +85,14 @@ async function handleGET(request) {
       `,
       [sessionId]
     );
-    return NetlifyResponse.json(result.rows);
+    return json(200, out.rows);
   }
 
-  /* ---------------------------------------------
-     GET LOCATIONS USED BY A CAMPAIGN'S EVENTS
-  --------------------------------------------- */
+  // ────────────────────────────────
+  // GET LOCATIONS FOR CAMPAIGN
+  // ────────────────────────────────
   if (campaignId) {
-    const result = await query(
+    const out = await query(
       `
       SELECT DISTINCT l.*
       FROM event_locations el
@@ -108,30 +103,30 @@ async function handleGET(request) {
       `,
       [campaignId]
     );
-    return NetlifyResponse.json(result.rows);
+    return json(200, out.rows);
   }
 
-  /* ---------------------------------------------
-     GET ALL LOCATIONS
-  --------------------------------------------- */
-  const result = await query(
+  // ────────────────────────────────
+  // GET ALL LOCATIONS
+  // ────────────────────────────────
+  const out = await query(
     `SELECT *
      FROM locations
      ORDER BY description ASC`
   );
 
-  return NetlifyResponse.json(result.rows);
+  return json(200, out.rows);
 }
 
 /* -----------------------------------------------------------
    POST /api-locations
-   Create new location
 ------------------------------------------------------------ */
-async function handlePOST(request) {
-  const auth = requireAdmin(request.headers);
+async function handlePOST(event) {
+  const auth = requireAdmin(event.headers);
   if (!auth.ok) return auth.response;
 
-  const body = await request.json();
+  const body = JSON.parse(event.body || "{}");
+
   const {
     description,
     street,
@@ -143,20 +138,14 @@ async function handlePOST(request) {
     points_of_interest,
   } = body;
 
-  if (!description) {
-    return NetlifyResponse.json(
-      { error: "description is required" },
-      { status: 400 }
-    );
-  }
+  if (!description) return json(400, { error: "description is required" });
 
   const result = await query(
     `
     INSERT INTO locations
-      (description, street, city, state, zip, notes,
-       secrets, points_of_interest, created_at, updated_at)
-    VALUES ($1, $2, $3, $4, $5, $6,
-            $7, $8, NOW(), NOW())
+      (description, street, city, state, zip, notes, secrets,
+       points_of_interest, created_at, updated_at)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8, NOW(), NOW())
     RETURNING *
     `,
     [
@@ -171,26 +160,21 @@ async function handlePOST(request) {
     ]
   );
 
-  return NetlifyResponse.json(result.rows[0], { status: 201 });
+  return json(201, result.rows[0]);
 }
 
 /* -----------------------------------------------------------
-   PUT /api-locations?id=UUID
-   Update a location
+   PUT /api-locations?id=
 ------------------------------------------------------------ */
-async function handlePUT(request) {
-  const auth = requireAdmin(request.headers);
+async function handlePUT(event) {
+  const auth = requireAdmin(event.headers);
   if (!auth.ok) return auth.response;
 
-  const id = request.query.get("id");
-  if (!id) {
-    return NetlifyResponse.json(
-      { error: "id is required" },
-      { status: 400 }
-    );
-  }
+  const id = (event.queryStringParameters || {}).id;
+  if (!id) return json(400, { error: "id is required" });
 
-  const body = await request.json();
+  const body = JSON.parse(event.body || "{}");
+
   const {
     description,
     street,
@@ -205,17 +189,17 @@ async function handlePUT(request) {
   const result = await query(
     `
     UPDATE locations
-    SET description        = COALESCE($2, description),
-        street             = COALESCE($3, street),
-        city               = COALESCE($4, city),
-        state              = COALESCE($5, state),
-        zip                = COALESCE($6, zip),
-        notes              = COALESCE($7, notes),
-        secrets            = COALESCE($8, secrets),
-        points_of_interest = COALESCE($9, points_of_interest),
-        updated_at         = NOW()
-    WHERE id = $1
-    RETURNING *
+       SET description        = COALESCE($2, description),
+           street             = COALESCE($3, street),
+           city               = COALESCE($4, city),
+           state              = COALESCE($5, state),
+           zip                = COALESCE($6, zip),
+           notes              = COALESCE($7, notes),
+           secrets            = COALESCE($8, secrets),
+           points_of_interest = COALESCE($9, points_of_interest),
+           updated_at         = NOW()
+     WHERE id = $1
+     RETURNING *
     `,
     [
       id,
@@ -230,81 +214,48 @@ async function handlePUT(request) {
     ]
   );
 
-  if (result.rows.length === 0) {
-    return NetlifyResponse.json(
-      { error: "Location not found" },
-      { status: 404 }
-    );
-  }
+  if (result.rows.length === 0)
+    return json(404, { error: "Location not found" });
 
-  return NetlifyResponse.json(result.rows[0]);
+  return json(200, result.rows[0]);
 }
 
 /* -----------------------------------------------------------
-   DELETE /api-locations?id=UUID
-   Deletes location + event links
+   DELETE /api-locations?id=
 ------------------------------------------------------------ */
-async function handleDELETE(request) {
-  const auth = requireAdmin(request.headers);
+async function handleDELETE(event) {
+  const auth = requireAdmin(event.headers);
   if (!auth.ok) return auth.response;
 
-  const id = request.query.get("id");
-  if (!id) {
-    return NetlifyResponse.json(
-      { error: "id is required" },
-      { status: 400 }
-    );
-  }
+  const id = (event.queryStringParameters || {}).id;
+  if (!id) return json(400, { error: "id is required" });
 
   const result = await query(
-    `
-    DELETE FROM locations
-    WHERE id = $1
-    RETURNING id
-    `,
+    `DELETE FROM locations WHERE id = $1 RETURNING id`,
     [id]
   );
 
-  if (result.rows.length === 0) {
-    return NetlifyResponse.json(
-      { error: "Location not found" },
-      { status: 404 }
-    );
-  }
+  if (result.rows.length === 0)
+    return json(404, { error: "Location not found" });
 
-  return NetlifyResponse.json({ success: true, id });
+  return json(200, { success: true, id });
 }
 
 /* -----------------------------------------------------------
-   MAIN HANDLER — Netlify 2025
+   MAIN HANDLER (Classic 2024)
 ------------------------------------------------------------ */
-export default async function handler(request) {
+export const handler = async (event, context) => {
   try {
-    switch (request.method) {
-      case "GET":
-        return await handleGET(request);
-
-      case "POST":
-        return await handlePOST(request);
-
+    switch (event.httpMethod) {
+      case "GET": return await handleGET(event);
+      case "POST": return await handlePOST(event);
       case "PUT":
-      case "PATCH":
-        return await handlePUT(request);
-
-      case "DELETE":
-        return await handleDELETE(request);
-
-      default:
-        return NetlifyResponse.json(
-          { error: "Method Not Allowed" },
-          { status: 405 }
-        );
+      case "PATCH": return await handlePUT(event);
+      case "DELETE": return await handleDELETE(event);
+      default: return json(405, { error: "Method Not Allowed" });
     }
   } catch (err) {
     console.error("api-locations error:", err);
-    return NetlifyResponse.json(
-      { error: err.message || "Internal Server Error" },
-      { status: 500 }
-    );
+    return json(500, { error: err.message || "Internal Server Error" });
   }
-}
+};

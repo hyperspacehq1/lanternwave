@@ -1,4 +1,4 @@
-import { NetlifyRequest, NetlifyResponse } from "@netlify/functions";
+// netlify/functions/reindex-embeddings.js
 import { query } from "../util/db.js";
 import OpenAI from "openai";
 
@@ -17,9 +17,21 @@ const TABLES = {
   lore: ["id", "search_body"],
 };
 
-/* ----------------------------------------------
-   Reindex a single table
----------------------------------------------- */
+/* -----------------------------------------------------------
+   Embedding generator
+------------------------------------------------------------ */
+async function generateEmbedding(text) {
+  const out = await openai.embeddings.create({
+    model: "text-embedding-3-large",
+    input: text,
+  });
+
+  return out.data[0].embedding;
+}
+
+/* -----------------------------------------------------------
+   Reindex one table
+------------------------------------------------------------ */
 async function reindexTable(table) {
   const [idCol, bodyCol] = TABLES[table];
 
@@ -33,9 +45,9 @@ async function reindexTable(table) {
   ).rows;
 
   for (const row of rows) {
-    if (!row.body || row.body.trim() === "") continue;
+    if (!row.body?.trim()) continue;
 
-    const embedding = await generateEmbedding(row.body);
+    const vector = await generateEmbedding(row.body);
 
     await query(
       `
@@ -43,47 +55,37 @@ async function reindexTable(table) {
       SET embedding = $2
       WHERE id = $1
       `,
-      [row.id, embedding]
+      [row.id, vector]
     );
   }
 
   return rows.length;
 }
 
-/* ----------------------------------------------
-   OpenAI Embedding Generator
----------------------------------------------- */
-async function generateEmbedding(text) {
-  const embedding = await openai.embeddings.create({
-    model: "text-embedding-3-large",
-    input: text,
-  });
-
-  return embedding.data[0].embedding;
-}
-
-/* ----------------------------------------------
-   MAIN HANDLER — Netlify 2025
----------------------------------------------- */
-export default async function handler(request) {
+/* -----------------------------------------------------------
+   MAIN HANDLER (Classic Runtime)
+------------------------------------------------------------ */
+export const handler = async (event, context) => {
   try {
-    const table = request.query.get("table");
+    const qs = event.queryStringParameters || {};
+    const table = qs.table;
 
-    // Reindex a single table
+    // Reindex 1 table
     if (table) {
       if (!TABLES[table]) {
-        return NetlifyResponse.json(
-          { error: `Unknown table '${table}'` },
-          { status: 400 }
-        );
+        return {
+          statusCode: 400,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ error: `Unknown table '${table}'` }),
+        };
       }
 
-      const count = await reindexTable(table);
-      return NetlifyResponse.json({
-        status: "ok",
-        table,
-        updated: count,
-      });
+      const updated = await reindexTable(table);
+      return {
+        statusCode: 200,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "ok", table, updated }),
+      };
     }
 
     // Reindex ALL tables
@@ -92,15 +94,17 @@ export default async function handler(request) {
       summary[t] = await reindexTable(t);
     }
 
-    return NetlifyResponse.json({
-      status: "ok",
-      updated: summary,
-    });
+    return {
+      statusCode: 200,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "ok", updated: summary }),
+    };
   } catch (err) {
     console.error("reindex-embeddings error:", err);
-    return NetlifyResponse.json(
-      { error: err.message || "Internal Server Error" },
-      { status: 500 }
-    );
+    return {
+      statusCode: 500,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ error: err.message }),
+    };
   }
-}
+};

@@ -3,21 +3,21 @@ import OpenAI from "openai";
 import { query } from "../util/db.js";
 
 /* ----------------------------------------------
-   OpenAI client
+   Init OpenAI client (classic compatible)
 ---------------------------------------------- */
 const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
 /* ----------------------------------------------
-   Convert search term to TSQUERY safely
+   Convert term → safe tsquery
 ---------------------------------------------- */
 function tsv(term) {
   return term.trim().split(/\s+/).join(" & ");
 }
 
 /* ----------------------------------------------
-   Perform full-text search across all entities
+   Database search across ALL tables
 ---------------------------------------------- */
 async function searchAll(term) {
   const vector = tsv(term);
@@ -83,18 +83,17 @@ async function searchAll(term) {
 }
 
 /* ----------------------------------------------
-   AI ranking via GPT-4.1
+   GPT Ranking
 ---------------------------------------------- */
 async function aiRank(term, sections) {
   const completion = await client.chat.completions.create({
     model: "gpt-4.1-mini",
     temperature: 0.1,
-    max_tokens: 700,
+    max_tokens: 600,
     messages: [
       {
         role: "system",
-        content:
-          "You are a GM assistant. Rank these search results by relevance. Only use provided data.",
+        content: "You are a GM assistant. Rank these results by relevance.",
       },
       {
         role: "user",
@@ -103,13 +102,13 @@ async function aiRank(term, sections) {
     ],
   });
 
-  return completion.choices[0].message.content || "";
+  return completion.choices?.[0]?.message?.content || "";
 }
 
 /* ----------------------------------------------
-   Netlify Function Handler
+   MAIN HANDLER (Classic Runtime)
 ---------------------------------------------- */
-export async function handler(event) {
+export const handler = async (event, context) => {
   try {
     const q = event.queryStringParameters?.q || "";
 
@@ -117,33 +116,26 @@ export async function handler(event) {
       return {
         statusCode: 400,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ error: "Query 'q' must be at least 2 characters." }),
+        body: JSON.stringify({
+          error: "Query 'q' must be at least 2 characters.",
+        }),
       };
     }
 
-    // DB search
-    const sections = await searchAll(q);
-
-    // AI ranking summary
-    const ai_summary = await aiRank(q, sections);
+    const results = await searchAll(q);
+    const ai_summary = await aiRank(q, results);
 
     return {
       statusCode: 200,
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        term: q,
-        raw: sections,
-        ai_summary,
-      }),
+      body: JSON.stringify({ term: q, raw: results, ai_summary }),
     };
   } catch (err) {
     console.error("api-search error:", err);
     return {
       statusCode: 500,
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        error: err.message,
-      }),
+      body: JSON.stringify({ error: err.message }),
     };
   }
-}
+};

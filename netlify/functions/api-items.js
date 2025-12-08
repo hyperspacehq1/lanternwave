@@ -1,226 +1,173 @@
 // netlify/functions/api-items.js
-import { NetlifyRequest, NetlifyResponse } from "@netlify/functions";
 import { query } from "../util/db.js";
 import { requireAdmin } from "../util/auth.js";
 
+const json = (status, payload) => ({
+  statusCode: status,
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify(payload),
+});
+
 /* -----------------------------------------------------------
    GET /api-items
-   - ?id=UUID             → fetch one item
-   - ?event_id=UUID       → items attached to an event
-   - none                 → list all items
 ------------------------------------------------------------ */
-async function handleGET(request) {
-  const id = request.query.get("id");
-  const eventId = request.query.get("event_id");
+async function handleGET(event) {
+  const qs = event.queryStringParameters || {};
+  const id = qs.id;
+  const eventId = qs.event_id;
 
-  /* ---------------------------------------------
-     GET SINGLE ITEM + linked events
-  --------------------------------------------- */
+  // ───────────────────────────────
+  // GET ONE ITEM + linked events
+  // ───────────────────────────────
   if (id) {
     const itemRes = await query(
-      `SELECT *
-         FROM items
-         WHERE id = $1
-         LIMIT 1`,
+      `SELECT * FROM items WHERE id=$1 LIMIT 1`,
       [id]
     );
 
-    if (itemRes.rows.length === 0) {
-      return NetlifyResponse.json(
-        { error: "Item not found" },
-        { status: 404 }
-      );
-    }
+    if (itemRes.rows.length === 0)
+      return json(404, { error: "Item not found" });
 
     const item = itemRes.rows[0];
 
-    // Also return the events this item is used in
     const events = (
       await query(
         `
         SELECT e.*
         FROM event_items ei
         JOIN events e ON e.id = ei.event_id
-        WHERE ei.item_id = $1
+        WHERE ei.item_id=$1
         ORDER BY e.created_at ASC
         `,
         [id]
       )
     ).rows;
 
-    return NetlifyResponse.json({
-      ...item,
-      events,
-    });
+    return json(200, { ...item, events });
   }
 
-  /* ---------------------------------------------
-     GET ITEMS LINKED TO AN EVENT
-  --------------------------------------------- */
+  // ───────────────────────────────
+  // GET ITEMS FOR EVENT
+  // ───────────────────────────────
   if (eventId) {
-    const result = await query(
+    const out = await query(
       `
       SELECT items.*
       FROM event_items ei
       JOIN items ON items.id = ei.item_id
-      WHERE ei.event_id = $1
+      WHERE ei.event_id=$1
       ORDER BY items.description ASC
       `,
       [eventId]
     );
-
-    return NetlifyResponse.json(result.rows);
+    return json(200, out.rows);
   }
 
-  /* ---------------------------------------------
-     GET ALL ITEMS
-  --------------------------------------------- */
-  const result = await query(
-    `SELECT *
-     FROM items
-     ORDER BY description ASC`
+  // ───────────────────────────────
+  // GET ALL ITEMS
+  // ───────────────────────────────
+  const out = await query(
+    `SELECT * FROM items ORDER BY description ASC`
   );
 
-  return NetlifyResponse.json(result.rows);
+  return json(200, out.rows);
 }
 
 /* -----------------------------------------------------------
    POST /api-items
-   Create new item
 ------------------------------------------------------------ */
-async function handlePOST(request) {
-  const auth = requireAdmin(request.headers);
+async function handlePOST(event) {
+  const auth = requireAdmin(event.headers);
   if (!auth.ok) return auth.response;
 
-  const body = await request.json();
+  const body = JSON.parse(event.body || "{}");
+
   const { description, notes } = body;
 
-  if (!description) {
-    return NetlifyResponse.json(
-      { error: "description is required" },
-      { status: 400 }
-    );
-  }
+  if (!description)
+    return json(400, { error: "description is required" });
 
   const result = await query(
     `
     INSERT INTO items
       (description, notes, created_at, updated_at)
-    VALUES ($1, $2, NOW(), NOW())
+    VALUES ($1,$2, NOW(), NOW())
     RETURNING *
     `,
     [description, notes || ""]
   );
 
-  return NetlifyResponse.json(result.rows[0], { status: 201 });
+  return json(201, result.rows[0]);
 }
 
 /* -----------------------------------------------------------
-   PUT /api-items?id=UUID
-   Update item
+   PUT /api-items?id=
 ------------------------------------------------------------ */
-async function handlePUT(request) {
-  const auth = requireAdmin(request.headers);
+async function handlePUT(event) {
+  const auth = requireAdmin(event.headers);
   if (!auth.ok) return auth.response;
 
-  const id = request.query.get("id");
-  if (!id) {
-    return NetlifyResponse.json(
-      { error: "id is required" },
-      { status: 400 }
-    );
-  }
+  const id = (event.queryStringParameters || {}).id;
+  if (!id) return json(400, { error: "id is required" });
 
-  const body = await request.json();
+  const body = JSON.parse(event.body || "{}");
+
   const { description, notes } = body;
 
   const result = await query(
     `
     UPDATE items
-    SET description = COALESCE($2, description),
-        notes       = COALESCE($3, notes),
-        updated_at  = NOW()
-    WHERE id = $1
-    RETURNING *
+       SET description = COALESCE($2, description),
+           notes       = COALESCE($3, notes),
+           updated_at  = NOW()
+     WHERE id=$1
+     RETURNING *
     `,
     [id, description, notes]
   );
 
-  if (result.rows.length === 0) {
-    return NetlifyResponse.json(
-      { error: "Item not found" },
-      { status: 404 }
-    );
-  }
+  if (result.rows.length === 0)
+    return json(404, { error: "Item not found" });
 
-  return NetlifyResponse.json(result.rows[0]);
+  return json(200, result.rows[0]);
 }
 
 /* -----------------------------------------------------------
-   DELETE /api-items?id=UUID
-   Deletes item + event links
+   DELETE /api-items?id=
 ------------------------------------------------------------ */
-async function handleDELETE(request) {
-  const auth = requireAdmin(request.headers);
+async function handleDELETE(event) {
+  const auth = requireAdmin(event.headers);
   if (!auth.ok) return auth.response;
 
-  const id = request.query.get("id");
+  const id = (event.queryStringParameters || {}).id;
+  if (!id) return json(400, { error: "id is required" });
 
-  if (!id) {
-    return NetlifyResponse.json(
-      { error: "id is required" },
-      { status: 400 }
-    );
-  }
-
-  // Cascades cleanly if FK uses ON DELETE CASCADE
   const result = await query(
-    `DELETE FROM items
-     WHERE id = $1
-     RETURNING id`,
+    `DELETE FROM items WHERE id=$1 RETURNING id`,
     [id]
   );
 
-  if (result.rows.length === 0) {
-    return NetlifyResponse.json(
-      { error: "Item not found" },
-      { status: 404 }
-    );
-  }
+  if (result.rows.length === 0)
+    return json(404, { error: "Item not found" });
 
-  return NetlifyResponse.json({ success: true, id });
+  return json(200, { success: true, id });
 }
 
 /* -----------------------------------------------------------
-   MAIN HANDLER — Netlify 2025
+   MAIN HANDLER
 ------------------------------------------------------------ */
-export default async function handler(request) {
+export const handler = async (event, context) => {
   try {
-    switch (request.method) {
-      case "GET":
-        return await handleGET(request);
-
-      case "POST":
-        return await handlePOST(request);
-
+    switch (event.httpMethod) {
+      case "GET": return await handleGET(event);
+      case "POST": return await handlePOST(event);
       case "PUT":
-      case "PATCH":
-        return await handlePUT(request);
-
-      case "DELETE":
-        return await handleDELETE(request);
-
-      default:
-        return NetlifyResponse.json(
-          { error: "Method Not Allowed" },
-          { status: 405 }
-        );
+      case "PATCH": return await handlePUT(event);
+      case "DELETE": return await handleDELETE(event);
+      default: return json(405, { error: "Method Not Allowed" });
     }
   } catch (err) {
     console.error("api-items error:", err);
-    return NetlifyResponse.json(
-      { error: err.message || "Internal Server Error" },
-      { status: 500 }
-    );
+    return json(500, { error: err.message || "Internal Server Error" });
   }
-}
+};
