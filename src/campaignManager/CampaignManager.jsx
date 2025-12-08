@@ -809,6 +809,6 @@ function FallbackDetail({ record, onChange }) {
       />
     </div>
   );
-}
 } // <-- closes the CampaignManager() component
+
 export default CampaignManager;
