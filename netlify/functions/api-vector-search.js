@@ -6,15 +6,11 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-/* ============================================================
-   IN-MEMORY CACHE FOR EMBEDDINGS
-   (Resets each function cold start; ideal for search requests)
-============================================================ */
 const EMBED_CACHE = new Map();
 
-/* ------------------------------------------------------------
-   Embed text with caching + 429 fallback
------------------------------------------------------------- */
+/* -------------------------------------------------------
+   Embed with caching + fallback
+------------------------------------------------------- */
 async function embed(text) {
   const key = text.trim().toLowerCase();
 
@@ -22,40 +18,55 @@ async function embed(text) {
 
   try {
     const res = await openai.embeddings.create({
-      model: "text-embedding-3-small",  // UPDATED MODEL
+      model: "text-embedding-3-small",
       input: key,
     });
 
     const vec = res.data[0].embedding;
     EMBED_CACHE.set(key, vec);
     return vec;
-
   } catch (err) {
-    console.error("Embedding error:", err);
-
-    // When OpenAI is rate-limited → fallback to cheap hash pseudo-embedding
+    console.error("Embed error:", err);
     const fallback = Array.from({ length: 1536 }, (_, i) =>
       (key.charCodeAt(i % key.length) % 31) / 31
     );
-
     return fallback;
   }
 }
 
-/* ------------------------------------------------------------
-   Vector query helper
------------------------------------------------------------- */
+/* -------------------------------------------------------
+   Ensure table has required columns
+------------------------------------------------------- */
+async function ensureSearchBody(table) {
+  await query(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name='${table}' AND column_name='search_body'
+      ) THEN
+        ALTER TABLE ${table} ADD COLUMN search_body TEXT;
+      END IF;
+    END $$;
+  `);
+}
+
+/* -------------------------------------------------------
+   Run vector similarity query
+------------------------------------------------------- */
 async function vectorQuery(table, embedding, limit = 10) {
+  await ensureSearchBody(table);
+
   const out = await query(
     `
     SELECT
       id,
       search_body,
-      1 - (embedding <=> $1) AS similarity,
+      1 - (embedding <=> $1::vector) AS similarity,
       '${table}' AS type
     FROM ${table}
     WHERE embedding IS NOT NULL
-    ORDER BY embedding <=> $1 ASC
+    ORDER BY embedding <=> $1::vector ASC
     LIMIT $2
     `,
     [embedding, limit]
@@ -64,9 +75,9 @@ async function vectorQuery(table, embedding, limit = 10) {
   return out.rows;
 }
 
-/* ------------------------------------------------------------
-   Main handler
------------------------------------------------------------- */
+/* -------------------------------------------------------
+   Handler
+------------------------------------------------------- */
 export const handler = async (event) => {
   try {
     const qs = event.queryStringParameters || {};
@@ -105,7 +116,6 @@ export const handler = async (event) => {
     ];
 
     let all = [];
-
     for (const t of tables) {
       const rows = await vectorQuery(t, embedding, limit);
       all.push(...rows);
