@@ -135,7 +135,6 @@ function toApi(type, record) {
     }
   }
 }
-export default function CampaignManager() {
   // ----- GLOBAL STATE -----
   const [activeType, setActiveType] = useState("campaigns");
 
