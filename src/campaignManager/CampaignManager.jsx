@@ -1,4 +1,5 @@
 // ===== CampaignManager.jsx — Part 1 of 4 =====
+import { v4 as uuidv4 } from "uuid";
 import React, {
   useState,
   useEffect,
@@ -22,7 +23,7 @@ const CONTAINER_TYPES = [
   { id: "logs", label: "Session Logs" },
 ];
 
-const FAKE_ID = () => Math.random().toString(36).substring(2, 10);
+const FAKE_ID = () => uuidv4();
 
 // Netlify 2025 endpoint map
 const API_ENDPOINTS = {
@@ -44,7 +45,10 @@ const getAdminKey = () =>
   typeof window === "undefined"
     ? ""
     : window.localStorage.getItem("lwAdminKey") || "";
-
+// Unified auth header for all Netlify 2025 function calls
+const authHeaders = () => ({
+  "x-admin-key": getAdminKey(),
+});
 /**
  * Map DB row -> UI shape (snake_case -> camelCase)
  */
@@ -179,10 +183,12 @@ export default function CampaignManager() {
 
     try {
       // 1) Load campaigns
-      const campaignsRes = await fetch(API_ENDPOINTS.campaigns, {
-        headers,
-      });
-
+    const campaignsRes = await fetch(API_ENDPOINTS.campaigns, {
+  headers: {
+    ...headers,
+    ...authHeaders(),
+  },
+});
       if (campaignsRes.ok) {
         const rows = await campaignsRes.json();
         const campaigns = rows.map((r) => fromApi("campaigns", r));
@@ -211,12 +217,14 @@ export default function CampaignManager() {
 
     try {
       const res = await fetch(
-        `${API_ENDPOINTS.sessions}?campaign_id=${encodeURIComponent(
-          campaignId
-        )}`,
-        { headers }
-      );
-
+  `${API_ENDPOINTS.sessions}?campaign_id=${encodeURIComponent(campaignId)}`,
+  {
+    headers: {
+      ...headers,
+      ...authHeaders(),
+    },
+  }
+);
       if (!res.ok) return;
 
       const rows = await res.json();
@@ -268,13 +276,14 @@ export default function CampaignManager() {
         : `${endpoint}?id=${encodeURIComponent(record.id)}`; // PUT
 
       const method = isNew ? "POST" : "PUT";
-
-      const res = await fetch(url, {
-        method,
-        headers,
-        body: JSON.stringify(payload),
-      });
-
+const res = await fetch(url, {
+  method,
+  headers: {
+    ...headers,
+    ...authHeaders(),
+  },
+  body: JSON.stringify(payload),
+});
       if (!res.ok) {
         console.error("Save failed:", res.status, await res.text());
         setSaveStatus("error");
@@ -802,18 +811,5 @@ function FallbackDetail({ record, onChange }) {
     </div>
   );
 }
-
-// If you later implement NPCs, Items, Events, Lore, Quests, Encounters, Logs,
-// plug them in where needed. FallbackDetail keeps the UI from breaking.
-
-
-// ------------ CLOSE COMPONENT -------------
 } // <-- closes the CampaignManager() component
-
-// Safe export  
-// (not strictly necessary because we exported default above,
-//  but kept for clarity in multi-part large-file assembly)
-export { CampaignManager };
-
-// ===== END PART 4 of 4 =====
-
+export default CampaignManager;
