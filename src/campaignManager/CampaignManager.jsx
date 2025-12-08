@@ -40,101 +40,155 @@ const API_ENDPOINTS = {
   logs: "/.netlify/functions/api-logs",
 };
 
-// Read admin key used by requireAdmin() in Netlify functions
-const getAdminKey = () =>
-  typeof window === "undefined"
-    ? ""
-    : window.localStorage.getItem("lwAdminKey") || "";
-// Unified auth header for all Netlify 2025 function calls
-const authHeaders = () => ({
-  "x-admin-key": getAdminKey(),
-});
-/**
- * Map DB row -> UI shape (snake_case -> camelCase)
- */
-function fromApi(type, row) {
-  if (!row) return null;
+const ADMIN_HEADER_KEY = "x-admin-key";
+
+// Map from container type to the fields we display on the list
+const LIST_COLUMNS = {
+  campaigns: ["name", "worldSetting", "date"],
+  sessions: ["name", "date", "locationName"],
+  events: ["name", "type", "sessionName"],
+  playerCharacters: ["name", "class", "level"],
+  npcs: ["name", "role", "faction"],
+  encounters: ["name", "challengeRating", "sessionName"],
+  quests: ["name", "status", "priority"],
+  locations: ["name", "type", "region"],
+  items: ["name", "rarity", "owner"],
+  lore: ["title", "category", "scope"],
+  logs: ["sessionName", "date", "summary"],
+};
+
+// Helpers to normalize records from API <-> UI
+function fromApi(type, record) {
+  if (!record) return record;
 
   switch (type) {
-    case "campaigns":
+    case "campaigns": {
       return {
-        id: row.id,
-        name: row.name || "",
-        description: row.description || "",
-        worldSetting: row.world_setting || "",
-        date: row.campaign_date || "",
+        ...record,
+        type: "campaign",
       };
-
-    case "sessions":
+    }
+    case "sessions": {
       return {
-        id: row.id,
-        campaignId: row.campaign_id,
-        description: row.description || "",
-        geography: row.geography || "",
-        notes: row.notes || "",
-        history: row.history || "",
+        ...record,
+        type: "session",
       };
-
-    case "locations":
+    }
+    case "events": {
       return {
-        id: row.id,
-        description: row.description || "",
-        street: row.street || "",
-        city: row.city || "",
-        state: row.state || "",
-        zip: row.zip || "",
-        notes: row.notes || "",
-        secrets: row.secrets || "",
-        pointsOfInterest: row.points_of_interest || "",
+        ...record,
+        type: "event",
       };
-
+    }
+    case "playerCharacters": {
+      return {
+        ...record,
+        type: "playerCharacter",
+      };
+    }
+    case "npcs": {
+      return {
+        ...record,
+        type: "npc",
+      };
+    }
+    case "encounters": {
+      return {
+        ...record,
+        type: "encounter",
+      };
+    }
+    case "quests": {
+      return {
+        ...record,
+        type: "quest",
+      };
+    }
+    case "locations": {
+      return {
+        ...record,
+        type: "location",
+      };
+    }
+    case "items": {
+      return {
+        ...record,
+        type: "item",
+      };
+    }
+    case "lore": {
+      return {
+        ...record,
+        type: "lore",
+      };
+    }
+    case "logs": {
+      return {
+        ...record,
+        type: "log",
+      };
+    }
     default:
-      // For entities not yet normalized, just pass through
-      return { ...row };
+      return record;
   }
 }
 
-/**
- * Map UI record -> payload expected by Netlify 2025 functions (camelCase -> snake_case)
- */
 function toApi(type, record) {
+  if (!record) return record;
+
   switch (type) {
-    case "campaigns":
-      return {
-        name: record.name,
-        description: record.description,
-        world_setting: record.worldSetting,
-        campaign_date: record.date || null,
-      };
-
-    case "sessions":
-      return {
-        campaign_id: record.campaignId,
-        description: record.description,
-        geography: record.geography,
-        notes: record.notes,
-        history: record.history,
-      };
-
-    case "locations":
-      return {
-        description: record.description,
-        street: record.street,
-        city: record.city,
-        state: record.state,
-        zip: record.zip,
-        notes: record.notes,
-        secrets: record.secrets,
-        points_of_interest: record.pointsOfInterest,
-      };
-
+    case "campaigns": {
+      const { _isNew, type: _t, ...rest } = record;
+      return rest;
+    }
+    case "sessions": {
+      const { _isNew, type: _t, sessionName, campaignName, ...rest } = record;
+      return rest;
+    }
+    case "events": {
+      const { _isNew, type: _t, sessionName, ...rest } = record;
+      return rest;
+    }
+    case "playerCharacters": {
+      const { _isNew, type: _t, ...rest } = record;
+      return rest;
+    }
+    case "npcs": {
+      const { _isNew, type: _t, ...rest } = record;
+      return rest;
+    }
+    case "encounters": {
+      const { _isNew, type: _t, sessionName, ...rest } = record;
+      return rest;
+    }
+    case "quests": {
+      const { _isNew, type: _t, ...rest } = record;
+      return rest;
+    }
+    case "locations": {
+      const { _isNew, type: _t, ...rest } = record;
+      return rest;
+    }
+    case "items": {
+      const { _isNew, type: _t, ...rest } = record;
+      return rest;
+    }
+    case "lore": {
+      const { _isNew, type: _t, ...rest } = record;
+      return rest;
+    }
+    case "logs": {
+      const { _isNew, type: _t, ...rest } = record;
+      return rest;
+    }
     default: {
-      // For now, just strip the _isNew flag and send everything else
       const { _isNew, ...rest } = record;
       return rest;
     }
   }
 }
+
+function CampaignManager() {
   // ----- GLOBAL STATE -----
   const [activeType, setActiveType] = useState("campaigns");
 
@@ -170,149 +224,205 @@ function toApi(type, record) {
   };
 
   // ---------------------------------------------
-  // LOAD INITIAL DATA FROM NETLIFY 2025 FUNCTIONS
+  // ADMIN KEY (for secured Netlify Functions)
   // ---------------------------------------------
-  useEffect(() => {
-    loadInitialData();
-  }, []);
+  const ADMIN_KEY =
+    (typeof window !== "undefined" &&
+      window.localStorage.getItem("campaign_admin_key")) ||
+    "";
 
-  async function loadInitialData() {
-    const adminKey = getAdminKey();
-    const headers = adminKey ? { "x-admin-key": adminKey } : {};
+  const setAdminKey = (val) => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("campaign_admin_key", val);
+    }
+  };
 
+  // ---------------------------------------------
+  // FETCH HELPERS (Netlify 2025 style, classic handler)
+  // ---------------------------------------------
+  async function apiFetch(type, options = {}) {
+    const endpoint = API_ENDPOINTS[type];
+    if (!endpoint) throw new Error(`No endpoint configured for type: ${type}`);
+
+    const {
+      method = "GET",
+      body,
+      query = {},
+      signal,
+      headers: extraHeaders = {},
+    } = options;
+
+    const url = new URL(endpoint, window.location.origin);
+    Object.entries(query).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== "") {
+        url.searchParams.set(k, v);
+      }
+    });
+
+    const headers = {
+      "Content-Type": "application/json",
+      [ADMIN_HEADER_KEY]: ADMIN_KEY || "",
+      ...extraHeaders,
+    };
+
+    const res = await fetch(url.toString(), {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+      signal,
+    });
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(
+        `API error ${res.status} on ${url.toString()}: ${text || res.statusText}`
+      );
+    }
+
+    return res.json();
+  }
+
+  async function loadAllData() {
     try {
-      // 1) Load campaigns
-    const campaignsRes = await fetch(API_ENDPOINTS.campaigns, {
-  headers: {
-    ...headers,
-    ...authHeaders(),
-  },
-});
-      if (campaignsRes.ok) {
-        const rows = await campaignsRes.json();
-        const campaigns = rows.map((r) => fromApi("campaigns", r));
+      const [
+        campaignsRes,
+        sessionsRes,
+        eventsRes,
+        playerCharsRes,
+        npcsRes,
+        encountersRes,
+        questsRes,
+        locationsRes,
+        itemsRes,
+        loreRes,
+        logsRes,
+      ] = await Promise.all([
+        apiFetch("campaigns"),
+        apiFetch("sessions"),
+        apiFetch("events"),
+        apiFetch("playerCharacters"),
+        apiFetch("npcs"),
+        apiFetch("encounters"),
+        apiFetch("quests"),
+        apiFetch("locations"),
+        apiFetch("items"),
+        apiFetch("lore"),
+        apiFetch("logs"),
+      ]);
 
-        setData((prev) => ({ ...prev, campaigns }));
+      const campaigns = (campaignsRes.records || []).map((r) =>
+        fromApi("campaigns", r)
+      );
+      const sessions = (sessionsRes.records || []).map((r) =>
+        fromApi("sessions", r)
+      );
+      const events = (eventsRes.records || []).map((r) =>
+        fromApi("events", r)
+      );
+      const playerCharacters = (playerCharsRes.records || []).map((r) =>
+        fromApi("playerCharacters", r)
+      );
+      const npcs = (npcsRes.records || []).map((r) => fromApi("npcs", r));
+      const encounters = (encountersRes.records || []).map((r) =>
+        fromApi("encounters", r)
+      );
+      const quests = (questsRes.records || []).map((r) =>
+        fromApi("quests", r)
+      );
+      const locations = (locationsRes.records || []).map((r) =>
+        fromApi("locations", r)
+      );
+      const items = (itemsRes.records || []).map((r) => fromApi("items", r));
+      const lore = (loreRes.records || []).map((r) => fromApi("lore", r));
+      const logs = (logsRes.records || []).map((r) => fromApi("logs", r));
 
-        if (campaigns.length > 0) {
-          setSelectedCampaignGlobal(campaigns[0]);
-        }
+      setData({
+        campaigns,
+        sessions,
+        events,
+        playerCharacters,
+        npcs,
+        encounters,
+        quests,
+        locations,
+        items,
+        lore,
+        logs,
+      });
+
+      if (!selectedCampaignGlobal && campaigns.length > 0) {
+        setSelectedCampaignGlobal(campaigns[0]);
       }
     } catch (err) {
-      console.error("Error loading campaigns:", err);
+      console.error("Error loading data:", err);
     }
   }
 
-  // once a campaign is selected, load sessions for that campaign
+  // Initial load
   useEffect(() => {
-    if (selectedCampaignGlobal?.id) {
-      loadSessionsForCampaign(selectedCampaignGlobal.id);
-    }
-  }, [selectedCampaignGlobal]);
-
-  async function loadSessionsForCampaign(campaignId) {
-    const adminKey = getAdminKey();
-    const headers = adminKey ? { "x-admin-key": adminKey } : {};
-
-    try {
-      const res = await fetch(
-  `${API_ENDPOINTS.sessions}?campaign_id=${encodeURIComponent(campaignId)}`,
-  {
-    headers: {
-      ...headers,
-      ...authHeaders(),
-    },
-  }
-);
-      if (!res.ok) return;
-
-      const rows = await res.json();
-      const sessions = rows.map((r) => fromApi("sessions", r));
-
-      setData((prev) => ({ ...prev, sessions }));
-    } catch (err) {
-      console.error("Error loading sessions:", err);
-    }
-  }
+    loadAllData();
+  }, []);
 
   // ---------------------------------------------
-  // AUTOSAVE ENGINE
+  // AUTOSAVE LOGIC
   // ---------------------------------------------
-  const triggerAutosave = (updatedRecord) => {
+  const scheduleSave = (type, record) => {
+    if (!record) return;
     setSaveStatus("unsaved");
 
     if (autosaveTimer.current) {
       clearTimeout(autosaveTimer.current);
     }
 
-    autosaveTimer.current = setTimeout(() => {
-      saveRecord(updatedRecord);
-    }, 400);
+    autosaveTimer.current = setTimeout(async () => {
+      try {
+        setSaveStatus("saving");
+        const apiRecord = toApi(type, record);
+
+        if (record._isNew) {
+          const res = await apiFetch(type, {
+            method: "POST",
+            body: apiRecord,
+          });
+          const created = fromApi(type, res.record);
+          setData((prev) => {
+            const updatedList = [...prev[type].filter((r) => r.id !== record.id), created];
+            return { ...prev, [type]: updatedList };
+          });
+          setSelectedRecord(created);
+        } else {
+          const res = await apiFetch(type, {
+            method: "PUT",
+            body: apiRecord,
+          });
+          const updated = fromApi(type, res.record);
+          setData((prev) => {
+            const updatedList = prev[type].map((r) =>
+              r.id === updated.id ? updated : r
+            );
+            return { ...prev, [type]: updatedList };
+          });
+          setSelectedRecord(updated);
+        }
+
+        setSaveStatus("saved");
+        setTimeout(() => setSaveStatus("idle"), 1500);
+      } catch (err) {
+        console.error("Autosave error:", err);
+        setSaveStatus("error");
+        setTimeout(() => setSaveStatus("idle"), 2000);
+      }
+    }, 600);
   };
 
-  async function saveRecord(record) {
-    if (!record) return;
-    setSaveStatus("saving");
-
-    const adminKey = getAdminKey();
-    const headers = {
-      "Content-Type": "application/json",
-      ...(adminKey ? { "x-admin-key": adminKey } : {}),
-    };
-
-    const endpoint = API_ENDPOINTS[activeType];
-    if (!endpoint) {
-      console.warn("No API endpoint for type:", activeType);
-      return;
-    }
-
-    const isNew = record._isNew || !record.id;
-    const payload = toApi(activeType, record);
-
-    try {
-      const url = isNew
-        ? endpoint // POST
-        : `${endpoint}?id=${encodeURIComponent(record.id)}`; // PUT
-
-      const method = isNew ? "POST" : "PUT";
-const res = await fetch(url, {
-  method,
-  headers: {
-    ...headers,
-    ...authHeaders(),
-  },
-  body: JSON.stringify(payload),
-});
-      if (!res.ok) {
-        console.error("Save failed:", res.status, await res.text());
-        setSaveStatus("error");
-        return;
-      }
-
-      const saved = await res.json();
-      const normalized = fromApi(activeType, saved);
-
-      // Update local state with saved record
-      setData((prev) => ({
-        ...prev,
-        [activeType]: prev[activeType].map((item) =>
-          item.id === normalized.id ? normalized : item
-        ),
-      }));
-
-      setSaveStatus("saved");
-      setSelectedRecord(normalized);
-    } catch (err) {
-      console.error("Autosave error:", err);
-      setSaveStatus("error");
-    }
-  }
+  const triggerAutosave = (updatedRecord) => {
+    scheduleSave(activeType, updatedRecord);
+  };
 
   // ---------------------------------------------
-  // HANDLE SIDEBAR SWITCHING
+  // HANDLERS FOR SIDEBAR + SELECTION
   // ---------------------------------------------
   const handleSelectType = (typeId) => {
-    // Prevent selecting sessions unless a campaign exists
     if (typeId === "sessions" && !selectedCampaignGlobal) {
       showCampaignWarning();
       return;
@@ -322,11 +432,29 @@ const res = await fetch(url, {
     setSelectedRecord(null);
   };
 
+  const handleSelectRecord = (record) => {
+    if (!record) return;
+
+    if (
+      activeType === "sessions" &&
+      (!selectedCampaignGlobal || record.campaignId !== selectedCampaignGlobal.id)
+    ) {
+      const matchedCampaign = data.campaigns.find(
+        (c) => c.id === record.campaignId
+      );
+      if (matchedCampaign) {
+        setSelectedCampaignGlobal(matchedCampaign);
+      } else {
+        showCampaignWarning();
+      }
+    }
+    setSelectedRecord(record);
+  };
+
   // ---------------------------------------------
   // CREATE NEW RECORD
   // ---------------------------------------------
   const handleCreate = () => {
-    // sessions require a selected campaign
     if (activeType === "sessions" && !selectedCampaignGlobal) {
       showCampaignWarning();
       return;
@@ -344,451 +472,867 @@ const res = await fetch(url, {
       },
       sessions: {
         ...common,
-        campaignId: selectedCampaignGlobal?.id || null,
-        description: "New Session",
-        geography: "",
-        notes: "",
-        history: "",
+        name: "New Session",
+        description: "",
+        date: "",
+        campaignId: selectedCampaignGlobal ? selectedCampaignGlobal.id : null,
+        campaignName: selectedCampaignGlobal ? selectedCampaignGlobal.name : "",
+        locationName: "",
       },
-      events: { ...common, description: "", eventType: "", weather: "" },
-      playerCharacters: { ...common, name: "New Character" },
-      npcs: { ...common, name: "New NPC" },
-      encounters: { ...common, description: "" },
-      quests: { ...common, title: "New Quest" },
+      events: {
+        ...common,
+        name: "New Event",
+        type: "",
+        sessionId: null,
+        sessionName: "",
+        description: "",
+      },
+      playerCharacters: {
+        ...common,
+        name: "New Player Character",
+        class: "",
+        level: 1,
+        race: "",
+        notes: "",
+      },
+      npcs: {
+        ...common,
+        name: "New NPC",
+        role: "",
+        faction: "",
+        notes: "",
+      },
+      encounters: {
+        ...common,
+        name: "New Encounter",
+        challengeRating: "",
+        sessionId: null,
+        sessionName: "",
+        description: "",
+      },
+      quests: {
+        ...common,
+        name: "New Quest",
+        status: "Open",
+        priority: "Normal",
+        description: "",
+      },
       locations: {
         ...common,
+        name: "New Location",
+        type: "",
+        region: "",
         description: "",
-        street: "",
         city: "",
         state: "",
         zip: "",
-        notes: "",
-        secrets: "",
-        pointsOfInterest: "",
       },
-      items: { ...common, name: "New Item" },
-      lore: { ...common, title: "New Lore" },
-      logs: { ...common, content: "" },
+      items: {
+        ...common,
+        name: "New Item",
+        rarity: "",
+        owner: "",
+        description: "",
+      },
+      lore: {
+        ...common,
+        title: "New Lore",
+        category: "",
+        scope: "",
+        body: "",
+        secrets: "",
+      },
+      logs: {
+        ...common,
+        sessionName: "",
+        date: "",
+        summary: "",
+        body: "",
+      },
     };
 
-    const newItem = newItemByType[activeType];
-    if (!newItem) return;
+    const newRecord = newItemByType[activeType];
+    if (!newRecord) return;
 
-    // Auto-set selectedRecord + append to data list
+    if (activeType === "campaigns") {
+      setSelectedCampaignGlobal(newRecord);
+    }
+
     setData((prev) => ({
       ...prev,
-      [activeType]: [newItem, ...prev[activeType]],
+      [activeType]: [newRecord, ...prev[activeType]],
     }));
 
-    setSelectedRecord(newItem);
+    setSelectedRecord(newRecord);
+    setSaveStatus("unsaved");
+  };
 
-    // If a new campaign is created, set global campaign
-    if (activeType === "campaigns") {
-      setSelectedCampaignGlobal(newItem);
+  // ---------------------------------------------
+  // DELETE / ARCHIVE
+  // ---------------------------------------------
+  const handleDelete = async () => {
+    if (!selectedRecord) return;
+    if (!window.confirm("Delete this record? This cannot be undone.")) return;
+
+    try {
+      await apiFetch(activeType, {
+        method: "DELETE",
+        body: { id: selectedRecord.id },
+      });
+
+      setData((prev) => ({
+        ...prev,
+        [activeType]: prev[activeType].filter(
+          (r) => r.id !== selectedRecord.id
+        ),
+      }));
+
+      if (activeType === "campaigns") {
+        if (selectedCampaignGlobal?.id === selectedRecord.id) {
+          setSelectedCampaignGlobal(null);
+        }
+      }
+
+      setSelectedRecord(null);
+      setSaveStatus("idle");
+    } catch (err) {
+      console.error("Delete error:", err);
+      setSaveStatus("error");
     }
   };
 
   // ---------------------------------------------
-  // SELECTING A RECORD
+  // DERIVED VIEW: list + columns
   // ---------------------------------------------
-  const handleSelectRecord = (item) => {
-    if (activeType === "sessions" && !selectedCampaignGlobal) {
-      showCampaignWarning();
-      return;
-    }
+  const currentList = data[activeType] || [];
+  const columns = LIST_COLUMNS[activeType] || ["name"];
 
-    // sessions must match selected campaign
-    if (
-      activeType === "sessions" &&
-      item.campaignId !== selectedCampaignGlobal?.id
-    ) {
-      showCampaignWarning();
-      return;
-    }
-
-    setSelectedRecord(item);
-
-    // update global campaign when selecting a campaign
-    if (activeType === "campaigns") {
-      setSelectedCampaignGlobal(item);
-    }
-  };
-
-  // ---------------------------------------------
-  // FILTERED LIST
-  // ---------------------------------------------
-  let currentList = data[activeType] || [];
+  const formattedList = useMemo(
+    () =>
+      currentList.map((record) => {
+        const row = { id: record.id, raw: record };
+        columns.forEach((col) => {
+          row[col] = record[col] || "";
+        });
+        return row;
+      }),
+    [currentList, columns]
+  );
 
   if (activeType === "sessions" && selectedCampaignGlobal) {
-    currentList = currentList.filter(
-      (s) => s.campaignId === selectedCampaignGlobal.id
+    const filtered = formattedList.filter(
+      (row) => row.raw.campaignId === selectedCampaignGlobal.id
     );
+    if (filtered.length > 0) {
+      formattedList.splice(0, formattedList.length, ...filtered);
+    }
   }
 
-  const filteredList = currentList; // can add search later
-return (
-  <div className="cm-root lw-cm-root">
-    {/* ========== SIDEBAR ========== */}
-    <div className="lw-cm-sidebar">
-      <div className="lw-cm-sidebar-header">CAMPAIGN MANAGER</div>
+  const filteredList = currentList;
 
-      {CONTAINER_TYPES.map((t) => (
-        <button
-          key={t.id}
-          className={
-            "lw-cm-sidebar-item" +
-            (t.id === activeType ? " lw-cm-sidebar-item-active" : "")
-          }
-          onClick={() => handleSelectType(t.id)}
-        >
-          {t.label}
-        </button>
-      ))}
-    </div>
+  return (
+    <div className="cm-root lw-cm-root">
+      {/* ========== SIDEBAR ========== */}
+      <div className="lw-cm-sidebar">
+        <div className="lw-cm-sidebar-header">
+          <div className="lw-cm-title">CAMPAIGN MANAGER</div>
+          <div className="lw-cm-subtitle">MU/TH/UR CONTROL PANEL</div>
+        </div>
 
-    {/* ========== MAIN PANEL ========== */}
-    <div className="lw-cm-main">
+        <div className="lw-cm-sidebar-section">
+          <div className="lw-cm-sidebar-label">CONTAINERS</div>
+          <div className="lw-cm-tablist">
+            {CONTAINER_TYPES.map((tab) => (
+              <button
+                key={tab.id}
+                className={
+                  "lw-cm-tab" +
+                  (activeType === tab.id ? " lw-cm-tab-active" : "")
+                }
+                onClick={() => handleSelectType(tab.id)}
+              >
+                <span className="lw-cm-tab-label">{tab.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
 
-      {/* Top controls */}
-      <div className="lw-cm-main-header">
-        <h2 className="lw-cm-title">
-          {activeType.charAt(0).toUpperCase() + activeType.slice(1)}
-        </h2>
+        <div className="lw-cm-sidebar-section">
+          <div className="lw-cm-sidebar-label">ADMIN KEY</div>
+          <input
+            className="lw-cm-input lw-cm-input-compact"
+            placeholder="x-admin-key"
+            defaultValue={ADMIN_KEY}
+            onBlur={(e) => setAdminKey(e.target.value)}
+          />
+          <div className="lw-cm-helptext">
+            Header sent as <code>{ADMIN_HEADER_KEY}</code> to all API calls.
+          </div>
+        </div>
 
-        <div className="lw-cm-header-controls">
-          {saveStatus === "unsaved" && (
-            <span className="lw-cm-status lw-cm-status-unsaved">● Unsaved</span>
-          )}
-          {saveStatus === "saving" && (
-            <span className="lw-cm-status lw-cm-status-saving">● Saving…</span>
-          )}
-          {saveStatus === "saved" && (
-            <span className="lw-cm-status lw-cm-status-saved">● Saved</span>
-          )}
-          {saveStatus === "error" && (
-            <span className="lw-cm-status lw-cm-status-error">● Error</span>
-          )}
-
+        <div className="lw-cm-sidebar-section">
+          <div className="lw-cm-sidebar-label">ACTIONS</div>
           <button className="lw-cm-button" onClick={handleCreate}>
-            + Create
+            + NEW {activeType.toUpperCase()}
+          </button>
+          <button
+            className="lw-cm-button lw-cm-button-danger"
+            onClick={handleDelete}
+            disabled={!selectedRecord}
+          >
+            DELETE
           </button>
         </div>
+
+        <div className="lw-cm-sidebar-footer">
+          <span className={`lw-cm-status lw-cm-status-${saveStatus}`}>
+            {saveStatus === "idle" && "All changes synced."}
+            {saveStatus === "unsaved" && "Unsaved changes..."}
+            {saveStatus === "saving" && "Saving..."}
+            {saveStatus === "saved" && "Saved."}
+            {saveStatus === "error" && "Save error."}
+          </span>
+        </div>
       </div>
 
-      {/* Layout split: List (left) + Detail (right) */}
-      <div className="lw-cm-content">
-        {/* ========== LIST PANEL ========== */}
-        <div className="lw-cm-list">
-          {filteredList.length === 0 && (
-            <div className="lw-cm-list-empty">No records found.</div>
-          )}
-
-          {filteredList.map((item) => (
-            <div
-              key={item.id}
-              className={
-                "lw-cm-list-item" +
-                (selectedRecord?.id === item.id
-                  ? " lw-cm-list-item-selected"
-                  : "")
-              }
-              onClick={() => handleSelectRecord(item)}
+      {/* ========== MAIN PANEL ========== */}
+      <div className="lw-cm-main">
+        {/* CAMPAIGN SELECTOR (GLOBAL) */}
+        <div className="lw-cm-main-toolbar">
+          <div className="lw-cm-toolbar-group">
+            <div className="lw-cm-label">Active Campaign</div>
+            <select
+              className="lw-cm-select"
+              value={selectedCampaignGlobal ? selectedCampaignGlobal.id : ""}
+              onChange={(e) => {
+                const next = data.campaigns.find(
+                  (c) => c.id === e.target.value
+                );
+                setSelectedCampaignGlobal(next || null);
+                if (activeType === "sessions") {
+                  setSelectedRecord(null);
+                }
+              }}
             >
-              <div className="lw-cm-list-title">
-                {item.name || item.title || item.description || "(Untitled)"}
+              <option value="">-- None --</option>
+              {data.campaigns.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name || "(Unnamed Campaign)"}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="lw-cm-toolbar-group">
+            <div className="lw-cm-label">Container</div>
+            <div className="lw-cm-toolbar-container-label">
+              {CONTAINER_TYPES.find((t) => t.id === activeType)?.label ||
+                activeType}
+            </div>
+          </div>
+        </div>
+
+        {/* SPLIT LAYOUT: LIST + DETAIL */}
+        <div className="lw-cm-main-split">
+          {/* LEFT: LIST */}
+          <div className="lw-cm-list-panel">
+            <div className="lw-cm-list-header">
+              <div className="lw-cm-list-title">RECORDS</div>
+              <div className="lw-cm-list-count">
+                {filteredList.length} total
+              </div>
+            </div>
+
+            <div className="lw-cm-list-table">
+              <div className="lw-cm-list-row lw-cm-list-row-header">
+                <div className="lw-cm-list-cell">Name</div>
+                {columns
+                  .filter((c) => c !== "name")
+                  .map((col) => (
+                    <div
+                      key={col}
+                      className="lw-cm-list-cell lw-cm-list-cell-secondary"
+                    >
+                      {col}
+                    </div>
+                  ))}
               </div>
 
-              {/* Session association preview */}
-              {activeType === "sessions" && (
-                <div className="lw-cm-list-sub">
-                  Linked to Campaign #{item.campaignId}
-                </div>
-              )}
+              <div className="lw-cm-list-body">
+                {filteredList.length === 0 && (
+                  <div className="lw-cm-list-empty">
+                    No records yet. Click <strong>+ NEW</strong> to create.
+                  </div>
+                )}
+
+                {filteredList.map((record) => {
+                  const isActive = selectedRecord?.id === record.id;
+                  return (
+                    <button
+                      key={record.id}
+                      className={
+                        "lw-cm-list-row-button" +
+                        (isActive ? " lw-cm-list-row-active" : "")
+                      }
+                      onClick={() => handleSelectRecord(record)}
+                    >
+                      <div className="lw-cm-list-row">
+                        <div className="lw-cm-list-cell">
+                          {record.name ||
+                            record.title ||
+                            record.sessionName ||
+                            "(Untitled)"}
+                        </div>
+                        {columns
+                          .filter((c) => c !== "name")
+                          .map((col) => (
+                            <div
+                              key={col}
+                              className="lw-cm-list-cell lw-cm-list-cell-secondary"
+                            >
+                              {record[col] || ""}
+                            </div>
+                          ))}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          ))}
-        </div>
+          </div>
 
-        {/* ========== DETAIL PANEL ========== */}
-        <div className="lw-cm-detail">
-
-          {!selectedRecord && (
-            <div className="lw-cm-detail-empty">
-              Select or create a {activeType.slice(0, -1)} to begin.
+          {/* RIGHT: DETAIL */}
+          <div className="lw-cm-detail-panel">
+            <div className="lw-cm-detail-header">
+              <div className="lw-cm-detail-title">
+                {selectedRecord
+                  ? selectedRecord.name ||
+                    selectedRecord.title ||
+                    selectedRecord.sessionName ||
+                    "(Untitled)"
+                  : "No record selected"}
+              </div>
+              <div className="lw-cm-detail-subtitle">
+                {activeType.toUpperCase()}
+              </div>
             </div>
-          )}
 
-          {selectedRecord && (
-            <div className="lw-cm-detail-inner">
-              {/* ------ CAMPAIGNS ------ */}
-              {activeType === "campaigns" && (
-                <>
-                  <label className="lw-cm-label">Campaign Name</label>
-                  <input
-                    className="lw-cm-input"
-                    value={selectedRecord.name || ""}
-                    onChange={(e) => {
-                      const updated = {
-                        ...selectedRecord,
-                        name: e.target.value,
-                      };
+            {!selectedRecord && (
+              <div className="lw-cm-detail-empty">
+                Select a record from the list or click <strong>+ NEW</strong>.
+              </div>
+            )}
+
+            {selectedRecord && (
+              <div className="lw-cm-detail-scroll">
+                {/* CAMPAIGNS */}
+                {activeType === "campaigns" && (
+                  <>
+                    <label className="lw-cm-label">Campaign Name</label>
+                    <input
+                      className="lw-cm-input"
+                      value={selectedRecord.name || ""}
+                      onChange={(e) => {
+                        const updated = {
+                          ...selectedRecord,
+                          name: e.target.value,
+                        };
+                        setSelectedRecord(updated);
+                        triggerAutosave(updated);
+                      }}
+                    />
+
+                    <label className="lw-cm-label">World Setting</label>
+                    <input
+                      className="lw-cm-input"
+                      value={selectedRecord.worldSetting || ""}
+                      onChange={(e) => {
+                        const updated = {
+                          ...selectedRecord,
+                          worldSetting: e.target.value,
+                        };
+                        setSelectedRecord(updated);
+                        triggerAutosave(updated);
+                      }}
+                    />
+
+                    <label className="lw-cm-label">Date / Era</label>
+                    <input
+                      className="lw-cm-input"
+                      value={selectedRecord.date || ""}
+                      onChange={(e) => {
+                        const updated = {
+                          ...selectedRecord,
+                          date: e.target.value,
+                        };
+                        setSelectedRecord(updated);
+                        triggerAutosave(updated);
+                      }}
+                    />
+
+                    <label className="lw-cm-label">Campaign Summary</label>
+                    <textarea
+                      className="lw-cm-textarea"
+                      value={selectedRecord.description || ""}
+                      onChange={(e) => {
+                        const updated = {
+                          ...selectedRecord,
+                          description: e.target.value,
+                        };
+                        setSelectedRecord(updated);
+                        triggerAutosave(updated);
+                      }}
+                    />
+                  </>
+                )}
+
+                {/* SESSIONS */}
+                {activeType === "sessions" && (
+                  <>
+                    <label className="lw-cm-label">Session Name</label>
+                    <input
+                      className="lw-cm-input"
+                      value={selectedRecord.name || ""}
+                      onChange={(e) => {
+                        const updated = {
+                          ...selectedRecord,
+                          name: e.target.value,
+                        };
+                        setSelectedRecord(updated);
+                        triggerAutosave(updated);
+                      }}
+                    />
+
+                    <label className="lw-cm-label">Session Date</label>
+                    <input
+                      className="lw-cm-input"
+                      value={selectedRecord.date || ""}
+                      onChange={(e) => {
+                        const updated = {
+                          ...selectedRecord,
+                          date: e.target.value,
+                        };
+                        setSelectedRecord(updated);
+                        triggerAutosave(updated);
+                      }}
+                    />
+
+                    <label className="lw-cm-label">Campaign</label>
+                    <select
+                      className="lw-cm-select"
+                      value={selectedRecord.campaignId || ""}
+                      onChange={(e) => {
+                        const campaignId = e.target.value || null;
+                        const campaign = data.campaigns.find(
+                          (c) => c.id === campaignId
+                        );
+                        const updated = {
+                          ...selectedRecord,
+                          campaignId,
+                          campaignName: campaign ? campaign.name : "",
+                        };
+                        setSelectedRecord(updated);
+                        triggerAutosave(updated);
+                        if (campaign) {
+                          setSelectedCampaignGlobal(campaign);
+                        }
+                      }}
+                    >
+                      <option value="">-- None --</option>
+                      {data.campaigns.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name || "(Unnamed Campaign)"}
+                        </option>
+                      ))}
+                    </select>
+
+                    <label className="lw-cm-label">Location Name</label>
+                    <input
+                      className="lw-cm-input"
+                      value={selectedRecord.locationName || ""}
+                      onChange={(e) => {
+                        const updated = {
+                          ...selectedRecord,
+                          locationName: e.target.value,
+                        };
+                        setSelectedRecord(updated);
+                        triggerAutosave(updated);
+                      }}
+                    />
+
+                    <label className="lw-cm-label">Session Notes</label>
+                    <textarea
+                      className="lw-cm-textarea"
+                      value={selectedRecord.description || ""}
+                      onChange={(e) => {
+                        const updated = {
+                          ...selectedRecord,
+                          description: e.target.value,
+                        };
+                        setSelectedRecord(updated);
+                        triggerAutosave(updated);
+                      }}
+                    />
+                  </>
+                )}
+
+                {/* EVENTS */}
+                {activeType === "events" && (
+                  <>
+                    <label className="lw-cm-label">Event Name</label>
+                    <input
+                      className="lw-cm-input"
+                      value={selectedRecord.name || ""}
+                      onChange={(e) => {
+                        const updated = {
+                          ...selectedRecord,
+                          name: e.target.value,
+                        };
+                        setSelectedRecord(updated);
+                        triggerAutosave(updated);
+                      }}
+                    />
+
+                    <label className="lw-cm-label">Event Type</label>
+                    <input
+                      className="lw-cm-input"
+                      value={selectedRecord.type || ""}
+                      onChange={(e) => {
+                        const updated = {
+                          ...selectedRecord,
+                          type: e.target.value,
+                        };
+                        setSelectedRecord(updated);
+                        triggerAutosave(updated);
+                      }}
+                    />
+
+                    <label className="lw-cm-label">Session</label>
+                    <select
+                      className="lw-cm-select"
+                      value={selectedRecord.sessionId || ""}
+                      onChange={(e) => {
+                        const sessionId = e.target.value || null;
+                        const session = data.sessions.find(
+                          (s) => s.id === sessionId
+                        );
+                        const updated = {
+                          ...selectedRecord,
+                          sessionId,
+                          sessionName: session ? session.name : "",
+                        };
+                        setSelectedRecord(updated);
+                        triggerAutosave(updated);
+                      }}
+                    >
+                      <option value="">-- None --</option>
+                      {data.sessions.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name || "(Unnamed Session)"}
+                        </option>
+                      ))}
+                    </select>
+
+                    <label className="lw-cm-label">Event Description</label>
+                    <textarea
+                      className="lw-cm-textarea"
+                      value={selectedRecord.description || ""}
+                      onChange={(e) => {
+                        const updated = {
+                          ...selectedRecord,
+                          description: e.target.value,
+                        };
+                        setSelectedRecord(updated);
+                        triggerAutosave(updated);
+                      }}
+                    />
+                  </>
+                )}
+
+                {/* LOCATIONS */}
+                {activeType === "locations" && (
+                  <>
+                    <label className="lw-cm-label">Location Name</label>
+                    <input
+                      className="lw-cm-input"
+                      value={selectedRecord.name || ""}
+                      onChange={(e) => {
+                        const updated = {
+                          ...selectedRecord,
+                          name: e.target.value,
+                        };
+                        setSelectedRecord(updated);
+                        triggerAutosave(updated);
+                      }}
+                    />
+
+                    <label className="lw-cm-label">Location Type</label>
+                    <input
+                      className="lw-cm-input"
+                      value={selectedRecord.type || ""}
+                      onChange={(e) => {
+                        const updated = {
+                          ...selectedRecord,
+                          type: e.target.value,
+                        };
+                        setSelectedRecord(updated);
+                        triggerAutosave(updated);
+                      }}
+                    />
+
+                    <label className="lw-cm-label">Region</label>
+                    <input
+                      className="lw-cm-input"
+                      value={selectedRecord.region || ""}
+                      onChange={(e) => {
+                        const updated = {
+                          ...selectedRecord,
+                          region: e.target.value,
+                        };
+                        setSelectedRecord(updated);
+                        triggerAutosave(updated);
+                      }}
+                    />
+
+                    <label className="lw-cm-label">City</label>
+                    <input
+                      className="lw-cm-input"
+                      value={selectedRecord.city || ""}
+                      onChange={(e) => {
+                        const updated = {
+                          ...selectedRecord,
+                          city: e.target.value,
+                        };
+                        setSelectedRecord(updated);
+                        triggerAutosave(updated);
+                      }}
+                    />
+
+                    <label className="lw-cm-label">State</label>
+                    <input
+                      className="lw-cm-input"
+                      value={selectedRecord.state || ""}
+                      onChange={(e) => {
+                        const updated = {
+                          ...selectedRecord,
+                          state: e.target.value,
+                        };
+                        setSelectedRecord(updated);
+                        triggerAutosave(updated);
+                      }}
+                    />
+
+                    <label className="lw-cm-label">ZIP</label>
+                    <input
+                      className="lw-cm-input"
+                      value={selectedRecord.zip || ""}
+                      onChange={(e) => {
+                        const updated = {
+                          ...selectedRecord,
+                          zip: e.target.value,
+                        };
+                        setSelectedRecord(updated);
+                        triggerAutosave(updated);
+                      }}
+                    />
+
+                    <label className="lw-cm-label">Location Description</label>
+                    <textarea
+                      className="lw-cm-textarea"
+                      value={selectedRecord.description || ""}
+                      onChange={(e) => {
+                        const updated = {
+                          ...selectedRecord,
+                          description: e.target.value,
+                        };
+                        setSelectedRecord(updated);
+                        triggerAutosave(updated);
+                      }}
+                    />
+                  </>
+                )}
+
+                {/* ITEMS */}
+                {activeType === "items" && (
+                  <>
+                    <label className="lw-cm-label">Item Name</label>
+                    <input
+                      className="lw-cm-input"
+                      value={selectedRecord.name || ""}
+                      onChange={(e) => {
+                        const updated = {
+                          ...selectedRecord,
+                          name: e.target.value,
+                        };
+                        setSelectedRecord(updated);
+                        triggerAutosave(updated);
+                      }}
+                    />
+
+                    <label className="lw-cm-label">Rarity</label>
+                    <input
+                      className="lw-cm-input"
+                      value={selectedRecord.rarity || ""}
+                      onChange={(e) => {
+                        const updated = {
+                          ...selectedRecord,
+                          rarity: e.target.value,
+                        };
+                        setSelectedRecord(updated);
+                        triggerAutosave(updated);
+                      }}
+                    />
+
+                    <label className="lw-cm-label">Owner</label>
+                    <input
+                      className="lw-cm-input"
+                      value={selectedRecord.owner || ""}
+                      onChange={(e) => {
+                        const updated = {
+                          ...selectedRecord,
+                          owner: e.target.value,
+                        };
+                        setSelectedRecord(updated);
+                        triggerAutosave(updated);
+                      }}
+                    />
+
+                    <label className="lw-cm-label">Item Description</label>
+                    <textarea
+                      className="lw-cm-textarea"
+                      value={selectedRecord.description || ""}
+                      onChange={(e) => {
+                        const updated = {
+                          ...selectedRecord,
+                          description: e.target.value,
+                        };
+                        setSelectedRecord(updated);
+                        triggerAutosave(updated);
+                      }}
+                    />
+                  </>
+                )}
+
+                {/* LORE */}
+                {activeType === "lore" && (
+                  <>
+                    <label className="lw-cm-label">Lore Title</label>
+                    <input
+                      className="lw-cm-input"
+                      value={selectedRecord.title || ""}
+                      onChange={(e) => {
+                        const updated = {
+                          ...selectedRecord,
+                          title: e.target.value,
+                        };
+                        setSelectedRecord(updated);
+                        triggerAutosave(updated);
+                      }}
+                    />
+
+                    <label className="lw-cm-label">Category</label>
+                    <input
+                      className="lw-cm-input"
+                      value={selectedRecord.category || ""}
+                      onChange={(e) => {
+                        const updated = {
+                          ...selectedRecord,
+                          category: e.target.value,
+                        };
+                        setSelectedRecord(updated);
+                        triggerAutosave(updated);
+                      }}
+                    />
+
+                    <label className="lw-cm-label">Scope</label>
+                    <input
+                      className="lw-cm-input"
+                      value={selectedRecord.scope || ""}
+                      onChange={(e) => {
+                        const updated = {
+                          ...selectedRecord,
+                          scope: e.target.value,
+                        };
+                        setSelectedRecord(updated);
+                        triggerAutosave(updated);
+                      }}
+                    />
+
+                    <label className="lw-cm-label">Body</label>
+                    <textarea
+                      className="lw-cm-textarea"
+                      value={selectedRecord.body || ""}
+                      onChange={(e) => {
+                        const updated = {
+                          ...selectedRecord,
+                          body: e.target.value,
+                        };
+                        setSelectedRecord(updated);
+                        triggerAutosave(updated);
+                      }}
+                    />
+
+                    <label className="lw-cm-label">Secrets</label>
+                    <textarea
+                      className="lw-cm-textarea"
+                      value={selectedRecord.secrets || ""}
+                      onChange={(e) => {
+                        const updated = {
+                          ...selectedRecord,
+                          secrets: e.target.value,
+                        };
+                        setSelectedRecord(updated);
+                        triggerAutosave(updated);
+                      }}
+                    />
+                  </>
+                )}
+
+                {/* NPCS, ENCOUNTERS, QUESTS, LOGS, PLAYER CHARACTERS */}
+                {[
+                  "npcs",
+                  "encounters",
+                  "quests",
+                  "logs",
+                  "playerCharacters",
+                ].includes(activeType) && (
+                  <FallbackDetail
+                    record={selectedRecord}
+                    onChange={(updated) => {
                       setSelectedRecord(updated);
                       triggerAutosave(updated);
                     }}
                   />
-
-                  <label className="lw-cm-label">World Setting</label>
-                  <input
-                    className="lw-cm-input"
-                    value={selectedRecord.worldSetting || ""}
-                    onChange={(e) => {
-                      const updated = {
-                        ...selectedRecord,
-                        worldSetting: e.target.value,
-                      };
-                      setSelectedRecord(updated);
-                      triggerAutosave(updated);
-                    }}
-                  />
-
-                  <label className="lw-cm-label">Date</label>
-                  <input
-                    className="lw-cm-input"
-                    value={selectedRecord.date || ""}
-                    onChange={(e) => {
-                      const updated = {
-                        ...selectedRecord,
-                        date: e.target.value,
-                      };
-                      setSelectedRecord(updated);
-                      triggerAutosave(updated);
-                    }}
-                  />
-
-                  <label className="lw-cm-label">Description</label>
-                  <textarea
-                    className="lw-cm-textarea"
-                    value={selectedRecord.description || ""}
-                    onChange={(e) => {
-                      const updated = {
-                        ...selectedRecord,
-                        description: e.target.value,
-                      };
-                      setSelectedRecord(updated);
-                      triggerAutosave(updated);
-                    }}
-                  />
-                </>
-              )}
-
-              {/* ------ SESSIONS ------ */}
-              {activeType === "sessions" && (
-                <>
-                  <label className="lw-cm-label">Description</label>
-                  <textarea
-                    className="lw-cm-textarea"
-                    value={selectedRecord.description || ""}
-                    onChange={(e) => {
-                      const updated = {
-                        ...selectedRecord,
-                        description: e.target.value,
-                      };
-                      setSelectedRecord(updated);
-                      triggerAutosave(updated);
-                    }}
-                  />
-
-                  <label className="lw-cm-label">Geography</label>
-                  <input
-                    className="lw-cm-input"
-                    value={selectedRecord.geography || ""}
-                    onChange={(e) => {
-                      const updated = {
-                        ...selectedRecord,
-                        geography: e.target.value,
-                      };
-                      setSelectedRecord(updated);
-                      triggerAutosave(updated);
-                    }}
-                  />
-
-                  <label className="lw-cm-label">Notes</label>
-                  <textarea
-                    className="lw-cm-textarea"
-                    value={selectedRecord.notes || ""}
-                    onChange={(e) => {
-                      const updated = {
-                        ...selectedRecord,
-                        notes: e.target.value,
-                      };
-                      setSelectedRecord(updated);
-                      triggerAutosave(updated);
-                    }}
-                  />
-
-                  <label className="lw-cm-label">History</label>
-                  <textarea
-                    className="lw-cm-textarea"
-                    value={selectedRecord.history || ""}
-                    onChange={(e) => {
-                      const updated = {
-                        ...selectedRecord,
-                        history: e.target.value,
-                      };
-                      setSelectedRecord(updated);
-                      triggerAutosave(updated);
-                    }}
-                  />
-                </>
-              )}
-
-              {/* ------ LOCATIONS ------ */}
-              {activeType === "locations" && (
-                <>
-                  <label className="lw-cm-label">Description</label>
-                  <textarea
-                    className="lw-cm-textarea"
-                    value={selectedRecord.description || ""}
-                    onChange={(e) => {
-                      const updated = {
-                        ...selectedRecord,
-                        description: e.target.value,
-                      };
-                      setSelectedRecord(updated);
-                      triggerAutosave(updated);
-                    }}
-                  />
-
-                  <label className="lw-cm-label">Street</label>
-                  <input
-                    className="lw-cm-input"
-                    value={selectedRecord.street || ""}
-                    onChange={(e) => {
-                      const updated = {
-                        ...selectedRecord,
-                        street: e.target.value,
-                      };
-                      setSelectedRecord(updated);
-                      triggerAutosave(updated);
-                    }}
-                  />
-
-                  <label className="lw-cm-label">City</label>
-                  <input
-                    className="lw-cm-input"
-                    value={selectedRecord.city || ""}
-                    onChange={(e) => {
-                      const updated = {
-                        ...selectedRecord,
-                        city: e.target.value,
-                      };
-                      setSelectedRecord(updated);
-                      triggerAutosave(updated);
-                    }}
-                  />
-
-                  <label className="lw-cm-label">State</label>
-                  <input
-                    className="lw-cm-input"
-                    value={selectedRecord.state || ""}
-                    onChange={(e) => {
-                      const updated = {
-                        ...selectedRecord,
-                        state: e.target.value,
-                      };
-                      setSelectedRecord(updated);
-                      triggerAutosave(updated);
-                    }}
-                  />
-
-                  <label className="lw-cm-label">ZIP</label>
-                  <input
-                    className="lw-cm-input"
-                    value={selectedRecord.zip || ""}
-                    onChange={(e) => {
-                      const updated = {
-                        ...selectedRecord,
-                        zip: e.target.value,
-                      };
-                      setSelectedRecord(updated);
-                      triggerAutosave(updated);
-                    }}
-                  />
-
-                  <label className="lw-cm-label">Notes</label>
-                  <textarea
-                    className="lw-cm-textarea"
-                    value={selectedRecord.notes || ""}
-                    onChange={(e) => {
-                      const updated = {
-                        ...selectedRecord,
-                        notes: e.target.value,
-                      };
-                      setSelectedRecord(updated);
-                      triggerAutosave(updated);
-                    }}
-                  />
-
-                  <label className="lw-cm-label">Secrets</label>
-                  <textarea
-                    className="lw-cm-textarea"
-                    value={selectedRecord.secrets || ""}
-                    onChange={(e) => {
-                      const updated = {
-                        ...selectedRecord,
-                        secrets: e.target.value,
-                      };
-                      setSelectedRecord(updated);
-                      triggerAutosave(updated);
-                    }}
-                  />
-
-                  <label className="lw-cm-label">Points of Interest</label>
-                  <textarea
-                    className="lw-cm-textarea"
-                    value={selectedRecord.pointsOfInterest || ""}
-                    onChange={(e) => {
-                      const updated = {
-                        ...selectedRecord,
-                        pointsOfInterest: e.target.value,
-                      };
-                      setSelectedRecord(updated);
-                      triggerAutosave(updated);
-                    }}
-                  />
-                </>
-              )}
-            </div>
-          )}
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
+
+      {/* MU/TH/UR WARNING MODAL */}
+      {showWarningModal && (
+        <div className="lw-cm-modal-backdrop">
+          <div className="lw-cm-modal">
+            <div className="lw-cm-modal-header">MU/TH/UR WARNING</div>
+            <div className="lw-cm-modal-body">
+              <p>{warningMessage}</p>
+            </div>
+            <div className="lw-cm-modal-footer">
+              <button
+                className="lw-cm-button lw-cm-button-primary"
+                onClick={() => setShowWarningModal(false)}
+              >
+                ACKNOWLEDGE
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
 
-    {/* ========== MU/TH/UR WARNING MODAL ========== */}
-    {showWarningModal && (
-      <div className="lw-cm-modal-overlay">
-        <div className="lw-cm-modal">
-          <div className="lw-cm-modal-header">
-            <span className="lw-cm-modal-prefix">MU/TH/UR 182</span>
-            <span className="lw-cm-modal-title">SYSTEM NOTICE</span>
-          </div>
-
-          <div className="lw-cm-modal-body">
-            <p>{warningMessage}</p>
-          </div>
-
-          <div className="lw-cm-modal-footer">
-            <button
-              className="lw-cm-button lw-cm-button-primary"
-              onClick={() => setShowWarningModal(false)}
-            >
-              ACKNOWLEDGE
-            </button>
-          </div>
-        </div>
-      </div>
-    )}
-  </div>
-);
 function FallbackDetail({ record, onChange }) {
   if (!record) return null;
 
@@ -809,6 +1353,9 @@ function FallbackDetail({ record, onChange }) {
       />
     </div>
   );
-} // <-- closes the CampaignManager() component
+}
+
+// If you later implement NPCs, Items, Events, Lore, Quests, Encounters, Logs,
+// plug them in where needed. FallbackDetail keeps the UI from breaking.
 
 export default CampaignManager;
