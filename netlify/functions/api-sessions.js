@@ -1,18 +1,24 @@
 // netlify/functions/api-sessions.js
-import { NetlifyRequest, NetlifyResponse } from "@netlify/functions";
 import { query } from "../util/db.js";
 import { requireAdmin } from "../util/auth.js";
 
+const json = (status, payload) => ({
+  statusCode: status,
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify(payload),
+});
+
 /* -----------------------------------------------------------
    GET /api-sessions
-   - List all sessions for a campaign → ?campaign_id=UUID
-   - OR get a single session → ?id=UUID
+   Supports:
+   - ?id=UUID
+   - ?campaign_id=UUID
 ------------------------------------------------------------ */
-async function handleGET(request) {
-  const id = request.query.get("id");
-  const campaignId = request.query.get("campaign_id");
+async function handleGET(event) {
+  const id = event.queryStringParameters?.id;
+  const campaignId = event.queryStringParameters?.campaign_id;
 
-  // Fetch single session
+  // Single session
   if (id) {
     const result = await query(
       `SELECT *
@@ -23,16 +29,13 @@ async function handleGET(request) {
     );
 
     if (result.rows.length === 0) {
-      return NetlifyResponse.json(
-        { error: "Session not found" },
-        { status: 404 }
-      );
+      return json(404, { error: "Session not found" });
     }
 
-    return NetlifyResponse.json(result.rows[0]);
+    return json(200, result.rows[0]);
   }
 
-  // Fetch all sessions for a campaign
+  // All sessions for campaign
   if (campaignId) {
     const result = await query(
       `SELECT *
@@ -42,24 +45,21 @@ async function handleGET(request) {
       [campaignId]
     );
 
-    return NetlifyResponse.json(result.rows);
+    return json(200, result.rows);
   }
 
-  return NetlifyResponse.json(
-    { error: "Either id or campaign_id is required" },
-    { status: 400 }
-  );
+  return json(400, { error: "Either id or campaign_id is required" });
 }
 
 /* -----------------------------------------------------------
    POST /api-sessions
-   Create a new session
 ------------------------------------------------------------ */
-async function handlePOST(request) {
-  const auth = requireAdmin(request.headers);
+async function handlePOST(event) {
+  const auth = requireAdmin(event.headers);
   if (!auth.ok) return auth.response;
 
-  const body = await request.json();
+  const body = JSON.parse(event.body || "{}");
+
   const {
     campaign_id,
     description,
@@ -68,19 +68,8 @@ async function handlePOST(request) {
     history
   } = body;
 
-  if (!campaign_id) {
-    return NetlifyResponse.json(
-      { error: "campaign_id is required" },
-      { status: 400 }
-    );
-  }
-
-  if (!description) {
-    return NetlifyResponse.json(
-      { error: "description is required" },
-      { status: 400 }
-    );
-  }
+  if (!campaign_id) return json(400, { error: "campaign_id is required" });
+  if (!description) return json(400, { error: "description is required" });
 
   const result = await query(
     `
@@ -98,73 +87,53 @@ async function handlePOST(request) {
     ]
   );
 
-  return NetlifyResponse.json(result.rows[0], { status: 201 });
+  return json(201, result.rows[0]);
 }
 
 /* -----------------------------------------------------------
    PUT /api-sessions?id=UUID
-   Update an existing session
 ------------------------------------------------------------ */
-async function handlePUT(request) {
-  const auth = requireAdmin(request.headers);
+async function handlePUT(event) {
+  const auth = requireAdmin(event.headers);
   if (!auth.ok) return auth.response;
 
-  const id = request.query.get("id");
+  const id = event.queryStringParameters?.id;
+  if (!id) return json(400, { error: "id is required" });
 
-  if (!id) {
-    return NetlifyResponse.json(
-      { error: "id is required" },
-      { status: 400 }
-    );
-  }
+  const body = JSON.parse(event.body || "{}");
 
-  const body = await request.json();
-  const {
-    description,
-    geography,
-    notes,
-    history
-  } = body;
+  const { description, geography, notes, history } = body;
 
   const result = await query(
     `
     UPDATE sessions
-    SET description   = COALESCE($2, description),
-        geography     = COALESCE($3, geography),
-        notes         = COALESCE($4, notes),
-        history       = COALESCE($5, history),
-        updated_at    = NOW()
-    WHERE id = $1
-    RETURNING *
+       SET description = COALESCE($2, description),
+           geography   = COALESCE($3, geography),
+           notes       = COALESCE($4, notes),
+           history     = COALESCE($5, history),
+           updated_at  = NOW()
+     WHERE id = $1
+     RETURNING *
     `,
     [id, description, geography, notes, history]
   );
 
   if (result.rows.length === 0) {
-    return NetlifyResponse.json(
-      { error: "Session not found" },
-      { status: 404 }
-    );
+    return json(404, { error: "Session not found" });
   }
 
-  return NetlifyResponse.json(result.rows[0]);
+  return json(200, result.rows[0]);
 }
 
 /* -----------------------------------------------------------
    DELETE /api-sessions?id=UUID
 ------------------------------------------------------------ */
-async function handleDELETE(request) {
-  const auth = requireAdmin(request.headers);
+async function handleDELETE(event) {
+  const auth = requireAdmin(event.headers);
   if (!auth.ok) return auth.response;
 
-  const id = request.query.get("id");
-
-  if (!id) {
-    return NetlifyResponse.json(
-      { error: "id is required" },
-      { status: 400 }
-    );
-  }
+  const id = event.queryStringParameters?.id;
+  if (!id) return json(400, { error: "id is required" });
 
   const result = await query(
     `DELETE FROM sessions WHERE id = $1 RETURNING id`,
@@ -172,45 +141,36 @@ async function handleDELETE(request) {
   );
 
   if (result.rows.length === 0) {
-    return NetlifyResponse.json(
-      { error: "Session not found" },
-      { status: 404 }
-    );
+    return json(404, { error: "Session not found" });
   }
 
-  return NetlifyResponse.json({ success: true, id });
+  return json(200, { success: true, id });
 }
 
 /* -----------------------------------------------------------
-   MAIN HANDLER — Netlify 2025
+   MAIN HANDLER
 ------------------------------------------------------------ */
-export default async function handler(request) {
+export const handler = async (event, context) => {
   try {
-    switch (request.method) {
+    switch (event.httpMethod) {
       case "GET":
-        return await handleGET(request);
+        return await handleGET(event);
 
       case "POST":
-        return await handlePOST(request);
+        return await handlePOST(event);
 
       case "PUT":
       case "PATCH":
-        return await handlePUT(request);
+        return await handlePUT(event);
 
       case "DELETE":
-        return await handleDELETE(request);
+        return await handleDELETE(event);
 
       default:
-        return NetlifyResponse.json(
-          { error: "Method Not Allowed" },
-          { status: 405 }
-        );
+        return json(405, { error: "Method Not Allowed" });
     }
   } catch (err) {
     console.error("api-sessions error:", err);
-    return NetlifyResponse.json(
-      { error: err.message || "Internal Server Error" },
-      { status: 500 }
-    );
+    return json(500, { error: err.message || "Internal Server Error" });
   }
-}
+};

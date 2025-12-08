@@ -1,17 +1,25 @@
 // netlify/functions/api-campaigns.js
-import { NetlifyRequest, NetlifyResponse } from "@netlify/functions";
 import { query } from "../util/db.js";
 import { requireAdmin } from "../util/auth.js";
 
+// Helper for JSON responses
+const json = (status, payload) => ({
+  statusCode: status,
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify(payload),
+});
+
 /* -----------------------------------------------------------
    GET /api-campaigns
-   - list all campaigns OR get a single campaign via ?id=
+   Supports:
+   - /api-campaigns                (all campaigns)
+   - /api-campaigns?id=UUID       (single campaign)
 ------------------------------------------------------------ */
-async function handleGET(request) {
-  const id = request.query.get("id");
+async function handleGET(event) {
+  const id = event.queryStringParameters?.id;
 
+  // Single campaign
   if (id) {
-    // Fetch a single campaign by ID
     const result = await query(
       `SELECT *
        FROM campaigns
@@ -21,31 +29,31 @@ async function handleGET(request) {
     );
 
     if (result.rows.length === 0) {
-      return NetlifyResponse.json({ error: "Campaign not found" }, { status: 404 });
+      return json(404, { error: "Campaign not found" });
     }
 
-    return NetlifyResponse.json(result.rows[0]);
+    return json(200, result.rows[0]);
   }
 
-  // Fetch all campaigns
+  // All campaigns
   const result = await query(
     `SELECT *
      FROM campaigns
      ORDER BY created_at DESC`
   );
 
-  return NetlifyResponse.json(result.rows);
+  return json(200, result.rows);
 }
 
 /* -----------------------------------------------------------
    POST /api-campaigns
-   Create a new campaign
 ------------------------------------------------------------ */
-async function handlePOST(request) {
-  const auth = requireAdmin(request.headers);
+async function handlePOST(event) {
+  const auth = requireAdmin(event.headers);
   if (!auth.ok) return auth.response;
 
-  const body = await request.json();
+  const body = JSON.parse(event.body || "{}");
+
   const {
     name,
     description,
@@ -54,10 +62,7 @@ async function handlePOST(request) {
   } = body;
 
   if (!name) {
-    return NetlifyResponse.json(
-      { error: "name is required" },
-      { status: 400 }
-    );
+    return json(400, { error: "name is required" });
   }
 
   const result = await query(
@@ -70,26 +75,21 @@ async function handlePOST(request) {
     [name, description || "", world_setting || "", campaign_date || null]
   );
 
-  return NetlifyResponse.json(result.rows[0], { status: 201 });
+  return json(201, result.rows[0]);
 }
 
 /* -----------------------------------------------------------
-   PUT /api-campaigns?id=
-   Update an existing campaign
+   PUT /api-campaigns?id=UUID
 ------------------------------------------------------------ */
-async function handlePUT(request) {
-  const auth = requireAdmin(request.headers);
+async function handlePUT(event) {
+  const auth = requireAdmin(event.headers);
   if (!auth.ok) return auth.response;
 
-  const id = request.query.get("id");
-  if (!id) {
-    return NetlifyResponse.json(
-      { error: "id is required" },
-      { status: 400 }
-    );
-  }
+  const id = event.queryStringParameters?.id;
+  if (!id) return json(400, { error: "id is required" });
 
-  const body = await request.json();
+  const body = JSON.parse(event.body || "{}");
+
   const {
     name,
     description,
@@ -100,42 +100,33 @@ async function handlePUT(request) {
   const result = await query(
     `
     UPDATE campaigns
-    SET name = COALESCE($2, name),
-        description = COALESCE($3, description),
-        world_setting = COALESCE($4, world_setting),
-        campaign_date = COALESCE($5, campaign_date),
-        updated_at = NOW()
-    WHERE id = $1
-    RETURNING *
+       SET name = COALESCE($2, name),
+           description = COALESCE($3, description),
+           world_setting = COALESCE($4, world_setting),
+           campaign_date = COALESCE($5, campaign_date),
+           updated_at = NOW()
+     WHERE id = $1
+     RETURNING *
     `,
     [id, name, description, world_setting, campaign_date]
   );
 
   if (result.rows.length === 0) {
-    return NetlifyResponse.json(
-      { error: "Campaign not found" },
-      { status: 404 }
-    );
+    return json(404, { error: "Campaign not found" });
   }
 
-  return NetlifyResponse.json(result.rows[0]);
+  return json(200, result.rows[0]);
 }
 
 /* -----------------------------------------------------------
-   DELETE /api-campaigns?id=
+   DELETE /api-campaigns?id=UUID
 ------------------------------------------------------------ */
-async function handleDELETE(request) {
-  const auth = requireAdmin(request.headers);
+async function handleDELETE(event) {
+  const auth = requireAdmin(event.headers);
   if (!auth.ok) return auth.response;
 
-  const id = request.query.get("id");
-
-  if (!id) {
-    return NetlifyResponse.json(
-      { error: "id is required" },
-      { status: 400 }
-    );
-  }
+  const id = event.queryStringParameters?.id;
+  if (!id) return json(400, { error: "id is required" });
 
   const result = await query(
     `DELETE FROM campaigns WHERE id = $1 RETURNING id`,
@@ -143,45 +134,36 @@ async function handleDELETE(request) {
   );
 
   if (result.rows.length === 0) {
-    return NetlifyResponse.json(
-      { error: "Campaign not found" },
-      { status: 404 }
-    );
+    return json(404, { error: "Campaign not found" });
   }
 
-  return NetlifyResponse.json({ success: true, id });
+  return json(200, { success: true, id });
 }
 
 /* -----------------------------------------------------------
-   MAIN HANDLER (Netlify 2025)
+   MAIN HANDLER (Classic)
 ------------------------------------------------------------ */
-export default async function handler(request) {
+export const handler = async (event, context) => {
   try {
-    switch (request.method) {
+    switch (event.httpMethod) {
       case "GET":
-        return await handleGET(request);
+        return await handleGET(event);
 
       case "POST":
-        return await handlePOST(request);
+        return await handlePOST(event);
 
       case "PUT":
       case "PATCH":
-        return await handlePUT(request);
+        return await handlePUT(event);
 
       case "DELETE":
-        return await handleDELETE(request);
+        return await handleDELETE(event);
 
       default:
-        return NetlifyResponse.json(
-          { error: "Method Not Allowed" },
-          { status: 405 }
-        );
+        return json(405, { error: "Method Not Allowed" });
     }
   } catch (err) {
     console.error("api-campaigns error:", err);
-    return NetlifyResponse.json(
-      { error: err.message || "Internal Server Error" },
-      { status: 500 }
-    );
+    return json(500, { error: err.message || "Internal Server Error" });
   }
-}
+};
