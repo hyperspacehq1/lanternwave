@@ -13,6 +13,7 @@
     "@aws-sdk/s3-request-presigner": "^3.686.0",
     "@neondatabase/serverless": "^1.0.2",
     "@netlify/functions": "^5.1.0",
+    "@netlify/plugin-nextjs": "^5.15.1",
     "openai": "^6.10.0",
     "pg": "^8.16.3",
     "react": "^19.2.0",
