@@ -1,12 +1,19 @@
-// src/pages/AccessGate.jsx
+"use client";
+
 import React, { useEffect, useState } from "react";
 import PrivacyPolicy from "./PrivacyPolicy.jsx";
 import "./access-gate.css";
 
-const ACCESS_CODE = "10241972";
-const TYPE_SPEED = 15;
-const MAX_VISIBLE_LINES = 10;
+// ===========================================================
+// SETTINGS
+// ===========================================================
+const ACCESS_CODE = "10241972"; // Your secure access code
+const TYPE_SPEED = 15;          // Speed for typing animation
+const MAX_VISIBLE_LINES = 10;   // Scroll window for terminal
 
+// ===========================================================
+// BOOT SEQUENCE TEXT (unchanged from your version)
+// ===========================================================
 const BOOT_LINES = [
   "BOOTING SECURE OPERATIONS TERMINAL v7.9...",
   "",
@@ -43,14 +50,19 @@ const BOOT_LINES = [
   "ENTER ACCESS CODE TO CONTINUE"
 ];
 
-export default function AccessGate({ onUnlock }) {
-  const [stage, setStage] = useState("intro");
+export default function AccessGatePage() {
+  // ===========================================================
+  // STATE
+  // ===========================================================
+  const [stage, setStage] = useState("intro"); // intro → boot → code → approved
   const [bootLines, setBootLines] = useState([]);
   const [showPrivacy, setShowPrivacy] = useState(false);
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
 
-  // Boot typing effect
+  // ===========================================================
+  // BOOT TYPING ANIMATION
+  // ===========================================================
   useEffect(() => {
     if (stage !== "boot") return;
 
@@ -62,23 +74,22 @@ export default function AccessGate({ onUnlock }) {
       if (lineIndex >= BOOT_LINES.length) {
         setBootLines([...currentLines]);
         clearInterval(interval);
+
+        // Move to code entry after animation ends
         setTimeout(() => setStage("code"), 400);
         return;
       }
 
       const fullLine = BOOT_LINES[lineIndex] ?? "";
 
-      if (currentLines[lineIndex] === undefined) {
-        currentLines[lineIndex] = "";
-      }
-
+      if (!currentLines[lineIndex]) currentLines[lineIndex] = "";
       currentLines[lineIndex] += fullLine.charAt(charIndex);
 
       if (charIndex >= fullLine.length) {
-        lineIndex += 1;
+        lineIndex++;
         charIndex = 0;
       } else {
-        charIndex += 1;
+        charIndex++;
       }
 
       setBootLines([...currentLines]);
@@ -87,20 +98,30 @@ export default function AccessGate({ onUnlock }) {
     return () => clearInterval(interval);
   }, [stage]);
 
-  // Auto-fade after approval
+  // ===========================================================
+  // APPROVED → FADE → REDIRECT
+  // ===========================================================
   useEffect(() => {
     if (stage !== "approved") return;
-    const t = setTimeout(() => onUnlock && onUnlock(), 1200);
-    return () => clearTimeout(t);
-  }, [stage, onUnlock]);
 
+    const t = setTimeout(() => {
+      window.location.href = "/controller"; // NEXT.JS routing
+    }, 1200);
+
+    return () => clearTimeout(t);
+  }, [stage]);
+
+  // Only show last N lines
   const visibleLines = bootLines.slice(-MAX_VISIBLE_LINES);
 
-  const handleInitialize = () => {
+  // ===========================================================
+  // HANDLERS
+  // ===========================================================
+  const initialize = () => {
     if (stage === "intro") setStage("boot");
   };
 
-  const handleSubmit = (e) => {
+  const submitCode = (e) => {
     e.preventDefault();
     if (code.trim() === ACCESS_CODE) {
       setError("");
@@ -111,10 +132,15 @@ export default function AccessGate({ onUnlock }) {
     }
   };
 
+  // ===========================================================
+  // UI
+  // ===========================================================
   return (
     <div className={`boot-screen ${stage === "approved" ? "boot-screen-fade" : ""}`}>
 
-      {/* Top-right PRIVACY POLICY button */}
+      {/* ===========================================================
+          PRIVACY BUTTON
+      =========================================================== */}
       <button
         type="button"
         className="boot-privacy-button"
@@ -123,29 +149,37 @@ export default function AccessGate({ onUnlock }) {
         PRIVACY POLICY
       </button>
 
-      {/* Intro screen */}
+      {/* ===========================================================
+          INTRO SCREEN
+      =========================================================== */}
       {stage === "intro" && (
-        <div className="boot-intro" onClick={handleInitialize}>
+        <div className="boot-intro" onClick={initialize}>
           <div className="boot-logo-wrap">
-            <img src="/lanterwave-logo.png" alt="LanternWave" className="boot-logo" />
+            <img src="/lanterwave-logo.png" className="boot-logo" />
           </div>
           <h1 className="boot-title">LANTERNWAVE</h1>
           <p className="boot-subtitle">CLICK TO INITIALIZE</p>
         </div>
       )}
 
-      {/* Boot + Code Entry */}
+      {/* ===========================================================
+          TERMINAL + CODE ENTRY
+      =========================================================== */}
       {stage !== "intro" && (
         <div className="boot-terminal-frame">
           <div className="boot-terminal-lines">
-            {visibleLines.map((line, idx) => (
-              <div key={idx} className="boot-line">{line}</div>
+            {visibleLines.map((line, i) => (
+              <div key={i} className="boot-line">
+                {line}
+              </div>
             ))}
           </div>
 
+          {/* CODE ENTRY */}
           {stage === "code" && (
-            <form className="boot-code-form" onSubmit={handleSubmit}>
+            <form className="boot-code-form" onSubmit={submitCode}>
               <div className="boot-code-label">ENTER ACCESS CODE</div>
+
               <input
                 className="boot-code-input"
                 type="password"
@@ -153,28 +187,32 @@ export default function AccessGate({ onUnlock }) {
                 onChange={(e) => setCode(e.target.value)}
                 autoFocus
               />
-              <button type="submit" className="boot-code-button">CONFIRM</button>
+
+              <button type="submit" className="boot-code-button">
+                CONFIRM
+              </button>
+
               {error && <div className="boot-error">{error}</div>}
             </form>
           )}
 
+          {/* APPROVED ANIMATION */}
           {stage === "approved" && (
             <div className="boot-approved">ACCESS APPROVED</div>
           )}
         </div>
       )}
 
-      {/* Privacy modal */}
+      {/* ===========================================================
+          PRIVACY POLICY MODAL
+      =========================================================== */}
       {showPrivacy && (
         <div className="boot-privacy-overlay">
           <div className="boot-privacy-modal">
 
-            {/* FIXED centered SVG X button */}
             <button
-              type="button"
               className="boot-privacy-close"
               onClick={() => setShowPrivacy(false)}
-              aria-label="Close"
             >
               <svg
                 width="18"
@@ -185,7 +223,6 @@ export default function AccessGate({ onUnlock }) {
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 fill="none"
-                style={{ display: "block", margin: "0 auto" }}
               >
                 <line x1="5" y1="5" x2="19" y2="19" />
                 <line x1="19" y1="5" x2="5" y2="19" />
@@ -193,7 +230,7 @@ export default function AccessGate({ onUnlock }) {
             </button>
 
             <div className="boot-privacy-content">
-              <PrivacyPolicy />
+              <PrivacyPolicy /> {/* FULL CONTENT FROM UPLOADED FILE */}
             </div>
           </div>
         </div>

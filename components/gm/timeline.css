@@ -1,0 +1,77 @@
+.gm-timeline-root {
+  padding: 20px;
+  font-family: var(--font-muther, monospace);
+  color: #c8f7ff;
+}
+
+.gm-timeline-title {
+  font-size: 20px;
+  margin-bottom: 16px;
+  color: #87e8ff;
+}
+
+.gm-session-block {
+  border-left: 2px solid #2a84a6;
+  margin-bottom: 16px;
+  padding-left: 12px;
+}
+
+.gm-session-header {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.gm-session-expand {
+  background: none;
+  border: none;
+  color: #6ae1ff;
+  font-size: 18px;
+  margin-right: 8px;
+  cursor: pointer;
+}
+
+.gm-session-info:hover {
+  color: #9df4ff;
+}
+
+.gm-session-title {
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.gm-session-date {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.gm-event-list {
+  margin-left: 20px;
+  margin-top: 8px;
+}
+
+.gm-event-item {
+  padding: 8px 0;
+  cursor: pointer;
+  border-left: 1px dashed #3ea7c4;
+  padding-left: 12px;
+}
+
+.gm-event-item:hover {
+  color: #b2feff;
+}
+
+.gm-event-title {
+  font-size: 14px;
+}
+
+.gm-event-date {
+  font-size: 11px;
+  opacity: 0.6;
+}
+
+.gm-timeline-empty,
+.gm-event-empty {
+  opacity: 0.6;
+  font-style: italic;
+}

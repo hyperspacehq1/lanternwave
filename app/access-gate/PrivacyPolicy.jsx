@@ -1,4 +1,4 @@
-// src/pages/PrivacyPolicy.jsx
+"use client";
 import React from "react";
 
 export default function PrivacyPolicy() {
@@ -67,8 +67,10 @@ export default function PrivacyPolicy() {
       <h2>3. How We Share Information</h2>
 
       <p>
-        <strong>Mobile information will not be shared with third parties/affiliates for 
-        marketing or promotional purposes.</strong>
+        <strong>
+          Mobile information will not be shared with third parties/affiliates for 
+          marketing or promotional purposes.
+        </strong>
         Information sharing to subcontractors in support services (e.g., customer care, 
         hosting partners) is permitted.
       </p>
