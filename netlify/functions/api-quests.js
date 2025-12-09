@@ -1,175 +1,87 @@
-// netlify/functions/api-lore.js
-import { query } from "../util/db.js";
-import { requireAdmin } from "../util/auth.js";
+// api-quests.js — Netlify 2025 Function
+import { sql } from "../db.js";
+import { v4 as uuid } from "uuid";
 
-const json = (status, payload) => ({
-  statusCode: status,
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify(payload),
-});
+export default async (req, context) => {
+  // --- AUTH CHECK ---
+  const adminKey = process.env.ADMIN_KEY;
+  const supplied = req.headers.get("x-admin-key");
 
-/* -----------------------------------------------------------
-   GET /api-lore
------------------------------------------------------------- */
-async function handleGET(event) {
-  const qs = event.queryStringParameters || {};
-  const id = qs.id;
-  const encounterId = qs.encounter_id;
-
-  // ────────────────────────────────
-  // GET ONE LORE + linked encounters
-  // ────────────────────────────────
-  if (id) {
-    const loreRes = await query(
-      `SELECT * FROM lore WHERE id=$1 LIMIT 1`,
-      [id]
-    );
-
-    if (loreRes.rows.length === 0)
-      return json(404, { error: "Lore not found" });
-
-    const loreItem = loreRes.rows[0];
-
-    const encounters = (
-      await query(
-        `
-        SELECT e.*
-        FROM encounter_lore el
-        JOIN encounters e ON e.id = el.encounter_id
-        WHERE el.lore_id = $1
-        ORDER BY e.created_at ASC
-        `,
-        [id]
-      )
-    ).rows;
-
-    return json(200, { ...loreItem, encounters });
+  if (!adminKey || supplied !== adminKey) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" }
+    });
   }
 
-  // ────────────────────────────────
-  // GET LORE FOR A SPECIFIC ENCOUNTER
-  // ────────────────────────────────
-  if (encounterId) {
-    const out = await query(
-      `
-      SELECT l.*
-      FROM encounter_lore el
-      JOIN lore l ON l.id = el.lore_id
-      WHERE el.encounter_id=$1
-      ORDER BY l.description ASC
-      `,
-      [encounterId]
-    );
+  const { method } = req;
+  const url = new URL(req.url);
+  const id = url.searchParams.get("id");
+  const campaign_id = url.searchParams.get("campaign_id");
 
-    return json(200, out.rows);
-  }
-
-  // ────────────────────────────────
-  // GET ALL LORE
-  // ────────────────────────────────
-  const out = await query(
-    `SELECT *
-     FROM lore
-     ORDER BY description ASC`
-  );
-
-  return json(200, out.rows);
-}
-
-/* -----------------------------------------------------------
-   POST /api-lore
------------------------------------------------------------- */
-async function handlePOST(event) {
-  const auth = requireAdmin(event.headers);
-  if (!auth.ok) return auth.response;
-
-  const body = JSON.parse(event.body || "{}");
-  const { description, notes } = body;
-
-  if (!description)
-    return json(400, { error: "description is required" });
-
-  const result = await query(
-    `
-    INSERT INTO lore
-      (description, notes, created_at, updated_at)
-    VALUES ($1,$2, NOW(), NOW())
-    RETURNING *
-    `,
-    [description, notes || ""]
-  );
-
-  return json(201, result.rows[0]);
-}
-
-/* -----------------------------------------------------------
-   PUT /api-lore?id=
------------------------------------------------------------- */
-async function handlePUT(event) {
-  const auth = requireAdmin(event.headers);
-  if (!auth.ok) return auth.response;
-
-  const id = (event.queryStringParameters || {}).id;
-  if (!id) return json(400, { error: "id is required" });
-
-  const body = JSON.parse(event.body || "{}");
-
-  const { description, notes } = body;
-
-  const result = await query(
-    `
-    UPDATE lore
-       SET description = COALESCE($2, description),
-           notes       = COALESCE($3, notes),
-           updated_at  = NOW()
-     WHERE id = $1
-     RETURNING *
-    `,
-    [id, description, notes]
-  );
-
-  if (result.rows.length === 0)
-    return json(404, { error: "Lore not found" });
-
-  return json(200, result.rows[0]);
-}
-
-/* -----------------------------------------------------------
-   DELETE /api-lore?id=
------------------------------------------------------------- */
-async function handleDELETE(event) {
-  const auth = requireAdmin(event.headers);
-  if (!auth.ok) return auth.response;
-
-  const id = (event.queryStringParameters || {}).id;
-  if (!id) return json(400, { error: "id is required" });
-
-  const result = await query(
-    `DELETE FROM lore WHERE id=$1 RETURNING id`,
-    [id]
-  );
-
-  if (result.rows.length === 0)
-    return json(404, { error: "Lore not found" });
-
-  return json(200, { success: true, id });
-}
-
-/* -----------------------------------------------------------
-   MAIN HANDLER
------------------------------------------------------------- */
-export const handler = async (event, context) => {
   try {
-    switch (event.httpMethod) {
-      case "GET": return await handleGET(event);
-      case "POST": return await handlePOST(event);
-      case "PUT":
-      case "PATCH": return await handlePUT(event);
-      case "DELETE": return await handleDELETE(event);
-      default: return json(405, { error: "Method Not Allowed" });
+    // ---------- GET ----------
+    if (method === "GET") {
+      if (id) {
+        const result = await sql`SELECT * FROM quests WHERE id = ${id}`;
+        return Response.json(result[0] || null);
+      }
+      if (campaign_id) {
+        const result = await sql`
+          SELECT * FROM quests
+          WHERE campaign_id = ${campaign_id}
+          ORDER BY created_at ASC
+        `;
+        return Response.json(result);
+      }
+      // All quests
+      const all = await sql`SELECT * FROM quests ORDER BY created_at ASC`;
+      return Response.json(all);
     }
+
+    // ---------- POST (create) ----------
+    if (method === "POST") {
+      const body = await req.json();
+      const newId = uuid();
+
+      const row = await sql`
+        INSERT INTO quests (id, campaign_id, description, status, created_at, updated_at)
+        VALUES (${newId}, ${body.campaign_id}, ${body.description}, ${body.status || "open"}, NOW(), NOW())
+        RETURNING *
+      `;
+      return Response.json(row[0]);
+    }
+
+    // ---------- PUT (update) ----------
+    if (method === "PUT") {
+      const body = await req.json();
+      if (!id) {
+        return Response.json({ error: "id is required" }, { status: 400 });
+      }
+
+      const row = await sql`
+        UPDATE quests
+        SET description = ${body.description},
+            status = ${body.status},
+            updated_at = NOW()
+        WHERE id = ${id}
+        RETURNING *
+      `;
+      return Response.json(row[0]);
+    }
+
+    // ---------- DELETE ----------
+    if (method === "DELETE") {
+      if (!id) {
+        return Response.json({ error: "id required" }, { status: 400 });
+      }
+      await sql`DELETE FROM quests WHERE id = ${id}`;
+      return Response.json({ ok: true });
+    }
+
+    return Response.json({ error: "Unsupported method" }, { status: 405 });
+
   } catch (err) {
-    console.error("api-lore error:", err);
-    return json(500, { error: err.message || "Internal Server Error" });
+    return Response.json({ error: err.message, stack: err.stack }, { status: 500 });
   }
 };
