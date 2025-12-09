@@ -155,7 +155,7 @@ export default function AccessGatePage() {
       {stage === "intro" && (
         <div className="boot-intro" onClick={initialize}>
           <div className="boot-logo-wrap">
-            <img src="/lanterwave-logo.png" className="boot-logo" />
+            <img src="/lanternwave-logo.png" className="boot-logo" />
           </div>
           <h1 className="boot-title">LANTERNWAVE</h1>
           <p className="boot-subtitle">CLICK TO INITIALIZE</p>
