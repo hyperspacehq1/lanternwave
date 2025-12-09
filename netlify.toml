@@ -1,28 +1,37 @@
+###############################################
+# LanternWave 2.0 — Correct Netlify Config
+# Supports: Next.js 16, SSR, API routes, Neon DB
+###############################################
+
+[build]
+  command = "next build"
+  publish = ".next"
+  node_version = "20"
+
 [functions]
   directory = "netlify/functions"
   node_bundler = "esbuild"
   external_node_modules = ["@neondatabase/serverless"]
 
-[build]
-  command = "next build && next export"
-  publish = "out"
-  functions = "netlify/functions"
-  node_version = "20"
-
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
+###############################################
+# Redirects
+# (Do NOT redirect to /index.html — breaks Next.js)
+###############################################
+
 [[redirects]]
   from = "/player"
-  to = "/index.html"
+  to = "/"
   status = 200
 
 [[redirects]]
   from = "/campaign-manager"
-  to = "/index.html"
+  to = "/"
   status = 200
 
 [[redirects]]
   from = "/search"
-  to = "/index.html"
+  to = "/"
   status = 200
