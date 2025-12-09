@@ -2,8 +2,8 @@ import Image from "next/image";
 import { useState } from "react";
 
 export default function LogoMark({
-  src = "/lanterwave-logo.png",
-  alt = "Lanterwave Logo",
+  src = "/lanternwave-logo.png",
+  alt = "Lanternwave Logo",
   size = 96,
   className = "",
 }) {
