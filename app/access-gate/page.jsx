@@ -7,12 +7,12 @@ import "./access-gate.css";
 // ===========================================================
 // SETTINGS
 // ===========================================================
-const ACCESS_CODE = "10241972"; // Your secure access code
-const TYPE_SPEED = 15;          // Speed for typing animation
-const MAX_VISIBLE_LINES = 10;   // Scroll window for terminal
+const ACCESS_CODE = "10241972"; 
+const TYPE_SPEED = 15;
+const MAX_VISIBLE_LINES = 10;
 
 // ===========================================================
-// BOOT SEQUENCE TEXT (unchanged from your version)
+// BOOT SEQUENCE TEXT
 // ===========================================================
 const BOOT_LINES = [
   "BOOTING SECURE OPERATIONS TERMINAL v7.9...",
@@ -54,14 +54,29 @@ export default function AccessGatePage() {
   // ===========================================================
   // STATE
   // ===========================================================
-  const [stage, setStage] = useState("intro"); // intro → boot → code → approved
+  const [stage, setStage] = useState("intro");
   const [bootLines, setBootLines] = useState([]);
   const [showPrivacy, setShowPrivacy] = useState(false);
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
 
   // ===========================================================
-  // BOOT TYPING ANIMATION
+  // PERSISTENT ACCESS CHECK (24 hours)
+  // ===========================================================
+  useEffect(() => {
+    const lastAccess = localStorage.getItem("lw_access_granted");
+    const ts = lastAccess ? Number(lastAccess) : 0;
+
+    const DAY = 24 * 60 * 60 * 1000;
+
+    if (Date.now() - ts < DAY) {
+      // Already authorized → skip boot + code entry
+      setStage("approved");
+    }
+  }, []);
+
+  // ===========================================================
+  // BOOT SEQUENCE
   // ===========================================================
   useEffect(() => {
     if (stage !== "boot") return;
@@ -75,7 +90,6 @@ export default function AccessGatePage() {
         setBootLines([...currentLines]);
         clearInterval(interval);
 
-        // Move to code entry after animation ends
         setTimeout(() => setStage("code"), 400);
         return;
       }
@@ -99,19 +113,21 @@ export default function AccessGatePage() {
   }, [stage]);
 
   // ===========================================================
-  // APPROVED → FADE → REDIRECT
+  // APPROVED → REDIRECT
   // ===========================================================
   useEffect(() => {
     if (stage !== "approved") return;
 
+    // Save timestamp so next visit skips login
+    localStorage.setItem("lw_access_granted", Date.now().toString());
+
     const t = setTimeout(() => {
-      window.location.href = "/controller"; // NEXT.JS routing
+      window.location.href = "/controller";
     }, 1200);
 
     return () => clearTimeout(t);
   }, [stage]);
 
-  // Only show last N lines
   const visibleLines = bootLines.slice(-MAX_VISIBLE_LINES);
 
   // ===========================================================
@@ -138,9 +154,7 @@ export default function AccessGatePage() {
   return (
     <div className={`boot-screen ${stage === "approved" ? "boot-screen-fade" : ""}`}>
 
-      {/* ===========================================================
-          PRIVACY BUTTON
-      =========================================================== */}
+      {/* PRIVACY BUTTON */}
       <button
         type="button"
         className="boot-privacy-button"
@@ -149,9 +163,7 @@ export default function AccessGatePage() {
         PRIVACY POLICY
       </button>
 
-      {/* ===========================================================
-          INTRO SCREEN
-      =========================================================== */}
+      {/* INTRO */}
       {stage === "intro" && (
         <div className="boot-intro" onClick={initialize}>
           <div className="boot-logo-wrap">
@@ -162,9 +174,7 @@ export default function AccessGatePage() {
         </div>
       )}
 
-      {/* ===========================================================
-          TERMINAL + CODE ENTRY
-      =========================================================== */}
+      {/* TERMINAL */}
       {stage !== "intro" && (
         <div className="boot-terminal-frame">
           <div className="boot-terminal-lines">
@@ -196,20 +206,16 @@ export default function AccessGatePage() {
             </form>
           )}
 
-          {/* APPROVED ANIMATION */}
           {stage === "approved" && (
             <div className="boot-approved">ACCESS APPROVED</div>
           )}
         </div>
       )}
 
-      {/* ===========================================================
-          PRIVACY POLICY MODAL
-      =========================================================== */}
+      {/* PRIVACY MODAL */}
       {showPrivacy && (
         <div className="boot-privacy-overlay">
           <div className="boot-privacy-modal">
-
             <button
               className="boot-privacy-close"
               onClick={() => setShowPrivacy(false)}
@@ -230,7 +236,7 @@ export default function AccessGatePage() {
             </button>
 
             <div className="boot-privacy-content">
-              <PrivacyPolicy /> {/* FULL CONTENT FROM UPLOADED FILE */}
+              <PrivacyPolicy />
             </div>
           </div>
         </div>
