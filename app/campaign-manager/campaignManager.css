@@ -1,164 +1,140 @@
 /* -------------------------------------------- */
-/* THEME VARIABLES (copied from controller.css) */
+/* COLORS + FONTS (MATCHED TO YOUR CONTROLLER) */
 /* -------------------------------------------- */
+
+@font-face {
+  font-family: "MU-TH-UR";
+  src: url("/MU_TH_UR.otf") format("opentype");
+}
+
 :root {
   --lw-green: rgb(199, 248, 199);
-  --lw-green-dim: rgba(199, 248, 199, 0.55);
-  --lw-border: rgba(199, 248, 199, 0.3);
+  --lw-green-soft: rgb(124, 168, 120);
+  --lw-green-glow: rgba(199, 248, 199, 0.45);
+  --lw-border: rgba(199, 248, 199, 0.28);
   --lw-bg: #000;
+  --lw-bg-panel: rgba(0, 0, 0, 0.85);
   --lw-font-heading: "MU-TH-UR", system-ui, sans-serif;
   --lw-font-body: system-ui, sans-serif;
 }
 
-/* Global container */
+/* -------------------------------------------- */
+/* ROOT LAYOUT                                   */
+/* -------------------------------------------- */
+
 .cm-root {
   display: flex;
-  height: 100vh;
-  width: 100vw;
-  background: var(--lw-bg);
-  color: var(--lw-green);
-  font-family: var(--lw-font-body);
-}
-
-/* -------------------------------------------- */
-/* SIDEBAR                                     */
-/* -------------------------------------------- */
-.cm-sidebar {
-  width: 260px;
-  border-right: 1px solid var(--lw-border);
   padding: 20px;
-  display: flex;
-  flex-direction: column;
   gap: 20px;
   background: #000;
-}
-
-.cm-title {
-  font-family: var(--lw-font-heading);
-  font-size: 28px;
-  margin: 0 0 10px 0;
-}
-
-/* Admin API Key */
-.cm-admin-key label {
-  font-size: 14px;
-  color: var(--lw-green-dim);
-}
-
-.cm-admin-key input {
-  width: 100%;
-  background: #000;
-  border: 1px solid var(--lw-border);
-  padding: 6px;
-  color: var(--lw-green);
-  margin: 6px 0;
-  font-family: var(--lw-font-body);
-}
-
-.cm-admin-key input:focus {
-  outline: 1px solid var(--lw-green);
-}
-
-.cm-button {
-  background: #000;
-  border: 1px solid var(--lw-border);
+  min-height: calc(100vh - 80px); /* Header height fix */
+  box-sizing: border-box;
   color: var(--lw-green);
   font-family: var(--lw-font-body);
-  padding: 6px 10px;
-  cursor: pointer;
 }
 
-.cm-button:hover {
-  border-color: var(--lw-green);
-}
+/* -------------------------------------------- */
+/* SIDEBAR                                       */
+/* -------------------------------------------- */
 
-.cm-button.danger {
-  border-color: rgba(255, 80, 80, 0.4);
-  color: rgba(255, 80, 80, 0.85);
-}
-
-/* Sidebar navigation buttons */
-.cm-container-list {
+.cm-sidebar {
+  width: 240px;
+  border-right: 1px solid var(--lw-border);
+  padding-right: 20px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 14px;
+}
+
+/* Sidebar Heading (Admin API Key, Campaigns, Logs, etc.) */
+.cm-heading {
+  font-family: var(--lw-font-heading);
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: var(--lw-green-soft);
+  margin-bottom: 4px;
+  text-transform: uppercase;
 }
 
 .cm-container-btn {
-  background: #000;
+  padding: 6px 10px;
   border: 1px solid var(--lw-border);
-  padding: 6px;
+  background: #000;
+  cursor: pointer;
   text-align: left;
   color: var(--lw-green);
-  cursor: pointer;
-  font-family: var(--lw-font-body);
-}
-
-.cm-container-btn:hover {
-  border-color: var(--lw-green);
+  font-size: 14px;
 }
 
 .cm-container-btn.active {
+  background: rgba(199, 248, 199, 0.12);
   border-color: var(--lw-green);
-  background: rgba(199, 248, 199, 0.1);
-}
-
-.cm-save-status {
-  margin-top: auto;
-  font-size: 14px;
-  color: var(--lw-green-dim);
 }
 
 /* -------------------------------------------- */
-/* MAIN PANEL                                   */
+/* MAIN PANEL                                    */
 /* -------------------------------------------- */
+
 .cm-main {
   flex: 1;
-  padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 18px;
 }
 
-/* Header row */
-.cm-main-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-bottom: 1px solid var(--lw-border);
-  padding-bottom: 10px;
-}
-
+/* Title like “Campaigns” */
 .cm-main-title {
   font-family: var(--lw-font-heading);
-  font-size: 24px;
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: var(--lw-green-soft);
   margin: 0;
+  text-transform: uppercase;
 }
 
-/* Action buttons group */
+/* Action buttons row */
 .cm-main-actions {
   display: flex;
   gap: 10px;
 }
 
-/* -------------------------------------------- */
-/* CONTENT AREA                                 */
-/* -------------------------------------------- */
-.cm-content {
-  display: grid;
-  grid-template-columns: 260px 1fr;
-  gap: 20px;
-  height: calc(100vh - 160px);
+.cm-button {
+  border: 1px solid var(--lw-border);
+  background: #000;
+  padding: 5px 12px;
+  color: var(--lw-green);
+  cursor: pointer;
+  font-family: var(--lw-font-body);
+  font-size: 13px;
+}
+
+.cm-button:hover {
+  border-color: var(--lw-green);
+  box-shadow: 0 0 8px var(--lw-green-glow);
+}
+
+.cm-button.danger {
+  color: #ff5f5f;
+  border-color: rgba(255, 95, 95, 0.5);
 }
 
 /* -------------------------------------------- */
-/* LEFT LIST PANEL                              */
+/* CONTENT SPLIT                                 */
 /* -------------------------------------------- */
+
+.cm-content {
+  display: flex;
+  gap: 20px;
+  height: 100%;
+}
+
+/* LEFT LIST */
 .cm-list {
+  width: 240px;
   border: 1px solid var(--lw-border);
-  padding: 10px;
+  background: var(--lw-bg-panel);
   overflow-y: auto;
-  background: #000;
+  padding: 10px;
 }
 
 .cm-list-item {
@@ -172,30 +148,61 @@
 }
 
 .cm-list-item.selected {
-  background: rgba(199, 248, 199, 0.15);
+  background: rgba(199, 248, 199, 0.14);
   border-left: 2px solid var(--lw-green);
 }
 
-.cm-list-empty,
-.cm-list-status {
-  padding: 20px;
-  color: var(--lw-green-dim);
-}
+/* -------------------------------------------- */
+/* DETAIL PANEL (FORM)                           */
+/* -------------------------------------------- */
 
-/* -------------------------------------------- */
-/* DETAIL FORM PANEL                            */
-/* -------------------------------------------- */
 .cm-detail {
+  flex: 1;
   border: 1px solid var(--lw-border);
-  padding: 10px;
-  overflow-y: auto;
-  background: #000;
-}
-
-.cm-detail-empty {
-  color: var(--lw-green-dim);
   padding: 20px;
-  font-size: 16px;
-  font-family: var(--lw-font-body);
+  background: var(--lw-bg-panel);
+  overflow-y: auto;
 }
 
+/* Empty state */
+.cm-detail-empty {
+  color: var(--lw-green-soft);
+  font-size: 16px;
+}
+
+/* Form labels */
+.cm-label {
+  font-family: var(--lw-font-heading);
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: var(--lw-green-soft);
+  text-transform: uppercase;
+  margin-bottom: 4px;
+  margin-top: 14px;
+}
+
+/* Inputs */
+.cm-input,
+.cm-textarea {
+  width: 100%;
+  background: #000;
+  border: 1px solid var(--lw-border);
+  color: var(--lw-green);
+  padding: 8px;
+  font-family: var(--lw-font-body);
+  font-size: 15px;
+  border-radius: 4px;
+}
+
+.cm-input:focus,
+.cm-textarea:focus {
+  outline: none;
+  border-color: var(--lw-green);
+  box-shadow: 0 0 8px var(--lw-green-glow);
+}
+
+/* Textarea */
+.cm-textarea {
+  min-height: 100px;
+  resize: vertical;
+}
