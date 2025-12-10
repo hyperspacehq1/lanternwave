@@ -1,5 +1,6 @@
 "use client";
 
+import "./player.css";
 import { useEffect, useState, useRef } from "react";
 
 // ===========================================================================
