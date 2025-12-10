@@ -1,303 +1,428 @@
-/* ============================================================
-   Lanternwave Campaign Manager CSS (MU-TH-UR Terminal Edition)
-   All classes begin with lw-cm- to avoid global collisions
-   Fonts: MU-TH-UR-400 (UI labels), VT323 (content)
-   Colors strictly follow Lanternwave brand spec
-   ============================================================ */
+/* Campaign Manager UI
+   Mirrors controller.css look & feel, but scoped to lw-cm-* classes only
+*/
 
-/* ============= ROOT WRAPPER ============= */
-.cm-root,
-.lw-cm-root {
+/* MU/TH/UR font (same as controller.css) */
+@font-face {
+  font-family: "MU-TH-UR";
+  src: url("/MU_TH_UR.otf") format("opentype");
+  font-weight: normal;
+  font-style: normal;
+}
+
+/* Local design tokens – same values as controller.css */
+:root {
+  --lw-green: #6cc417;
+  --lw-bg: #020302;
+  --lw-bg-panel: #050806;
+  --lw-border: #1c2b1a;
+  --lw-text: #e5ffe3;
+  --lw-text-subtle: #7ca878;
+  --lw-danger: #ff4d4f;
+  --lw-accent: #39c1ff;
+}
+
+/* Root container for Campaign Manager */
+.cm-root.lw-cm-root {
+  min-height: 100vh;
   display: flex;
-  width: 100%;
-  height: calc(100vh - 60px); /* Avoids header overlap */
-  background: #000;
-  color: rgb(229, 255, 227);
-  overflow: hidden;
-  font-family: "VT323", monospace;
+  gap: 1rem;
+  padding: 1.2rem 1.4rem;
+  box-sizing: border-box;
+  background: radial-gradient(circle at top, #071107 0%, #000 60%);
+  color: var(--lw-text);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
 }
 
 /* ============= SIDEBAR ============= */
+
 .lw-cm-sidebar {
-  width: 230px;
-  background: #000;
-  border-right: 1px solid rgb(108, 196, 23);
-  padding: 12px;
+  width: 220px;
+  flex-shrink: 0;
+  border-radius: 14px;
+  border: 1px solid var(--lw-border);
+  background: radial-gradient(circle at top, #09140a 0%, #020302 60%);
+  padding: 0.75rem;
   display: flex;
   flex-direction: column;
+  gap: 0.4rem;
+  box-shadow: 0 0 24px rgba(0, 0, 0, 0.9);
 }
 
 .lw-cm-sidebar-header {
-  font-family: "MU-TH-UR", sans-serif;
-  color: rgb(124, 168, 120);
-  font-size: 20px;
-  margin-bottom: 16px;
-  letter-spacing: 1px;
+  font-family: "MU-TH-UR", system-ui, sans-serif;
+  font-size: 0.8rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--lw-green);
+  margin-bottom: 0.4rem;
 }
 
 .lw-cm-sidebar-item {
   width: 100%;
-  padding: 10px 12px;
-  margin-bottom: 6px;
+  padding: 0.3rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid var(--lw-border);
+  background: rgba(0, 0, 0, 0.65);
+  color: var(--lw-text);
+  font-size: 0.7rem;
   text-align: left;
-  background: #000;
-  color: rgb(229, 255, 227);
-  border: 1px solid rgb(108, 196, 23);
   cursor: pointer;
-  font-family: "VT323", monospace;
-  transition: background 0.15s, border 0.15s;
+  transition: background 0.15s ease, border-color 0.15s ease,
+    box-shadow 0.15s ease, transform 0.04s ease;
 }
 
 .lw-cm-sidebar-item:hover {
-  background: rgba(108, 196, 23, 0.1);
+  border-color: var(--lw-green);
+  box-shadow: 0 0 8px rgba(108, 196, 23, 0.4);
 }
 
 .lw-cm-sidebar-item-active {
-  background: rgba(108, 196, 23, 0.2);
-  border-color: rgb(124, 168, 120);
+  border-color: var(--lw-green);
+  background: radial-gradient(circle at top, #12301a 0%, #020302 70%);
+  box-shadow: 0 0 14px rgba(108, 196, 23, 0.55);
 }
 
 /* ============= MAIN PANEL ============= */
+
 .lw-cm-main {
   flex: 1;
+  min-width: 0;
+  border-radius: 14px;
+  border: 1px solid var(--lw-border);
+  background: radial-gradient(circle at top, #09140a 0%, #020302 60%);
+  padding: 0.75rem 0.85rem;
   display: flex;
   flex-direction: column;
-  padding: 12px;
-  overflow: hidden;
+  box-shadow: 0 0 30px rgba(0, 0, 0, 0.85);
 }
 
-/* Header */
+/* Header row – title + status + Create button */
+
 .lw-cm-main-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding-bottom: 12px;
-  border-bottom: 1px solid rgb(108, 196, 23);
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.65rem;
 }
 
 .lw-cm-title {
-  font-family: "MU-TH-UR", sans-serif;
-  font-size: 22px;
-  color: rgb(124, 168, 120);
   margin: 0;
+  font-family: "MU-TH-UR", system-ui, sans-serif;
+  font-size: 0.9rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--lw-green);
 }
 
 .lw-cm-header-controls {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 0.6rem;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
 }
 
-/* Status Indicators */
+/* ============= STATUS PILL ============= */
+
 .lw-cm-status {
-  font-family: "VT323";
-  font-size: 16px;
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--lw-border);
+  background: rgba(0, 0, 0, 0.6);
 }
 
 .lw-cm-status-unsaved {
-  color: #ff4b4b;
+  color: var(--lw-accent);
+  border-color: rgba(57, 193, 255, 0.5);
 }
 
 .lw-cm-status-saving {
-  color: rgb(108, 196, 23);
+  color: #ffd666;
+  border-color: rgba(255, 214, 102, 0.6);
 }
 
 .lw-cm-status-saved {
-  color: rgb(124, 168, 120);
+  color: var(--lw-green);
+  border-color: rgba(108, 196, 23, 0.7);
 }
 
 .lw-cm-status-error {
-  color: #ff4b4b;
+  color: var(--lw-danger);
+  border-color: rgba(255, 77, 79, 0.7);
 }
 
-/* Buttons */
+/* ============= BUTTONS ============= */
+
 .lw-cm-button {
-  padding: 6px 12px;
-  background: #000;
-  border: 1px solid rgb(108, 196, 23);
-  color: rgb(229, 255, 227);
-  font-family: "VT323";
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 0.3rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid var(--lw-border);
+  background: rgba(0, 0, 0, 0.8);
+  color: var(--lw-text);
   cursor: pointer;
-  transition: 0.2s border, 0.2s background;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  transition: background 0.12s ease, border-color 0.12s ease,
+    box-shadow 0.12s ease, transform 0.04s ease;
 }
 
 .lw-cm-button:hover {
-  background: rgba(108, 196, 23, 0.15);
+  border-color: var(--lw-accent);
+  box-shadow: 0 0 10px rgba(57, 193, 255, 0.4);
+  transform: translateY(-0.5px);
 }
 
 .lw-cm-button-primary {
-  border-color: rgb(124, 168, 120);
+  border-color: var(--lw-green);
+  color: var(--lw-green);
+  box-shadow: 0 0 10px rgba(108, 196, 23, 0.55);
 }
 
-.lw-cm-button-danger {
-  border-color: #ff4b4b;
-  color: #ff4b4b;
+.lw-cm-button:active {
+  transform: translateY(0.5px);
 }
 
 /* ============= CONTENT SPLIT ============= */
+
 .lw-cm-content {
   flex: 1;
-  display: grid;
-  grid-template-columns: 330px auto;
-  gap: 12px;
-  margin-top: 12px;
-  overflow: hidden;
+  min-height: 0;
+  display: flex;
+  gap: 0.8rem;
 }
 
-/* ============= LIST PANEL ============= */
+/* LEFT: list */
+
 .lw-cm-list {
-  border: 1px solid rgb(108, 196, 23);
-  padding: 10px;
-  background: #000;
+  width: 260px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  border: 1px solid var(--lw-border);
+  background: rgba(0, 0, 0, 0.88);
+  padding: 0.5rem;
   overflow-y: auto;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  font-size: 0.75rem;
+}
+
+.lw-cm-list-empty {
+  font-size: 0.7rem;
+  color: var(--lw-text-subtle);
+  padding: 0.25rem;
 }
 
 .lw-cm-list-item {
-  padding: 10px;
-  margin-bottom: 8px;
-  border: 1px solid rgb(108, 196, 23);
+  padding: 0.35rem 0.45rem;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: rgba(0, 0, 0, 0.7);
+  margin-bottom: 0.3rem;
   cursor: pointer;
-  transition: background 0.2s, border 0.2s;
+  transition: background 0.12s ease, border-color 0.12s ease,
+    box-shadow 0.12s ease;
 }
 
 .lw-cm-list-item:hover {
-  background: rgba(108, 196, 23, 0.1);
+  border-color: rgba(108, 196, 23, 0.6);
+  box-shadow: 0 0 8px rgba(108, 196, 23, 0.3);
 }
 
-.lw-cm-list-item-selected {
-  background: rgba(108, 196, 23, 0.25);
-  border-color: rgb(124, 168, 120);
+.lw-cm-list-item-active {
+  border-color: var(--lw-green);
+  background: radial-gradient(circle at top, #132c19 0%, #020302 80%);
+  box-shadow: 0 0 12px rgba(108, 196, 23, 0.6);
 }
 
 .lw-cm-list-title {
-  font-size: 18px;
-  font-family: "VT323";
+  color: var(--lw-text);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .lw-cm-list-sub {
-  font-size: 14px;
-  opacity: 0.7;
+  margin-top: 0.05rem;
+  font-size: 0.65rem;
+  color: var(--lw-text-subtle);
 }
 
-/* Empty list state */
-.lw-cm-list-empty {
-  opacity: 0.6;
-  font-size: 18px;
-  padding: 20px;
-  text-align: center;
-}
+/* RIGHT: detail/editor */
 
-/* ============= DETAIL PANEL ============= */
 .lw-cm-detail {
-  border: 1px solid rgb(108, 196, 23);
-  background: #000;
-  overflow-y: auto;
-  padding: 16px;
+  flex: 1;
+  min-width: 0;
+  border-radius: 12px;
+  border: 1px solid var(--lw-border);
+  background: rgba(0, 0, 0, 0.92);
+  padding: 0.65rem 0.75rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .lw-cm-detail-empty {
-  font-size: 18px;
-  opacity: 0.6;
-  text-align: center;
-  padding: 40px;
-  font-family: "VT323";
+  font-size: 0.8rem;
+  color: var(--lw-text-subtle);
+  padding: 0.5rem;
 }
 
 .lw-cm-detail-inner {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+  flex: 1;
+  overflow-y: auto;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  font-size: 0.78rem;
 }
 
-/* Labels */
+/* Form labels + fields */
+
 .lw-cm-label {
-  font-family: "MU-TH-UR";
-  color: rgb(124, 168, 120);
-  font-size: 16px;
-  letter-spacing: 1px;
+  display: block;
+  margin-top: 0.45rem;
+  margin-bottom: 0.18rem;
+  font-family: "MU-TH-UR", system-ui, sans-serif;
+  font-size: 0.65rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--lw-text-subtle);
 }
 
-/* Inputs */
-.lw-cm-input {
-  width: 100%;
-  padding: 6px;
-  background: #000;
-  border: 1px solid rgb(108, 196, 23);
-  color: rgb(229, 255, 227);
-  font-family: "VT323";
-  font-size: 18px;
-}
-
+.lw-cm-input,
 .lw-cm-textarea {
   width: 100%;
-  padding: 8px;
+  box-sizing: border-box;
+  border-radius: 8px;
+  border: 1px solid var(--lw-border);
   background: #000;
-  border: 1px solid rgb(108, 196, 23);
-  color: rgb(229, 255, 227);
-  min-height: 120px;
-  font-family: "VT323";
-  font-size: 18px;
+  color: var(--lw-text);
+  padding: 0.35rem 0.45rem;
+  font-size: 0.78rem;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  resize: vertical;
 }
 
-/* ============= MU/TH/UR WARNING MODAL ============= */
+.lw-cm-input:focus,
+.lw-cm-textarea:focus {
+  outline: none;
+  border-color: var(--lw-green);
+  box-shadow: 0 0 10px rgba(108, 196, 23, 0.5);
+}
+
+/* Textarea specifics */
+.lw-cm-textarea {
+  min-height: 80px;
+  line-height: 1.35;
+}
+
+/* ============= MODALS (warnings / JSON edit) ============= */
+
 .lw-cm-modal-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 10, 0, 0.85);
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
   display: flex;
-  justify-content: center;
   align-items: center;
-  z-index: 5000;
+  justify-content: center;
+  z-index: 999;
 }
 
 .lw-cm-modal {
-  width: 460px;
-  padding: 20px;
-  border: 1px solid rgb(108, 196, 23);
-  background: #000;
-  box-shadow: 0 0 20px rgba(108, 196, 23, 0.4);
+  width: min(640px, 90vw);
+  border-radius: 14px;
+  border: 1px solid var(--lw-border);
+  background: radial-gradient(circle at top, #09140a 0%, #020302 60%);
+  box-shadow: 0 0 24px rgba(0, 0, 0, 0.95);
+  padding: 0.75rem 0.85rem 0.8rem;
+  color: var(--lw-text);
 }
 
 .lw-cm-modal-header {
   display: flex;
+  align-items: baseline;
   justify-content: space-between;
-  font-family: "MU-TH-UR";
-  color: rgb(124, 168, 120);
-  font-size: 18px;
-  margin-bottom: 14px;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+}
+
+.lw-cm-modal-prefix {
+  font-family: "MU-TH-UR", system-ui, sans-serif;
+  font-size: 0.65rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--lw-text-subtle);
+}
+
+.lw-cm-modal-title {
+  font-family: "MU-TH-UR", system-ui, sans-serif;
+  font-size: 0.8rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--lw-green);
 }
 
 .lw-cm-modal-body {
-  font-family: "VT323";
-  font-size: 18px;
-  color: rgb(229, 255, 227);
-  margin-bottom: 20px;
+  font-size: 0.78rem;
+  margin-bottom: 0.6rem;
+}
+
+.lw-cm-modal-body p {
+  margin: 0.2rem 0;
 }
 
 .lw-cm-modal-footer {
   display: flex;
   justify-content: flex-end;
+  gap: 0.5rem;
 }
 
-.lw-cm-modal button {
-  padding: 6px 16px;
+/* Small utility for inline stacks if needed */
+.lw-cm-row {
+  display: flex;
+  gap: 0.5rem;
 }
 
-/* ============= SCROLLBARS ============= */
-.lw-cm-list::-webkit-scrollbar,
-.lw-cm-detail::-webkit-scrollbar {
-  width: 8px;
+.lw-cm-row > * {
+  flex: 1;
 }
 
-.lw-cm-list::-webkit-scrollbar-thumb,
-.lw-cm-detail::-webkit-scrollbar-thumb {
-  background: rgb(108, 196, 23);
-}
+/* Responsive tweak */
 
-.lw-cm-list::-webkit-scrollbar-track,
-.lw-cm-detail::-webkit-scrollbar-track {
-  background: #000;
+@media (max-width: 900px) {
+  .cm-root.lw-cm-root {
+    flex-direction: column;
+  }
+
+  .lw-cm-sidebar {
+    width: 100%;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .lw-cm-main {
+    margin-top: 0.5rem;
+  }
+
+  .lw-cm-content {
+    flex-direction: column;
+  }
+
+  .lw-cm-list {
+    width: 100%;
+    max-height: 220px;
+  }
 }
