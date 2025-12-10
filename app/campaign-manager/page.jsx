@@ -10,7 +10,7 @@ import { cmApi, getAdminKey, setAdminKey } from "@/lib/cm/client";
 import { getFormComponent } from "@/components/forms";
 import Timeline from "@/components/gm/Timeline";
 
-import "./campaignManager.css";
+import "./campaign-manager.css";
 
 const CONTAINER_TYPES = [
   { id: "campaigns", label: "Campaigns" },
