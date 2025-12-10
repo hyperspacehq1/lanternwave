@@ -1,41 +1,142 @@
-/* -------------------------------------------- */
-/* COLORS + FONTS (MATCHED TO YOUR CONTROLLER) */
-/* -------------------------------------------- */
+/* ============================================================
+   LANTERNWAVE CAMPAIGN MANAGER – CLEAN CSS RESET
+   This file is *only* for /campaign-manager
+   ============================================================ */
 
+/* ---- Theme vars (scoped to this CSS file) ---- */
 @font-face {
   font-family: "MU-TH-UR";
   src: url("/MU_TH_UR.otf") format("opentype");
+  font-weight: normal;
+  font-style: normal;
 }
 
 :root {
-  --lw-green: rgb(199, 248, 199);
-  --lw-green-soft: rgb(124, 168, 120);
-  --lw-green-glow: rgba(199, 248, 199, 0.45);
-  --lw-border: rgba(199, 248, 199, 0.28);
-  --lw-bg: #000;
-  --lw-bg-panel: rgba(0, 0, 0, 0.85);
-  --lw-font-heading: "MU-TH-UR", system-ui, sans-serif;
-  --lw-font-body: system-ui, sans-serif;
+  --lw-green: #6cc417;
+  --lw-bg: #020302;
+  --lw-bg-panel: #050806;
+  --lw-border: #1c2b1a;
+  --lw-text: #e5ffe3;
+  --lw-text-subtle: #a3c59f;
 }
 
-/* -------------------------------------------- */
-/* ROOT LAYOUT                                   */
-/* -------------------------------------------- */
+/* ---- Hard clamp the logo so it can never be huge on this page ---- */
+img[src="/lanterwave-logo.png"],
+img[src="/lanternwave-logo.png"] {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+}
+
+/* ============================================================
+   GLOBAL PAGE LAYOUT FOR /campaign-manager
+   ============================================================ */
 
 .cm-root {
+  min-height: 100vh;
+  background: #000;
+  color: var(--lw-text);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+}
+
+/* Wraps sidebar + main under the header */
+.cm-layout {
   display: flex;
   padding: 20px;
   gap: 20px;
-  background: #000;
-  min-height: calc(100vh - 80px); /* Header height fix */
   box-sizing: border-box;
-  color: var(--lw-green);
-  font-family: var(--lw-font-body);
 }
 
-/* -------------------------------------------- */
-/* SIDEBAR                                       */
-/* -------------------------------------------- */
+/* ============================================================
+   SHARED LANTERNWAVE HEADER (copied from Controller)
+   ============================================================ */
+
+.lw-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 20px;
+  border-bottom: 1px solid var(--lw-border);
+  background: #000;
+  box-sizing: border-box;
+}
+
+.lw-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.lw-logo-wrap {
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  border: 1px solid var(--lw-green);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.lw-logo {
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+}
+
+.lw-title-block {
+  display: flex;
+  flex-direction: column;
+}
+
+.lw-app-title {
+  margin: 0;
+  letter-spacing: 0.2em;
+  font-size: 0.9rem;
+  color: var(--lw-green);
+  font-family: "MU-TH-UR", system-ui, sans-serif;
+}
+
+.lw-app-subtitle {
+  margin: 0;
+  font-size: 0.7rem;
+  color: var(--lw-text-subtle);
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-family: "MU-TH-UR", system-ui, sans-serif;
+}
+
+.lw-nav {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.lw-nav-link {
+  font-family: "MU-TH-UR", system-ui, sans-serif;
+  font-size: 0.7rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--lw-text-subtle);
+  text-decoration: none;
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+}
+
+.lw-nav-link:hover {
+  border-color: var(--lw-border);
+}
+
+.lw-nav-link-active {
+  border-color: var(--lw-green);
+  color: var(--lw-green);
+}
+
+/* ============================================================
+   SIDEBAR
+   ============================================================ */
 
 .cm-sidebar {
   width: 240px;
@@ -46,14 +147,45 @@
   gap: 14px;
 }
 
-/* Sidebar Heading (Admin API Key, Campaigns, Logs, etc.) */
-.cm-heading {
-  font-family: var(--lw-font-heading);
-  font-size: 11px;
-  letter-spacing: 2px;
-  color: var(--lw-green-soft);
-  margin-bottom: 4px;
+.cm-title {
+  font-family: "MU-TH-UR", system-ui, sans-serif;
+  font-size: 0.8rem;
+  letter-spacing: 0.23em;
   text-transform: uppercase;
+  color: var(--lw-text-subtle);
+  margin: 0 0 8px 0;
+}
+
+.cm-admin-key label {
+  display: block;
+  font-family: "MU-TH-UR", system-ui, sans-serif;
+  font-size: 0.65rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--lw-text-subtle);
+  margin-bottom: 4px;
+}
+
+.cm-admin-key input {
+  width: 100%;
+  background: #000;
+  border: 1px solid var(--lw-border);
+  color: var(--lw-text);
+  padding: 6px 8px;
+  font-size: 0.85rem;
+  margin-bottom: 6px;
+}
+
+.cm-admin-key input:focus {
+  outline: none;
+  border-color: var(--lw-green);
+}
+
+/* Container buttons list */
+.cm-container-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .cm-container-btn {
@@ -62,55 +194,70 @@
   background: #000;
   cursor: pointer;
   text-align: left;
-  color: var(--lw-green);
-  font-size: 14px;
+  color: var(--lw-text);
+  font-size: 0.85rem;
+}
+
+.cm-container-btn:hover {
+  border-color: var(--lw-text-subtle);
 }
 
 .cm-container-btn.active {
-  background: rgba(199, 248, 199, 0.12);
+  background: rgba(108, 196, 23, 0.12);
   border-color: var(--lw-green);
 }
 
-/* -------------------------------------------- */
-/* MAIN PANEL                                    */
-/* -------------------------------------------- */
+/* Save status at bottom of sidebar */
+.cm-save-status {
+  margin-top: auto;
+  font-size: 0.8rem;
+  color: var(--lw-text-subtle);
+}
+
+/* ============================================================
+   MAIN PANEL
+   ============================================================ */
 
 .cm-main {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 16px;
 }
 
-/* Title like “Campaigns” */
+/* Header row inside main: title + buttons */
+.cm-main-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
 .cm-main-title {
-  font-family: var(--lw-font-heading);
-  font-size: 11px;
-  letter-spacing: 2px;
-  color: var(--lw-green-soft);
-  margin: 0;
+  font-family: "MU-TH-UR", system-ui, sans-serif;
+  font-size: 0.75rem;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
+  color: var(--lw-text-subtle);
+  margin: 0;
 }
 
-/* Action buttons row */
 .cm-main-actions {
   display: flex;
   gap: 10px;
 }
 
+/* Buttons */
 .cm-button {
   border: 1px solid var(--lw-border);
   background: #000;
   padding: 5px 12px;
-  color: var(--lw-green);
+  color: var(--lw-text);
   cursor: pointer;
-  font-family: var(--lw-font-body);
-  font-size: 13px;
+  font-size: 0.8rem;
 }
 
 .cm-button:hover {
   border-color: var(--lw-green);
-  box-shadow: 0 0 8px var(--lw-green-glow);
 }
 
 .cm-button.danger {
@@ -118,91 +265,98 @@
   border-color: rgba(255, 95, 95, 0.5);
 }
 
-/* -------------------------------------------- */
-/* CONTENT SPLIT                                 */
-/* -------------------------------------------- */
+/* ============================================================
+   CONTENT SPLIT: LIST + DETAIL
+   ============================================================ */
 
 .cm-content {
   display: flex;
   gap: 20px;
-  height: 100%;
 }
 
 /* LEFT LIST */
 .cm-list {
-  width: 240px;
+  width: 260px;
   border: 1px solid var(--lw-border);
   background: var(--lw-bg-panel);
-  overflow-y: auto;
   padding: 10px;
+  overflow-y: auto;
+}
+
+.cm-list-status {
+  font-size: 0.8rem;
+  color: var(--lw-text-subtle);
 }
 
 .cm-list-item {
   padding: 8px;
-  border-bottom: 1px solid rgba(199, 248, 199, 0.15);
+  border-bottom: 1px solid rgba(31, 56, 28, 0.8);
   cursor: pointer;
 }
 
 .cm-list-item:hover {
-  background: rgba(199, 248, 199, 0.08);
+  background: rgba(108, 196, 23, 0.08);
 }
 
 .cm-list-item.selected {
-  background: rgba(199, 248, 199, 0.14);
+  background: rgba(108, 196, 23, 0.14);
   border-left: 2px solid var(--lw-green);
 }
 
-/* -------------------------------------------- */
-/* DETAIL PANEL (FORM)                           */
-/* -------------------------------------------- */
+.cm-list-label {
+  font-size: 0.85rem;
+  color: var(--lw-text);
+}
 
+.cm-list-empty {
+  padding: 10px 0;
+  font-size: 0.8rem;
+  color: var(--lw-text-subtle);
+}
+
+/* RIGHT DETAIL (FORM) */
 .cm-detail {
   flex: 1;
   border: 1px solid var(--lw-border);
-  padding: 20px;
   background: var(--lw-bg-panel);
+  padding: 18px;
   overflow-y: auto;
 }
 
-/* Empty state */
 .cm-detail-empty {
-  color: var(--lw-green-soft);
-  font-size: 16px;
+  color: var(--lw-text-subtle);
+  font-size: 0.9rem;
 }
 
-/* Form labels */
+/* Shared form controls (used by Form components) */
 .cm-label {
-  font-family: var(--lw-font-heading);
-  font-size: 11px;
-  letter-spacing: 2px;
-  color: var(--lw-green-soft);
+  font-family: "MU-TH-UR", system-ui, sans-serif;
+  font-size: 0.65rem;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
+  color: var(--lw-text-subtle);
   margin-bottom: 4px;
   margin-top: 14px;
 }
 
-/* Inputs */
 .cm-input,
 .cm-textarea {
   width: 100%;
   background: #000;
   border: 1px solid var(--lw-border);
-  color: var(--lw-green);
+  color: var(--lw-text);
   padding: 8px;
-  font-family: var(--lw-font-body);
-  font-size: 15px;
-  border-radius: 4px;
+  font-size: 0.9rem;
+  border-radius: 3px;
+}
+
+.cm-textarea {
+  min-height: 110px;
+  resize: vertical;
 }
 
 .cm-input:focus,
 .cm-textarea:focus {
   outline: none;
   border-color: var(--lw-green);
-  box-shadow: 0 0 8px var(--lw-green-glow);
-}
-
-/* Textarea */
-.cm-textarea {
-  min-height: 100px;
-  resize: vertical;
 }
