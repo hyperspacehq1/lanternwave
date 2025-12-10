@@ -258,16 +258,21 @@ body {
 }
 
 .lw-clip-type {
-  font-size: 0.6rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  font-family: "MU-TH-UR", system-ui, sans-serif !important;
+  font-weight: 400;
   color: var(--lw-green);
+  letter-spacing: 0.12em; /* keep stylistic spacing */
+  text-transform: uppercase;
+  font-size: 0.6rem;
 }
 
 .lw-clip-name {
+  font-family: "MU-TH-UR", system-ui, sans-serif !important;
+  font-weight: 400;
+  color: rgb(199, 248, 199) !important;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .lw-clip-actions {
