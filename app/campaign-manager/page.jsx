@@ -1,328 +1,220 @@
-// app/campaign-manager/page.jsx
 "use client";
 
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
 
-// Service layer API
 import { cmApi, getAdminKey, setAdminKey } from "@/lib/cm/client";
-
-// Specialized form registry
 import { getFormComponent } from "@/components/forms";
-import Timeline from "@/components/gm/Timeline";
 
+import Header from "@/components/Header"; // TOP NAV USED BY CONTROLLER & PLAYER
 import "./campaignManager.css";
 
-const CONTAINER_TYPES = [
-  { id: "campaigns", label: "Campaigns" },
-  { id: "sessions", label: "Sessions" },
-  { id: "events", label: "Events" },
-  { id: "playerCharacters", label: "Player Characters" },
-  { id: "npcs", label: "NPCs" },
-  { id: "encounters", label: "Encounters" },
-  { id: "quests", label: "Quests" },
-  { id: "locations", label: "Locations" },
-  { id: "items", label: "Items" },
-  { id: "lore", label: "Lore" },
-  { id: "logs", label: "Logs" },
-];
-
 export default function CampaignManagerPage() {
-  const [activeType, setActiveType] = useState("campaigns");
-  const [records, setRecords] = useState({});
-  const [selectedId, setSelectedId] = useState(null);
-  const [selectedRecord, setSelectedRecord] = useState(null);
-  const [saveStatus, setSaveStatus] = useState("idle");
-  const [loading, setLoading] = useState(false);
-  const [adminKeyInput, setAdminKeyInput] = useState("");
+  const containers = [
+    "campaigns",
+    "sessions",
+    "events",
+    "player_characters",
+    "npcs",
+    "encounters",
+    "quests",
+    "locations",
+    "items",
+    "lore",
+    "logs",
+  ];
 
-  // Load admin API key on mount
+  const [adminKey, setAdminKeyState] = useState("");
+  const [activeContainer, setActiveContainer] = useState("campaigns");
+  const [records, setRecords] = useState([]);
+  const [selected, setSelected] = useState(null);
+  const [saveStatus, setSaveStatus] = useState("Idle");
+
+  // ------------------------------------------------------------
+  // Load Admin Key
+  // ------------------------------------------------------------
   useEffect(() => {
-    setAdminKeyInput(getAdminKey());
+    const stored = getAdminKey();
+    if (stored) setAdminKeyState(stored);
   }, []);
 
-  // Load records whenever active type changes
+  // ------------------------------------------------------------
+  // Fetch records on container change
+  // ------------------------------------------------------------
   useEffect(() => {
-    async function load() {
-      try {
-        setLoading(true);
-        const list = await cmApi.list(activeType);
-        setRecords((prev) => ({ ...prev, [activeType]: list }));
+    if (!adminKey) return;
 
-        if (list.length > 0) {
-          setSelectedId(list[0].id);
-          setSelectedRecord(list[0]);
-        } else {
-          setSelectedId(null);
-          setSelectedRecord(null);
-        }
-      } catch (err) {
-        console.error("Failed loading", activeType, err);
-      } finally {
-        setLoading(false);
-      }
+    async function load() {
+      const rows = await cmApi(adminKey).list(activeContainer);
+      setRecords(rows);
+      setSelected(null);
     }
 
     load();
-  }, [activeType]);
+  }, [activeContainer, adminKey]);
 
-  const activeList = records[activeType] || [];
-
-  // Sync selectedRecord when selectedId changes
-  useEffect(() => {
-    const rec =
-      activeList.find((r) => r.id === selectedId) || null;
-    setSelectedRecord(rec);
-  }, [selectedId, activeList]);
-
-  // Save admin key
-  const handleAdminKeySave = () => {
-    setAdminKey(adminKeyInput || "");
+  // ------------------------------------------------------------
+  // Save Key
+  // ------------------------------------------------------------
+  const handleSaveKey = () => {
+    setAdminKey(adminKey);
   };
 
-  // Create new record
-  const handleCreate = () => {
+  // ------------------------------------------------------------
+  // NEW RECORD
+  // ------------------------------------------------------------
+  const handleNew = () => {
     const id = uuidv4();
-    const base = { id, _isNew: true };
-
-    setRecords((prev) => {
-      const list = prev[activeType] || [];
-      return { ...prev, [activeType]: [base, ...list] };
+    setSelected({
+      id,
+      name: "",
+      _isNew: true,
     });
-
-    setSelectedId(id);
-    setSelectedRecord(base);
-    setSaveStatus("unsaved");
   };
 
-  // Delete record
-  const handleDelete = async () => {
-    if (!selectedRecord || !selectedRecord.id) return;
-
-    // If local-only / new record
-    if (selectedRecord._isNew) {
-      setRecords((prev) => {
-        const list = (prev[activeType] || []).filter(
-          (r) => r.id !== selectedRecord.id
-        );
-        return { ...prev, [activeType]: list };
-      });
-      setSelectedId(null);
-      setSelectedRecord(null);
-      setSaveStatus("idle");
-      return;
-    }
-
-    try {
-      setSaveStatus("saving");
-      await cmApi.remove(activeType, selectedRecord.id);
-
-      setRecords((prev) => {
-        const list = (prev[activeType] || []).filter(
-          (r) => r.id !== selectedRecord.id
-        );
-        return { ...prev, [activeType]: list };
-      });
-
-      setSelectedId(null);
-      setSelectedRecord(null);
-      setSaveStatus("saved");
-    } catch (err) {
-      console.error("Delete failed:", err);
-      setSaveStatus("error");
-    }
-  };
-
-  // Save record (create/update)
+  // ------------------------------------------------------------
+  // SAVE RECORD
+  // ------------------------------------------------------------
   const handleSave = async () => {
-    if (!selectedRecord) return;
+    if (!selected) return;
+    setSaveStatus("Saving...");
+    await cmApi(adminKey).upsert(activeContainer, selected.id, selected);
+    setSaveStatus("Saved");
 
-    try {
-      setSaveStatus("saving");
-
-      let saved;
-
-      if (selectedRecord._isNew) {
-        const { _isNew, id, ...rest } = selectedRecord;
-        saved = await cmApi.create(activeType, rest);
-      } else {
-        const { _isNew, ...rest } = selectedRecord;
-        saved = await cmApi.update(activeType, selectedRecord.id, rest);
-      }
-
-      // Update local store
-      setRecords((prev) => {
-        let list = prev[activeType] || [];
-        list = list.map((r) =>
-          r.id === selectedRecord.id ? saved : r
-        );
-
-        if (!list.find((r) => r.id === saved.id)) {
-          list.unshift(saved);
-        }
-
-        return { ...prev, [activeType]: list };
-      });
-
-      setSelectedId(saved.id);
-      setSelectedRecord(saved);
-      setSaveStatus("saved");
-    } catch (err) {
-      console.error("Save failed:", err);
-      setSaveStatus("error");
-    }
+    // Refresh list
+    const rows = await cmApi(adminKey).list(activeContainer);
+    setRecords(rows);
   };
 
-  const saveLabel = useMemo(() => {
-    switch (saveStatus) {
-      case "unsaved":
-        return "Unsaved Changes";
-      case "saving":
-        return "Saving…";
-      case "saved":
-        return "Saved";
-      case "error":
-        return "Save Error";
-      default:
-        return "Idle";
-    }
-  }, [saveStatus]);
+  // ------------------------------------------------------------
+  // DELETE RECORD
+  // ------------------------------------------------------------
+  const handleDelete = async () => {
+    if (!selected) return;
+
+    await cmApi(adminKey).remove(activeContainer, selected.id);
+    setSelected(null);
+
+    const rows = await cmApi(adminKey).list(activeContainer);
+    setRecords(rows);
+  };
+
+  // ------------------------------------------------------------
+  // FORM COMPONENT
+  // ------------------------------------------------------------
+  const FormComponent = getFormComponent(activeContainer);
 
   return (
-    <div className="cm-root">
+    <>
+      {/* CONTROLLER/PLAYER/CAMPAIGN-MANAGER TOP NAV */}
+      <Header active="campaign" />
 
-      {/* SIDEBAR */}
-      <aside className="cm-sidebar">
-        <h1 className="cm-title">Campaign Manager</h1>
+      <div className="cm-root">
+        {/* ------------------------------------------------------ */}
+        {/* SIDEBAR                                               */}
+        {/* ------------------------------------------------------ */}
+        <div className="cm-sidebar">
+          <div className="cm-sidebar-title">CAMPAIGN MANAGER</div>
 
-        <div className="cm-admin-key">
-          <label>Admin API Key</label>
+          {/* API KEY */}
+          <div className="cm-heading">Admin API Key</div>
           <input
+            className="cm-input"
+            value={adminKey}
+            onChange={(e) => setAdminKeyState(e.target.value)}
+            placeholder="Enter Admin API Key"
             type="password"
-            value={adminKeyInput}
-            onChange={(e) => setAdminKeyInput(e.target.value)}
           />
-          <button className="cm-button" onClick={handleAdminKeySave}>
+          <button className="cm-button" onClick={handleSaveKey}>
             Save Key
           </button>
-        </div>
 
-        <div className="cm-container-list">
-          {CONTAINER_TYPES.map((c) => (
-            <button
-              key={c.id}
-              className={
-                c.id === activeType
-                  ? "cm-container-btn active"
-                  : "cm-container-btn"
-              }
-              onClick={() => setActiveType(c.id)}
-            >
-              {c.label}
-            </button>
-          ))}
-        </div>
+          {/* CONTAINER LIST */}
+          <div className="cm-heading">Sections</div>
 
-        <div className="cm-save-status">Status: {saveLabel}</div>
-      </aside>
-
-      {/* MAIN PANEL */}
-      <main className="cm-main">
-        <header className="cm-main-header">
-          <h2 className="cm-main-title">
-            {
-              CONTAINER_TYPES.find((t) => t.id === activeType)
-                ?.label
-            }
-          </h2>
-          <div className="cm-main-actions">
-            <button className="cm-button" onClick={handleCreate}>
-              + New
-            </button>
-            <button className="cm-button" onClick={handleSave}>
-              Save
-            </button>
-            <button className="cm-button danger" onClick={handleDelete}>
-              Delete
-            </button>
+          <div className="cm-container-list">
+            {containers.map((c) => (
+              <button
+                key={c}
+                className={`cm-container-btn ${
+                  activeContainer === c ? "active" : ""
+                }`}
+                onClick={() => setActiveContainer(c)}
+              >
+                {c
+                  .replace("_", " ")
+                  .replace(/\b\w/g, (ch) => ch.toUpperCase())}
+              </button>
+            ))}
           </div>
-        </header>
 
-        <div className="cm-content">
-          {/* LIST */}
-          <section className="cm-list">
-            {loading && (
-              <div className="cm-list-status">Loading…</div>
-            )}
-
-            {!loading &&
-              activeList.map((record) => (
-                <div
-                  key={record.id}
-                  className={
-                    record.id === selectedId
-                      ? "cm-list-item selected"
-                      : "cm-list-item"
-                  }
-                  onClick={() => setSelectedId(record.id)}
-                >
-                  <div className="cm-list-label">
-                    {record.name ||
-                      record.title ||
-                      record.description?.slice(0, 60) ||
-                      record.id}
-                  </div>
-                </div>
-              ))}
-
-            {!loading && activeList.length === 0 && (
-              <div className="cm-list-empty">
-                No records yet.
-              </div>
-            )}
-          </section>
-
-          {/* DETAIL */}
-          <section className="cm-detail">
-            {selectedRecord ? (
-              (() => {
-                const FormComponent =
-                  getFormComponent(activeType);
-
-                return (
-                  <FormComponent
-                    record={{
-                      ...selectedRecord,
-                      _type: activeType,
-                    }}
-                    onChange={(updated) => {
-                      setSelectedRecord(updated);
-                      setRecords((prev) => {
-                        const list = (
-                          prev[activeType] || []
-                        ).map((r) =>
-                          r.id === updated.id
-                            ? updated
-                            : r
-                        );
-                        return {
-                          ...prev,
-                          [activeType]: list,
-                        };
-                      });
-                      setSaveStatus("unsaved");
-                    }}
-                  />
-                );
-              })()
-            ) : (
-              <div className="cm-detail-empty">
-                Select or create a record.
-              </div>
-            )}
-          </section>
+          {/* SAVE STATUS */}
+          <div className="cm-save-status">Status: {saveStatus}</div>
         </div>
-      </main>
-    </div>
+
+        {/* ------------------------------------------------------ */}
+        {/* MAIN PANEL                                            */}
+        {/* ------------------------------------------------------ */}
+        <div className="cm-main">
+          <div className="cm-main-header">
+            <h2 className="cm-main-title">
+              {activeContainer.replace("_", " ")}
+            </h2>
+
+            <div className="cm-main-actions">
+              <button className="cm-button" onClick={handleNew}>
+                + New
+              </button>
+              <button className="cm-button" onClick={handleSave}>
+                Save
+              </button>
+              {selected && (
+                <button className="cm-button danger" onClick={handleDelete}>
+                  Delete
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* SPLIT: LEFT LIST + RIGHT DETAIL */}
+          <div className="cm-content">
+            {/* LEFT LIST */}
+            <div className="cm-list">
+              {records.length === 0 ? (
+                <div className="cm-list-empty">No records yet.</div>
+              ) : (
+                records.map((r) => (
+                  <div
+                    key={r.id}
+                    className={`cm-list-item ${
+                      selected?.id === r.id ? "selected" : ""
+                    }`}
+                    onClick={() => setSelected(r)}
+                  >
+                    <div className="cm-list-title">
+                      {r.name || "(No title)"}
+                    </div>
+                    <div className="cm-list-sub">{r.id}</div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* RIGHT DETAIL FORM */}
+            <div className="cm-detail">
+              {!selected ? (
+                <div className="cm-detail-empty">
+                  Select or create a record.
+                </div>
+              ) : (
+                <div className="cm-detail-inner">
+                  <FormComponent value={selected} onChange={setSelected} />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
   );
 }
