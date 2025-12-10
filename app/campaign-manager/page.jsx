@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { v4 as uuidv4 } from "uuid";
 
-import { cmApi, getAdminKey, setAdminKey } from "@/lib/cm/client";
+import { cmApi } from "@/lib/cm/api";   // ← FIXED IMPORT
 import { getFormComponent } from "@/components/forms";
 import Timeline from "@/components/gm/Timeline";
 
@@ -30,12 +30,10 @@ export default function CampaignManagerPage() {
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [saveStatus, setSaveStatus] = useState("idle");
   const [loading, setLoading] = useState(false);
-  const [adminKeyInput, setAdminKeyInput] = useState("");
 
-  useEffect(() => {
-    setAdminKeyInput(getAdminKey());
-  }, []);
-
+  // -----------------------------
+  // LOAD RECORDS FOR ACTIVE TYPE
+  // -----------------------------
   useEffect(() => {
     async function load() {
       try {
@@ -67,34 +65,37 @@ export default function CampaignManagerPage() {
     setSelectedRecord(rec);
   }, [selectedId, activeList]);
 
-  const handleAdminKeySave = () => {
-    setAdminKey(adminKeyInput || "");
-  };
-
+  // -----------------------------
+  // NEW RECORD
+  // -----------------------------
   const handleCreate = () => {
     const id = uuidv4();
     const base = { id, _isNew: true };
 
-    setRecords((prev) => {
-      const list = prev[activeType] || [];
-      return { ...prev, [activeType]: [base, ...list] };
-    });
+    setRecords((prev) => ({
+      ...prev,
+      [activeType]: [base, ...(prev[activeType] || [])],
+    }));
 
     setSelectedId(id);
     setSelectedRecord(base);
     setSaveStatus("unsaved");
   };
 
+  // -----------------------------
+  // DELETE RECORD
+  // -----------------------------
   const handleDelete = async () => {
     if (!selectedRecord || !selectedRecord.id) return;
 
+    // Unsaved new record → local delete only.
     if (selectedRecord._isNew) {
-      setRecords((prev) => {
-        const list = (prev[activeType] || []).filter(
+      setRecords((prev) => ({
+        ...prev,
+        [activeType]: (prev[activeType] || []).filter(
           (r) => r.id !== selectedRecord.id
-        );
-        return { ...prev, [activeType]: list };
-      });
+        ),
+      }));
       setSelectedId(null);
       setSelectedRecord(null);
       setSaveStatus("idle");
@@ -105,12 +106,12 @@ export default function CampaignManagerPage() {
       setSaveStatus("saving");
       await cmApi.remove(activeType, selectedRecord.id);
 
-      setRecords((prev) => {
-        const list = (prev[activeType] || []).filter(
+      setRecords((prev) => ({
+        ...prev,
+        [activeType]: (prev[activeType] || []).filter(
           (r) => r.id !== selectedRecord.id
-        );
-        return { ...prev, [activeType]: list };
-      });
+        ),
+      }));
 
       setSelectedId(null);
       setSelectedRecord(null);
@@ -121,6 +122,9 @@ export default function CampaignManagerPage() {
     }
   };
 
+  // -----------------------------
+  // SAVE RECORD
+  // -----------------------------
   const handleSave = async () => {
     if (!selectedRecord) return;
 
@@ -139,9 +143,7 @@ export default function CampaignManagerPage() {
 
       setRecords((prev) => {
         let list = prev[activeType] || [];
-        list = list.map((r) =>
-          r.id === selectedRecord.id ? saved : r
-        );
+        list = list.map((r) => (r.id === selectedRecord.id ? saved : r));
 
         if (!list.find((r) => r.id === saved.id)) {
           list.unshift(saved);
@@ -159,6 +161,9 @@ export default function CampaignManagerPage() {
     }
   };
 
+  // -----------------------------
+  // SAVE STATUS LABEL
+  // -----------------------------
   const saveLabel = useMemo(() => {
     switch (saveStatus) {
       case "unsaved": return "Unsaved Changes";
@@ -169,11 +174,12 @@ export default function CampaignManagerPage() {
     }
   }, [saveStatus]);
 
+  // ----------------------------------------------
+  // UI START
+  // ----------------------------------------------
   return (
     <>
-      {/* -------------------------------------- */}
-      {/* FIXED: GLOBAL HEADER PLACED AT TOP     */}
-      {/* -------------------------------------- */}
+      {/* GLOBAL HEADER */}
       <header className="lw-header">
         <div className="lw-header-left">
           <div className="lw-logo-wrap">
@@ -187,37 +193,30 @@ export default function CampaignManagerPage() {
         </div>
 
         <nav className="lw-nav">
-          <a href="/controller" className="lw-nav-link">Controller</a>
-          <a href="/player" className="lw-nav-link">Player View</a>
-          <a href="/campaign-manager" className="lw-nav-link lw-nav-link-active">
+          <a href="/controller" className="lw-nav-link">
+            Controller
+          </a>
+          <a href="/player" className="lw-nav-link">
+            Player View
+          </a>
+          <a
+            href="/campaign-manager"
+            className="lw-nav-link lw-nav-link-active"
+          >
             Campaign Manager
           </a>
         </nav>
       </header>
 
-      {/* -------------------------------------- */}
-      {/* MAIN CAMPAIGN MANAGER UI              */}
-      {/* -------------------------------------- */}
+      {/* MAIN UI */}
       <div className="cm-root">
         <div className="cm-layout">
-          
+
           {/* SIDEBAR */}
           <aside className="cm-sidebar">
             <h1 className="cm-title">Campaign Manager</h1>
 
-            <div className="cm-admin-key">
-              <label>Admin API Key</label>
-
-              <input
-                type="password"
-                value={adminKeyInput}
-                onChange={(e) => setAdminKeyInput(e.target.value)}
-              />
-
-              <button className="cm-button" onClick={handleAdminKeySave}>
-                Save Key
-              </button>
-            </div>
+            {/* ADMIN KEY REMOVED */}
 
             <div className="cm-container-list">
               {CONTAINER_TYPES.map((c) => (
@@ -238,7 +237,7 @@ export default function CampaignManagerPage() {
             <div className="cm-save-status">Status: {saveLabel}</div>
           </aside>
 
-          {/* MAIN PANEL */}
+          {/* RIGHT PANEL */}
           <main className="cm-main">
             <header className="cm-main-header">
               <h2 className="cm-main-title">
@@ -246,9 +245,15 @@ export default function CampaignManagerPage() {
               </h2>
 
               <div className="cm-main-actions">
-                <button className="cm-button" onClick={handleCreate}>+ New</button>
-                <button className="cm-button" onClick={handleSave}>Save</button>
-                <button className="cm-button danger" onClick={handleDelete}>Delete</button>
+                <button className="cm-button" onClick={handleCreate}>
+                  + New
+                </button>
+                <button className="cm-button" onClick={handleSave}>
+                  Save
+                </button>
+                <button className="cm-button danger" onClick={handleDelete}>
+                  Delete
+                </button>
               </div>
             </header>
 
