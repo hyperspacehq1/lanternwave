@@ -1,4 +1,3 @@
-// app/campaign-manager/page.jsx
 "use client";
 
 import React, { useEffect, useState, useMemo } from "react";
@@ -99,7 +98,7 @@ export default function CampaignManagerPage() {
   const handleDelete = async () => {
     if (!selectedRecord || !selectedRecord.id) return;
 
-    // If local-only / new record
+    // Local-only record
     if (selectedRecord._isNew) {
       setRecords((prev) => {
         const list = (prev[activeType] || []).filter(
@@ -191,138 +190,153 @@ export default function CampaignManagerPage() {
   return (
     <div className="cm-root">
 
-      {/* SIDEBAR */}
-      <aside className="cm-sidebar">
-        <h1 className="cm-title">Campaign Manager</h1>
-
-        <div className="cm-admin-key">
-          <label>Admin API Key</label>
-          <input
-            type="password"
-            value={adminKeyInput}
-            onChange={(e) => setAdminKeyInput(e.target.value)}
-          />
-          <button className="cm-button" onClick={handleAdminKeySave}>
-            Save Key
-          </button>
+      {/* ============================================================
+          GLOBAL LANTERNWAVE HEADER (same as Controller)
+      ============================================================ */}
+      <header className="lw-header">
+        <div className="lw-header-left">
+          <div className="lw-logo-wrap">
+            <img src="/lanternwave-logo.png" className="lw-logo" alt="logo" />
+          </div>
+          <div className="lw-title-block">
+            <h1 className="lw-app-title">LANTERNWAVE</h1>
+            <p className="lw-app-subtitle">Campaign Manager</p>
+          </div>
         </div>
 
-        <div className="cm-container-list">
-          {CONTAINER_TYPES.map((c) => (
-            <button
-              key={c.id}
-              className={
-                c.id === activeType
-                  ? "cm-container-btn active"
-                  : "cm-container-btn"
-              }
-              onClick={() => setActiveType(c.id)}
-            >
-              {c.label}
-            </button>
-          ))}
-        </div>
+        <nav className="lw-nav">
+          <a href="/controller" className="lw-nav-link">
+            Controller
+          </a>
+          <a href="/player" className="lw-nav-link">
+            Player View
+          </a>
+          <a href="/campaign-manager" className="lw-nav-link lw-nav-link-active">
+            Campaign Manager
+          </a>
+        </nav>
+      </header>
 
-        <div className="cm-save-status">Status: {saveLabel}</div>
-      </aside>
+      {/* ============================================================
+          ORIGINAL CAMPAIGN MANAGER LAYOUT
+      ============================================================ */}
+      <div className="cm-layout">
 
-      {/* MAIN PANEL */}
-      <main className="cm-main">
-        <header className="cm-main-header">
-          <h2 className="cm-main-title">
-            {
-              CONTAINER_TYPES.find((t) => t.id === activeType)
-                ?.label
-            }
-          </h2>
-          <div className="cm-main-actions">
-            <button className="cm-button" onClick={handleCreate}>
-              + New
-            </button>
-            <button className="cm-button" onClick={handleSave}>
-              Save
-            </button>
-            <button className="cm-button danger" onClick={handleDelete}>
-              Delete
+        {/* SIDEBAR */}
+        <aside className="cm-sidebar">
+          <h1 className="cm-title">Campaign Manager</h1>
+
+          <div className="cm-admin-key">
+            <label>Admin API Key</label>
+            <input
+              type="password"
+              value={adminKeyInput}
+              onChange={(e) => setAdminKeyInput(e.target.value)}
+            />
+            <button className="cm-button" onClick={handleAdminKeySave}>
+              Save Key
             </button>
           </div>
-        </header>
 
-        <div className="cm-content">
-          {/* LIST */}
-          <section className="cm-list">
-            {loading && (
-              <div className="cm-list-status">Loading…</div>
-            )}
+          <div className="cm-container-list">
+            {CONTAINER_TYPES.map((c) => (
+              <button
+                key={c.id}
+                className={
+                  c.id === activeType
+                    ? "cm-container-btn active"
+                    : "cm-container-btn"
+                }
+                onClick={() => setActiveType(c.id)}
+              >
+                {c.label}
+              </button>
+            ))}
+          </div>
 
-            {!loading &&
-              activeList.map((record) => (
-                <div
-                  key={record.id}
-                  className={
-                    record.id === selectedId
-                      ? "cm-list-item selected"
-                      : "cm-list-item"
-                  }
-                  onClick={() => setSelectedId(record.id)}
-                >
-                  <div className="cm-list-label">
-                    {record.name ||
-                      record.title ||
-                      record.description?.slice(0, 60) ||
-                      record.id}
+          <div className="cm-save-status">Status: {saveLabel}</div>
+        </aside>
+
+        {/* MAIN PANEL */}
+        <main className="cm-main">
+          <header className="cm-main-header">
+            <h2 className="cm-main-title">
+              {CONTAINER_TYPES.find((t) => t.id === activeType)?.label}
+            </h2>
+            <div className="cm-main-actions">
+              <button className="cm-button" onClick={handleCreate}>
+                + New
+              </button>
+              <button className="cm-button" onClick={handleSave}>
+                Save
+              </button>
+              <button className="cm-button danger" onClick={handleDelete}>
+                Delete
+              </button>
+            </div>
+          </header>
+
+          <div className="cm-content">
+            {/* LIST */}
+            <section className="cm-list">
+              {loading && <div className="cm-list-status">Loading…</div>}
+
+              {!loading &&
+                activeList.map((record) => (
+                  <div
+                    key={record.id}
+                    className={
+                      record.id === selectedId
+                        ? "cm-list-item selected"
+                        : "cm-list-item"
+                    }
+                    onClick={() => setSelectedId(record.id)}
+                  >
+                    <div className="cm-list-label">
+                      {record.name ||
+                        record.title ||
+                        record.description?.slice(0, 60) ||
+                        record.id}
+                    </div>
                   </div>
+                ))}
+
+              {!loading && activeList.length === 0 && (
+                <div className="cm-list-empty">No records yet.</div>
+              )}
+            </section>
+
+            {/* DETAIL PANEL */}
+            <section className="cm-detail">
+              {selectedRecord ? (
+                (() => {
+                  const FormComponent = getFormComponent(activeType);
+
+                  return (
+                    <FormComponent
+                      record={{ ...selectedRecord, _type: activeType }}
+                      onChange={(updated) => {
+                        setSelectedRecord(updated);
+                        setRecords((prev) => {
+                          const list = (prev[activeType] || []).map((r) =>
+                            r.id === updated.id ? updated : r
+                          );
+                          return { ...prev, [activeType]: list };
+                        });
+                        setSaveStatus("unsaved");
+                      }}
+                    />
+                  );
+                })()
+              ) : (
+                <div className="cm-detail-empty">
+                  Select or create a record.
                 </div>
-              ))}
-
-            {!loading && activeList.length === 0 && (
-              <div className="cm-list-empty">
-                No records yet.
-              </div>
-            )}
-          </section>
-
-          {/* DETAIL */}
-          <section className="cm-detail">
-            {selectedRecord ? (
-              (() => {
-                const FormComponent =
-                  getFormComponent(activeType);
-
-                return (
-                  <FormComponent
-                    record={{
-                      ...selectedRecord,
-                      _type: activeType,
-                    }}
-                    onChange={(updated) => {
-                      setSelectedRecord(updated);
-                      setRecords((prev) => {
-                        const list = (
-                          prev[activeType] || []
-                        ).map((r) =>
-                          r.id === updated.id
-                            ? updated
-                            : r
-                        );
-                        return {
-                          ...prev,
-                          [activeType]: list,
-                        };
-                      });
-                      setSaveStatus("unsaved");
-                    }}
-                  />
-                );
-              })()
-            ) : (
-              <div className="cm-detail-empty">
-                Select or create a record.
-              </div>
-            )}
-          </section>
-        </div>
-      </main>
+              )}
+            </section>
+          </div>
+        </main>
+      </div>
     </div>
   );
 }
