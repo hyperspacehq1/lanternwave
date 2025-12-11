@@ -1,4 +1,3 @@
-// components/forms/CampaignForm.jsx
 "use client";
 
 import React from "react";
@@ -33,8 +32,8 @@ export default function CampaignForm({ record, onChange }) {
         <label>World Setting</label>
         <input
           type="text"
-          value={record.worldSetting || ""}
-          onChange={(e) => update("worldSetting", e.target.value)}
+          value={record.world_setting || ""}
+          onChange={(e) => update("world_setting", e.target.value)}
         />
       </div>
 
@@ -42,8 +41,8 @@ export default function CampaignForm({ record, onChange }) {
         <label>Campaign Date</label>
         <input
           type="date"
-          value={record.campaignDate || ""}
-          onChange={(e) => update("campaignDate", e.target.value)}
+          value={record.campaign_date || ""}
+          onChange={(e) => update("campaign_date", e.target.value)}
         />
       </div>
 
