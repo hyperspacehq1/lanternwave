@@ -2,26 +2,19 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
 import { randomUUID } from "crypto";
+import { toDb, fromDb } from "@/lib/campaignMapper";
 
-/**
- * Helper: extract optional :id from the path.
- * 
- * /api/campaigns              -> id = null
- * /api/campaigns/123          -> id = "123"
- */
+// Extract optional :id from URL path
 function getIdFromPath(req) {
   const url = new URL(req.url);
   const parts = url.pathname.split("/").filter(Boolean);
-  // parts: ["api", "campaigns"] OR ["api", "campaigns", "<id>"]
-  if (parts.length === 3) {
-    return parts[2];
-  }
+  if (parts.length === 3) return parts[2];
   return null;
 }
 
 /* -----------------------------------------------------------
    GET /api/campaigns           -> list all
-   GET /api/campaigns/:id       -> get one
+   GET /api/campaigns/:id       -> get one (camelCase)
 ------------------------------------------------------------ */
 export async function GET(req) {
   try {
@@ -33,128 +26,98 @@ export async function GET(req) {
         [id]
       );
 
-      if (!rows || rows.length === 0) {
-        return NextResponse.json(
-          { error: "Campaign not found" },
-          { status: 404 }
-        );
-      }
+      if (!rows || rows.length === 0)
+        return NextResponse.json({ error: "Campaign not found" }, { status: 404 });
 
-      return NextResponse.json(rows[0], { status: 200 });
+      return NextResponse.json(fromDb(rows[0]), { status: 200 });
     }
 
-    // No id -> list all campaigns
-    const rows = await query(
-      `SELECT * FROM campaigns ORDER BY created_at DESC`
-    );
+    const rows = await query(`SELECT * FROM campaigns ORDER BY created_at DESC`);
+    return NextResponse.json(rows.map(fromDb), { status: 200 });
 
-    return NextResponse.json(rows, { status: 200 });
   } catch (err) {
     console.error("GET /campaigns error:", err);
-    return NextResponse.json(
-      { error: err.message || "Internal Server Error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
 
 /* -----------------------------------------------------------
-   POST /api/campaigns          -> create
+   POST /api/campaigns          -> create (camelCase input)
 ------------------------------------------------------------ */
 export async function POST(req) {
   try {
-    const idInPath = getIdFromPath(req);
-    if (idInPath) {
-      // We don't support POST /api/campaigns/:id
-      return NextResponse.json(
-        { error: "Use PUT for updates, not POST" },
-        { status: 405 }
-      );
-    }
+    const body = await req.json();
+    const data = toDb(body);
 
-    const { name, description, world_setting, campaign_date } =
-      await req.json();
-
-    if (!name) {
-      return NextResponse.json(
-        { error: "name is required" },
-        { status: 400 }
-      );
-    }
+    if (!data.name)
+      return NextResponse.json({ error: "name is required" }, { status: 400 });
 
     const id = randomUUID();
 
     const rows = await query(
       `
       INSERT INTO campaigns
-        (id, name, description, world_setting, campaign_date, created_at, updated_at)
-      VALUES
-        ($1, $2, $3, $4, $5, NOW(), NOW())
+      (id, name, description, world_setting, campaign_date, created_at, updated_at)
+      VALUES ($1,$2,$3,$4,$5,NOW(),NOW())
       RETURNING *
       `,
       [
         id,
-        name,
-        description || "",
-        world_setting || "",
-        campaign_date || null,
+        data.name,
+        data.description,
+        data.world_setting,
+        data.campaign_date
       ]
     );
 
-    return NextResponse.json(rows[0], { status: 201 });
+    return NextResponse.json(fromDb(rows[0]), { status: 201 });
+
   } catch (err) {
     console.error("POST /campaigns error:", err);
-    return NextResponse.json(
-      { error: err.message || "Internal Server Error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
 
 /* -----------------------------------------------------------
-   PUT /api/campaigns/:id       -> update
+   PUT /api/campaigns/:id       -> update (camelCase input)
 ------------------------------------------------------------ */
 export async function PUT(req) {
   try {
     const id = getIdFromPath(req);
-    if (!id) {
-      return NextResponse.json(
-        { error: "id is required in path /api/campaigns/:id" },
-        { status: 400 }
-      );
-    }
+    if (!id)
+      return NextResponse.json({ error: "id required" }, { status: 400 });
 
-    const { name, description, world_setting, campaign_date } =
-      await req.json();
+    const body = await req.json();
+    const data = toDb(body);
 
     const rows = await query(
       `
       UPDATE campaigns
-         SET name          = COALESCE($2, name),
-             description   = COALESCE($3, description),
-             world_setting = COALESCE($4, world_setting),
-             campaign_date = COALESCE($5, campaign_date),
-             updated_at    = NOW()
-       WHERE id = $1
+         SET name=$2,
+             description=$3,
+             world_setting=$4,
+             campaign_date=$5,
+             updated_at=NOW()
+       WHERE id=$1
        RETURNING *
       `,
-      [id, name, description, world_setting, campaign_date]
+      [
+        id,
+        data.name,
+        data.description,
+        data.world_setting,
+        data.campaign_date
+      ]
     );
 
-    if (!rows || rows.length === 0) {
-      return NextResponse.json(
-        { error: "Campaign not found" },
-        { status: 404 }
-      );
-    }
+    if (!rows || rows.length === 0)
+      return NextResponse.json({ error: "Campaign not found" }, { status: 404 });
 
-    return NextResponse.json(rows[0], { status: 200 });
+    return NextResponse.json(fromDb(rows[0]), { status: 200 });
+
   } catch (err) {
     console.error("PUT /campaigns/:id error:", err);
-    return NextResponse.json(
-      { error: err.message || "Internal Server Error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
 
@@ -164,31 +127,21 @@ export async function PUT(req) {
 export async function DELETE(req) {
   try {
     const id = getIdFromPath(req);
-    if (!id) {
-      return NextResponse.json(
-        { error: "id is required in path /api/campaigns/:id" },
-        { status: 400 }
-      );
-    }
+    if (!id)
+      return NextResponse.json({ error: "id required" }, { status: 400 });
 
     const rows = await query(
       `DELETE FROM campaigns WHERE id = $1 RETURNING id`,
       [id]
     );
 
-    if (!rows || rows.length === 0) {
-      return NextResponse.json(
-        { error: "Campaign not found" },
-        { status: 404 }
-      );
-    }
+    if (!rows || rows.length === 0)
+      return NextResponse.json({ error: "Campaign not found" }, { status: 404 });
 
     return NextResponse.json({ success: true, id }, { status: 200 });
+
   } catch (err) {
     console.error("DELETE /campaigns/:id error:", err);
-    return NextResponse.json(
-      { error: err.message || "Internal Server Error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
