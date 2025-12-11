@@ -1,45 +1,34 @@
-##############################################
-# NETLIFY BUILD CONFIG
-##############################################
+############################################################
+# NEXT.JS APP ROUTER — PRODUCTION CONFIG (SERVERLESS MODE)
+############################################################
+
 [build]
   command = "next build"
   publish = ".next"
   node_version = "20"
 
-##############################################
-# NEXT.JS APP ROUTER SUPPORT
-##############################################
+############################################################
+# NEXT.JS PLUGIN — DISABLE EDGE FUNCTIONS
+# THIS FIXES: PUT/DELETE/PATCH returning 404
+############################################################
 [[plugins]]
-package = "@netlify/plugin-nextjs"
+  package = "@netlify/plugin-nextjs"
+  [plugins.config]
+    disableEdgeFunctions = true
 
-  # Plugin settings must go under "inputs", not config
-  [plugins.inputs]
-  disableEdgeFunctions = true
-
-##############################################
-# SERVERLESS FUNCTION CONFIG
-##############################################
-[functions]
-  directory = "netlify/functions"
-  node_bundler = "esbuild"
-  external_node_modules = ["@neondatabase/serverless"]
-
-##############################################
-# FORCE ALL API ROUTES THROUGH NEXT
-##############################################
-# This ensures PUT / DELETE / PATCH are forwarded
-# correctly to Next.js App Router.
-##############################################
+############################################################
+# FORCE ALL /api/* ROUTES TO NEXT'S SERVERLESS RUNTIME
+# This ensures ALL HTTP VERBS are handled correctly.
+############################################################
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/next_api"
   status = 200
   force = true
 
-##############################################
-# CUSTOM REDIRECTS
-##############################################
-
+############################################################
+# OPTIONAL REDIRECTS (KEEPING YOUR ORIGINAL ONES)
+############################################################
 [[redirects]]
   from = "/player"
   to = "/"
