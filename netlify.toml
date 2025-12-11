@@ -1,24 +1,17 @@
-############################################################
-# NEXT.JS APP ROUTER — PRODUCTION CONFIG (SERVERLESS MODE)
-############################################################
+# Lanternwave
 
 [build]
   command = "next build"
   publish = ".next"
   node_version = "20"
 
-############################################################
-# FORCE ALL /api/* ROUTES TO NEXT'S SERVERLESS RUNTIME
-############################################################
+# Your required redirects
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/next_api"
   status = 200
   force = true
 
-############################################################
-# OPTIONAL REDIRECTS
-############################################################
 [[redirects]]
   from = "/player"
   to = "/"
@@ -33,3 +26,4 @@
   from = "/search"
   to = "/"
   status = 200
+
