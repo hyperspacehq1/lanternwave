@@ -1,46 +1,19 @@
-# ===========================
-# NEXT.JS 13/14 APP ROUTER BUILD
-# ===========================
+##############################################
+# NEXT.JS APP ROUTER — MINIMAL PRODUCTION CONFIG
+##############################################
 [build]
   command = "next build"
   publish = ".next"
   node_version = "20"
 
-# ===========================
-# SERVERLESS FUNCTIONS CONFIG
-# ===========================
-[functions]
-  directory = "netlify/functions"
-  node_bundler = "esbuild"
-  external_node_modules = ["@neondatabase/serverless"]
-
-# ===========================
-# PLUGINS
-# ===========================
-# This is required for all Next.js 13/14 deployments.
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
-# ===========================
-# REDIRECTS (CLIENT ROUTER COMPATIBLE)
-# ===========================
-[[redirects]]
-  from = "/player"
-  to = "/"
-  status = 200
-
-[[redirects]]
-  from = "/campaign-manager"
-  to = "/"
-  status = 200
-
-[[redirects]]
-  from = "/search"
-  to = "/"
-  status = 200
-
+# Force ALL /api/* requests (ANY HTTP VERB)
+# into the unified Next.js serverless handler.
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/next_api"
   status = 200
   force = true
+
