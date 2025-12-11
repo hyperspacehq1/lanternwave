@@ -1,9 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: {
-    appDir: true,              // REQUIRED for app/api/** routes
-    serverActions: true,       // optional but recommended
-  }
+    appDir: true,              // Enables App Router
+    serverActions: true,       // Required for Next 14 server actions
+  },
 };
 
-module.exports = nextConfig;
+export default nextConfig;
