@@ -1,19 +1,62 @@
 ##############################################
-# NEXT.JS APP ROUTER — MINIMAL PRODUCTION CONFIG
+# NETLIFY BUILD CONFIG
 ##############################################
 [build]
   command = "next build"
   publish = ".next"
   node_version = "20"
 
+##############################################
+# NEXT.JS APP ROUTER SUPPORT
+##############################################
 [[plugins]]
   package = "@netlify/plugin-nextjs"
+  [plugins.config]
+    disableEdgeFunctions = true
 
-# Force ALL /api/* requests (ANY HTTP VERB)
-# into the unified Next.js serverless handler.
+##############################################
+# SERVERLESS FUNCTION CONFIG
+##############################################
+[functions]
+  # Directory where Netlify will output compiled functions
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+  # Needed for Neon pg driver
+  external_node_modules = ["@neondatabase/serverless"]
+
+##############################################
+# FORCE ALL API ROUTES (ALL HTTP VERBS)
+# THROUGH NEXT'S INTERNAL HANDLER
+##############################################
+# This is REQUIRED for PUT, DELETE, PATCH
+# because Netlify does NOT forward those
+# verbs to Next.js App Router automatically.
+#
+# /api/* → Next’s internal generated handler:
+# /.netlify/functions/next_api
+##############################################
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/next_api"
   status = 200
   force = true
+
+##############################################
+# OPTIONAL REDIRECTS (AS PROVIDED PREVIOUSLY)
+##############################################
+[[redirects]]
+  from = "/player"
+  to = "/"
+  status = 200
+
+[[redirects]]
+  from = "/campaign-manager"
+  to = "/"
+  status = 200
+
+[[redirects]]
+  from = "/search"
+  to = "/"
+  status = 200
 
