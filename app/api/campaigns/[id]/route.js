@@ -2,7 +2,7 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
-import { fromDb, toDb } from "@/app/api/campaigns/campaignMapper";
+import { fromDb, toDb } from "@/lib/campaignMapper";
 
 /* -----------------------------------------------------------
    GET /api/campaigns/:id
