@@ -1,8 +1,6 @@
+import { redirect } from "next/navigation";
+
 export default function Page() {
-  return (
-    <main style={{ padding: "2rem", fontFamily: "sans-serif" }}>
-      <h1>LanternWave</h1>
-      <p>Welcome.</p>
-    </main>
-  );
+  // Immediately redirect the user to the controller
+  redirect("/controller");
 }
