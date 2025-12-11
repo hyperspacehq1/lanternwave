@@ -1,17 +1,9 @@
-# Lanternwave
-
 [build]
   command = "next build"
   publish = ".next"
   node_version = "20"
 
-# Your required redirects
-[[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/next_api"
-  status = 200
-  force = true
-
+# Your UI redirects only:
 [[redirects]]
   from = "/player"
   to = "/"
@@ -26,4 +18,3 @@
   from = "/search"
   to = "/"
   status = 200
-
