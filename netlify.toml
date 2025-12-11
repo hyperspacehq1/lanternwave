@@ -8,18 +8,22 @@
   publish = ".next"
   node_version = "20"
 
+[build]
+  command = "next build"
+  publish = ".next"
+  edge_functions = "edge-functions"
+
 [functions]
   directory = "netlify/functions"
   node_bundler = "esbuild"
   external_node_modules = ["@neondatabase/serverless"]
 
+[[edge_functions]]
+  function = "next_api"
+  path = "/api/*"
+
 [[plugins]]
   package = "@netlify/plugin-nextjs"
-
-###############################################
-# Redirects
-# (Do NOT redirect to /index.html — breaks Next.js)
-###############################################
 
 [[redirects]]
   from = "/player"
