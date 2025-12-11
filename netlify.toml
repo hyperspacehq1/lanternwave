@@ -1,30 +1,39 @@
-###############################################
-# LanternWave 2.0 — Correct Netlify Config
-# Supports: Next.js 16, SSR, API routes, Neon DB
-###############################################
-
+# ===========================
+# NEXT.JS 13/14 APP ROUTER BUILD
+# ===========================
 [build]
   command = "next build"
   publish = ".next"
   node_version = "20"
-
-[build]
-  command = "next build"
-  publish = ".next"
   edge_functions = "edge-functions"
 
+# ===========================
+# SERVERLESS FUNCTIONS CONFIG
+# ===========================
 [functions]
   directory = "netlify/functions"
   node_bundler = "esbuild"
   external_node_modules = ["@neondatabase/serverless"]
 
+# ===========================
+# EDGE MIDDLEWARE / ROUTES
+# ===========================
+# App Router will automatically map `/middleware.ts` to an Edge function.
+# This block is ONLY for custom Edge functions you explicitly define.
 [[edge_functions]]
   function = "next_api"
   path = "/api/*"
 
+# ===========================
+# PLUGINS
+# ===========================
+# This is required for all Next.js 13/14 deployments.
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
+# ===========================
+# REDIRECTS (CLIENT ROUTER COMPATIBLE)
+# ===========================
 [[redirects]]
   from = "/player"
   to = "/"
