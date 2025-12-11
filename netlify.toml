@@ -10,31 +10,25 @@
 # NEXT.JS APP ROUTER SUPPORT
 ##############################################
 [[plugins]]
-  package = "@netlify/plugin-nextjs"
-  [plugins.config]
-    disableEdgeFunctions = true
+package = "@netlify/plugin-nextjs"
+
+  # Plugin settings must go under "inputs", not config
+  [plugins.inputs]
+  disableEdgeFunctions = true
 
 ##############################################
 # SERVERLESS FUNCTION CONFIG
 ##############################################
 [functions]
-  # Directory where Netlify will output compiled functions
   directory = "netlify/functions"
   node_bundler = "esbuild"
-
-  # Needed for Neon pg driver
   external_node_modules = ["@neondatabase/serverless"]
 
 ##############################################
-# FORCE ALL API ROUTES (ALL HTTP VERBS)
-# THROUGH NEXT'S INTERNAL HANDLER
+# FORCE ALL API ROUTES THROUGH NEXT
 ##############################################
-# This is REQUIRED for PUT, DELETE, PATCH
-# because Netlify does NOT forward those
-# verbs to Next.js App Router automatically.
-#
-# /api/* → Next’s internal generated handler:
-# /.netlify/functions/next_api
+# This ensures PUT / DELETE / PATCH are forwarded
+# correctly to Next.js App Router.
 ##############################################
 [[redirects]]
   from = "/api/*"
@@ -43,8 +37,9 @@
   force = true
 
 ##############################################
-# OPTIONAL REDIRECTS (AS PROVIDED PREVIOUSLY)
+# CUSTOM REDIRECTS
 ##############################################
+
 [[redirects]]
   from = "/player"
   to = "/"
@@ -59,4 +54,3 @@
   from = "/search"
   to = "/"
   status = 200
-
