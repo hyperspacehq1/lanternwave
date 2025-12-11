@@ -5,7 +5,7 @@ import { requireAdmin } from "@/lib/auth";
 import { fromDb, toDb } from "@/lib/campaignMapper";
 
 /* -----------------------------------------------------------
-   GET /api/campaigns/:id
+   GET /api/campaigns/:id  → fetch single campaign
 ------------------------------------------------------------ */
 export async function GET(req, { params }) {
   try {
@@ -19,50 +19,59 @@ export async function GET(req, { params }) {
     `;
 
     if (!rows.length) {
-      return NextResponse.json({ error: "Campaign not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Campaign not found" },
+        { status: 404 }
+      );
     }
 
     return NextResponse.json(fromDb(rows[0]), { status: 200 });
   } catch (err) {
-    console.error(`GET /api/campaigns/${params.id} error:`, err);
+    console.error(`GET /api/campaigns/${params?.id} error:`, err);
     return NextResponse.json(
-      { error: err.message || "Internal Server Error" },
+      { error: err.message ?? "Internal Server Error" },
       { status: 500 }
     );
   }
 }
 
 /* -----------------------------------------------------------
-   PUT /api/campaigns/:id → PARTIAL UPDATE
-   Only updates keys included in the JSON body.
+   PUT /api/campaigns/:id  → PARTIAL UPDATE
+   Only updates fields provided in request body
 ------------------------------------------------------------ */
 export async function PUT(req, { params }) {
   try {
-    const admin = requireAdmin(req);
-    if (!admin.ok) return admin.response;
+    const auth = requireAdmin(req);
+    if (!auth.ok) return auth.response;
 
     const { id } = params;
     const incoming = await req.json();
     const dbVals = toDb(incoming);
 
-    // Build partial update SQL dynamically based on keys present
-    const updates = [];
+    const sets = [];
     const values = [];
 
     if (incoming.name !== undefined) {
-      updates.push(`name = ${values.push(dbVals.name) && `$${values.length}`}`);
-    }
-    if (incoming.description !== undefined) {
-      updates.push(`description = ${values.push(dbVals.description) && `$${values.length}`}`);
-    }
-    if (incoming.worldSetting !== undefined) {
-      updates.push(`world_setting = ${values.push(dbVals.world_setting) && `$${values.length}`}`);
-    }
-    if (incoming.campaignDate !== undefined) {
-      updates.push(`campaign_date = ${values.push(dbVals.campaign_date) && `$${values.length}`}`);
+      sets.push(`name = $${sets.length + 1}`);
+      values.push(dbVals.name);
     }
 
-    if (updates.length === 0) {
+    if (incoming.description !== undefined) {
+      sets.push(`description = $${sets.length + 1}`);
+      values.push(dbVals.description);
+    }
+
+    if (incoming.worldSetting !== undefined) {
+      sets.push(`world_setting = $${sets.length + 1}`);
+      values.push(dbVals.world_setting);
+    }
+
+    if (incoming.campaignDate !== undefined) {
+      sets.push(`campaign_date = $${sets.length + 1}`);
+      values.push(dbVals.campaign_date);
+    }
+
+    if (sets.length === 0) {
       return NextResponse.json(
         { error: "No valid fields provided to update" },
         { status: 400 }
@@ -70,26 +79,34 @@ export async function PUT(req, { params }) {
     }
 
     // Always update updated_at
-    updates.push(`updated_at = NOW()`);
+    sets.push(`updated_at = NOW()`);
+
+    // Add id param
+    values.push(id);
+    const idIndex = values.length;
 
     const sql = `
       UPDATE campaigns
-      SET ${updates.join(", ")}
-      WHERE id = $${values.push(id) /* add id as last value */}
+      SET ${sets.join(", ")}
+      WHERE id = $${idIndex}
       RETURNING *
     `;
 
-    const rows = await query(sql, values);
+    // Neon array-tagged template form
+    const rows = await query([sql, ...values]);
 
     if (!rows.length) {
-      return NextResponse.json({ error: "Campaign not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Campaign not found" },
+        { status: 404 }
+      );
     }
 
     return NextResponse.json(fromDb(rows[0]), { status: 200 });
   } catch (err) {
-    console.error(`PUT /api/campaigns/${params.id} error:`, err);
+    console.error(`PUT /api/campaigns/${params?.id} error:`, err);
     return NextResponse.json(
-      { error: err.message || "Internal Server Error" },
+      { error: err.message ?? "Internal Server Error" },
       { status: 500 }
     );
   }
@@ -100,8 +117,8 @@ export async function PUT(req, { params }) {
 ------------------------------------------------------------ */
 export async function DELETE(req, { params }) {
   try {
-    const admin = requireAdmin(req);
-    if (!admin.ok) return admin.response;
+    const auth = requireAdmin(req);
+    if (!auth.ok) return auth.response;
 
     const { id } = params;
 
@@ -112,14 +129,17 @@ export async function DELETE(req, { params }) {
     `;
 
     if (!rows.length) {
-      return NextResponse.json({ error: "Campaign not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Campaign not found" },
+        { status: 404 }
+      );
     }
 
     return NextResponse.json({ success: true, id }, { status: 200 });
   } catch (err) {
-    console.error(`DELETE /api/campaigns/${params.id} error:`, err);
+    console.error(`DELETE /api/campaigns/${params?.id} error:`, err);
     return NextResponse.json(
-      { error: err.message || "Internal Server Error" },
+      { error: err.message ?? "Internal Server Error" },
       { status: 500 }
     );
   }

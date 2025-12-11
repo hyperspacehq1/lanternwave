@@ -5,7 +5,7 @@ import { requireAdmin } from "@/lib/auth";
 import { fromDb, toDb } from "@/lib/campaignMapper";
 
 /* -----------------------------------------------------------
-   GET /api/campaigns  → Return all campaigns
+   GET /api/campaigns  → list all campaigns
 ------------------------------------------------------------ */
 export async function GET() {
   try {
@@ -15,31 +15,24 @@ export async function GET() {
       ORDER BY created_at DESC
     `;
 
-    const mapped = rows.map(fromDb);
-    return NextResponse.json(mapped, { status: 200 });
+    return NextResponse.json(rows.map(fromDb), { status: 200 });
   } catch (err) {
     console.error("GET /api/campaigns error:", err);
     return NextResponse.json(
-      { error: err.message || "Internal Server Error" },
+      { error: err.message ?? "Internal Server Error" },
       { status: 500 }
     );
   }
 }
 
 /* -----------------------------------------------------------
-   POST /api/campaigns  → Create a campaign
-   Body (camelCase):
-   {
-     name,
-     description?,
-     worldSetting?,
-     campaignDate?
-   }
+   POST /api/campaigns  → create campaign
+   Accepts camelCase input, uses mapper to convert
 ------------------------------------------------------------ */
 export async function POST(req) {
   try {
-    const admin = requireAdmin(req);
-    if (!admin.ok) return admin.response;
+    const auth = requireAdmin(req);
+    if (!auth.ok) return auth.response;
 
     const body = await req.json();
     if (!body.name) {
@@ -49,35 +42,28 @@ export async function POST(req) {
       );
     }
 
-    // Convert camelCase → snake_case
     const dbVals = toDb(body);
 
     const rows = await query`
-      INSERT INTO campaigns (
-        name,
-        description,
-        world_setting,
-        campaign_date,
-        created_at,
-        updated_at
-      )
-      VALUES (
-        ${dbVals.name},
-        ${dbVals.description},
-        ${dbVals.world_setting},
-        ${dbVals.campaign_date},
-        NOW(),
-        NOW()
-      )
+      INSERT INTO campaigns
+        (name, description, world_setting, campaign_date, created_at, updated_at)
+      VALUES
+        (
+          ${dbVals.name},
+          ${dbVals.description},
+          ${dbVals.world_setting},
+          ${dbVals.campaign_date},
+          NOW(),
+          NOW()
+        )
       RETURNING *
     `;
 
-    const campaign = fromDb(rows[0]);
-    return NextResponse.json(campaign, { status: 201 });
+    return NextResponse.json(fromDb(rows[0]), { status: 201 });
   } catch (err) {
     console.error("POST /api/campaigns error:", err);
     return NextResponse.json(
-      { error: err.message || "Internal Server Error" },
+      { error: err.message ?? "Internal Server Error" },
       { status: 500 }
     );
   }
