@@ -8,17 +8,16 @@
   node_version = "20"
 
 ############################################################
-# NEXT.JS PLUGIN — DISABLE EDGE FUNCTIONS
-# THIS FIXES: PUT/DELETE/PATCH returning 404
+# NEXT.JS PLUGIN — DISABLE EDGE FUNCTIONS (VALID TOML SYNTAX)
 ############################################################
 [[plugins]]
   package = "@netlify/plugin-nextjs"
-  [plugins.config]
+
+  [plugins.inputs]
     disableEdgeFunctions = true
 
 ############################################################
 # FORCE ALL /api/* ROUTES TO NEXT'S SERVERLESS RUNTIME
-# This ensures ALL HTTP VERBS are handled correctly.
 ############################################################
 [[redirects]]
   from = "/api/*"
@@ -27,7 +26,7 @@
   force = true
 
 ############################################################
-# OPTIONAL REDIRECTS (KEEPING YOUR ORIGINAL ONES)
+# OPTIONAL REDIRECTS
 ############################################################
 [[redirects]]
   from = "/player"
