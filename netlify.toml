@@ -5,7 +5,6 @@
   command = "next build"
   publish = ".next"
   node_version = "20"
-  edge_functions = "edge-functions"
 
 # ===========================
 # SERVERLESS FUNCTIONS CONFIG
@@ -14,15 +13,6 @@
   directory = "netlify/functions"
   node_bundler = "esbuild"
   external_node_modules = ["@neondatabase/serverless"]
-
-# ===========================
-# EDGE MIDDLEWARE / ROUTES
-# ===========================
-# App Router will automatically map `/middleware.ts` to an Edge function.
-# This block is ONLY for custom Edge functions you explicitly define.
-[[edge_functions]]
-  function = "next_api"
-  path = "/api/*"
 
 # ===========================
 # PLUGINS
