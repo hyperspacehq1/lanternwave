@@ -1,7 +1,6 @@
+// app/api/sessions/route.js
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";                     // ✔ Drizzle instance
-import { sessions } from "@/lib/db/schema";       // ✔ Your sessions table
-import { eq } from "drizzle-orm";
+import { query } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
 
 /* -----------------------------------------------------------
@@ -14,26 +13,28 @@ export async function GET(req) {
     const campaignId = searchParams.get("campaign_id");
 
     if (id) {
-      const result = await db
-        .select()
-        .from(sessions)
-        .where(eq(sessions.id, id))
-        .limit(1);
+      const rows = await query`
+        SELECT *
+        FROM sessions
+        WHERE id = ${id}
+        LIMIT 1
+      `;
 
-      if (result.length === 0)
+      if (!rows.length)
         return NextResponse.json({ error: "Session not found" }, { status: 404 });
 
-      return NextResponse.json(result[0]);
+      return NextResponse.json(rows[0], { status: 200 });
     }
 
     if (campaignId) {
-      const result = await db
-        .select()
-        .from(sessions)
-        .where(eq(sessions.campaign_id, campaignId))
-        .orderBy(sessions.created_at);
+      const rows = await query`
+        SELECT *
+        FROM sessions
+        WHERE campaign_id = ${campaignId}
+        ORDER BY created_at ASC
+      `;
 
-      return NextResponse.json(result);
+      return NextResponse.json(rows, { status: 200 });
     }
 
     return NextResponse.json(
@@ -51,28 +52,38 @@ export async function GET(req) {
 ------------------------------------------------------------ */
 export async function POST(req) {
   try {
-    const headers = Object.fromEntries(req.headers.entries());
-    const auth = requireAdmin(headers);
+    const auth = requireAdmin(req);
     if (!auth.ok) return auth.response;
 
-    const { campaign_id, description, geography, notes, history } =
-      await req.json();
+    const body = await req.json();
 
-    if (!campaign_id)
+    if (!body.campaign_id) {
       return NextResponse.json({ error: "campaign_id is required" }, { status: 400 });
+    }
 
-    const inserted = await db
-      .insert(sessions)
-      .values({
+    const rows = await query`
+      INSERT INTO sessions (
         campaign_id,
         description,
-        geography: geography || "",
-        notes: notes || "",
-        history: history || "",
-      })
-      .returning();
+        geography,
+        notes,
+        history,
+        created_at,
+        updated_at
+      )
+      VALUES (
+        ${body.campaign_id},
+        ${body.description ?? ""},
+        ${body.geography ?? ""},
+        ${body.notes ?? ""},
+        ${body.history ?? ""},
+        NOW(),
+        NOW()
+      )
+      RETURNING *
+    `;
 
-    return NextResponse.json(inserted[0], { status: 201 });
+    return NextResponse.json(rows[0], { status: 201 });
   } catch (err) {
     console.error("POST /sessions error:", err);
     return NextResponse.json({ error: err.message }, { status: 500 });
@@ -84,33 +95,33 @@ export async function POST(req) {
 ------------------------------------------------------------ */
 export async function PUT(req) {
   try {
-    const headers = Object.fromEntries(req.headers.entries());
-    const auth = requireAdmin(headers);
+    const auth = requireAdmin(req);
     if (!auth.ok) return auth.response;
 
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
+
     if (!id)
       return NextResponse.json({ error: "id is required" }, { status: 400 });
 
-    const { description, geography, notes, history } = await req.json();
+    const body = await req.json();
 
-    const updated = await db
-      .update(sessions)
-      .set({
-        description,
-        geography,
-        notes,
-        history,
-        updated_at: new Date(),
-      })
-      .where(eq(sessions.id, id))
-      .returning();
+    const rows = await query`
+      UPDATE sessions
+      SET
+        description = ${body.description},
+        geography = ${body.geography},
+        notes = ${body.notes},
+        history = ${body.history},
+        updated_at = NOW()
+      WHERE id = ${id}
+      RETURNING *
+    `;
 
-    if (updated.length === 0)
+    if (!rows.length)
       return NextResponse.json({ error: "Session not found" }, { status: 404 });
 
-    return NextResponse.json(updated[0]);
+    return NextResponse.json(rows[0], { status: 200 });
   } catch (err) {
     console.error("PUT /sessions error:", err);
     return NextResponse.json({ error: err.message }, { status: 500 });
@@ -122,26 +133,28 @@ export async function PUT(req) {
 ------------------------------------------------------------ */
 export async function DELETE(req) {
   try {
-    const headers = Object.fromEntries(req.headers.entries());
-    const auth = requireAdmin(headers);
+    const auth = requireAdmin(req);
     if (!auth.ok) return auth.response;
 
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
+
     if (!id)
       return NextResponse.json({ error: "id is required" }, { status: 400 });
 
-    const deleted = await db
-      .delete(sessions)
-      .where(eq(sessions.id, id))
-      .returning({ id: sessions.id });
+    const rows = await query`
+      DELETE FROM sessions
+      WHERE id = ${id}
+      RETURNING id
+    `;
 
-    if (deleted.length === 0)
+    if (!rows.length)
       return NextResponse.json({ error: "Session not found" }, { status: 404 });
 
-    return NextResponse.json({ success: true, id });
+    return NextResponse.json({ success: true, id }, { status: 200 });
   } catch (err) {
     console.error("DELETE /sessions error:", err);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
+

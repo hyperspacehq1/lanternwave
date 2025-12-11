@@ -1,44 +1,66 @@
 // app/api/conditions/route.js
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
-import { conditions } from "@/lib/db/schema";
-import { authAdmin, ADMIN_HEADER_KEY } from "@/lib/auth";
-import { eq } from "drizzle-orm";
+import { query } from "@/lib/db";
+import { requireAdmin } from "@/lib/auth";
 import { v4 as uuidv4 } from "uuid";
 
+/* -----------------------------------------------------------
+   GET /api/conditions → List all conditions
+------------------------------------------------------------ */
 export async function GET() {
   try {
-    const rows = await db.select().from(conditions);
-    return NextResponse.json(rows);
+    const rows = await query`
+      SELECT *
+      FROM conditions
+      ORDER BY created_at DESC
+    `;
+
+    return NextResponse.json(rows, { status: 200 });
   } catch (err) {
     console.error("GET /api/conditions error:", err);
     return NextResponse.json({ error: "Failed to load conditions" }, { status: 500 });
   }
 }
 
+/* -----------------------------------------------------------
+   POST /api/conditions
+------------------------------------------------------------ */
 export async function POST(req) {
   try {
-    // Admin auth
-    const auth = await authAdmin(req);
-    if (!auth.ok) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = requireAdmin(req);
+    if (!auth.ok) return auth.response;
 
     const body = await req.json();
 
-    const data = {
-      id: body.id || uuidv4(),
-      targetId: body.targetId,
-      targetType: body.targetType, // "pc" or "npc"
-      condition: body.condition,
-      severity: body.severity || null,
-      duration: body.duration || null,
-      notes: body.notes || null,
-    };
+    const id = body.id || uuidv4();
 
-    const [inserted] = await db.insert(conditions).values(data).returning("*");
+    const rows = await query`
+      INSERT INTO conditions (
+        id,
+        target_id,
+        target_type,
+        condition,
+        severity,
+        duration,
+        notes,
+        created_at,
+        updated_at
+      )
+      VALUES (
+        ${id},
+        ${body.targetId},
+        ${body.targetType},
+        ${body.condition},
+        ${body.severity ?? null},
+        ${body.duration ?? null},
+        ${body.notes ?? null},
+        NOW(),
+        NOW()
+      )
+      RETURNING *
+    `;
 
-    return NextResponse.json(inserted);
+    return NextResponse.json(rows[0], { status: 201 });
   } catch (err) {
     console.error("POST /api/conditions error:", err);
     return NextResponse.json({ error: "Failed to create condition" }, { status: 500 });
