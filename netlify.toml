@@ -8,15 +8,6 @@
   node_version = "20"
 
 ############################################################
-# NEXT.JS PLUGIN — DISABLE EDGE FUNCTIONS (VALID TOML SYNTAX)
-############################################################
-[[plugins]]
-  package = "@netlify/plugin-nextjs"
-
-  [plugins.inputs]
-    disableEdgeFunctions = true
-
-############################################################
 # FORCE ALL /api/* ROUTES TO NEXT'S SERVERLESS RUNTIME
 ############################################################
 [[redirects]]
