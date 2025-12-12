@@ -1,40 +1,58 @@
 import { NextResponse } from "next/server";
-import { query, sql } from "@/lib/db";
+import { Pool } from "pg";
+
+/**
+ * Force Node runtime (NOT Edge)
+ */
+export const runtime = "nodejs";
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.DB_SSL === "true"
+    ? { rejectUnauthorized: false }
+    : false,
+  max: 1,              // keep minimal for testing
+  idleTimeoutMillis: 5000,
+  connectionTimeoutMillis: 5000,
+});
 
 export async function GET() {
+  let client;
+
   try {
-    // Get table names
-    const tablesResult = await sql`
-      SELECT table_name
-      FROM information_schema.tables
-      WHERE table_schema = 'public'
-      ORDER BY table_name
-    `;
-
-    // In Neon 2025, this is already an array of rows
-    const tables = Array.isArray(tablesResult)
-      ? tablesResult
-      : (tablesResult.rows ?? []);
-
-    const counts = {};
-
-    for (const t of tables) {
-      const table = t.table_name;
-
-      const countResult = await sql.query(
-        `SELECT COUNT(*)::int AS count FROM ${table}`
-      );
-
-      counts[table] = countResult.rows?.[0]?.count ?? 0;
+    if (!process.env.DATABASE_URL) {
+      throw new Error("DATABASE_URL is not set");
     }
 
-    return NextResponse.json({
-      tables,
-      counts
-    });
+    client = await pool.connect();
 
-  } catch (err) {
-    console.error("debug-db error:", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    const result = await client.query("SELECT 1 AS ok");
+
+    return NextResponse.json({
+      status: "ok",
+      db: "connected",
+      result: result.rows[0],
+      host: process.env.DB_HOST,
+      database: process.env.DB_NAME,
+      runtime: "nodejs",
+    });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        status: "error",
+        message: error.message,
+        stack: error.stack,
+        env: {
+          hasDatabaseUrl: !!process.env.DATABASE_URL,
+          hasDbHost: !!process.env.DB_HOST,
+          hasDbUser: !!process.env.DB_USER,
+          hasDbName: !!process.env.DB_NAME,
+          dbSsl: process.env.DB_SSL,
+        },
+      },
+      { status: 500 }
+    );
+  } finally {
+    if (client) client.release();
   }
 }

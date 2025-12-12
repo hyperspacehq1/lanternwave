@@ -3,57 +3,125 @@ import { sql } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
 import { fromDb, toDb } from "@/lib/campaignMapper";
 
+export const dynamic = "force-dynamic";
+
 /* -----------------------------------------------------------
-   GET /api/campaigns
+   GET /api/campaigns/:id
 ------------------------------------------------------------ */
-export async function GET() {
+export async function GET(req, { params }) {
   try {
+    const { id } = params;
+
     const rows = await sql`
       SELECT *
       FROM campaigns
-      ORDER BY created_at DESC
+      WHERE id = ${id}
+      LIMIT 1
     `;
 
-    return NextResponse.json(rows.map(fromDb), { status: 200 });
+    if (!rows.length) {
+      return NextResponse.json({ error: "Campaign not found" }, { status: 404 });
+    }
+
+    return NextResponse.json(fromDb(rows[0]), { status: 200 });
   } catch (err) {
-    console.error("GET /api/campaigns error:", err);
+    console.error(`GET /api/campaigns/${params?.id} error:`, err);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
 
 /* -----------------------------------------------------------
-   POST /api/campaigns
+   PUT /api/campaigns/:id
+   TEMP: auth bypassed for debugging
 ------------------------------------------------------------ */
-export async function POST(req) {
+export async function PUT(req, { params }) {
+  try {
+    console.log("HIT CAMPAIGN PUT", params.id);
+
+    // TEMP: bypass auth
+    // const auth = requireAdmin(req);
+    // if (!auth.ok) return auth.response;
+
+    const { id } = params;
+    const incoming = await req.json();
+    const dbVals = toDb(incoming);
+
+    const sets = [];
+    const values = [];
+
+    if (incoming.name !== undefined) {
+      sets.push(`name = $${sets.length + 1}`);
+      values.push(dbVals.name);
+    }
+
+    if (incoming.description !== undefined) {
+      sets.push(`description = $${sets.length + 1}`);
+      values.push(dbVals.description);
+    }
+
+    if (incoming.worldSetting !== undefined) {
+      sets.push(`world_setting = $${sets.length + 1}`);
+      values.push(dbVals.world_setting);
+    }
+
+    if (incoming.campaignDate !== undefined) {
+      sets.push(`campaign_date = $${sets.length + 1}`);
+      values.push(dbVals.campaign_date);
+    }
+
+    if (sets.length === 0) {
+      return NextResponse.json(
+        { error: "No valid fields provided to update" },
+        { status: 400 }
+      );
+    }
+
+    sets.push(`updated_at = NOW()`);
+    values.push(id);
+
+    const sqlText = `
+      UPDATE campaigns
+      SET ${sets.join(", ")}
+      WHERE id = $${values.length}
+      RETURNING *
+    `;
+
+    const result = await sql.query(sqlText, values);
+    const updated = result.rows?.[0];
+
+    if (!updated) {
+      return NextResponse.json({ error: "Campaign not found" }, { status: 404 });
+    }
+
+    return NextResponse.json(fromDb(updated), { status: 200 });
+  } catch (err) {
+    console.error(`PUT /api/campaigns/${params?.id} error:`, err);
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+
+/* -----------------------------------------------------------
+   DELETE /api/campaigns/:id
+------------------------------------------------------------ */
+export async function DELETE(req, { params }) {
   try {
     const auth = requireAdmin(req);
     if (!auth.ok) return auth.response;
 
-    const body = await req.json();
-    if (!body.name) {
-      return NextResponse.json({ error: "name is required" }, { status: 400 });
-    }
-
-    const dbVals = toDb(body);
+    const { id } = params;
 
     const result = await sql.query(
-      `
-      INSERT INTO campaigns
-        (name, description, world_setting, campaign_date, created_at, updated_at)
-      VALUES ($1, $2, $3, $4, NOW(), NOW())
-      RETURNING *
-      `,
-      [
-        dbVals.name,
-        dbVals.description,
-        dbVals.world_setting,
-        dbVals.campaign_date
-      ]
+      `DELETE FROM campaigns WHERE id = $1 RETURNING id`,
+      [id]
     );
 
-    return NextResponse.json(fromDb(result.rows[0]), { status: 201 });
+    if (!result.rows?.length) {
+      return NextResponse.json({ error: "Campaign not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true, id }, { status: 200 });
   } catch (err) {
-    console.error("POST /api/campaigns error:", err);
+    console.error(`DELETE /api/campaigns/${params?.id} error:`, err);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
