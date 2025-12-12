@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { cmApi } from "@/lib/cm/client";
+// Import { cmApi } from "@/lib/cm/client";
 
 export default function EventForm({ record, onChange }) {
   const [campaigns, setCampaigns] = useState([]);
