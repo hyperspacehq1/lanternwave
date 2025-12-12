@@ -1,15 +1,14 @@
-// app/api/campaigns/route.js
 import { NextResponse } from "next/server";
-import { query } from "@/lib/db";
+import { sql } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
 import { fromDb, toDb } from "@/lib/campaignMapper";
 
 /* -----------------------------------------------------------
-   GET /api/campaigns  → list all campaigns
+   GET /api/campaigns
 ------------------------------------------------------------ */
 export async function GET() {
   try {
-    const rows = await query`
+    const rows = await sql`
       SELECT *
       FROM campaigns
       ORDER BY created_at DESC
@@ -18,16 +17,12 @@ export async function GET() {
     return NextResponse.json(rows.map(fromDb), { status: 200 });
   } catch (err) {
     console.error("GET /api/campaigns error:", err);
-    return NextResponse.json(
-      { error: err.message ?? "Internal Server Error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
 
 /* -----------------------------------------------------------
-   POST /api/campaigns  → create campaign
-   Accepts camelCase input, uses mapper to convert
+   POST /api/campaigns
 ------------------------------------------------------------ */
 export async function POST(req) {
   try {
@@ -36,35 +31,29 @@ export async function POST(req) {
 
     const body = await req.json();
     if (!body.name) {
-      return NextResponse.json(
-        { error: "name is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "name is required" }, { status: 400 });
     }
 
     const dbVals = toDb(body);
 
-    const rows = await query`
+    const result = await sql.query(
+      `
       INSERT INTO campaigns
         (name, description, world_setting, campaign_date, created_at, updated_at)
-      VALUES
-        (
-          ${dbVals.name},
-          ${dbVals.description},
-          ${dbVals.world_setting},
-          ${dbVals.campaign_date},
-          NOW(),
-          NOW()
-        )
+      VALUES ($1, $2, $3, $4, NOW(), NOW())
       RETURNING *
-    `;
+      `,
+      [
+        dbVals.name,
+        dbVals.description,
+        dbVals.world_setting,
+        dbVals.campaign_date
+      ]
+    );
 
-    return NextResponse.json(fromDb(rows[0]), { status: 201 });
+    return NextResponse.json(fromDb(result.rows[0]), { status: 201 });
   } catch (err) {
     console.error("POST /api/campaigns error:", err);
-    return NextResponse.json(
-      { error: err.message ?? "Internal Server Error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

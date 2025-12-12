@@ -1,17 +1,16 @@
-// app/api/campaigns/[id]/route.js
 import { NextResponse } from "next/server";
-import { query } from "@/lib/db";
+import { sql } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
 import { fromDb, toDb } from "@/lib/campaignMapper";
 
 /* -----------------------------------------------------------
-   GET /api/campaigns/:id  → fetch single campaign
+   GET /api/campaigns/:id
 ------------------------------------------------------------ */
 export async function GET(req, { params }) {
   try {
     const { id } = params;
 
-    const rows = await query`
+    const rows = await sql`
       SELECT *
       FROM campaigns
       WHERE id = ${id}
@@ -19,25 +18,19 @@ export async function GET(req, { params }) {
     `;
 
     if (!rows.length) {
-      return NextResponse.json(
-        { error: "Campaign not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Campaign not found" }, { status: 404 });
     }
 
     return NextResponse.json(fromDb(rows[0]), { status: 200 });
   } catch (err) {
     console.error(`GET /api/campaigns/${params?.id} error:`, err);
-    return NextResponse.json(
-      { error: err.message ?? "Internal Server Error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
 
 /* -----------------------------------------------------------
-   PUT /api/campaigns/:id  → PARTIAL UPDATE
-   Only updates fields provided in request body
+   PUT /api/campaigns/:id
+   Partial update — only updates provided fields
 ------------------------------------------------------------ */
 export async function PUT(req, { params }) {
   try {
@@ -78,37 +71,30 @@ export async function PUT(req, { params }) {
       );
     }
 
-    // Always update updated_at
+    // Add updated_at always
     sets.push(`updated_at = NOW()`);
 
-    // Add id param
+    // Add ID as final parameter
     values.push(id);
-    const idIndex = values.length;
 
-    const sql = `
+    const sqlText = `
       UPDATE campaigns
       SET ${sets.join(", ")}
-      WHERE id = $${idIndex}
+      WHERE id = $${values.length}
       RETURNING *
     `;
 
-    // Neon array-tagged template form
-    const rows = await query([sql, ...values]);
+    const result = await sql.query(sqlText, values);
+    const updated = result.rows?.[0];
 
-    if (!rows.length) {
-      return NextResponse.json(
-        { error: "Campaign not found" },
-        { status: 404 }
-      );
+    if (!updated) {
+      return NextResponse.json({ error: "Campaign not found" }, { status: 404 });
     }
 
-    return NextResponse.json(fromDb(rows[0]), { status: 200 });
+    return NextResponse.json(fromDb(updated), { status: 200 });
   } catch (err) {
     console.error(`PUT /api/campaigns/${params?.id} error:`, err);
-    return NextResponse.json(
-      { error: err.message ?? "Internal Server Error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
 
@@ -122,25 +108,18 @@ export async function DELETE(req, { params }) {
 
     const { id } = params;
 
-    const rows = await query`
-      DELETE FROM campaigns
-      WHERE id = ${id}
-      RETURNING id
-    `;
+    const result = await sql.query(
+      `DELETE FROM campaigns WHERE id = $1 RETURNING id`,
+      [id]
+    );
 
-    if (!rows.length) {
-      return NextResponse.json(
-        { error: "Campaign not found" },
-        { status: 404 }
-      );
+    if (!result.rows?.length) {
+      return NextResponse.json({ error: "Campaign not found" }, { status: 404 });
     }
 
     return NextResponse.json({ success: true, id }, { status: 200 });
   } catch (err) {
     console.error(`DELETE /api/campaigns/${params?.id} error:`, err);
-    return NextResponse.json(
-      { error: err.message ?? "Internal Server Error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
