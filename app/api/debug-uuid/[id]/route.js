@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { sql } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
-/* UPDATE */
 export async function PUT(req, { params }) {
   const { name } = await req.json();
 
@@ -20,7 +20,6 @@ export async function PUT(req, { params }) {
   });
 }
 
-/* DELETE */
 export async function DELETE(req, { params }) {
   const rows = await sql`
     DELETE FROM debug_uuid
@@ -33,3 +32,4 @@ export async function DELETE(req, { params }) {
     id: rows[0]?.id ?? null
   });
 }
+
