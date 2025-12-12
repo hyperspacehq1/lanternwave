@@ -2,12 +2,12 @@
 
 import React, { useEffect, useState } from "react";
 // import { cmApi } from "@/lib/cm/client";
-// import Timeline from "@/components/gm/Timeline";
-// import RelationshipGraph from "@/components/gm/RelationshipGraph";
-// Import MapViewer from "@/components/gm/MapViewer";
+import Timeline from "@/components/gm/Timeline";
+import RelationshipGraph from "@/components/gm/RelationshipGraph";
+import MapViewer from "@/components/gm/MapViewer";
 import SearchBar from "@/components/gm/SearchBar";
 import SessionPanel from "@/components/gm/SessionPanel";
-// import Tools from "@/components/gm/Tools";
+import Tools from "@/components/gm/Tools";
 
 import "./gm-dashboard.css";
 
