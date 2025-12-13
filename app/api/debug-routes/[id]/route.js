@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { Pool } from "pg";
-import { randomUUID } from "crypto";
 
 export const runtime = "nodejs";
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
@@ -11,39 +10,31 @@ const pool = new Pool({
   max: 1
 });
 
-async function ensureTable() {
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS debug_kv (
-      id UUID PRIMARY KEY,
-      value TEXT NOT NULL
-    );
-  `);
-}
-
 /**
- * POST
- * Body: { "value": "test value" }
+ * PUT
+ * Body: { "value": "updated value" }
  */
-export async function POST(req) {
+export async function PUT(req, { params }) {
   try {
-    await ensureTable();
-
+    const { id } = params;
     const { value } = await req.json();
+
     if (!value) {
       return NextResponse.json({ error: "value is required" }, { status: 400 });
     }
 
-    const id = randomUUID();
-
-    await pool.query(
-      "INSERT INTO debug_kv (id, value) VALUES ($1, $2)",
-      [id, value]
+    const result = await pool.query(
+      "UPDATE debug_kv SET value = $1 WHERE id = $2 RETURNING id, value",
+      [value, id]
     );
 
+    if (result.rowCount === 0) {
+      return NextResponse.json({ error: "not found" }, { status: 404 });
+    }
+
     return NextResponse.json({
-      status: "created",
-      id,
-      value
+      status: "updated",
+      row: result.rows[0]
     });
   } catch (err) {
     return NextResponse.json(
@@ -54,20 +45,24 @@ export async function POST(req) {
 }
 
 /**
- * GET
- * Returns all rows
+ * DELETE
  */
-export async function GET() {
+export async function DELETE(req, { params }) {
   try {
-    await ensureTable();
+    const { id } = params;
 
     const result = await pool.query(
-      "SELECT id, value FROM debug_kv ORDER BY id"
+      "DELETE FROM debug_kv WHERE id = $1 RETURNING id",
+      [id]
     );
 
+    if (result.rowCount === 0) {
+      return NextResponse.json({ error: "not found" }, { status: 404 });
+    }
+
     return NextResponse.json({
-      count: result.rows.length,
-      rows: result.rows
+      status: "deleted",
+      id: result.rows[0].id
     });
   } catch (err) {
     return NextResponse.json(
