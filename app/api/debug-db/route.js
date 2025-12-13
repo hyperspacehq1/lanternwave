@@ -6,14 +6,23 @@ import { Pool } from "pg";
  */
 export const runtime = "nodejs";
 
+/**
+ * IMPORTANT:
+ * - Do NOT rely on DATABASE_URL ssl params
+ * - Explicit SSL config is REQUIRED for Aurora on Netlify
+ */
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DB_SSL === "true"
-    ? { rejectUnauthorized: false }
-    : false,
-  max: 1,              // keep minimal for testing
+
+  // This is the critical fix for:
+  // "unable to get local issuer certificate"
+  ssl: {
+    rejectUnauthorized: false
+  },
+
+  max: 1, // keep minimal for testing
   idleTimeoutMillis: 5000,
-  connectionTimeoutMillis: 5000,
+  connectionTimeoutMillis: 10000
 });
 
 export async function GET() {
@@ -32,9 +41,13 @@ export async function GET() {
       status: "ok",
       db: "connected",
       result: result.rows[0],
-      host: process.env.DB_HOST,
-      database: process.env.DB_NAME,
       runtime: "nodejs",
+      diagnostics: {
+        hasDatabaseUrl: true,
+        sslMode: "rejectUnauthorized=false",
+        host: process.env.DB_HOST,
+        database: process.env.DB_NAME
+      }
     });
   } catch (error) {
     return NextResponse.json(
@@ -42,13 +55,14 @@ export async function GET() {
         status: "error",
         message: error.message,
         stack: error.stack,
-        env: {
+        diagnostics: {
           hasDatabaseUrl: !!process.env.DATABASE_URL,
           hasDbHost: !!process.env.DB_HOST,
           hasDbUser: !!process.env.DB_USER,
           hasDbName: !!process.env.DB_NAME,
-          dbSsl: process.env.DB_SSL,
-        },
+          dbSslEnv: process.env.DB_SSL,
+          nodeVersion: process.version
+        }
       },
       { status: 500 }
     );
