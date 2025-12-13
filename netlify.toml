@@ -3,8 +3,3 @@
   publish = ".next"
   node_version = "20"
 
-# Your UI redirects only:
-[[redirects]]
-  from = "/player"
-  to = "/"
-  status = 200
