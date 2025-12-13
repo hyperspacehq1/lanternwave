@@ -10,35 +10,58 @@ const pool = new Pool({
   max: 1
 });
 
+async function ensureTable() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS debug_kv (
+      id UUID PRIMARY KEY,
+      value TEXT NOT NULL
+    );
+  `);
+}
+
 /**
  * PUT
- * Body: { "value": "updated value" }
  */
-export async function PUT(req, { params }) {
-  try {
-    const { id } = params;
-    const { value } = await req.json();
+export async function PUT(req, context) {
+  const id = context?.params?.id;
 
-    if (!value) {
-      return NextResponse.json({ error: "value is required" }, { status: 400 });
+  try {
+    await ensureTable();
+
+    if (!id) {
+      return NextResponse.json(
+        { error: "Missing ID in route params", params: context?.params },
+        { status: 400 }
+      );
     }
 
-    const result = await pool.query(
+    const { value } = await req.json();
+
+    // 🔍 Prove the row exists
+    const existing = await pool.query(
+      "SELECT id, value FROM debug_kv WHERE id = $1",
+      [id]
+    );
+
+    if (existing.rowCount === 0) {
+      return NextResponse.json(
+        { error: "Row not found", id },
+        { status: 404 }
+      );
+    }
+
+    const updated = await pool.query(
       "UPDATE debug_kv SET value = $1 WHERE id = $2 RETURNING id, value",
       [value, id]
     );
 
-    if (result.rowCount === 0) {
-      return NextResponse.json({ error: "not found" }, { status: 404 });
-    }
-
     return NextResponse.json({
       status: "updated",
-      row: result.rows[0]
+      row: updated.rows[0]
     });
   } catch (err) {
     return NextResponse.json(
-      { error: err.message },
+      { error: err.message, stack: err.stack },
       { status: 500 }
     );
   }
@@ -47,26 +70,43 @@ export async function PUT(req, { params }) {
 /**
  * DELETE
  */
-export async function DELETE(req, { params }) {
-  try {
-    const { id } = params;
+export async function DELETE(req, context) {
+  const id = context?.params?.id;
 
-    const result = await pool.query(
-      "DELETE FROM debug_kv WHERE id = $1 RETURNING id",
+  try {
+    await ensureTable();
+
+    if (!id) {
+      return NextResponse.json(
+        { error: "Missing ID in route params", params: context?.params },
+        { status: 400 }
+      );
+    }
+
+    const existing = await pool.query(
+      "SELECT id FROM debug_kv WHERE id = $1",
       [id]
     );
 
-    if (result.rowCount === 0) {
-      return NextResponse.json({ error: "not found" }, { status: 404 });
+    if (existing.rowCount === 0) {
+      return NextResponse.json(
+        { error: "Row not found", id },
+        { status: 404 }
+      );
     }
+
+    await pool.query(
+      "DELETE FROM debug_kv WHERE id = $1",
+      [id]
+    );
 
     return NextResponse.json({
       status: "deleted",
-      id: result.rows[0].id
+      id
     });
   } catch (err) {
     return NextResponse.json(
-      { error: err.message },
+      { error: err.message, stack: err.stack },
       { status: 500 }
     );
   }
