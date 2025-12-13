@@ -2,27 +2,27 @@ import { NextResponse } from "next/server";
 import { Pool } from "pg";
 
 /**
- * Force Node runtime (NOT Edge)
+ * Force Node runtime (never Edge)
  */
 export const runtime = "nodejs";
 
 /**
- * IMPORTANT:
- * - Do NOT rely on DATABASE_URL ssl params
- * - Explicit SSL config is REQUIRED for Aurora on Netlify
+ * HARD OVERRIDE:
+ * This disables TLS CA verification at the Node process level.
+ * Required for Aurora on Netlify without shipping RDS CA bundles.
+ */
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+
+/**
+ * Single-use pool for debug.
+ * No env conditionals. No URL ssl params. No helpers.
  */
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-
-  // This is the critical fix for:
-  // "unable to get local issuer certificate"
-  ssl: {
-    rejectUnauthorized: false
-  },
-
-  max: 1, // keep minimal for testing
+  ssl: true,
+  max: 1,
   idleTimeoutMillis: 5000,
-  connectionTimeoutMillis: 10000
+  connectionTimeoutMillis: 10000,
 });
 
 export async function GET() {
@@ -30,7 +30,7 @@ export async function GET() {
 
   try {
     if (!process.env.DATABASE_URL) {
-      throw new Error("DATABASE_URL is not set");
+      throw new Error("DATABASE_URL is missing");
     }
 
     client = await pool.connect();
@@ -41,13 +41,13 @@ export async function GET() {
       status: "ok",
       db: "connected",
       result: result.rows[0],
-      runtime: "nodejs",
       diagnostics: {
+        nodeVersion: process.version,
+        tlsDisabled: process.env.NODE_TLS_REJECT_UNAUTHORIZED,
         hasDatabaseUrl: true,
-        sslMode: "rejectUnauthorized=false",
         host: process.env.DB_HOST,
-        database: process.env.DB_NAME
-      }
+        database: process.env.DB_NAME,
+      },
     });
   } catch (error) {
     return NextResponse.json(
@@ -56,13 +56,13 @@ export async function GET() {
         message: error.message,
         stack: error.stack,
         diagnostics: {
+          nodeVersion: process.version,
+          tlsDisabled: process.env.NODE_TLS_REJECT_UNAUTHORIZED,
           hasDatabaseUrl: !!process.env.DATABASE_URL,
           hasDbHost: !!process.env.DB_HOST,
           hasDbUser: !!process.env.DB_USER,
           hasDbName: !!process.env.DB_NAME,
-          dbSslEnv: process.env.DB_SSL,
-          nodeVersion: process.version
-        }
+        },
       },
       { status: 500 }
     );
