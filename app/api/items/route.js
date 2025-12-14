@@ -1,63 +1,35 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
+import { v4 as uuid } from "uuid";
 
 /* -----------------------------------------------------------
    GET /api/items
+   Optional: ?id=
 ------------------------------------------------------------ */
 export async function GET(req) {
-  try {
-    const { searchParams } = new URL(req.url);
-    const id = searchParams.get("id");
-    const eventId = searchParams.get("event_id");
+  const { searchParams } = new URL(req.url);
+  const id = searchParams.get("id");
 
-    // Single item
+  try {
     if (id) {
-      const itemRes = await query(
-        )SELECT * FROM items WHERE id=$1 LIMIT 1),
+      const row = await query(
+        `SELECT *
+         FROM items
+         WHERE id = $1`,
         [id]
       );
 
-      if (itemRes.rows.length === 0)
-        return NextResponse.json({ error: "Item not found" }, { status: 404 });
-
-      const events = (
-        await query(
-          )
-          SELECT e.*
-          FROM event_items ei
-          JOIN events e ON e.id = ei.event_id
-          WHERE ei.item_id=$1
-          ORDER BY e.created_at ASC
-        ),
-          [id]
-        )
-      ).rows;
-
-      return NextResponse.json(
-        { ...itemRes.rows[0], events },
-        { status: 200 }
-      );
+      return NextResponse.json(row.rows[0] || null);
     }
 
-    // Items for event
-    if (eventId) {
-      const out = await query(
-        )
-        SELECT items.*
-        FROM event_items ei
-        JOIN items ON items.id = ei.item_id
-        WHERE ei.event_id=$1
-        ORDER BY items.description ASC
-      ),
-        [eventId]
-      );
-      return NextResponse.json(out.rows, { status: 200 });
-    }
+    const list = await query(
+      `SELECT *
+       FROM items
+       ORDER BY created_at ASC`
+    );
 
-    // All items
-    const out = await query()SELECT * FROM items ORDER BY description ASC));
-    return NextResponse.json(out.rows, { status: 200 });
+    return NextResponse.json(list.rows);
   } catch (err) {
     console.error("GET /items error:", err);
     return NextResponse.json({ error: err.message }, { status: 500 });
@@ -68,27 +40,34 @@ export async function GET(req) {
    POST /api/items
 ------------------------------------------------------------ */
 export async function POST(req) {
+  const headers = Object.fromEntries(req.headers.entries());
+  const auth = requireAdmin(headers);
+  if (!auth.ok) return auth.response;
+
   try {
-    const headers = Object.fromEntries(req.headers.entries());
-    const auth = requireAdmin(headers);
-    if (!auth.ok) return auth.response;
+    const body = await req.json();
+    const id = uuid();
 
-    const { description, notes } = await req.json();
-
-    if (!description)
-      return NextResponse.json({ error: "description is required" }, { status: 400 });
-
-    const result = await query(
+    const row = await query(
+      `
+      INSERT INTO items (
+        id,
+        name,
+        description,
+        created_at,
+        updated_at
       )
-      INSERT INTO items
-        (description, notes, created_at, updated_at)
-      VALUES ($1,$2, NOW(), NOW())
+      VALUES ($1, $2, $3, NOW(), NOW())
       RETURNING *
-    ),
-      [description, notes || ""]
+      `,
+      [
+        id,
+        body.name,
+        body.description,
+      ]
     );
 
-    return NextResponse.json(result.rows[0], { status: 201 });
+    return NextResponse.json(row.rows[0]);
   } catch (err) {
     console.error("POST /items error:", err);
     return NextResponse.json({ error: err.message }, { status: 500 });
@@ -99,33 +78,37 @@ export async function POST(req) {
    PUT /api/items?id=
 ------------------------------------------------------------ */
 export async function PUT(req) {
+  const headers = Object.fromEntries(req.headers.entries());
+  const auth = requireAdmin(headers);
+  if (!auth.ok) return auth.response;
+
+  const { searchParams } = new URL(req.url);
+  const id = searchParams.get("id");
+
+  if (!id) {
+    return NextResponse.json({ error: "id required" }, { status: 400 });
+  }
+
   try {
-    const headers = Object.fromEntries(req.headers.entries());
-    const auth = requireAdmin(headers);
-    if (!auth.ok) return auth.response;
+    const body = await req.json();
 
-    const { searchParams } = new URL(req.url);
-    const id = searchParams.get("id");
-    if (!id) return NextResponse.json({ error: "id is required" }, { status: 400 });
-
-    const { description, notes } = await req.json();
-
-    const result = await query(
-      )
+    const row = await query(
+      `
       UPDATE items
-         SET description = COALESCE($2, description),
-             notes       = COALESCE($3, notes),
+         SET name        = $2,
+             description = $3,
              updated_at  = NOW()
-       WHERE id=$1
+       WHERE id = $1
        RETURNING *
-    ),
-      [id, description, notes]
+      `,
+      [
+        id,
+        body.name,
+        body.description,
+      ]
     );
 
-    if (result.rows.length === 0)
-      return NextResponse.json({ error: "Item not found" }, { status: 404 });
-
-    return NextResponse.json(result.rows[0], { status: 200 });
+    return NextResponse.json(row.rows[0]);
   } catch (err) {
     console.error("PUT /items error:", err);
     return NextResponse.json({ error: err.message }, { status: 500 });
@@ -136,25 +119,24 @@ export async function PUT(req) {
    DELETE /api/items?id=
 ------------------------------------------------------------ */
 export async function DELETE(req) {
+  const headers = Object.fromEntries(req.headers.entries());
+  const auth = requireAdmin(headers);
+  if (!auth.ok) return auth.response;
+
+  const { searchParams } = new URL(req.url);
+  const id = searchParams.get("id");
+
+  if (!id) {
+    return NextResponse.json({ error: "id required" }, { status: 400 });
+  }
+
   try {
-    const headers = Object.fromEntries(req.headers.entries());
-    const auth = requireAdmin(headers);
-    if (!auth.ok) return auth.response;
-
-    const { searchParams } = new URL(req.url);
-    const id = searchParams.get("id");
-    if (!id)
-      return NextResponse.json({ error: "id is required" }, { status: 400 });
-
-    const result = await query(
-      )DELETE FROM items WHERE id=$1 RETURNING id),
+    await query(
+      `DELETE FROM items WHERE id = $1`,
       [id]
     );
 
-    if (result.rows.length === 0)
-      return NextResponse.json({ error: "Item not found" }, { status: 404 });
-
-    return NextResponse.json({ success: true, id }, { status: 200 });
+    return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("DELETE /items error:", err);
     return NextResponse.json({ error: err.message }, { status: 500 });

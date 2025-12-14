@@ -20,8 +20,12 @@ async function requireTenant(req) {
     };
   }
 
-  // Enforce RLS
-  await query()SET LOCAL app.tenant_id = ${tenantId});
+  // Enforce RLS (must be a real query string)
+  await query(
+    `SET LOCAL app.tenant_id = $1`,
+    [tenantId]
+  );
+
   return { ok: true };
 }
 
@@ -35,27 +39,35 @@ export async function GET(req, { params }) {
 
     const { id } = params;
 
-    const rows = await query()
+    const result = await query(
+      `
       SELECT *
       FROM campaigns
-      WHERE
-        tenant_id = app_tenant_id()
-        AND id = ${id}
+      WHERE tenant_id = app_tenant_id()
+        AND id = $1
         AND deleted_at IS NULL
       LIMIT 1
+      `,
+      [id]
     );
 
-    if (!rows.length) {
+    if (!result.rows.length) {
       return NextResponse.json(
         { error: "Campaign not found" },
         { status: 404 }
       );
     }
 
-    return NextResponse.json(fromDb(rows[0]), { status: 200 });
+    return NextResponse.json(fromDb(result.rows[0]), { status: 200 });
   } catch (err) {
-    console.error()GET /api/campaigns/${params?.id} error:), err);
-    return NextResponse.json({ error: "Internal error" }, { status: 500 });
+    console.error(
+      `GET /api/campaigns/${params?.id} error:`,
+      err
+    );
+    return NextResponse.json(
+      { error: "Internal error" },
+      { status: 500 }
+    );
   }
 }
 
@@ -67,7 +79,6 @@ export async function PUT(req, { params }) {
     const tenant = await requireTenant(req);
     if (!tenant.ok) return tenant.response;
 
-    // Re-enable auth now that tenant isolation is enforced
     const auth = requireAdmin(req);
     if (!auth.ok) return auth.response;
 
@@ -79,22 +90,22 @@ export async function PUT(req, { params }) {
     const values = [];
 
     if (incoming.name !== undefined) {
-      sets.push()name = $${sets.length + 1}));
+      sets.push(`name = $${sets.length + 1}`);
       values.push(dbVals.name);
     }
 
     if (incoming.description !== undefined) {
-      sets.push()description = $${sets.length + 1}));
+      sets.push(`description = $${sets.length + 1}`);
       values.push(dbVals.description);
     }
 
     if (incoming.worldSetting !== undefined) {
-      sets.push()world_setting = $${sets.length + 1}));
+      sets.push(`world_setting = $${sets.length + 1}`);
       values.push(dbVals.world_setting);
     }
 
     if (incoming.campaignDate !== undefined) {
-      sets.push()campaign_date = $${sets.length + 1}));
+      sets.push(`campaign_date = $${sets.length + 1}`);
       values.push(dbVals.campaign_date);
     }
 
@@ -105,34 +116,38 @@ export async function PUT(req, { params }) {
       );
     }
 
-    sets.push()updated_at = NOW()));
+    sets.push(`updated_at = NOW()`);
     values.push(id);
 
-    const result = await sql.query(
-      )
+    const result = await query(
+      `
       UPDATE campaigns
       SET ${sets.join(", ")}
-      WHERE
-        tenant_id = app_tenant_id()
+      WHERE tenant_id = app_tenant_id()
         AND id = $${values.length}
         AND deleted_at IS NULL
       RETURNING *
-      ),
+      `,
       values
     );
 
-    const updated = result.rows?.[0];
-    if (!updated) {
+    if (!result.rows.length) {
       return NextResponse.json(
         { error: "Campaign not found" },
         { status: 404 }
       );
     }
 
-    return NextResponse.json(fromDb(updated), { status: 200 });
+    return NextResponse.json(fromDb(result.rows[0]), { status: 200 });
   } catch (err) {
-    console.error()PUT /api/campaigns/${params?.id} error:), err);
-    return NextResponse.json({ error: "Internal error" }, { status: 500 });
+    console.error(
+      `PUT /api/campaigns/${params?.id} error:`,
+      err
+    );
+    return NextResponse.json(
+      { error: "Internal error" },
+      { status: 500 }
+    );
   }
 }
 
@@ -150,26 +165,37 @@ export async function DELETE(req, { params }) {
 
     const { id } = params;
 
-    const result = await query()
+    const result = await query(
+      `
       UPDATE campaigns
       SET deleted_at = NOW()
-      WHERE
-        tenant_id = app_tenant_id()
-        AND id = ${id}
+      WHERE tenant_id = app_tenant_id()
+        AND id = $1
         AND deleted_at IS NULL
       RETURNING id
+      `,
+      [id]
     );
 
-    if (!result.length) {
+    if (!result.rows.length) {
       return NextResponse.json(
         { error: "Campaign not found" },
         { status: 404 }
       );
     }
 
-    return NextResponse.json({ success: true, id }, { status: 200 });
+    return NextResponse.json(
+      { success: true, id },
+      { status: 200 }
+    );
   } catch (err) {
-    console.error()DELETE /api/campaigns/${params?.id} error:), err);
-    return NextResponse.json({ error: "Internal error" }, { status: 500 });
+    console.error(
+      `DELETE /api/campaigns/${params?.id} error:`,
+      err
+    );
+    return NextResponse.json(
+      { error: "Internal error" },
+      { status: 500 }
+    );
   }
 }

@@ -17,8 +17,18 @@ export async function POST(req) {
     );
   }
 
-  await query()SET LOCAL app.tenant_id = ${tenantId});
-  await query()SET LOCAL app.user_id = ${userId});
+  // ------------------------------------------------------------
+  // Enforce tenant + user context (RLS)
+  // ------------------------------------------------------------
+  await query(
+    `SET LOCAL app.tenant_id = $1`,
+    [tenantId]
+  );
+
+  await query(
+    `SET LOCAL app.user_id = $1`,
+    [userId]
+  );
 
   try {
     const { key } = await req.json();
@@ -34,13 +44,20 @@ export async function POST(req) {
     // ------------------------------------------------------------
     const r2 = getR2();
     const head = await r2.send(
-      new HeadObjectCommand({ Bucket: BUCKET, Key: key })
+      new HeadObjectCommand({
+        Bucket: BUCKET,
+        Key: key,
+      })
     );
 
+    const mimeType = guessContentType(key);
+    const byteSize = head.ContentLength || null;
+
     // ------------------------------------------------------------
-    // 2️⃣ Insert clip metadata (authoritative)
+    // 2️⃣ Insert clip metadata (authoritative DB record)
     // ------------------------------------------------------------
-    await query()
+    await query(
+      `
       INSERT INTO clips (
         tenant_id,
         user_id,
@@ -59,11 +76,13 @@ export async function POST(req) {
             AND user_id = app_user_id()
           LIMIT 1
         ),
-        ${key},
-        ${guessContentType(key)},
-        ${head.ContentLength || null}
+        $1,
+        $2,
+        $3
       )
       ON CONFLICT DO NOTHING
+      `,
+      [key, mimeType, byteSize]
     );
 
     return NextResponse.json({ ok: true, key });

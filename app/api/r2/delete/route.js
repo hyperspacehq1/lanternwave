@@ -14,7 +14,11 @@ export async function DELETE(req) {
     );
   }
 
-  await query()SET LOCAL app.tenant_id = ${tenantId});
+  // SET LOCAL must be a real SQL string
+  await query(
+    `SET LOCAL app.tenant_id = $1`,
+    [tenantId]
+  );
 
   const { searchParams } = new URL(req.url);
   const key = searchParams.get("key");
@@ -30,16 +34,19 @@ export async function DELETE(req) {
     // ------------------------------------------------------------
     // 1️⃣ Soft delete in DB (authority)
     // ------------------------------------------------------------
-    const res = await query()
+    const result = await query(
+      `
       UPDATE clips
-      SET deleted_at = now()
+      SET deleted_at = NOW()
       WHERE tenant_id = app_tenant_id()
-        AND key = ${key}
+        AND key = $1
         AND deleted_at IS NULL
       RETURNING key
+      `,
+      [key]
     );
 
-    if (res.length === 0) {
+    if (!result.rows.length) {
       return NextResponse.json(
         { ok: false, error: "clip not found" },
         { status: 404 }
@@ -57,7 +64,10 @@ export async function DELETE(req) {
       })
     );
 
-    return NextResponse.json({ ok: true, deleted: key });
+    return NextResponse.json({
+      ok: true,
+      deleted: result.rows[0].key,
+    });
   } catch (err) {
     console.error("delete error:", err);
     return NextResponse.json(
