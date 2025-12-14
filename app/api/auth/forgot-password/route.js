@@ -39,7 +39,7 @@ export async function POST(req) {
     }
 
     // Find user (do NOT reveal if missing)
-    const userRes = await db.query(
+    const userRes = await query(
       `
       SELECT id, first_name
       FROM users
@@ -61,7 +61,7 @@ export async function POST(req) {
     const code = crypto.randomBytes(32).toString("hex");
     const expiresAt = new Date(Date.now() + 1000 * 60 * 60); // 1 hour
 
-    await db.query(
+    await query(
       `
       INSERT INTO email_verifications (user_id, code, expires_at)
       VALUES ($1, $2, $3)
@@ -69,7 +69,7 @@ export async function POST(req) {
       [userId, code, expiresAt]
     );
 
-    // Send Postmark email (2025 template compliant)
+    // Send Postmark email
     const resetUrl = `https://lanternwave.com/reset-password?code=${code}`;
 
     await sendPasswordResetEmail({
