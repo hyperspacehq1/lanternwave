@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { sql } from "@/lib/db";
+import { query } from "@/lib/db";
 
 export const runtime = "nodejs";
 
@@ -12,10 +12,10 @@ export async function GET(req) {
     );
   }
 
-  await sql`SET LOCAL app.tenant_id = ${tenantId}`;
+  await query()SET LOCAL app.tenant_id = ${tenantId});
 
   try {
-    const items = await sql`
+    const items = await query()
       SELECT
         key,
         byte_size AS size,
@@ -24,7 +24,7 @@ export async function GET(req) {
       WHERE tenant_id = app_tenant_id()
         AND deleted_at IS NULL
       ORDER BY created_at DESC
-    `;
+    );
 
     return NextResponse.json({ ok: true, items });
   } catch (err) {

@@ -37,7 +37,7 @@ async function embed(term) {
    ensure search_body column exists
 ------------------------------------------------------------ */
 async function ensureSearchBody(table) {
-  await query(`
+  await query()
     DO $$
     BEGIN
       IF NOT EXISTS (
@@ -47,7 +47,7 @@ async function ensureSearchBody(table) {
         ALTER TABLE ${table} ADD COLUMN search_body TEXT;
       END IF;
     END $$;
-  `);
+  ));
 }
 
 /* -----------------------------------------------------------
@@ -57,7 +57,7 @@ async function vectorQuery(table, vector, limit) {
   await ensureSearchBody(table);
 
   const out = await query(
-    `
+    )
     SELECT
       id,
       search_body,
@@ -67,7 +67,7 @@ async function vectorQuery(table, vector, limit) {
     WHERE embedding IS NOT NULL
     ORDER BY embedding <=> $1::vector ASC
     LIMIT $2
-    `,
+    ),
     [vector, limit]
   );
 

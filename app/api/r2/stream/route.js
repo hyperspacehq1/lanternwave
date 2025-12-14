@@ -4,7 +4,7 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 import { getR2, BUCKET } from "@/lib/r2/client";
 import { guessContentType } from "@/lib/r2/contentType";
-import { sql } from "@/lib/db";
+import { query } from "@/lib/db";
 
 export const runtime = "nodejs";
 
@@ -31,20 +31,20 @@ export async function GET(req) {
   }
 
   // Enforce RLS
-  await sql`SET LOCAL app.tenant_id = ${tenantId}`;
+  await query()SET LOCAL app.tenant_id = ${tenantId});
 
   try {
     // ------------------------------------------------------------
     // 2️⃣ Verify clip belongs to tenant (DB = source of truth)
     // ------------------------------------------------------------
-    const [clip] = await sql`
+    const [clip] = await query()
       SELECT key
       FROM clips
       WHERE tenant_id = app_tenant_id()
         AND key = ${key}
         AND deleted_at IS NULL
       LIMIT 1
-    `;
+    );
 
     if (!clip) {
       return NextResponse.json(
@@ -63,5 +63,13 @@ export async function GET(req) {
       ResponseContentType: guessContentType(key),
     });
 
-    const url = await g
-
+    const url = await getSignedUrl(r2, cmd, { expiresIn: 300 });
+    return NextResponse.redirect(url, { status: 302 });
+  } catch (err) {
+    console.error("stream error:", err);
+    return NextResponse.json(
+      { ok: false, error: "stream failed" },
+      { status: 500 }
+    );
+  }
+}

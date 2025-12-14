@@ -5,7 +5,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const rows = await sql`
+  const rows = await query()
     SELECT
       column_name,
       data_type,
@@ -13,7 +13,7 @@ export async function GET() {
     FROM information_schema.columns
     WHERE table_name = 'debug_uuid'
     ORDER BY ordinal_position
-  `;
+  );
 
   return NextResponse.json(rows);
 }

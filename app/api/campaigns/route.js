@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { sql } from "@/lib/db";
+import { query } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
 import { fromDb, toDb } from "@/lib/campaignMapper";
 
@@ -21,7 +21,7 @@ async function requireTenant(req) {
   }
 
   // Enforce RLS
-  await sql`SET LOCAL app.tenant_id = ${tenantId}`;
+  await query()SET LOCAL app.tenant_id = ${tenantId});
   return { ok: true };
 }
 
@@ -35,7 +35,7 @@ export async function GET(req, { params }) {
 
     const { id } = params;
 
-    const rows = await sql`
+    const rows = await query()
       SELECT *
       FROM campaigns
       WHERE
@@ -43,7 +43,7 @@ export async function GET(req, { params }) {
         AND id = ${id}
         AND deleted_at IS NULL
       LIMIT 1
-    `;
+    );
 
     if (!rows.length) {
       return NextResponse.json(
@@ -54,7 +54,7 @@ export async function GET(req, { params }) {
 
     return NextResponse.json(fromDb(rows[0]), { status: 200 });
   } catch (err) {
-    console.error(`GET /api/campaigns/${params?.id} error:`, err);
+    console.error()GET /api/campaigns/${params?.id} error:), err);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }
@@ -79,22 +79,22 @@ export async function PUT(req, { params }) {
     const values = [];
 
     if (incoming.name !== undefined) {
-      sets.push(`name = $${sets.length + 1}`);
+      sets.push()name = $${sets.length + 1}));
       values.push(dbVals.name);
     }
 
     if (incoming.description !== undefined) {
-      sets.push(`description = $${sets.length + 1}`);
+      sets.push()description = $${sets.length + 1}));
       values.push(dbVals.description);
     }
 
     if (incoming.worldSetting !== undefined) {
-      sets.push(`world_setting = $${sets.length + 1}`);
+      sets.push()world_setting = $${sets.length + 1}));
       values.push(dbVals.world_setting);
     }
 
     if (incoming.campaignDate !== undefined) {
-      sets.push(`campaign_date = $${sets.length + 1}`);
+      sets.push()campaign_date = $${sets.length + 1}));
       values.push(dbVals.campaign_date);
     }
 
@@ -105,11 +105,11 @@ export async function PUT(req, { params }) {
       );
     }
 
-    sets.push(`updated_at = NOW()`);
+    sets.push()updated_at = NOW()));
     values.push(id);
 
     const result = await sql.query(
-      `
+      )
       UPDATE campaigns
       SET ${sets.join(", ")}
       WHERE
@@ -117,7 +117,7 @@ export async function PUT(req, { params }) {
         AND id = $${values.length}
         AND deleted_at IS NULL
       RETURNING *
-      `,
+      ),
       values
     );
 
@@ -131,7 +131,7 @@ export async function PUT(req, { params }) {
 
     return NextResponse.json(fromDb(updated), { status: 200 });
   } catch (err) {
-    console.error(`PUT /api/campaigns/${params?.id} error:`, err);
+    console.error()PUT /api/campaigns/${params?.id} error:), err);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }
@@ -150,7 +150,7 @@ export async function DELETE(req, { params }) {
 
     const { id } = params;
 
-    const result = await sql`
+    const result = await query()
       UPDATE campaigns
       SET deleted_at = NOW()
       WHERE
@@ -158,7 +158,7 @@ export async function DELETE(req, { params }) {
         AND id = ${id}
         AND deleted_at IS NULL
       RETURNING id
-    `;
+    );
 
     if (!result.length) {
       return NextResponse.json(
@@ -169,7 +169,7 @@ export async function DELETE(req, { params }) {
 
     return NextResponse.json({ success: true, id }, { status: 200 });
   } catch (err) {
-    console.error(`DELETE /api/campaigns/${params?.id} error:`, err);
+    console.error()DELETE /api/campaigns/${params?.id} error:), err);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

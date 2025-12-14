@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getR2, BUCKET } from "@/lib/r2/client";
-import { sql } from "@/lib/db";
+import { query } from "@/lib/db";
 
 export const runtime = "nodejs";
 
@@ -14,7 +14,7 @@ export async function DELETE(req) {
     );
   }
 
-  await sql`SET LOCAL app.tenant_id = ${tenantId}`;
+  await query()SET LOCAL app.tenant_id = ${tenantId});
 
   const { searchParams } = new URL(req.url);
   const key = searchParams.get("key");
@@ -30,14 +30,14 @@ export async function DELETE(req) {
     // ------------------------------------------------------------
     // 1️⃣ Soft delete in DB (authority)
     // ------------------------------------------------------------
-    const res = await sql`
+    const res = await query()
       UPDATE clips
       SET deleted_at = now()
       WHERE tenant_id = app_tenant_id()
         AND key = ${key}
         AND deleted_at IS NULL
       RETURNING key
-    `;
+    );
 
     if (res.length === 0) {
       return NextResponse.json(

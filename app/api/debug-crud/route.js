@@ -8,10 +8,10 @@ export const dynamic = "force-dynamic";
 -------------------------------- */
 export async function GET() {
   try {
-    const rows = await sql`
+    const rows = await query()
       SELECT * FROM debug_crud
       ORDER BY id DESC
-    `;
+    );
     return NextResponse.json(rows);
   } catch (err) {
     console.error("DEBUG GET error", err);
@@ -26,11 +26,11 @@ export async function POST(req) {
   try {
     const { name } = await req.json();
 
-    const result = await sql`
+    const result = await query()
       INSERT INTO debug_crud (name)
       VALUES (${name})
       RETURNING *
-    `;
+    );
 
     return NextResponse.json(result[0], { status: 201 });
   } catch (err) {

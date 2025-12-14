@@ -18,7 +18,7 @@ export async function GET(req) {
     // ────────────────────────────────
     if (id) {
       const eventRes = await query(
-        `SELECT * FROM events WHERE id=$1 LIMIT 1`,
+        )SELECT * FROM events WHERE id=$1 LIMIT 1),
         [id]
       );
 
@@ -34,12 +34,12 @@ export async function GET(req) {
       // NPCs
       const npcs = (
         await query(
-          `
+          )
           SELECT npcs.*
           FROM event_npcs en
           JOIN npcs ON npcs.id = en.npc_id
           WHERE en.event_id=$1
-        `,
+        ),
           [id]
         )
       ).rows;
@@ -47,12 +47,12 @@ export async function GET(req) {
       // Locations
       const locations = (
         await query(
-          `
+          )
           SELECT l.*
           FROM event_locations el
           JOIN locations l ON l.id = el.location_id
           WHERE el.event_id=$1
-        `,
+        ),
           [id]
         )
       ).rows;
@@ -60,12 +60,12 @@ export async function GET(req) {
       // Items
       const items = (
         await query(
-          `
+          )
           SELECT i.*
           FROM event_items ei
           JOIN items i ON i.id = ei.item_id
           WHERE ei.event_id=$1
-        `,
+        ),
           [id]
         )
       ).rows;
@@ -81,12 +81,12 @@ export async function GET(req) {
     // ────────────────────────────────
     if (sessionId) {
       const result = await query(
-        `
+        )
         SELECT *
         FROM events
         WHERE session_id=$1
         ORDER BY priority DESC, created_at ASC
-      `,
+      ),
         [sessionId]
       );
       return NextResponse.json(result.rows, { status: 200 });
@@ -97,12 +97,12 @@ export async function GET(req) {
     // ────────────────────────────────
     if (campaignId) {
       const result = await query(
-        `
+        )
         SELECT *
         FROM events
         WHERE campaign_id=$1
         ORDER BY priority DESC, created_at ASC
-      `,
+      ),
         [campaignId]
       );
       return NextResponse.json(result.rows, { status: 200 });
@@ -153,13 +153,13 @@ export async function POST(req) {
     }
 
     const result = await query(
-      `
+      )
       INSERT INTO events
         (campaign_id, session_id, description, event_type, weather,
          trigger_detail, priority, countdown_minutes, created_at, updated_at)
       VALUES ($1,$2,$3,$4,$5,$6,$7,$8, NOW(), NOW())
       RETURNING *
-    `,
+    ),
       [
         campaign_id || null,
         session_id || null,
@@ -178,11 +178,11 @@ export async function POST(req) {
     // NPCs
     for (const npcId of npc_ids) {
       await query(
-        `
+        )
         INSERT INTO event_npcs (event_id, npc_id)
         VALUES ($1,$2)
         ON CONFLICT DO NOTHING
-      `,
+      ),
         [eventId, npcId]
       );
     }
@@ -190,11 +190,11 @@ export async function POST(req) {
     // Locations
     for (const locId of location_ids) {
       await query(
-        `
+        )
         INSERT INTO event_locations (event_id, location_id)
         VALUES ($1,$2)
         ON CONFLICT DO NOTHING
-      `,
+      ),
         [eventId, locId]
       );
     }
@@ -202,11 +202,11 @@ export async function POST(req) {
     // Items
     for (const itemId of item_ids) {
       await query(
-        `
+        )
         INSERT INTO event_items (event_id, item_id)
         VALUES ($1,$2)
         ON CONFLICT DO NOTHING
-      `,
+      ),
         [eventId, itemId]
       );
     }
@@ -250,7 +250,7 @@ export async function PUT(req) {
     } = body;
 
     const result = await query(
-      `
+      )
       UPDATE events
          SET description       = COALESCE($2, description),
              event_type        = COALESCE($3, event_type),
@@ -261,7 +261,7 @@ export async function PUT(req) {
              updated_at        = NOW()
        WHERE id=$1
        RETURNING *
-    `,
+    ),
       [
         id,
         description,
@@ -284,30 +284,30 @@ export async function PUT(req) {
     // ──────────────────────────
 
     if (npc_ids) {
-      await query(`DELETE FROM event_npcs WHERE event_id=$1`, [id]);
+      await query()DELETE FROM event_npcs WHERE event_id=$1), [id]);
       for (const npcId of npc_ids) {
         await query(
-          `INSERT INTO event_npcs (event_id,npc_id) VALUES ($1,$2)`,
+          )INSERT INTO event_npcs (event_id,npc_id) VALUES ($1,$2)),
           [id, npcId]
         );
       }
     }
 
     if (location_ids) {
-      await query(`DELETE FROM event_locations WHERE event_id=$1`, [id]);
+      await query()DELETE FROM event_locations WHERE event_id=$1), [id]);
       for (const locId of location_ids) {
         await query(
-          `INSERT INTO event_locations (event_id,location_id) VALUES ($1,$2)`,
+          )INSERT INTO event_locations (event_id,location_id) VALUES ($1,$2)),
           [id, locId]
         );
       }
     }
 
     if (item_ids) {
-      await query(`DELETE FROM event_items WHERE event_id=$1`, [id]);
+      await query()DELETE FROM event_items WHERE event_id=$1), [id]);
       for (const itemId of item_ids) {
         await query(
-          `INSERT INTO event_items (event_id,item_id) VALUES ($1,$2)`,
+          )INSERT INTO event_items (event_id,item_id) VALUES ($1,$2)),
           [id, itemId]
         );
       }
@@ -339,7 +339,7 @@ export async function DELETE(req) {
     }
 
     const result = await query(
-      `DELETE FROM events WHERE id=$1 RETURNING id`,
+      )DELETE FROM events WHERE id=$1 RETURNING id),
       [id]
     );
 

@@ -18,7 +18,7 @@ export async function GET(req) {
     // ────────────────────────────────
     if (id) {
       const encRes = await query(
-        `SELECT * FROM encounters WHERE id=$1 LIMIT 1`,
+        )SELECT * FROM encounters WHERE id=$1 LIMIT 1),
         [id]
       );
 
@@ -32,39 +32,39 @@ export async function GET(req) {
       // Load relations
       const lore = (
         await query(
-          `
+          )
           SELECT l.*
           FROM encounter_lore el
           JOIN lore l ON l.id = el.lore_id
           WHERE el.encounter_id=$1
           ORDER BY l.description ASC
-        `,
+        ),
           [id]
         )
       ).rows;
 
       const locations = (
         await query(
-          `
+          )
           SELECT loc.*
           FROM encounter_locations el
           JOIN locations loc ON loc.id = el.location_id
           WHERE el.encounter_id=$1
           ORDER BY loc.description ASC
-        `,
+        ),
           [id]
         )
       ).rows;
 
       const items = (
         await query(
-          `
+          )
           SELECT i.*
           FROM encounter_items ei
           JOIN items i ON i.id = ei.item_id
           WHERE ei.encounter_id=$1
           ORDER BY i.description ASC
-        `,
+        ),
           [id]
         )
       ).rows;
@@ -80,12 +80,12 @@ export async function GET(req) {
     // ────────────────────────────────
     if (sessionId) {
       const result = await query(
-        `
+        )
         SELECT *
         FROM encounters
         WHERE session_id=$1
         ORDER BY priority DESC, created_at ASC
-      `,
+      ),
         [sessionId]
       );
       return NextResponse.json(result.rows, { status: 200 });
@@ -96,12 +96,12 @@ export async function GET(req) {
     // ────────────────────────────────
     if (campaignId) {
       const result = await query(
-        `
+        )
         SELECT *
         FROM encounters
         WHERE campaign_id=$1
         ORDER BY priority DESC, created_at ASC
-      `,
+      ),
         [campaignId]
       );
       return NextResponse.json(result.rows, { status: 200 });
@@ -111,7 +111,7 @@ export async function GET(req) {
     // ALL ENCOUNTERS
     // ────────────────────────────────
     const result = await query(
-      `SELECT * FROM encounters ORDER BY created_at DESC`
+      )SELECT * FROM encounters ORDER BY created_at DESC)
     );
     return NextResponse.json(result.rows, { status: 200 });
   } catch (err) {
@@ -153,12 +153,12 @@ export async function POST(req) {
     }
 
     const result = await query(
-      `
+      )
       INSERT INTO encounters
         (campaign_id, session_id, description, notes, priority, created_at, updated_at)
       VALUES ($1,$2,$3,$4,$5, NOW(), NOW())
       RETURNING *
-    `,
+    ),
       [
         campaign_id || null,
         session_id || null,
@@ -174,11 +174,11 @@ export async function POST(req) {
     // Link lore
     for (const loreId of lore_ids) {
       await query(
-        `
+        )
         INSERT INTO encounter_lore (encounter_id, lore_id)
         VALUES ($1,$2)
         ON CONFLICT DO NOTHING
-      `,
+      ),
         [encounterId, loreId]
       );
     }
@@ -186,11 +186,11 @@ export async function POST(req) {
     // Link locations
     for (const locId of location_ids) {
       await query(
-        `
+        )
         INSERT INTO encounter_locations (encounter_id, location_id)
         VALUES ($1,$2)
         ON CONFLICT DO NOTHING
-      `,
+      ),
         [encounterId, locId]
       );
     }
@@ -198,11 +198,11 @@ export async function POST(req) {
     // Link items
     for (const itemId of item_ids) {
       await query(
-        `
+        )
         INSERT INTO encounter_items (encounter_id, item_id)
         VALUES ($1,$2)
         ON CONFLICT DO NOTHING
-      `,
+      ),
         [encounterId, itemId]
       );
     }
@@ -243,7 +243,7 @@ export async function PUT(req) {
     } = body;
 
     const result = await query(
-      `
+      )
       UPDATE encounters
          SET description = COALESCE($2, description),
              notes       = COALESCE($3, notes),
@@ -251,7 +251,7 @@ export async function PUT(req) {
              updated_at  = NOW()
        WHERE id=$1
        RETURNING *
-    `,
+    ),
       [id, description, notes, priority]
     );
 
@@ -263,10 +263,10 @@ export async function PUT(req) {
 
     // Replace join tables
     if (lore_ids) {
-      await query(`DELETE FROM encounter_lore WHERE encounter_id=$1`, [id]);
+      await query()DELETE FROM encounter_lore WHERE encounter_id=$1), [id]);
       for (const loreId of lore_ids) {
         await query(
-          `INSERT INTO encounter_lore (encounter_id,lore_id) VALUES ($1,$2)`,
+          )INSERT INTO encounter_lore (encounter_id,lore_id) VALUES ($1,$2)),
           [id, loreId]
         );
       }
@@ -274,22 +274,22 @@ export async function PUT(req) {
 
     if (location_ids) {
       await query(
-        `DELETE FROM encounter_locations WHERE encounter_id=$1`,
+        )DELETE FROM encounter_locations WHERE encounter_id=$1),
         [id]
       );
       for (const locId of location_ids) {
         await query(
-          `INSERT INTO encounter_locations (encounter_id,location_id) VALUES ($1,$2)`,
+          )INSERT INTO encounter_locations (encounter_id,location_id) VALUES ($1,$2)),
           [id, locId]
         );
       }
     }
 
     if (item_ids) {
-      await query(`DELETE FROM encounter_items WHERE encounter_id=$1`, [id]);
+      await query()DELETE FROM encounter_items WHERE encounter_id=$1), [id]);
       for (const itemId of item_ids) {
         await query(
-          `INSERT INTO encounter_items (encounter_id,item_id) VALUES ($1,$2)`,
+          )INSERT INTO encounter_items (encounter_id,item_id) VALUES ($1,$2)),
           [id, itemId]
         );
       }
@@ -321,7 +321,7 @@ export async function DELETE(req) {
     }
 
     const result = await query(
-      `DELETE FROM encounters WHERE id=$1 RETURNING id`,
+      )DELETE FROM encounters WHERE id=$1 RETURNING id),
       [id]
     );
 

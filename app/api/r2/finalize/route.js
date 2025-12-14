@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { HeadObjectCommand } from "@aws-sdk/client-s3";
 import { getR2, BUCKET } from "@/lib/r2/client";
-import { sql } from "@/lib/db";
+import { query } from "@/lib/db";
 import { guessContentType } from "@/lib/r2/contentType";
 
 export const runtime = "nodejs";
@@ -17,8 +17,8 @@ export async function POST(req) {
     );
   }
 
-  await sql`SET LOCAL app.tenant_id = ${tenantId}`;
-  await sql`SET LOCAL app.user_id = ${userId}`;
+  await query()SET LOCAL app.tenant_id = ${tenantId});
+  await query()SET LOCAL app.user_id = ${userId});
 
   try {
     const { key } = await req.json();
@@ -40,7 +40,7 @@ export async function POST(req) {
     // ------------------------------------------------------------
     // 2️⃣ Insert clip metadata (authoritative)
     // ------------------------------------------------------------
-    await sql`
+    await query()
       INSERT INTO clips (
         tenant_id,
         user_id,
@@ -64,7 +64,7 @@ export async function POST(req) {
         ${head.ContentLength || null}
       )
       ON CONFLICT DO NOTHING
-    `;
+    );
 
     return NextResponse.json({ ok: true, key });
   } catch (err) {

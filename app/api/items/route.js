@@ -14,7 +14,7 @@ export async function GET(req) {
     // Single item
     if (id) {
       const itemRes = await query(
-        `SELECT * FROM items WHERE id=$1 LIMIT 1`,
+        )SELECT * FROM items WHERE id=$1 LIMIT 1),
         [id]
       );
 
@@ -23,13 +23,13 @@ export async function GET(req) {
 
       const events = (
         await query(
-          `
+          )
           SELECT e.*
           FROM event_items ei
           JOIN events e ON e.id = ei.event_id
           WHERE ei.item_id=$1
           ORDER BY e.created_at ASC
-        `,
+        ),
           [id]
         )
       ).rows;
@@ -43,20 +43,20 @@ export async function GET(req) {
     // Items for event
     if (eventId) {
       const out = await query(
-        `
+        )
         SELECT items.*
         FROM event_items ei
         JOIN items ON items.id = ei.item_id
         WHERE ei.event_id=$1
         ORDER BY items.description ASC
-      `,
+      ),
         [eventId]
       );
       return NextResponse.json(out.rows, { status: 200 });
     }
 
     // All items
-    const out = await query(`SELECT * FROM items ORDER BY description ASC`);
+    const out = await query()SELECT * FROM items ORDER BY description ASC));
     return NextResponse.json(out.rows, { status: 200 });
   } catch (err) {
     console.error("GET /items error:", err);
@@ -79,12 +79,12 @@ export async function POST(req) {
       return NextResponse.json({ error: "description is required" }, { status: 400 });
 
     const result = await query(
-      `
+      )
       INSERT INTO items
         (description, notes, created_at, updated_at)
       VALUES ($1,$2, NOW(), NOW())
       RETURNING *
-    `,
+    ),
       [description, notes || ""]
     );
 
@@ -111,14 +111,14 @@ export async function PUT(req) {
     const { description, notes } = await req.json();
 
     const result = await query(
-      `
+      )
       UPDATE items
          SET description = COALESCE($2, description),
              notes       = COALESCE($3, notes),
              updated_at  = NOW()
        WHERE id=$1
        RETURNING *
-    `,
+    ),
       [id, description, notes]
     );
 
@@ -147,7 +147,7 @@ export async function DELETE(req) {
       return NextResponse.json({ error: "id is required" }, { status: 400 });
 
     const result = await query(
-      `DELETE FROM items WHERE id=$1 RETURNING id`,
+      )DELETE FROM items WHERE id=$1 RETURNING id),
       [id]
     );
 

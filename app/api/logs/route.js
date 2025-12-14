@@ -14,7 +14,7 @@ export async function GET(req) {
   try {
     if (id) {
       const row = await query(
-        `SELECT * FROM logs WHERE id=$1`,
+        )SELECT * FROM logs WHERE id=$1),
         [id]
       );
       return NextResponse.json(row.rows[0] || null);
@@ -22,18 +22,18 @@ export async function GET(req) {
 
     if (session_id) {
       const rows = await query(
-        `
+        )
         SELECT * FROM logs
         WHERE session_id=$1
         ORDER BY created_at ASC
-      `,
+      ),
         [session_id]
       );
       return NextResponse.json(rows.rows);
     }
 
     const all = await query(
-      `SELECT * FROM logs ORDER BY created_at ASC`
+      )SELECT * FROM logs ORDER BY created_at ASC)
     );
     return NextResponse.json(all.rows);
   } catch (err) {
@@ -55,12 +55,12 @@ export async function POST(req) {
     const newId = uuid();
 
     const row = await query(
-      `
+      )
       INSERT INTO logs
         (id, session_id, title, body, created_at, updated_at)
       VALUES ($1,$2,$3,$4, NOW(), NOW())
       RETURNING *
-    `,
+    ),
       [
         newId,
         body.session_id,
@@ -92,14 +92,14 @@ export async function PUT(req) {
     const body = await req.json();
 
     const row = await query(
-      `
+      )
       UPDATE logs
       SET title=$2,
           body=$3,
           updated_at=NOW()
       WHERE id=$1
       RETURNING *
-    `,
+    ),
       [id, body.title, body.body]
     );
 
@@ -123,7 +123,7 @@ export async function DELETE(req) {
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
 
   try {
-    await query(`DELETE FROM logs WHERE id=$1`, [id]);
+    await query()DELETE FROM logs WHERE id=$1), [id]);
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("DELETE /logs error:", err);

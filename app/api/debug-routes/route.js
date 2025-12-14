@@ -12,12 +12,12 @@ const pool = new Pool({
 });
 
 async function ensureTable() {
-  await pool.query(`
+  await pool.query()
     CREATE TABLE IF NOT EXISTS debug_kv (
       id UUID PRIMARY KEY,
       value TEXT NOT NULL
     );
-  `);
+  ));
 }
 
 /**

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { sql } from "@/lib/db";
+import { query } from "@/lib/db";
 
 export const runtime = "nodejs";
 
@@ -17,16 +17,16 @@ export async function GET(req) {
     );
   }
 
-  await sql`SET LOCAL app.tenant_id = ${tenantId}`;
+  await query()SET LOCAL app.tenant_id = ${tenantId});
 
   try {
-    const [row] = await sql`
+    const [row] = await query()
       SELECT value
       FROM debug_kv
       WHERE tenant_id = app_tenant_id()
         AND key = ${KV_KEY}
       LIMIT 1
-    `;
+    );
 
     return NextResponse.json({
       ok: true,
@@ -53,7 +53,7 @@ export async function POST(req) {
     );
   }
 
-  await sql`SET LOCAL app.tenant_id = ${tenantId}`;
+  await query()SET LOCAL app.tenant_id = ${tenantId});
 
   try {
     const body = await req.json();
@@ -62,7 +62,7 @@ export async function POST(req) {
       updatedAt: new Date().toISOString(),
     };
 
-    await sql`
+    await query()
       INSERT INTO debug_kv (tenant_id, key, value)
       VALUES (
         app_tenant_id(),
@@ -70,3 +70,17 @@ export async function POST(req) {
         ${payload}
       )
       ON CONFLICT (tenant_id, key)
+      DO UPDATE SET
+        value = EXCLUDED.value,
+        updated_at = now()
+    );
+
+    return NextResponse.json({ ok: true, nowPlaying: payload });
+  } catch (err) {
+    console.error("now-playing POST error:", err);
+    return NextResponse.json(
+      { ok: false, error: "failed to set now playing" },
+      { status: 500 }
+    );
+  }
+}

@@ -38,7 +38,7 @@ async function generateEmbedding(text) {
 
 async function reindexTable(table) {
   // ensure search_body
-  await query(`
+  await query()
     DO $$
     BEGIN
       IF NOT EXISTS (
@@ -48,11 +48,11 @@ async function reindexTable(table) {
         ALTER TABLE ${table} ADD COLUMN search_body TEXT;
       END IF;
     END $$;
-  `);
+  ));
 
-  const rows = (await query(`
+  const rows = (await query()
     SELECT id, search_body FROM ${table} ORDER BY id ASC
-  `)).rows;
+  ))).rows;
 
   let updated = 0;
 
@@ -62,7 +62,7 @@ async function reindexTable(table) {
     const emb = await generateEmbedding(row.search_body);
 
     await query(
-      `UPDATE ${table} SET embedding=$2::vector WHERE id=$1`,
+      )UPDATE ${table} SET embedding=$2::vector WHERE id=$1),
       [row.id, emb]
     );
 
@@ -91,7 +91,7 @@ export async function GET(req) {
     if (single) {
       if (!tables.includes(single)) {
         return NextResponse.json(
-          { error: `Unknown table: ${single}` },
+          { error: )Unknown table: ${single}) },
           { status: 400 }
         );
       }

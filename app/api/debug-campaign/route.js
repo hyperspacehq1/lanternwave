@@ -3,7 +3,7 @@ import { query } from "@/lib/db";
 
 export async function GET() {
   try {
-    const rows = await sql`
+    const rows = await query()
       SELECT
         id,
         id::text AS id_as_text,
@@ -14,7 +14,7 @@ export async function GET() {
       FROM campaigns
       ORDER BY created_at DESC
       LIMIT 10
-    `;
+    );
 
     return NextResponse.json({ rows }, { status: 200 });
   } catch (err) {
