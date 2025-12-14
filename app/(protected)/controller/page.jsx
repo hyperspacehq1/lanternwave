@@ -253,30 +253,12 @@ export default function ControllerPage() {
   // ============================================================
   return (
     <div className="lw-root">
-      {/* HEADER BAR */}
-      <header className="lw-header">
-        <div className="lw-header-left">
-          <div className="lw-logo-wrap">
-            <img src="/lanternwave-logo.png" className="lw-logo" alt="logo" />
-          </div>
-          <div className="lw-title-block">
-            <h1 className="lw-app-title">LANTERNWAVE</h1>
-            <p className="lw-app-subtitle">Host Controller</p>
-          </div>
-        </div>
+      import Header from "@/components/Header";
 
-        <nav className="lw-nav">
-          <a href="/controller" className="lw-nav-link lw-nav-link-active">
-            Controller
-          </a>
-          <a href="/player" className="lw-nav-link">
-            Player View
-          </a>
-          <a href="/campaign-manager" className="lw-nav-link">
-            Campaign Manager
-          </a>
-        </nav>
-      </header>
+/* ... */
+
+{/* HEADER BAR */}
+<Header />
 
       {/* MAIN AREA */}
       <main className="lw-main">

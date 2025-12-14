@@ -1,27 +1,37 @@
 import { NextResponse } from "next/server";
-import { ListObjectsV2Command } from "@aws-sdk/client-s3";
-import { getR2, BUCKET } from "@/lib/r2/client";
+import { sql } from "@/lib/db";
 
-export async function GET() {
-  try {
-    const r2 = getR2();
-    const res = await r2.send(
-      new ListObjectsV2Command({
-        Bucket: BUCKET,
-        Prefix: "clips/"
-      })
+export const runtime = "nodejs";
+
+export async function GET(req) {
+  const tenantId = req.headers.get("x-tenant-id");
+  if (!tenantId) {
+    return NextResponse.json(
+      { ok: false, error: "missing tenant context" },
+      { status: 401 }
     );
+  }
 
-    const items =
-      (res.Contents || []).map((o) => ({
-        key: o.Key,
-        size: o.Size,
-        lastModified: o.LastModified
-      })) || [];
+  await sql`SET LOCAL app.tenant_id = ${tenantId}`;
+
+  try {
+    const items = await sql`
+      SELECT
+        key,
+        byte_size AS size,
+        created_at AS "lastModified"
+      FROM clips
+      WHERE tenant_id = app_tenant_id()
+        AND deleted_at IS NULL
+      ORDER BY created_at DESC
+    `;
 
     return NextResponse.json({ ok: true, items });
   } catch (err) {
-    console.error("list error:", err);
-    return NextResponse.json({ ok: false, error: err.message }, { status: 500 });
+    console.error("list-clips error:", err);
+    return NextResponse.json(
+      { ok: false, error: "failed to list clips" },
+      { status: 500 }
+    );
   }
 }

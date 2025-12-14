@@ -1,46 +1,75 @@
 import { NextResponse } from "next/server";
-import { query } from "@/lib/db";
+import { sql } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
 import { fromDb, toDb } from "@/lib/campaignMapper";
 
 export const dynamic = "force-dynamic";
 
 /* -----------------------------------------------------------
+   Helper: resolve + enforce tenant
+------------------------------------------------------------ */
+async function requireTenant(req) {
+  const tenantId = req.headers.get("x-tenant-id");
+  if (!tenantId) {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        { error: "Missing tenant context" },
+        { status: 401 }
+      ),
+    };
+  }
+
+  // Enforce RLS
+  await sql`SET LOCAL app.tenant_id = ${tenantId}`;
+  return { ok: true };
+}
+
+/* -----------------------------------------------------------
    GET /api/campaigns/:id
 ------------------------------------------------------------ */
 export async function GET(req, { params }) {
   try {
+    const tenant = await requireTenant(req);
+    if (!tenant.ok) return tenant.response;
+
     const { id } = params;
 
     const rows = await sql`
       SELECT *
       FROM campaigns
-      WHERE id = ${id}
+      WHERE
+        tenant_id = app_tenant_id()
+        AND id = ${id}
+        AND deleted_at IS NULL
       LIMIT 1
     `;
 
     if (!rows.length) {
-      return NextResponse.json({ error: "Campaign not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Campaign not found" },
+        { status: 404 }
+      );
     }
 
     return NextResponse.json(fromDb(rows[0]), { status: 200 });
   } catch (err) {
     console.error(`GET /api/campaigns/${params?.id} error:`, err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }
 
 /* -----------------------------------------------------------
    PUT /api/campaigns/:id
-   TEMP: auth bypassed for debugging
 ------------------------------------------------------------ */
 export async function PUT(req, { params }) {
   try {
-    console.log("HIT CAMPAIGN PUT", params.id);
+    const tenant = await requireTenant(req);
+    if (!tenant.ok) return tenant.response;
 
-    // TEMP: bypass auth
-    // const auth = requireAdmin(req);
-    // if (!auth.ok) return auth.response;
+    // Re-enable auth now that tenant isolation is enforced
+    const auth = requireAdmin(req);
+    if (!auth.ok) return auth.response;
 
     const { id } = params;
     const incoming = await req.json();
@@ -69,7 +98,7 @@ export async function PUT(req, { params }) {
       values.push(dbVals.campaign_date);
     }
 
-    if (sets.length === 0) {
+    if (!sets.length) {
       return NextResponse.json(
         { error: "No valid fields provided to update" },
         { status: 400 }
@@ -79,49 +108,68 @@ export async function PUT(req, { params }) {
     sets.push(`updated_at = NOW()`);
     values.push(id);
 
-    const sqlText = `
+    const result = await sql.query(
+      `
       UPDATE campaigns
       SET ${sets.join(", ")}
-      WHERE id = $${values.length}
+      WHERE
+        tenant_id = app_tenant_id()
+        AND id = $${values.length}
+        AND deleted_at IS NULL
       RETURNING *
-    `;
+      `,
+      values
+    );
 
-    const result = await sql.query(sqlText, values);
     const updated = result.rows?.[0];
-
     if (!updated) {
-      return NextResponse.json({ error: "Campaign not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Campaign not found" },
+        { status: 404 }
+      );
     }
 
     return NextResponse.json(fromDb(updated), { status: 200 });
   } catch (err) {
     console.error(`PUT /api/campaigns/${params?.id} error:`, err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }
 
 /* -----------------------------------------------------------
    DELETE /api/campaigns/:id
+   (soft delete)
 ------------------------------------------------------------ */
 export async function DELETE(req, { params }) {
   try {
+    const tenant = await requireTenant(req);
+    if (!tenant.ok) return tenant.response;
+
     const auth = requireAdmin(req);
     if (!auth.ok) return auth.response;
 
     const { id } = params;
 
-    const result = await sql.query(
-      `DELETE FROM campaigns WHERE id = $1 RETURNING id`,
-      [id]
-    );
+    const result = await sql`
+      UPDATE campaigns
+      SET deleted_at = NOW()
+      WHERE
+        tenant_id = app_tenant_id()
+        AND id = ${id}
+        AND deleted_at IS NULL
+      RETURNING id
+    `;
 
-    if (!result.rows?.length) {
-      return NextResponse.json({ error: "Campaign not found" }, { status: 404 });
+    if (!result.length) {
+      return NextResponse.json(
+        { error: "Campaign not found" },
+        { status: 404 }
+      );
     }
 
     return NextResponse.json({ success: true, id }, { status: 200 });
   } catch (err) {
     console.error(`DELETE /api/campaigns/${params?.id} error:`, err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

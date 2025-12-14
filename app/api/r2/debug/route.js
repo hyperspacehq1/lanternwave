@@ -1,4 +1,3 @@
-// app/api/r2/debug/route.js
 import { NextResponse } from "next/server";
 import { ListObjectsV2Command, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
@@ -6,11 +5,22 @@ import { getR2, BUCKET } from "@/lib/r2/client";
 
 export const runtime = "nodejs";
 
-export async function GET() {
+export async function GET(req) {
+  const tenantId = req.headers.get("x-tenant-id");
+
+  if (!tenantId) {
+    return NextResponse.json(
+      { ok: false, error: "missing tenant context" },
+      { status: 401 }
+    );
+  }
+
   const report = {};
 
   try {
-    // 1. Env snapshot
+    // ------------------------------------------------------------
+    // 1. Env snapshot (safe, read-only)
+    // ------------------------------------------------------------
     report.env = {
       R2_ACCESS_KEY_ID: process.env.R2_ACCESS_KEY_ID ? "SET" : "MISSING",
       R2_SECRET_ACCESS_KEY: process.env.R2_SECRET_ACCESS_KEY ? "SET" : "MISSING",
@@ -19,7 +29,9 @@ export async function GET() {
       NODE_ENV: process.env.NODE_ENV || "(undefined)",
     };
 
-    // 2. Init client from the SAME helper used by upload-url
+    // ------------------------------------------------------------
+    // 2. Init client (same helper as prod routes)
+    // ------------------------------------------------------------
     let client;
     try {
       client = getR2();
@@ -30,7 +42,9 @@ export async function GET() {
       return NextResponse.json(report, { status: 500 });
     }
 
-    // 3. List objects under clips/
+    // ------------------------------------------------------------
+    // 3. List objects (diagnostic only)
+    // ------------------------------------------------------------
     try {
       const res = await client.send(
         new ListObjectsV2Command({
@@ -52,10 +66,11 @@ export async function GET() {
       report.listObjectsError = err.message;
     }
 
-    // 4. Generate a test presigned URL exactly like upload-url does
+    // ------------------------------------------------------------
+    // 4. Presign test (NO upload performed)
+    // ------------------------------------------------------------
     try {
-      const testFilename = "debug-test.txt";
-      const testKey = `clips/debug-${Date.now()}-${testFilename}`;
+      const testKey = `clips/debug-${Date.now()}-test.txt`;
 
       const cmd = new PutObjectCommand({
         Bucket: BUCKET,
@@ -65,34 +80,19 @@ export async function GET() {
 
       const uploadUrl = await getSignedUrl(client, cmd, { expiresIn: 300 });
 
-      let host = null;
-      let pathname = null;
-      try {
-        const u = new URL(uploadUrl);
-        host = u.host;
-        pathname = u.pathname;
-      } catch {
-        // ignore URL parse error
-      }
-
       report.presign = {
         ok: true,
         testKey,
         uploadUrl,
-        host,
-        pathname,
       };
     } catch (err) {
-      report.presign = {
-        ok: false,
-        error: err.message,
-      };
+      report.presign = { ok: false, error: err.message };
     }
 
     return NextResponse.json(report);
   } catch (err) {
     return NextResponse.json(
-      { fatalError: err.message, stack: err.stack },
+      { fatalError: err.message },
       { status: 500 }
     );
   }

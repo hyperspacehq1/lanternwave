@@ -96,3 +96,12 @@ body {
   80%  { opacity: 0.9; filter: blur(1px) brightness(1.2); }
   100% { opacity: 1; filter: none; }
 }
+
+.lw-nav-link-logout {
+  margin-left: 12px;
+  color: #ff6b6b;
+}
+
+.lw-nav-link-logout:hover {
+  color: #ff8a8a;
+}

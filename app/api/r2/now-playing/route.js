@@ -1,45 +1,72 @@
 import { NextResponse } from "next/server";
-import { PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
-import { getR2, BUCKET } from "@/lib/r2/client";
+import { sql } from "@/lib/db";
 
-const NOW_KEY = "meta/now-playing.json";
+export const runtime = "nodejs";
 
-export async function GET() {
-  try {
-    const r2 = getR2();
-    const res = await r2.send(
-      new GetObjectCommand({ Bucket: BUCKET, Key: NOW_KEY })
+const KV_KEY = "now_playing";
+
+// ------------------------------------------------------------
+// GET now playing
+// ------------------------------------------------------------
+export async function GET(req) {
+  const tenantId = req.headers.get("x-tenant-id");
+  if (!tenantId) {
+    return NextResponse.json(
+      { ok: false, error: "missing tenant context" },
+      { status: 401 }
     );
+  }
 
-    const text = await res.Body.transformToString();
-    return NextResponse.json({ ok: true, nowPlaying: JSON.parse(text || "{}") });
-  } catch {
-    return NextResponse.json({ ok: true, nowPlaying: null });
+  await sql`SET LOCAL app.tenant_id = ${tenantId}`;
+
+  try {
+    const [row] = await sql`
+      SELECT value
+      FROM debug_kv
+      WHERE tenant_id = app_tenant_id()
+        AND key = ${KV_KEY}
+      LIMIT 1
+    `;
+
+    return NextResponse.json({
+      ok: true,
+      nowPlaying: row?.value || null,
+    });
+  } catch (err) {
+    console.error("now-playing GET error:", err);
+    return NextResponse.json(
+      { ok: false, error: "failed to read now playing" },
+      { status: 500 }
+    );
   }
 }
 
+// ------------------------------------------------------------
+// SET now playing
+// ------------------------------------------------------------
 export async function POST(req) {
+  const tenantId = req.headers.get("x-tenant-id");
+  if (!tenantId) {
+    return NextResponse.json(
+      { ok: false, error: "missing tenant context" },
+      { status: 401 }
+    );
+  }
+
+  await sql`SET LOCAL app.tenant_id = ${tenantId}`;
+
   try {
     const body = await req.json();
     const payload = {
       key: body.key || null,
-      type: body.type || null,
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
     };
 
-    const r2 = getR2();
-    await r2.send(
-      new PutObjectCommand({
-        Bucket: BUCKET,
-        Key: NOW_KEY,
-        Body: JSON.stringify(payload),
-        ContentType: "application/json"
-      })
-    );
-
-    return NextResponse.json({ ok: true, nowPlaying: payload });
-  } catch (err) {
-    console.error("now-playing POST error:", err);
-    return NextResponse.json({ ok: false, error: err.message }, { status: 500 });
-  }
-}
+    await sql`
+      INSERT INTO debug_kv (tenant_id, key, value)
+      VALUES (
+        app_tenant_id(),
+        ${KV_KEY},
+        ${payload}
+      )
+      ON CONFLICT (tenant_id, key)
