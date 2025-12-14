@@ -1,14 +1,25 @@
 import { NextResponse } from "next/server";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-
 import { getR2, BUCKET } from "@/lib/r2/client";
-import { guessContentType } from "@/lib/r2/contentType";
 import { query } from "@/lib/db";
 
 export const runtime = "nodejs";
 
 export async function GET(req) {
+  const tenantId = req.headers.get("x-tenant-id");
+  if (!tenantId) {
+    return NextResponse.json(
+      { ok: false, error: "missing tenant context" },
+      { status: 401 }
+    );
+  }
+
+  // Enforce RLS
+  await query(
+    `SET LOCAL app.tenant_id = $1`,
+    [tenantId]
+  );
+
   const { searchParams } = new URL(req.url);
   const key = searchParams.get("key");
 
@@ -19,54 +30,22 @@ export async function GET(req) {
     );
   }
 
-  // ------------------------------------------------------------
-  // 1️⃣ Resolve tenant (example pattern)
-  // ------------------------------------------------------------
-  const tenantId = req.headers.get("x-tenant-id");
-  if (!tenantId) {
-    return NextResponse.json(
-      { ok: false, error: "missing tenant context" },
-      { status: 401 }
-    );
-  }
-
-  // Enforce RLS
-  await query()SET LOCAL app.tenant_id = ${tenantId});
-
   try {
-    // ------------------------------------------------------------
-    // 2️⃣ Verify clip belongs to tenant (DB = source of truth)
-    // ------------------------------------------------------------
-    const [clip] = await query()
-      SELECT key
-      FROM clips
-      WHERE tenant_id = app_tenant_id()
-        AND key = ${key}
-        AND deleted_at IS NULL
-      LIMIT 1
+    const r2 = getR2();
+    const result = await r2.send(
+      new GetObjectCommand({
+        Bucket: BUCKET,
+        Key: key,
+      })
     );
 
-    if (!clip) {
-      return NextResponse.json(
-        { ok: false, error: "clip not found" },
-        { status: 404 }
-      );
-    }
-
-    // ------------------------------------------------------------
-    // 3️⃣ Generate signed R2 URL (unchanged behavior)
-    // ------------------------------------------------------------
-    const r2 = getR2();
-    const cmd = new GetObjectCommand({
-      Bucket: BUCKET,
-      Key: key,
-      ResponseContentType: guessContentType(key),
+    return new Response(result.Body, {
+      headers: {
+        "Content-Type": result.ContentType || "application/octet-stream",
+      },
     });
-
-    const url = await getSignedUrl(r2, cmd, { expiresIn: 300 });
-    return NextResponse.redirect(url, { status: 302 });
   } catch (err) {
-    console.error("stream error:", err);
+    console.error("r2 stream error:", err);
     return NextResponse.json(
       { ok: false, error: "stream failed" },
       { status: 500 }
