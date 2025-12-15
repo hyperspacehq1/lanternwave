@@ -38,8 +38,8 @@ export async function POST(req) {
       );
     }
 
-    // Find user
-    const result = await db.query(
+    // Find user (email OR username)
+    const result = await query(
       `
       SELECT
         u.id,
@@ -86,7 +86,7 @@ export async function POST(req) {
     }
 
     // Ensure tenant access
-    const tenantCheck = await db.query(
+    const tenantCheck = await query(
       `
       SELECT tenant_id
       FROM tenant_users
