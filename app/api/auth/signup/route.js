@@ -10,23 +10,7 @@ function normalizeUsername(username) {
   return username.trim().toLowerCase();
 }
 
-function isValidEmail(email) {
-  if (typeof email !== "string") return false;
-  if (!/^[\x00-\x7F]+$/.test(email)) return false;
-
-  const parts = email.split("@");
-  if (parts.length !== 2) return false;
-
-  const [local] = parts;
-  if (local.startsWith(".") || local.endsWith(".") || local.includes("..")) {
-    return false;
-  }
-  return true;
-}
-
 export async function POST(req) {
-  const client = await query.getClient();
-
   try {
     const { email, username, password } = await req.json();
 
@@ -37,39 +21,31 @@ export async function POST(req) {
       );
     }
 
-    if (!isValidEmail(email)) {
-      return NextResponse.json(
-        { code: "INVALID_EMAIL", message: "Invalid email address." },
-        { status: 400 }
-      );
-    }
-
     const usernameNormalized = normalizeUsername(username);
 
-    await client.query("BEGIN");
+    /* -------------------------
+       Begin transaction
+       ------------------------- */
+    await query("BEGIN");
 
-    // Email uniqueness
-    const emailExists = await client.query(
+    const emailExists = await query(
       "SELECT 1 FROM users WHERE email = $1",
       [email]
     );
-
     if (emailExists.rowCount > 0) {
-      await client.query("ROLLBACK");
+      await query("ROLLBACK");
       return NextResponse.json(
         { code: "EMAIL_EXISTS", message: "Email already in use." },
         { status: 409 }
       );
     }
 
-    // Username uniqueness (case-insensitive)
-    const usernameExists = await client.query(
+    const usernameExists = await query(
       "SELECT 1 FROM users WHERE username_normalized = $1",
       [usernameNormalized]
     );
-
     if (usernameExists.rowCount > 0) {
-      await client.query("ROLLBACK");
+      await query("ROLLBACK");
       return NextResponse.json(
         { code: "USERNAME_EXISTS", message: "Username already taken." },
         { status: 409 }
@@ -78,8 +54,7 @@ export async function POST(req) {
 
     const passwordHash = await bcrypt.hash(password, 10);
 
-    // Create user
-    const userRes = await client.query(
+    const userRes = await query(
       `
       INSERT INTO users (
         id,
@@ -95,21 +70,14 @@ export async function POST(req) {
     );
 
     const userId = userRes.rows[0].id;
-
-    // Create tenant
     const tenantId = randomUUID();
-    const tenantName = `${username}'s Account`;
 
-    await client.query(
-      `
-      INSERT INTO tenants (id, name)
-      VALUES ($1, $2)
-      `,
-      [tenantId, tenantName]
+    await query(
+      `INSERT INTO tenants (id, name) VALUES ($1, $2)`,
+      [tenantId, `${username}'s Account`]
     );
 
-    // 🔐 Link user → tenant (created_at REQUIRED)
-    await client.query(
+    await query(
       `
       INSERT INTO tenant_users (
         user_id,
@@ -122,9 +90,11 @@ export async function POST(req) {
       [userId, tenantId]
     );
 
-    await client.query("COMMIT");
+    await query("COMMIT");
 
-    // 🔐 Auto-login
+    /* -------------------------
+       Auto-login
+       ------------------------- */
     cookies().set("lw_session", userId, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
@@ -133,16 +103,25 @@ export async function POST(req) {
     });
 
     return NextResponse.json({ ok: true });
+
   } catch (err) {
-    await client.query("ROLLBACK");
+    // Safety rollback (BEGIN may have succeeded)
+    try {
+      await query("ROLLBACK");
+    } catch {}
+
     console.error("SIGNUP FAILED:", err);
 
-    return NextResponse.json(
-      { code: "SIGNUP_FAILED", message: "Unable to create account." },
-      { status: 500 }
+    // GUARANTEED JSON RESPONSE
+    return new NextResponse(
+      JSON.stringify({
+        code: "SIGNUP_FAILED",
+        message: err?.message || "Internal signup error",
+      }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      }
     );
-  } finally {
-    client.release();
   }
 }
-
