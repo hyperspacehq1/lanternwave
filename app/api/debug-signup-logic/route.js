@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import bcrypt from "bcrypt";
 import { Pool } from "pg";
 
 export const runtime = "nodejs";
@@ -15,9 +14,8 @@ export async function POST(req) {
   let client;
 
   try {
-    const { email, password } = await req.json();
-
-    const hash = await bcrypt.hash(password, 10);
+    const body = await req.json();
+    const email = body.email || `logic_${Date.now()}@example.com`;
 
     client = await pool.connect();
 
@@ -27,19 +25,20 @@ export async function POST(req) {
       VALUES ($1, $2)
       RETURNING id, email
       `,
-      [email, hash]
+      [email, "DEBUG_NO_BCRYPT"]
     );
 
     return NextResponse.json({
-      status: "ok",
+      ok: true,
       user: result.rows[0],
     });
   } catch (error) {
     return NextResponse.json(
       {
-        status: "error",
+        ok: false,
         message: error.message,
-        stack: error.stack,
+        code: error.code,
+        detail: error.detail,
       },
       { status: 500 }
     );
