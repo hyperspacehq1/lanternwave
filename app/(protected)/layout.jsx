@@ -3,7 +3,7 @@ import { requireAuth } from "@/lib/auth";
 import Header from "@/components/Header";
 
 export default async function ProtectedLayout({ children }) {
-  await requireAuth();
+// await requireAuth();
 
   return (
     <div className="lw-app-root">
