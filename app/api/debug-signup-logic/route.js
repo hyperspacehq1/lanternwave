@@ -2,22 +2,25 @@ import { NextResponse } from "next/server";
 import { Pool } from "pg";
 
 export const runtime = "nodejs";
+
+// Netlify + managed Postgres safety
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: true,
   max: 1,
+  idleTimeoutMillis: 5000,
+  connectionTimeoutMillis: 10000,
 });
 
-export async function POST(req) {
+export async function POST() {
   let client;
 
   try {
-    const body = await req.json();
-    const email = body.email || `logic_${Date.now()}@example.com`;
-
     client = await pool.connect();
+
+    const email = `debug_${Date.now()}@example.com`;
 
     const result = await client.query(
       `
@@ -25,7 +28,7 @@ export async function POST(req) {
       VALUES ($1, $2)
       RETURNING id, email
       `,
-      [email, "DEBUG_NO_BCRYPT"]
+      [email, "DEBUG_HASH"]
     );
 
     return NextResponse.json({
@@ -37,8 +40,7 @@ export async function POST(req) {
       {
         ok: false,
         message: error.message,
-        code: error.code,
-        detail: error.detail,
+        code: error.code || null,
       },
       { status: 500 }
     );
