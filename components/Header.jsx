@@ -15,7 +15,8 @@ export default function Header({ auth }) {
   const navItems = [
     { label: "GM Dashboard", href: "/gm-dashboard" },
     { label: "Campaign Manager", href: "/campaign-manager" },
-    { label: "Controller", href: "/controller" },
+    { label: "Media Controller", href: "/controller" },
+    { label: "Player", href: "/player" },
     { label: "My Account", href: "/account" },
   ];
 
