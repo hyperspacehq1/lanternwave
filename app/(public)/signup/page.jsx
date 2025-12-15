@@ -2,110 +2,79 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import "../auth.css";
 
 export default function SignupPage() {
   const router = useRouter();
-
-  const [form, setForm] = useState({
-    email: "",
-    username: "",
-    password: "",
-    tenantName: "",
-  });
-
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e) {
     e.preventDefault();
-    setLoading(true);
     setError("");
+    setLoading(true);
+
+    const form = new FormData(e.currentTarget);
+
+    const payload = {
+      email: form.get("email"),
+      username: form.get("username"),
+      password: form.get("password"),
+    };
 
     try {
       const res = await fetch("/api/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || "Signup failed");
-        setLoading(false);
-        return;
+        throw new Error(data.message || "Signup failed");
       }
 
+      // ✅ Success → go to GM Dashboard
       router.push("/gm-dashboard");
     } catch (err) {
-      console.error(err);
-      setError("Server error");
+      setError(err.message);
+    } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="lw-login-root">
-      <div className="lw-login-topnav">
-        <a href="/support">Support</a>
-        <a href="/">Sign In</a>
-      </div>
+    <div className="auth-container">
+      <h1>Create Account</h1>
 
-      <div className="lw-login-container">
-        <img
-          src="/lanternwave-logo.png"
-          alt="Lanternwave"
-          className="lw-login-logo"
+      <form onSubmit={handleSubmit}>
+        <input
+          name="email"
+          type="email"
+          placeholder="Email"
+          required
         />
 
-        <h1 className="lw-login-title">Create Account</h1>
+        <input
+          name="username"
+          type="text"
+          placeholder="Username"
+          required
+        />
 
-        <form onSubmit={handleSubmit} className="lw-login-form">
-          <input
-            placeholder="Email"
-            value={form.email}
-            onChange={(e) =>
-              setForm({ ...form, email: e.target.value })
-            }
-            required
-          />
+        <input
+          name="password"
+          type="password"
+          placeholder="Password"
+          required
+        />
 
-          <input
-            placeholder="Username"
-            value={form.username}
-            onChange={(e) =>
-              setForm({ ...form, username: e.target.value })
-            }
-            required
-          />
+        {error && <div className="error">{error}</div>}
 
-          <input
-            type="password"
-            placeholder="Password"
-            value={form.password}
-            onChange={(e) =>
-              setForm({ ...form, password: e.target.value })
-            }
-            required
-          />
-
-          <input
-            placeholder="Campaign / Organization Name"
-            value={form.tenantName}
-            onChange={(e) =>
-              setForm({ ...form, tenantName: e.target.value })
-            }
-            required
-          />
-
-          {error && <div className="lw-login-error">{error}</div>}
-
-          <button disabled={loading}>
-            {loading ? "Creating…" : "Create Account"}
-          </button>
-        </form>
-      </div>
+        <button type="submit" disabled={loading}>
+          {loading ? "Creating…" : "Create Account"}
+        </button>
+      </form>
     </div>
   );
 }
