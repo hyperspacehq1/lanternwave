@@ -108,18 +108,23 @@ export async function POST(req) {
       [tenantId, tenantName]
     );
 
-    // 🔐 REQUIRED FOR requireAuth(): link user → tenant
+    // 🔐 Link user → tenant (created_at REQUIRED)
     await client.query(
       `
-      INSERT INTO tenant_users (user_id, tenant_id, role)
-      VALUES ($1, $2, 'owner')
+      INSERT INTO tenant_users (
+        user_id,
+        tenant_id,
+        role,
+        created_at
+      )
+      VALUES ($1, $2, 'owner', NOW())
       `,
       [userId, tenantId]
     );
 
     await client.query("COMMIT");
 
-    // 🔐 AUTO-LOGIN (matches auth.js)
+    // 🔐 Auto-login
     cookies().set("lw_session", userId, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
