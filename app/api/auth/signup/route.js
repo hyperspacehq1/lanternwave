@@ -31,9 +31,17 @@ export async function POST(req) {
       user: result.rows[0],
     });
   } catch (err) {
-    console.error("SIGNUP ERROR:", err);
+    // 🔥 THIS IS THE MONEY SHOT
+    console.error("SIGNUP ERROR (FULL):", err);
+
     return NextResponse.json(
-      { error: "Signup failed" },
+      {
+        error: "Signup failed",
+        message: err.message,
+        code: err.code,
+        detail: err.detail,
+        hint: err.hint,
+      },
       { status: 500 }
     );
   }
