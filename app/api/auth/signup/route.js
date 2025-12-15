@@ -112,14 +112,15 @@ export async function POST(req) {
     const tenantId = randomUUID();
 
     /* -------------------------
-       Create tenant owned by user
+       Create tenant (Option A)
+       NOTE: tenants table has ONLY `id`
        ------------------------- */
     await query(
       `
-      INSERT INTO tenants (id, owner_user_id)
-      VALUES ($1, $2)
+      INSERT INTO tenants (id)
+      VALUES ($1)
       `,
-      [tenantId, userId]
+      [tenantId]
     );
 
     return NextResponse.json({ ok: true });
