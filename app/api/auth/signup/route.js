@@ -2,16 +2,14 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { query } from "@/lib/db";
 import { randomUUID } from "crypto";
+import { cookies } from "next/headers";
 
 export const runtime = "nodejs";
 
-/**
- * Pragmatic email validation:
- * - ASCII only
- * - No quoted local parts
- * - No consecutive dots
- * - Reasonable domain rules
- */
+function normalizeUsername(username) {
+  return username.trim().toLowerCase();
+}
+
 function isValidEmail(email) {
   if (typeof email !== "string") return false;
   if (!/^[\x00-\x7F]+$/.test(email)) return false;
@@ -19,121 +17,126 @@ function isValidEmail(email) {
   const parts = email.split("@");
   if (parts.length !== 2) return false;
 
-  const [local, domain] = parts;
-
-  if (local.length < 1 || local.length > 64) return false;
+  const [local] = parts;
   if (local.startsWith(".") || local.endsWith(".") || local.includes("..")) {
     return false;
   }
-  if (!/^[A-Za-z0-9._+-]+$/.test(local)) return false;
-
-  const labels = domain.split(".");
-  if (labels.some(l => l.length < 1 || l.length > 63)) return false;
-  if (
-    labels.some(
-      l =>
-        !/^[A-Za-z0-9-]+$/.test(l) ||
-        l.startsWith("-") ||
-        l.endsWith("-")
-    )
-  ) {
-    return false;
-  }
-
   return true;
 }
 
 export async function POST(req) {
+  const client = await query.getClient();
+
   try {
     const { email, username, password } = await req.json();
 
-    /* -------------------------
-       Required field validation
-       ------------------------- */
     if (!email || !username || !password) {
       return NextResponse.json(
-        {
-          code: "MISSING_FIELDS",
-          message: "Email, username, and password are required.",
-        },
+        { code: "MISSING_FIELDS", message: "All fields are required." },
         { status: 400 }
       );
     }
 
-    /* -------------------------
-       Email validation
-       ------------------------- */
     if (!isValidEmail(email)) {
       return NextResponse.json(
-        {
-          code: "INVALID_EMAIL",
-          message: "Please enter a valid email address.",
-        },
+        { code: "INVALID_EMAIL", message: "Invalid email address." },
         { status: 400 }
       );
     }
 
-    /* -------------------------
-       Duplicate email check
-       ------------------------- */
-    const existing = await query(
-      "SELECT id FROM users WHERE email = $1",
+    const usernameNormalized = normalizeUsername(username);
+
+    await client.query("BEGIN");
+
+    // Email uniqueness
+    const emailExists = await client.query(
+      "SELECT 1 FROM users WHERE email = $1",
       [email]
     );
 
-    if (existing.rowCount > 0) {
+    if (emailExists.rowCount > 0) {
+      await client.query("ROLLBACK");
       return NextResponse.json(
-        {
-          code: "EMAIL_EXISTS",
-          message: "An account already exists for this email.",
-        },
+        { code: "EMAIL_EXISTS", message: "Email already in use." },
         { status: 409 }
       );
     }
 
-    /* -------------------------
-       Password hashing
-       ------------------------- */
+    // Username uniqueness (case-insensitive)
+    const usernameExists = await client.query(
+      "SELECT 1 FROM users WHERE username_normalized = $1",
+      [usernameNormalized]
+    );
+
+    if (usernameExists.rowCount > 0) {
+      await client.query("ROLLBACK");
+      return NextResponse.json(
+        { code: "USERNAME_EXISTS", message: "Username already taken." },
+        { status: 409 }
+      );
+    }
+
     const passwordHash = await bcrypt.hash(password, 10);
 
-    /* -------------------------
-       Create user
-       ------------------------- */
-    const userRes = await query(
+    // Create user
+    const userRes = await client.query(
       `
-      INSERT INTO users (id, email, username, password_hash)
-      VALUES (gen_random_uuid(), $1, $2, $3)
+      INSERT INTO users (
+        id,
+        email,
+        username,
+        username_normalized,
+        password_hash
+      )
+      VALUES (gen_random_uuid(), $1, $2, $3, $4)
       RETURNING id
       `,
-      [email, username, passwordHash]
+      [email, username, usernameNormalized, passwordHash]
     );
 
     const userId = userRes.rows[0].id;
-    const tenantId = randomUUID();
 
-    /* -------------------------
-       Create tenant (Option A)
-       NOTE: tenants table has ONLY `id`
-       ------------------------- */
-    await query(
+    // Create tenant
+    const tenantId = randomUUID();
+    const tenantName = `${username}'s Account`;
+
+    await client.query(
       `
-      INSERT INTO tenants (id)
-      VALUES ($1)
+      INSERT INTO tenants (id, name)
+      VALUES ($1, $2)
       `,
-      [tenantId]
+      [tenantId, tenantName]
     );
+
+    // 🔐 REQUIRED FOR requireAuth(): link user → tenant
+    await client.query(
+      `
+      INSERT INTO tenant_users (user_id, tenant_id, role)
+      VALUES ($1, $2, 'owner')
+      `,
+      [userId, tenantId]
+    );
+
+    await client.query("COMMIT");
+
+    // 🔐 AUTO-LOGIN (matches auth.js)
+    cookies().set("lw_session", userId, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+    });
 
     return NextResponse.json({ ok: true });
-
   } catch (err) {
-    console.error("SIGNUP ERROR:", err);
+    await client.query("ROLLBACK");
+    console.error("SIGNUP FAILED:", err);
 
     return NextResponse.json(
-      {
-        code: "SIGNUP_FAILED",
-        message: err.message || "Unable to create account.",
-      },
+      { code: "SIGNUP_FAILED", message: "Unable to create account." },
       { status: 500 }
     );
+  } finally {
+    client.release();
   }
 }
