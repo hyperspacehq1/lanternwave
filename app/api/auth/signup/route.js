@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { query } from "@/lib/db";
+import { randomUUID } from "crypto";
 
 export const runtime = "nodejs";
 
@@ -15,15 +16,31 @@ export async function POST(req) {
       );
     }
 
-    const hash = await bcrypt.hash(password, 10);
+    const passwordHash = await bcrypt.hash(password, 10);
+    const tenantId = randomUUID();
 
     const result = await query(
       `
-      INSERT INTO users (email, password_hash)
-      VALUES ($1, $2)
-      RETURNING id, email
+      WITH new_tenant AS (
+        INSERT INTO tenants (id)
+        VALUES ($1)
+      ),
+      new_user AS (
+        INSERT INTO users (
+          email,
+          password_hash,
+          tenant_id
+        )
+        VALUES ($2, $3, $1)
+        RETURNING id, email, tenant_id
+      )
+      SELECT * FROM new_user
       `,
-      [email, hash]
+      [
+        tenantId,
+        email,
+        passwordHash,
+      ]
     );
 
     return NextResponse.json({
@@ -31,16 +48,13 @@ export async function POST(req) {
       user: result.rows[0],
     });
   } catch (err) {
-    // 🔥 THIS IS THE MONEY SHOT
-    console.error("SIGNUP ERROR (FULL):", err);
+    console.error("SIGNUP ERROR:", err);
 
     return NextResponse.json(
       {
         error: "Signup failed",
         message: err.message,
         code: err.code,
-        detail: err.detail,
-        hint: err.hint,
       },
       { status: 500 }
     );
