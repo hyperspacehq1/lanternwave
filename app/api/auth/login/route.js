@@ -1,34 +1,9 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { query } from "@/lib/db";
-import { rateLimit } from "@/lib/rateLimit";
 
-/**
- * POST /api/auth/login
- *
- * Body:
- * {
- *   emailOrUsername: string,
- *   password: string
- * }
- */
 export async function POST(req) {
   try {
-    const ip =
-      req.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
-
-    const limit = await rateLimit({
-      ip,
-      route: "login",
-    });
-
-    if (!limit.ok) {
-      return NextResponse.json(
-        { error: "Too many login attempts. Try again later." },
-        { status: 429 }
-      );
-    }
-
     const { emailOrUsername, password } = await req.json();
 
     if (!emailOrUsername || !password) {
@@ -38,7 +13,6 @@ export async function POST(req) {
       );
     }
 
-    // Find user (email OR username)
     const result = await query(
       `
       SELECT
@@ -72,27 +46,16 @@ export async function POST(req) {
       );
     }
 
-    // Verify password
-    const passwordOk = await bcrypt.compare(
-      password,
-      user.password_hash
-    );
-
-    if (!passwordOk) {
+    const ok = await bcrypt.compare(password, user.password_hash);
+    if (!ok) {
       return NextResponse.json(
         { error: "Invalid credentials" },
         { status: 401 }
       );
     }
 
-    // Ensure tenant access
     const tenantCheck = await query(
-      `
-      SELECT tenant_id
-      FROM tenant_users
-      WHERE user_id = $1
-      LIMIT 1
-      `,
+      `SELECT tenant_id FROM tenant_users WHERE user_id = $1 LIMIT 1`,
       [user.id]
     );
 
@@ -103,25 +66,28 @@ export async function POST(req) {
       );
     }
 
-    // Set session cookie
-    const response = NextResponse.json({ ok: true });
+    const res = NextResponse.json({ ok: true });
 
-    response.cookies.set({
-      name: "lw_session",
-      value: user.id,
+    res.cookies.set("lw_session", user.id, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
-      maxAge: 60 * 60 * 24 * 7,
     });
 
-    return response;
+    return res;
   } catch (err) {
-    console.error("LOGIN ERROR:", err);
-    return NextResponse.json(
-      { error: "Server error" },
-      { status: 500 }
+    console.error("LOGIN FATAL ERROR:", err);
+
+    return new NextResponse(
+      JSON.stringify({
+        error: "Login failed",
+        detail: err?.message || "Unknown error",
+      }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      }
     );
   }
 }
