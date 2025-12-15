@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { query } from "@/lib/db";
 import { randomUUID } from "crypto";
-import { cookies } from "next/headers";
 
 export const runtime = "nodejs";
 
@@ -93,26 +92,26 @@ export async function POST(req) {
     await query("COMMIT");
 
     /* -------------------------
-       Auto-login
+       Auto-login (2025 correct)
        ------------------------- */
-    cookies().set("lw_session", userId, {
+    const res = NextResponse.json({ ok: true });
+
+    res.cookies.set("lw_session", userId, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
     });
 
-    return NextResponse.json({ ok: true });
+    return res;
 
   } catch (err) {
-    // Safety rollback (BEGIN may have succeeded)
     try {
       await query("ROLLBACK");
     } catch {}
 
     console.error("SIGNUP FAILED:", err);
 
-    // GUARANTEED JSON RESPONSE
     return new NextResponse(
       JSON.stringify({
         code: "SIGNUP_FAILED",
