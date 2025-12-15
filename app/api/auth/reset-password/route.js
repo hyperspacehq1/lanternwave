@@ -14,13 +14,23 @@ import { rateLimit } from "@/lib/rateLimit";
  */
 export async function POST(req) {
   try {
-    const ip =
-      req.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
+    /* --------------------------------
+       SAFE rate limiting (2025)
+       -------------------------------- */
+    let limit = { ok: true };
 
-    const limit = await rateLimit({
-      ip,
-      route: "reset-password",
-    });
+    try {
+      const ip =
+        req.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
+
+      limit = await rateLimit({
+        ip,
+        route: "reset-password",
+      });
+    } catch (err) {
+      // Rate limiting must NEVER break password reset
+      console.warn("Rate limit skipped (reset-password):", err);
+    }
 
     if (!limit.ok) {
       return NextResponse.json(
@@ -29,6 +39,9 @@ export async function POST(req) {
       );
     }
 
+    /* --------------------------------
+       Parse request
+       -------------------------------- */
     const { code, password } = await req.json();
 
     if (!code || !password) {
@@ -45,8 +58,10 @@ export async function POST(req) {
       );
     }
 
-    // Validate reset token
-    const result = await db.query(
+    /* --------------------------------
+       Validate reset token
+       -------------------------------- */
+    const result = await query(
       `
       SELECT ev.id, ev.user_id
       FROM email_verifications ev
@@ -69,8 +84,10 @@ export async function POST(req) {
 
     const passwordHash = await bcrypt.hash(password, 10);
 
-    // Update password
-    await db.query(
+    /* --------------------------------
+       Update password
+       -------------------------------- */
+    await query(
       `
       UPDATE users
       SET password_hash = $1,
@@ -80,8 +97,11 @@ export async function POST(req) {
       [passwordHash, user_id]
     );
 
+    /* --------------------------------
+       Consume reset tokens
+       -------------------------------- */
     // Consume THIS token
-    await db.query(
+    await query(
       `
       UPDATE email_verifications
       SET consumed_at = NOW()
@@ -90,9 +110,8 @@ export async function POST(req) {
       [verificationId]
     );
 
-    // (Optional but recommended)
-    // Invalidate any other outstanding reset tokens for this user
-    await db.query(
+    // Invalidate any other outstanding tokens
+    await query(
       `
       UPDATE email_verifications
       SET consumed_at = NOW()
@@ -105,6 +124,8 @@ export async function POST(req) {
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("RESET PASSWORD ERROR:", err);
+
+    // Guaranteed JSON response
     return NextResponse.json(
       { error: "Server error" },
       { status: 500 }

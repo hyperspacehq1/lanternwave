@@ -14,13 +14,23 @@ import { sendPasswordResetEmail } from "@/lib/email";
  */
 export async function POST(req) {
   try {
-    const ip =
-      req.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
+    /* --------------------------------
+       SAFE rate limiting (2025)
+       -------------------------------- */
+    let limit = { ok: true };
 
-    const limit = await rateLimit({
-      ip,
-      route: "forgot-password",
-    });
+    try {
+      const ip =
+        req.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
+
+      limit = await rateLimit({
+        ip,
+        route: "forgot-password",
+      });
+    } catch (err) {
+      // Rate limiting must NEVER break password recovery
+      console.warn("Rate limit skipped (forgot-password):", err);
+    }
 
     if (!limit.ok) {
       return NextResponse.json(
@@ -29,6 +39,9 @@ export async function POST(req) {
       );
     }
 
+    /* --------------------------------
+       Parse request
+       -------------------------------- */
     const { email } = await req.json();
 
     if (!email) {
@@ -38,7 +51,9 @@ export async function POST(req) {
       );
     }
 
-    // Find user (do NOT reveal if missing)
+    /* --------------------------------
+       Find user (no enumeration)
+       -------------------------------- */
     const userRes = await query(
       `
       SELECT id, first_name
@@ -50,14 +65,16 @@ export async function POST(req) {
       [email]
     );
 
+    // Always return ok to prevent enumeration
     if (!userRes.rows.length) {
-      // Prevent email enumeration
       return NextResponse.json({ ok: true });
     }
 
     const { id: userId, first_name } = userRes.rows[0];
 
-    // Generate reset code
+    /* --------------------------------
+       Generate reset token
+       -------------------------------- */
     const code = crypto.randomBytes(32).toString("hex");
     const expiresAt = new Date(Date.now() + 1000 * 60 * 60); // 1 hour
 
@@ -69,7 +86,9 @@ export async function POST(req) {
       [userId, code, expiresAt]
     );
 
-    // Send Postmark email
+    /* --------------------------------
+       Send reset email
+       -------------------------------- */
     const resetUrl = `https://lanternwave.com/reset-password?code=${code}`;
 
     await sendPasswordResetEmail({
@@ -81,6 +100,8 @@ export async function POST(req) {
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("FORGOT PASSWORD ERROR:", err);
+
+    // Guaranteed JSON response
     return NextResponse.json(
       { error: "Server error" },
       { status: 500 }
