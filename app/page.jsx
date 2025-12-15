@@ -1,6 +1,5 @@
-import { redirect } from "next/navigation";
+import LoginPage from "./(public)/login/page";
 
-export default function Page() {
-  // Immediately redirect the user to the controller
-  redirect("/controller");
+export default function HomePage() {
+  return <LoginPage />;
 }
