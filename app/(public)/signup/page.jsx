@@ -75,7 +75,6 @@ export default function SignupPage() {
         throw new Error(data.message || "Signup failed");
       }
 
-      // ✅ Success → go to GM Dashboard
       router.push("/gm-dashboard");
     } catch (err) {
       setError(err.message);
@@ -146,3 +145,20 @@ export default function SignupPage() {
 
             <button
               type="submit"
+              className="lw-auth-submit"
+              disabled={loading || usernameStatus === "taken"}
+            >
+              {loading ? "Creating…" : "Create Account"}
+            </button>
+          </form>
+
+          <div className="lw-auth-links">
+            <a href="/" className="lw-auth-link">
+              Back to Sign In
+            </a>
+          </div>
+        </div>
+      </div>
+    </main>
+  );
+}
