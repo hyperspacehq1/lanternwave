@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useState, useRef } from "react";
-import Header from "@/components/Header";
 import "./controller.css";
 
 // ===============================================

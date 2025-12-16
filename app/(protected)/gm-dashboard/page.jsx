@@ -1,6 +1,5 @@
 "use client";
 
-import Header from "@/components/Header";
 import SearchBar from "@/components/gm/SearchBar";
 import Timeline from "@/components/gm/Timeline";
 import RelationshipGraph from "@/components/gm/RelationshipGraph";
