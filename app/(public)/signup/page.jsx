@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import "../auth.css";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -84,53 +85,64 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="auth-container">
-      <h1>Create Account</h1>
+    <main className="lw-main">
+      <div className="lw-auth">
+        <div className="lw-auth-card">
+          <img
+            src="/lanternwave-logo.png"
+            alt="Lanternwave"
+            className="lw-logo"
+          />
 
-      <form onSubmit={handleSubmit}>
-        <input
-          name="email"
-          type="email"
-          placeholder="Email"
-          required
-        />
+          <h1 className="lw-auth-title">Create Account</h1>
 
-        <input
-          name="username"
-          type="text"
-          placeholder="Username"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          required
-        />
+          <form onSubmit={handleSubmit} className="lw-auth-form">
+            <input
+              name="email"
+              type="email"
+              placeholder="Email"
+              required
+              className="lw-auth-input"
+            />
 
-        {/* Username feedback */}
-        {usernameStatus === "checking" && (
-          <div className="hint">Checking username…</div>
-        )}
-        {usernameStatus === "available" && (
-          <div className="success">Username is available</div>
-        )}
-        {usernameStatus === "taken" && (
-          <div className="error">Username already taken</div>
-        )}
+            <input
+              name="username"
+              type="text"
+              placeholder="Username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
+              className="lw-auth-input"
+            />
 
-        <input
-          name="password"
-          type="password"
-          placeholder="Password"
-          required
-        />
+            {/* Username feedback */}
+            {usernameStatus === "checking" && (
+              <div className="lw-auth-status">
+                Checking username…
+              </div>
+            )}
+            {usernameStatus === "available" && (
+              <div className="lw-auth-status">
+                Username is available
+              </div>
+            )}
+            {usernameStatus === "taken" && (
+              <div className="lw-auth-error">
+                Username already taken
+              </div>
+            )}
 
-        {error && <div className="error">{error}</div>}
+            <input
+              name="password"
+              type="password"
+              placeholder="Password"
+              required
+              className="lw-auth-input"
+            />
 
-        <button
-          type="submit"
-          disabled={loading || usernameStatus === "taken"}
-        >
-          {loading ? "Creating…" : "Create Account"}
-        </button>
-      </form>
-    </div>
-  );
-}
+            {error && (
+              <div className="lw-auth-error">{error}</div>
+            )}
+
+            <button
+              type="submit"

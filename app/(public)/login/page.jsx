@@ -35,7 +35,6 @@ export default function LoginPage() {
         return;
       }
 
-      // Success → GM Dashboard
       router.push("/gm-dashboard");
     } catch (err) {
       console.error(err);
@@ -45,58 +44,58 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="lw-login-root">
-      {/* Top-right utility nav */}
-      <div className="lw-login-topnav">
-        <a href="/support">Support</a>
-        <a href="/signup">Create Account</a>
-        <a href="/">Sign In</a>
-      </div>
-
-      {/* Centered login box */}
-      <div className="lw-login-container">
-        <img
-          src="/lanternwave-logo.png"
-          alt="Lanternwave"
-          className="lw-login-logo"
-        />
-
-        <h1 className="lw-login-title">Sign In</h1>
-
-        <form onSubmit={handleSubmit} className="lw-login-form">
-          <input
-            type="text"
-            placeholder="Email or Username"
-            value={emailOrUsername}
-            onChange={(e) => setEmailOrUsername(e.target.value)}
-            autoComplete="username"
-            required
+    <main className="lw-main">
+      <div className="lw-auth">
+        <div className="lw-auth-card">
+          <img
+            src="/lanternwave-logo.png"
+            alt="Lanternwave"
+            className="lw-logo"
           />
 
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete="current-password"
-            required
-          />
+          <h1 className="lw-auth-title">Sign In</h1>
 
-          {error && <div className="lw-login-error">{error}</div>}
+          <form onSubmit={handleSubmit} className="lw-auth-form">
+            <input
+              type="text"
+              placeholder="Email or Username"
+              value={emailOrUsername}
+              onChange={(e) => setEmailOrUsername(e.target.value)}
+              autoComplete="username"
+              required
+              className="lw-auth-input"
+            />
 
-          <button
-            type="submit"
-            className="lw-login-button"
-            disabled={loading}
-          >
-            {loading ? "Signing in…" : "Sign In"}
-          </button>
-        </form>
+            <input
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
+              required
+              className="lw-auth-input"
+            />
 
-        <div className="lw-login-footer">
-          <a href="/forgot-password">Forgot password?</a>
+            {error && (
+              <div className="lw-auth-error">{error}</div>
+            )}
+
+            <button
+              type="submit"
+              className="lw-auth-submit"
+              disabled={loading}
+            >
+              {loading ? "Signing in…" : "Sign In"}
+            </button>
+          </form>
+
+          <div className="lw-auth-links">
+            <a href="/forgot-password" className="lw-auth-link">
+              Forgot password?
+            </a>
+          </div>
         </div>
       </div>
-    </div>
+    </main>
   );
 }

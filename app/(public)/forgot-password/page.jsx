@@ -27,40 +27,49 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="lw-login-root">
-      <div className="lw-login-container">
-        <img
-          src="/lanternwave-logo.png"
-          alt="Lanternwave"
-          className="lw-login-logo"
-        />
+    <main className="lw-main">
+      <div className="lw-auth">
+        <div className="lw-auth-card">
+          <img
+            src="/lanternwave-logo.png"
+            alt="Lanternwave"
+            className="lw-logo"
+          />
 
-        <h1 className="lw-login-title">Reset Password</h1>
+          <h1 className="lw-auth-title">Reset Password</h1>
 
-        {sent ? (
-          <div className="lw-login-success">
-            If an account exists for that email, a reset link has been sent.
+          {sent ? (
+            <div className="lw-auth-status">
+              If an account exists for that email, a reset link has been sent.
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit} className="lw-auth-form">
+              <input
+                type="email"
+                placeholder="Email address"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="lw-auth-input"
+              />
+
+              {error && (
+                <div className="lw-auth-error">{error}</div>
+              )}
+
+              <button type="submit" className="lw-auth-submit">
+                Send Reset Link
+              </button>
+            </form>
+          )}
+
+          <div className="lw-auth-links">
+            <a href="/" className="lw-auth-link">
+              Back to Sign In
+            </a>
           </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="lw-login-form">
-            <input
-              type="email"
-              placeholder="Email address"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-
-            {error && <div className="lw-login-error">{error}</div>}
-
-            <button type="submit">Send Reset Link</button>
-          </form>
-        )}
-
-        <div className="lw-login-footer">
-          <a href="/">Back to Sign In</a>
         </div>
       </div>
-    </div>
+    </main>
   );
 }
