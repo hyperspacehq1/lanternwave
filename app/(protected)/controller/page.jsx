@@ -134,12 +134,14 @@ export default function ControllerPage() {
   const previewUrl = previewKey ? streamUrlForKey(previewKey) : null;
   const previewType = previewKey ? clipTypeFromKey(previewKey) : null;
 
-  return (
-    <div className="lw-root">
-      <Header />
-
-      <main className="lw-main">
-        <div className="lw-console">
+ return (
+  <>
+    <Header />
+    <main className="lw-main">
+      <div className="lw-console">...</div>
+    </main>
+  </>
+);
 
           {/* =========================
               UPLOAD PANEL

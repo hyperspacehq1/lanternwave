@@ -15,11 +15,10 @@ const Tools = dynamic(() => import("@/components/gm/Tools"), {
 
 export default function GMDashboard() {
   return (
-    <div className="lw-root">
-      {/* Header now behaves exactly like Controller */}
+    <>
+      {/* Header now uses the SINGLE root defined in app/layout.jsx */}
       <Header />
 
-      {/* Match Controller page structure */}
       <main className="lw-main">
         <div className="gm-root">
           <div className="gm-layout">
@@ -44,6 +43,6 @@ export default function GMDashboard() {
           </div>
         </div>
       </main>
-    </div>
+    </>
   );
 }
