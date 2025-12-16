@@ -1,23 +1,11 @@
-import Header from "@/components/Header";
-import Link from "next/link";
+import "./globals.css";
 
-export const dynamic = "force-dynamic";
-
-export default function PublicLayout({ children }) {
+export default function RootLayout({ children }) {
   return (
-    <>
-      <Header variant="public" />
-
-      <main className="lw-main">
+    <html lang="en">
+      <body className="lw-root">
         {children}
-      </main>
-
-      <footer className="lw-footer">
-        <Link href="/privacy-policy">Privacy Policy</Link>
-        <Link href="/terms">Terms</Link>
-        <Link href="/contact">Contact Us</Link>
-        <Link href="/about">About</Link>
-      </footer>
-    </>
+      </body>
+    </html>
   );
 }
