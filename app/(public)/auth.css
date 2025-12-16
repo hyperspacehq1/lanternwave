@@ -1,99 +1,133 @@
-.lw-login-root {
-  min-height: 100vh;
-  background: #050607;
-  color: #e6e6e6;
+/* ============================================================
+   AUTH PAGES STYLES (SCOPED)
+   IMPORTANT:
+   - NO body / html / :root styles
+   - NO header / nav styles
+   - NO font-face declarations
+   - EVERYTHING scoped under .lw-main
+   ============================================================ */
+
+/* ------------------------------
+   AUTH PAGE WRAPPER
+------------------------------ */
+.lw-main .lw-auth {
+  width: 100%;
+  min-height: calc(100vh - var(--lw-header-height));
   display: flex;
   align-items: center;
   justify-content: center;
-  position: relative;
-  font-family: system-ui, sans-serif;
+  padding: 1.25rem;
 }
 
-.lw-login-topnav {
-  position: absolute;
-  top: 20px;
-  right: 24px;
-  display: flex;
-  gap: 20px;
-  font-size: 0.85rem;
-}
-
-.lw-login-topnav a {
-  color: #9aa3a6;
-  text-decoration: none;
-}
-
-.lw-login-topnav a:hover {
-  color: #ffffff;
-}
-
-.lw-login-container {
-  width: 360px;
-  background: #0b0d0e;
-  border: 1px solid #1c1f21;
-  padding: 32px;
-  border-radius: 6px;
-  box-shadow: 0 0 40px rgba(0, 0, 0, 0.6);
-  text-align: center;
-}
-
-.lw-login-logo {
-  width: 140px;
-  margin-bottom: 20px;
-}
-
-.lw-login-title {
-  margin-bottom: 24px;
-  font-size: 1.2rem;
-  letter-spacing: 0.08em;
-}
-
-.lw-login-form {
+/* ------------------------------
+   AUTH CARD
+------------------------------ */
+.lw-main .lw-auth-card {
+  width: 100%;
+  max-width: 420px;
+  background: rgba(0, 0, 0, 0.85);
+  border: 1px solid var(--lw-border-muted);
+  padding: 1.25rem;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 1rem;
 }
 
-.lw-login-form input {
-  background: #050607;
-  border: 1px solid #2a2e30;
-  padding: 10px 12px;
-  color: #fff;
-  border-radius: 4px;
+/* ------------------------------
+   TITLES
+------------------------------ */
+.lw-main .lw-auth-title {
+  font-family: var(--font-terminal);
+  font-size: 13px;
+  letter-spacing: 0.14em;
+  color: var(--lw-green-muted);
+  text-transform: uppercase;
+  text-align: center;
+  margin-bottom: 0.25rem;
 }
 
-.lw-login-form input:focus {
+/* ------------------------------
+   FORM ELEMENTS
+------------------------------ */
+.lw-main .lw-auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.lw-main .lw-auth-label {
+  font-size: 10px;
+  color: var(--lw-green-muted);
+  opacity: 0.85;
+}
+
+.lw-main .lw-auth-input {
+  background: #000;
+  border: 1px solid var(--lw-border-muted);
+  padding: 0.5rem 0.6rem;
+  font-size: 11px;
+  color: var(--lw-text-main);
+}
+
+.lw-main .lw-auth-input:focus {
   outline: none;
-  border-color: #6cc5f0;
+  border-color: var(--lw-green-primary);
 }
 
-.lw-login-button {
-  margin-top: 10px;
-  background: #6cc5f0;
-  color: #000;
-  padding: 10px;
-  border: none;
-  border-radius: 4px;
-  font-weight: 600;
+/* ------------------------------
+   PRIMARY BUTTON
+------------------------------ */
+.lw-main .lw-auth-submit {
+  margin-top: 0.5rem;
+  background: transparent;
+  border: 1px solid var(--lw-green-primary);
+  border-radius: 999px;
+  padding: 0.45rem 0.9rem;
+  font-family: var(--font-terminal);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  color: var(--lw-green-primary);
   cursor: pointer;
+  transition: all 0.15s ease;
 }
 
-.lw-login-button:disabled {
-  opacity: 0.6;
-  cursor: default;
+.lw-main .lw-auth-submit:hover {
+  background: rgba(108, 196, 23, 0.08);
 }
 
-.lw-login-error {
-  color: #ff6b6b;
-  font-size: 0.85rem;
+/* ------------------------------
+   SECONDARY LINKS
+------------------------------ */
+.lw-main .lw-auth-links {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.5rem;
 }
 
-.lw-login-footer {
-  margin-top: 18px;
-  font-size: 0.8rem;
-}
-
-.lw-login-footer a {
-  color: #9aa3a6;
+.lw-main .lw-auth-link {
+  font-size: 10px;
+  color: var(--lw-green-muted);
   text-decoration: none;
+  opacity: 0.8;
+}
+
+.lw-main .lw-auth-link:hover {
+  opacity: 1;
+  color: var(--lw-green-primary);
+}
+
+/* ------------------------------
+   STATUS / ERROR MESSAGES
+------------------------------ */
+.lw-main .lw-auth-status {
+  font-size: 10px;
+  color: var(--lw-green-muted);
+  text-align: center;
+  opacity: 0.9;
+}
+
+.lw-main .lw-auth-error {
+  color: red;
+  font-size: 10px;
+  text-align: center;
 }
