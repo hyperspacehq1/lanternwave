@@ -41,9 +41,6 @@ export default function Header({ auth }) {
 
         <div className="lw-title-block">
           <h1 className="lw-app-title">LANTERNWAVE</h1>
-          <p className="lw-app-subtitle">
-            {auth?.tenant_name || "Campaign System"}
-          </p>
         </div>
       </div>
 
