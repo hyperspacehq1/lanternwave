@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import "./auth.css";
+import "../auth.css";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -22,11 +22,7 @@ export default function SignupPage() {
       const res = await fetch("/api/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email,
-          username,
-          password,
-        }),
+        body: JSON.stringify({ email, username, password }),
       });
 
       const data = await res.json();
@@ -45,56 +41,72 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="lw-auth">
-      {/* Brand */}
-      <div className="lw-brand">
-        <img
-          src="/lanternwave-logo.png"
-          alt="LanternWave"
-          className="lw-brand-logo"
-        />
-        <div className="lw-brand-text">LANTERNWAVE</div>
+    <main className="lw-main">
+      <div className="lw-auth">
+
+        {/* BRAND */}
+        <div className="lw-brand">
+          <img
+            src="/lanternwave-logo.png"
+            alt="Lanternwave"
+            className="lw-brand-logo"
+          />
+          <div className="lw-brand-text">LANTERNWAVE</div>
+        </div>
+
+        {/* CARD */}
+        <div className="lw-auth-card">
+          <h1 className="lw-auth-title">Create Account</h1>
+
+          <form onSubmit={handleSubmit} className="lw-auth-form">
+            <input
+              type="email"
+              placeholder="Email"
+              autoComplete="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="lw-auth-input"
+            />
+
+            <input
+              type="text"
+              placeholder="Username"
+              autoComplete="username"
+              required
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              className="lw-auth-input"
+            />
+
+            <input
+              type="password"
+              placeholder="Password"
+              autoComplete="new-password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="lw-auth-input"
+            />
+
+            {error && <div className="lw-auth-error">{error}</div>}
+
+            <button
+              type="submit"
+              className="lw-auth-submit"
+              disabled={loading}
+            >
+              {loading ? "Creating Account…" : "Create Account"}
+            </button>
+          </form>
+
+          <div className="lw-auth-links">
+            <a href="/" className="lw-auth-link">
+              Back to Sign In
+            </a>
+          </div>
+        </div>
       </div>
-
-      {/* Card */}
-      <div className="lw-auth-card">
-        <h1>Create Account</h1>
-
-        {error && <div className="lw-auth-error">{error}</div>}
-
-        <form onSubmit={handleSubmit}>
-          <label>Email</label>
-          <input
-            type="email"
-            autoComplete="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-
-          <label>Username</label>
-          <input
-            type="text"
-            autoComplete="username"
-            required
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-          />
-
-          <label>Password</label>
-          <input
-            type="password"
-            autoComplete="new-password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-
-          <button type="submit" disabled={loading}>
-            {loading ? "Creating Account…" : "Create Account"}
-          </button>
-        </form>
-      </div>
-    </div>
+    </main>
   );
 }
