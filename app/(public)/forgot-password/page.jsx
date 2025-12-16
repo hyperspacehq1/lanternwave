@@ -20,8 +20,7 @@ export default function ForgotPasswordPage() {
       });
 
       setSent(true);
-    } catch (err) {
-      console.error(err);
+    } catch {
       setError("Server error");
     }
   }
@@ -29,13 +28,19 @@ export default function ForgotPasswordPage() {
   return (
     <main className="lw-main">
       <div className="lw-auth">
-        <div className="lw-auth-card">
+
+        {/* BRAND */}
+        <div className="lw-brand">
           <img
             src="/lanternwave-logo.png"
             alt="Lanternwave"
-            className="lw-logo"
+            className="lw-brand-logo"
           />
+          <div className="lw-brand-text">LANTERNWAVE</div>
+        </div>
 
+        {/* CARD */}
+        <div className="lw-auth-card">
           <h1 className="lw-auth-title">Reset Password</h1>
 
           {sent ? (
@@ -53,9 +58,7 @@ export default function ForgotPasswordPage() {
                 className="lw-auth-input"
               />
 
-              {error && (
-                <div className="lw-auth-error">{error}</div>
-              )}
+              {error && <div className="lw-auth-error">{error}</div>}
 
               <button type="submit" className="lw-auth-submit">
                 Send Reset Link

@@ -147,10 +147,6 @@
   rotate: 0deg !important;
 }
 
-/* ============================================================
-   BRAND BLOCK (LOGIN PAGE)
-   ============================================================ */
-
 .lw-main .lw-auth {
   flex-direction: column;
 }
@@ -164,7 +160,27 @@
   pointer-events: none;
 }
 
-/* Logo — never squished */
+.lw-main .lw-brand-text {
+  margin-top: 0.65rem;
+  font-family: var(--font-terminal);
+  font-size: 12px;
+  letter-spacing: 0.32em;
+  color: var(--lw-green-primary);
+  opacity: 0.9;
+}
+
+.lw-main .lw-auth {
+  flex-direction: column;
+}
+
+.lw-main .lw-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 1.75rem;
+  pointer-events: none;
+}
+
 .lw-main .lw-brand-logo {
   width: 180px;
   height: auto;
@@ -173,14 +189,4 @@
   filter:
     drop-shadow(0 0 14px rgba(108, 196, 23, 0.45))
     drop-shadow(0 0 34px rgba(108, 196, 23, 0.25));
-}
-
-/* Lanternwave text */
-.lw-main .lw-brand-text {
-  margin-top: 0.65rem;
-  font-family: var(--font-terminal);
-  font-size: 12px;
-  letter-spacing: 0.32em;
-  color: var(--lw-green-primary);
-  opacity: 0.9;
 }

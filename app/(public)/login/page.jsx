@@ -21,10 +21,7 @@ export default function LoginPage() {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          emailOrUsername,
-          password,
-        }),
+        body: JSON.stringify({ emailOrUsername, password }),
       });
 
       const data = await res.json();
@@ -36,8 +33,7 @@ export default function LoginPage() {
       }
 
       router.push("/gm-dashboard");
-    } catch (err) {
-      console.error(err);
+    } catch {
       setError("Server error");
       setLoading(false);
     }
@@ -46,13 +42,19 @@ export default function LoginPage() {
   return (
     <main className="lw-main">
       <div className="lw-auth">
-        <div className="lw-auth-card">
+
+        {/* BRAND */}
+        <div className="lw-brand">
           <img
             src="/lanternwave-logo.png"
             alt="Lanternwave"
-            className="lw-logo"
+            className="lw-brand-logo"
           />
+          <div className="lw-brand-text">LANTERNWAVE</div>
+        </div>
 
+        {/* CARD */}
+        <div className="lw-auth-card">
           <h1 className="lw-auth-title">Sign In</h1>
 
           <form onSubmit={handleSubmit} className="lw-auth-form">
@@ -61,7 +63,6 @@ export default function LoginPage() {
               placeholder="Email or Username"
               value={emailOrUsername}
               onChange={(e) => setEmailOrUsername(e.target.value)}
-              autoComplete="username"
               required
               className="lw-auth-input"
             />
@@ -71,14 +72,11 @@ export default function LoginPage() {
               placeholder="Password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              autoComplete="current-password"
               required
               className="lw-auth-input"
             />
 
-            {error && (
-              <div className="lw-auth-error">{error}</div>
-            )}
+            {error && <div className="lw-auth-error">{error}</div>}
 
             <button
               type="submit"
