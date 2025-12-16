@@ -23,8 +23,9 @@ export default function LogoMark({
           color: "#87e8ff",
           fontFamily: "var(--font-muther, monospace)",
           fontSize: size * 0.22,
+          transform: "none",
         }}
-        className={className}
+        className={`lw-logo ${className}`}
       >
         LW
       </div>
@@ -32,14 +33,24 @@ export default function LogoMark({
   }
 
   return (
-    <Image
-      src={src}
-      alt={alt}
-      width={size}
-      height={size}
-      className={`inline-block ${className}`}
-      onError={() => setError(true)}
-      priority
-    />
+    <span
+      className={`lw-logo-wrap ${className}`}
+      style={{ display: "inline-flex", alignItems: "center", transform: "none" }}
+    >
+      <Image
+        src={src}
+        alt={alt}
+        width={size}
+        height={size}
+        className="lw-logo"
+        style={{
+          transform: "none",
+          rotate: "0deg",
+          WebkitTransform: "none",
+        }}
+        onError={() => setError(true)}
+        priority
+      />
+    </span>
   );
 }
