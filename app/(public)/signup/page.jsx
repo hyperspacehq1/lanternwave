@@ -43,15 +43,17 @@ export default function LoginPage() {
     <main className="lw-main">
       <div className="lw-auth">
 
-        {/* LOGO — OUTSIDE CARD */}
-        <div className="lw-auth-logo-wrap">
+        {/* ===== BRAND BLOCK (OUTSIDE CARD) ===== */}
+        <div className="lw-brand">
           <img
             src="/lanternwave-logo.png"
             alt="Lanternwave"
-            className="lw-auth-logo"
+            className="lw-brand-logo"
           />
+          <div className="lw-brand-text">LANTERNWAVE</div>
         </div>
 
+        {/* ===== AUTH CARD ===== */}
         <div className="lw-auth-card">
           <h1 className="lw-auth-title">Sign In</h1>
 
@@ -74,9 +76,7 @@ export default function LoginPage() {
               className="lw-auth-input"
             />
 
-            {error && (
-              <div className="lw-auth-error">{error}</div>
-            )}
+            {error && <div className="lw-auth-error">{error}</div>}
 
             <button
               type="submit"
@@ -93,43 +93,6 @@ export default function LoginPage() {
             </a>
           </div>
         </div>
-
-        {/* LOCAL STYLES — SAFE & SCOPED */}
-        <style jsx>{`
-          .lw-auth-logo-wrap {
-            margin-bottom: 1.25rem;
-            display: flex;
-            justify-content: center;
-            pointer-events: none;
-          }
-
-          .lw-auth-logo {
-            width: 160px;
-            height: auto;
-            filter:
-              drop-shadow(0 0 12px rgba(108, 196, 23, 0.45))
-              drop-shadow(0 0 28px rgba(108, 196, 23, 0.25));
-            animation: logoPulse 3.5s ease-in-out infinite;
-          }
-
-          @keyframes logoPulse {
-            0% {
-              filter:
-                drop-shadow(0 0 10px rgba(108, 196, 23, 0.35))
-                drop-shadow(0 0 22px rgba(108, 196, 23, 0.2));
-            }
-            50% {
-              filter:
-                drop-shadow(0 0 18px rgba(108, 196, 23, 0.65))
-                drop-shadow(0 0 42px rgba(108, 196, 23, 0.4));
-            }
-            100% {
-              filter:
-                drop-shadow(0 0 10px rgba(108, 196, 23, 0.35))
-                drop-shadow(0 0 22px rgba(108, 196, 23, 0.2));
-            }
-          }
-        `}</style>
       </div>
     </main>
   );
