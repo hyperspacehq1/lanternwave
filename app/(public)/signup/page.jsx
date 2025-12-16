@@ -1,126 +1,100 @@
-import { NextResponse } from "next/server";
-import bcrypt from "bcryptjs";
-import { query } from "@/lib/db";
-import { randomUUID } from "crypto";
+"use client";
 
-export const runtime = "nodejs";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import "./auth.css";
 
-function normalizeUsername(username) {
-  return username.trim().toLowerCase();
-}
+export default function SignupPage() {
+  const router = useRouter();
 
-export async function POST(req) {
-  try {
-    const { email, username, password } = await req.json();
+  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-    if (!email || !username || !password) {
-      return NextResponse.json(
-        { code: "MISSING_FIELDS", message: "All fields are required." },
-        { status: 400 }
-      );
-    }
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
 
-    const usernameNormalized = normalizeUsername(username);
-
-    /* -------------------------
-       Begin transaction
-       ------------------------- */
-    await query("BEGIN");
-
-    const emailExists = await query(
-      "SELECT 1 FROM users WHERE email = $1",
-      [email]
-    );
-    if (emailExists.rowCount > 0) {
-      await query("ROLLBACK");
-      return NextResponse.json(
-        { code: "EMAIL_EXISTS", message: "Email already in use." },
-        { status: 409 }
-      );
-    }
-
-    const usernameExists = await query(
-      "SELECT 1 FROM users WHERE username_normalized = $1",
-      [usernameNormalized]
-    );
-    if (usernameExists.rowCount > 0) {
-      await query("ROLLBACK");
-      return NextResponse.json(
-        { code: "USERNAME_EXISTS", message: "Username already taken." },
-        { status: 409 }
-      );
-    }
-
-    const passwordHash = await bcrypt.hash(password, 10);
-
-    const userRes = await query(
-      `
-      INSERT INTO users (
-        id,
-        email,
-        username,
-        username_normalized,
-        password_hash
-      )
-      VALUES (gen_random_uuid(), $1, $2, $3, $4)
-      RETURNING id
-      `,
-      [email, username, usernameNormalized, passwordHash]
-    );
-
-    const userId = userRes.rows[0].id;
-    const tenantId = randomUUID();
-
-    await query(
-      `INSERT INTO tenants (id, name) VALUES ($1, $2)`,
-      [tenantId, `${username}'s Account`]
-    );
-
-    await query(
-      `
-      INSERT INTO tenant_users (
-        user_id,
-        tenant_id,
-        role,
-        created_at
-      )
-      VALUES ($1, $2, 'owner', NOW())
-      `,
-      [userId, tenantId]
-    );
-
-    await query("COMMIT");
-
-    /* -------------------------
-       Auto-login (2025 correct)
-       ------------------------- */
-    const res = NextResponse.json({ ok: true });
-
-    res.cookies.set("lw_session", userId, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-    });
-
-    return res;
-
-  } catch (err) {
     try {
-      await query("ROLLBACK");
-    } catch {}
-
-    console.error("SIGNUP FAILED:", err);
-
-    return new NextResponse(
-      JSON.stringify({
-        code: "SIGNUP_FAILED",
-        message: err?.message || "Internal signup error",
-      }),
-      {
-        status: 500,
+      const res = await fetch("/api/auth/signup", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          username,
+          password,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data?.error || "Failed to create account");
       }
-    );
+
+      // Auto-login handled server-side
+      router.push("/gm-dashboard");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   }
+
+  return (
+    <div className="lw-auth">
+      {/* Brand */}
+      <div className="lw-brand">
+        <img
+          src="/lanternwave-logo.png"
+          alt="LanternWave"
+          className="lw-brand-logo"
+        />
+        <div className="lw-brand-text">LANTERNWAVE</div>
+      </div>
+
+      {/* Card */}
+      <div className="lw-auth-card">
+        <h1>Create Account</h1>
+
+        {error && <div className="lw-auth-error">{error}</div>}
+
+        <form onSubmit={handleSubmit}>
+          <label>Email</label>
+          <input
+            type="email"
+            autoComplete="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+
+          <label>Username</label>
+          <input
+            type="text"
+            autoComplete="username"
+            required
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+          />
+
+          <label>Password</label>
+          <input
+            type="password"
+            autoComplete="new-password"
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+
+          <button type="submit" disabled={loading}>
+            {loading ? "Creating Account…" : "Create Account"}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
 }
