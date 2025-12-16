@@ -1,25 +1,11 @@
 import { NextResponse } from "next/server";
 import { DeleteObjectCommand } from "@aws-sdk/client-s3";
-import { getR2, BUCKET } from "@/lib/r2/client";
-import { query } from "@/lib/db";
+import { getR2Client, R2_BUCKET_NAME } from "@/lib/r2/server";
+import { getTenantContext } from "@/lib/tenant/server";
 
 export const runtime = "nodejs";
 
 export async function DELETE(req) {
-  const tenantId = req.headers.get("x-tenant-id");
-  if (!tenantId) {
-    return NextResponse.json(
-      { ok: false, error: "missing tenant context" },
-      { status: 401 }
-    );
-  }
-
-  // SET LOCAL must be a real SQL string
-  await query(
-    `SET LOCAL app.tenant_id = $1`,
-    [tenantId]
-  );
-
   const { searchParams } = new URL(req.url);
   const key = searchParams.get("key");
 
@@ -32,44 +18,37 @@ export async function DELETE(req) {
 
   try {
     // ------------------------------------------------------------
-    // 1️⃣ Soft delete in DB (authority)
+    // Resolve tenant from cookies (Option A)
     // ------------------------------------------------------------
-    const result = await query(
-      `
-      UPDATE clips
-      SET deleted_at = NOW()
-      WHERE tenant_id = app_tenant_id()
-        AND key = $1
-        AND deleted_at IS NULL
-      RETURNING key
-      `,
-      [key]
-    );
+    const { prefix, tenantId } = getTenantContext();
 
-    if (!result.rows.length) {
+    // Enforce tenant isolation
+    if (!key.startsWith(prefix + "/")) {
       return NextResponse.json(
-        { ok: false, error: "clip not found" },
-        { status: 404 }
+        { ok: false, error: "invalid tenant key" },
+        { status: 403 }
       );
     }
 
     // ------------------------------------------------------------
-    // 2️⃣ Delete from R2 (best-effort)
+    // Delete from R2
     // ------------------------------------------------------------
-    const r2 = getR2();
-    await r2.send(
+    const client = getR2Client();
+
+    await client.send(
       new DeleteObjectCommand({
-        Bucket: BUCKET,
+        Bucket: R2_BUCKET_NAME,
         Key: key,
       })
     );
 
     return NextResponse.json({
       ok: true,
-      deleted: result.rows[0].key,
+      deleted: key,
+      tenant: tenantId,
     });
   } catch (err) {
-    console.error("delete error:", err);
+    console.error("r2 delete error:", err);
     return NextResponse.json(
       { ok: false, error: "delete failed" },
       { status: 500 }

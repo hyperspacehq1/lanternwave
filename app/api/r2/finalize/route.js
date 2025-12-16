@@ -1,37 +1,15 @@
 import { NextResponse } from "next/server";
 import { HeadObjectCommand } from "@aws-sdk/client-s3";
-import { getR2, BUCKET } from "@/lib/r2/client";
-import { query } from "@/lib/db";
+import { getR2Client, R2_BUCKET_NAME } from "@/lib/r2/server";
+import { getTenantContext } from "@/lib/tenant/server";
 import { guessContentType } from "@/lib/r2/contentType";
 
 export const runtime = "nodejs";
 
 export async function POST(req) {
-  const tenantId = req.headers.get("x-tenant-id");
-  const userId = req.headers.get("x-user-id");
-
-  if (!tenantId || !userId) {
-    return NextResponse.json(
-      { ok: false, error: "missing tenant or user context" },
-      { status: 401 }
-    );
-  }
-
-  // ------------------------------------------------------------
-  // Enforce tenant + user context (RLS)
-  // ------------------------------------------------------------
-  await query(
-    `SET LOCAL app.tenant_id = $1`,
-    [tenantId]
-  );
-
-  await query(
-    `SET LOCAL app.user_id = $1`,
-    [userId]
-  );
-
   try {
     const { key } = await req.json();
+
     if (!key) {
       return NextResponse.json(
         { ok: false, error: "missing key" },
@@ -40,12 +18,25 @@ export async function POST(req) {
     }
 
     // ------------------------------------------------------------
-    // 1️⃣ Verify object exists in R2
+    // Resolve tenant from cookies (Option A)
     // ------------------------------------------------------------
-    const r2 = getR2();
-    const head = await r2.send(
+    const { prefix, tenantId } = getTenantContext();
+
+    // Enforce tenant isolation
+    if (!key.startsWith(prefix + "/")) {
+      return NextResponse.json(
+        { ok: false, error: "invalid tenant key" },
+        { status: 403 }
+      );
+    }
+
+    // ------------------------------------------------------------
+    // Verify object exists in R2
+    // ------------------------------------------------------------
+    const client = getR2Client();
+    const head = await client.send(
       new HeadObjectCommand({
-        Bucket: BUCKET,
+        Bucket: R2_BUCKET_NAME,
         Key: key,
       })
     );
@@ -53,41 +44,15 @@ export async function POST(req) {
     const mimeType = guessContentType(key);
     const byteSize = head.ContentLength || null;
 
-    // ------------------------------------------------------------
-    // 2️⃣ Insert clip metadata (authoritative DB record)
-    // ------------------------------------------------------------
-    await query(
-      `
-      INSERT INTO clips (
-        tenant_id,
-        user_id,
-        bucket_id,
-        key,
-        mime_type,
-        byte_size
-      )
-      VALUES (
-        app_tenant_id(),
-        app_user_id(),
-        (
-          SELECT id
-          FROM r2_buckets
-          WHERE tenant_id = app_tenant_id()
-            AND user_id = app_user_id()
-          LIMIT 1
-        ),
-        $1,
-        $2,
-        $3
-      )
-      ON CONFLICT DO NOTHING
-      `,
-      [key, mimeType, byteSize]
-    );
-
-    return NextResponse.json({ ok: true, key });
+    return NextResponse.json({
+      ok: true,
+      key,
+      mimeType,
+      byteSize,
+      tenant: tenantId,
+    });
   } catch (err) {
-    console.error("finalize error:", err);
+    console.error("r2 finalize error:", err);
     return NextResponse.json(
       { ok: false, error: "finalize failed" },
       { status: 500 }

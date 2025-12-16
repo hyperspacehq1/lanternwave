@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
+import { getTenantContext } from "@/lib/tenant/server";
 
 export const runtime = "nodejs";
 
@@ -8,31 +9,22 @@ const KV_KEY = "now_playing";
 // ------------------------------------------------------------
 // GET now playing
 // ------------------------------------------------------------
-export async function GET(req) {
-  const tenantId = req.headers.get("x-tenant-id");
-  if (!tenantId) {
-    return NextResponse.json(
-      { ok: false, error: "missing tenant context" },
-      { status: 401 }
-    );
-  }
-
-  // SET LOCAL must be a real query string
-  await query(
-    `SET LOCAL app.tenant_id = $1`,
-    [tenantId]
-  );
-
+export async function GET() {
   try {
+    // ----------------------------------------------------------
+    // Resolve tenant from cookies (Option A)
+    // ----------------------------------------------------------
+    const { tenantId } = getTenantContext();
+
     const result = await query(
       `
       SELECT value
       FROM debug_kv
-      WHERE tenant_id = app_tenant_id()
-        AND key = $1
+      WHERE tenant_id = $1
+        AND key = $2
       LIMIT 1
       `,
-      [KV_KEY]
+      [tenantId, KV_KEY]
     );
 
     return NextResponse.json({
@@ -52,21 +44,12 @@ export async function GET(req) {
 // SET now playing
 // ------------------------------------------------------------
 export async function POST(req) {
-  const tenantId = req.headers.get("x-tenant-id");
-  if (!tenantId) {
-    return NextResponse.json(
-      { ok: false, error: "missing tenant context" },
-      { status: 401 }
-    );
-  }
-
-  // SET LOCAL must be a real query string
-  await query(
-    `SET LOCAL app.tenant_id = $1`,
-    [tenantId]
-  );
-
   try {
+    // ----------------------------------------------------------
+    // Resolve tenant from cookies (Option A)
+    // ----------------------------------------------------------
+    const { tenantId } = getTenantContext();
+
     const body = await req.json();
     const payload = {
       key: body.key || null,
@@ -76,17 +59,13 @@ export async function POST(req) {
     await query(
       `
       INSERT INTO debug_kv (tenant_id, key, value)
-      VALUES (
-        app_tenant_id(),
-        $1,
-        $2
-      )
+      VALUES ($1, $2, $3)
       ON CONFLICT (tenant_id, key)
       DO UPDATE SET
         value = EXCLUDED.value,
         updated_at = NOW()
       `,
-      [KV_KEY, payload]
+      [tenantId, KV_KEY, payload]
     );
 
     return NextResponse.json({

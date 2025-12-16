@@ -1,25 +1,26 @@
 import { NextResponse } from "next/server";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
-import { getR2, BUCKET } from "@/lib/r2/client";
-import { query } from "@/lib/db";
+import { getR2Client, R2_BUCKET_NAME } from "@/lib/r2/server";
+import { getTenantContext } from "@/lib/tenant/server";
+import { guessContentType } from "@/lib/r2/contentType";
 
 export const runtime = "nodejs";
 
+/**
+ * Convert Node.js stream to Web ReadableStream
+ * (required for Next.js Response streaming)
+ */
+function nodeStreamToWeb(stream) {
+  return new ReadableStream({
+    start(controller) {
+      stream.on("data", (chunk) => controller.enqueue(chunk));
+      stream.on("end", () => controller.close());
+      stream.on("error", (err) => controller.error(err));
+    },
+  });
+}
+
 export async function GET(req) {
-  const tenantId = req.headers.get("x-tenant-id");
-  if (!tenantId) {
-    return NextResponse.json(
-      { ok: false, error: "missing tenant context" },
-      { status: 401 }
-    );
-  }
-
-  // Enforce RLS
-  await query(
-    `SET LOCAL app.tenant_id = $1`,
-    [tenantId]
-  );
-
   const { searchParams } = new URL(req.url);
   const key = searchParams.get("key");
 
@@ -31,17 +32,36 @@ export async function GET(req) {
   }
 
   try {
-    const r2 = getR2();
-    const result = await r2.send(
+    // ------------------------------------------------------------
+    // Resolve tenant from cookies (Option A)
+    // ------------------------------------------------------------
+    const { prefix } = getTenantContext();
+
+    // ------------------------------------------------------------
+    // Enforce tenant isolation
+    // ------------------------------------------------------------
+    if (!key.startsWith(prefix + "/")) {
+      return NextResponse.json(
+        { ok: false, error: "invalid tenant key" },
+        { status: 403 }
+      );
+    }
+
+    // ------------------------------------------------------------
+    // Stream object from R2
+    // ------------------------------------------------------------
+    const client = getR2Client();
+    const result = await client.send(
       new GetObjectCommand({
-        Bucket: BUCKET,
+        Bucket: R2_BUCKET_NAME,
         Key: key,
       })
     );
 
-    return new Response(result.Body, {
+    return new Response(nodeStreamToWeb(result.Body), {
       headers: {
-        "Content-Type": result.ContentType || "application/octet-stream",
+        "Content-Type": guessContentType(key),
+        "Cache-Control": "no-store",
       },
     });
   } catch (err) {
