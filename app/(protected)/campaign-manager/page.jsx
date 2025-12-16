@@ -71,7 +71,9 @@ export default function CampaignManagerPage() {
     if (selectedRecord._isNew) {
       setRecords((p) => ({
         ...p,
-        [activeType]: p[activeType].filter((r) => r.id !== selectedRecord.id),
+        [activeType]: p[activeType].filter(
+          (r) => r.id !== selectedRecord.id
+        ),
       }));
       setSelectedId(null);
       setSelectedRecord(null);
@@ -84,7 +86,9 @@ export default function CampaignManagerPage() {
       await cmApi.remove(activeType, selectedRecord.id);
       setRecords((p) => ({
         ...p,
-        [activeType]: p[activeType].filter((r) => r.id !== selectedRecord.id),
+        [activeType]: p[activeType].filter(
+          (r) => r.id !== selectedRecord.id
+        ),
       }));
       setSelectedId(null);
       setSelectedRecord(null);
@@ -130,94 +134,88 @@ export default function CampaignManagerPage() {
   );
 
   return (
-    <div className="lw-root">
-      {/* Header now matches Controller + GM */}
-      <Header />
+    <div className="cm-root">
+      <div className="cm-layout">
+        <aside className="cm-sidebar">
+          <h1 className="cm-title">Campaign Manager</h1>
 
-      <main className="lw-main">
-        <div className="cm-root">
-          <div className="cm-layout">
-            <aside className="cm-sidebar">
-              <h1 className="cm-title">Campaign Manager</h1>
-              <div className="cm-container-list">
-                {CONTAINER_TYPES.map((c) => (
-                  <button
-                    key={c.id}
-                    className={`cm-container-btn ${
-                      c.id === activeType ? "active" : ""
-                    }`}
-                    onClick={() => setActiveType(c.id)}
-                  >
-                    {c.label}
-                  </button>
-                ))}
-              </div>
-              <div className="cm-save-status">
-                Status: {saveLabel}
-              </div>
-            </aside>
-
-            <main className="cm-main">
-              <header className="cm-main-header">
-                <h2 className="cm-main-title">
-                  {
-                    CONTAINER_TYPES.find(
-                      (t) => t.id === activeType
-                    )?.label
-                  }
-                </h2>
-                <div className="cm-main-actions">
-                  <button onClick={handleCreate}>+ New</button>
-                  <button onClick={handleSave}>Save</button>
-                  <button className="danger" onClick={handleDelete}>
-                    Delete
-                  </button>
-                </div>
-              </header>
-
-              <div className="cm-content">
-                <section className="cm-list">
-                  {loading && <div>Loading…</div>}
-                  {!loading &&
-                    activeList.map((r) => (
-                      <div
-                        key={r.id}
-                        className={`cm-list-item ${
-                          r.id === selectedId ? "selected" : ""
-                        }`}
-                        onClick={() => setSelectedId(r.id)}
-                      >
-                        {r.name || r.title || r.id}
-                      </div>
-                    ))}
-                </section>
-
-                <section className="cm-detail">
-                  {selectedRecord ? (
-                    (() => {
-                      const Form = getFormComponent(activeType);
-                      return (
-                        <Form
-                          record={{
-                            ...selectedRecord,
-                            _type: activeType,
-                          }}
-                          onChange={(u) => {
-                            setSelectedRecord(u);
-                            setSaveStatus("unsaved");
-                          }}
-                        />
-                      );
-                    })()
-                  ) : (
-                    <div>Select or create a record.</div>
-                  )}
-                </section>
-              </div>
-            </main>
+          <div className="cm-container-list">
+            {CONTAINER_TYPES.map((c) => (
+              <button
+                key={c.id}
+                className={`cm-container-btn ${
+                  c.id === activeType ? "active" : ""
+                }`}
+                onClick={() => setActiveType(c.id)}
+              >
+                {c.label}
+              </button>
+            ))}
           </div>
-        </div>
-      </main>
+
+          <div className="cm-save-status">Status: {saveLabel}</div>
+        </aside>
+
+        <section className="cm-main">
+          <header className="cm-main-header">
+            <h2 className="cm-main-title">
+              {
+                CONTAINER_TYPES.find(
+                  (t) => t.id === activeType
+                )?.label
+              }
+            </h2>
+
+            <div className="cm-main-actions">
+              <button onClick={handleCreate}>+ New</button>
+              <button onClick={handleSave}>Save</button>
+              <button className="danger" onClick={handleDelete}>
+                Delete
+              </button>
+            </div>
+          </header>
+
+          <div className="cm-content">
+            <section className="cm-list">
+              {loading && <div>Loading…</div>}
+              {!loading &&
+                activeList.map((r) => (
+                  <div
+                    key={r.id}
+                    className={`cm-list-item ${
+                      r.id === selectedId ? "selected" : ""
+                    }`}
+                    onClick={() => setSelectedId(r.id)}
+                  >
+                    {r.name || r.title || r.id}
+                  </div>
+                ))}
+            </section>
+
+            <section className="cm-detail">
+              {selectedRecord ? (
+                (() => {
+                  const Form = getFormComponent(activeType);
+                  return (
+                    <Form
+                      record={{
+                        ...selectedRecord,
+                        _type: activeType,
+                      }}
+                      onChange={(u) => {
+                        setSelectedRecord(u);
+                        setSaveStatus("unsaved");
+                      }}
+                    />
+                  );
+                })()
+              ) : (
+                <div>Select or create a record.</div>
+              )}
+            </section>
+          </div>
+        </section>
+      </div>
     </div>
   );
 }
