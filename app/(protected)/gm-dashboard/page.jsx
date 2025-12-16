@@ -14,11 +14,32 @@ const Tools = dynamic(() => import("@/components/gm/Tools"), {
 
 export default function GMDashboard() {
   return (
-    <>
-      {/* Header now uses the SINGLE root defined in app/layout.jsx */}
-      <Header />
+    export default function GMDashboard() {
+  return (
+    <div className="gm-root">
+      <div className="gm-layout">
+        <aside className="gm-sidebar">
+          <SearchBar onSearch={(q) => console.log("search:", q)} />
+        </aside>
 
-      <main className="lw-main">
+        <main className="gm-main">
+          <Timeline
+            sessions={[]}
+            events={[]}
+            onSelectSession={(s) => console.log("session:", s)}
+          />
+        </main>
+
+        <section className="gm-detail">
+          <SessionPanel />
+          <RelationshipGraph />
+          <MapViewer />
+          <Tools />
+        </section>
+      </div>
+    </div>
+  );
+}
         <div className="gm-root">
           <div className="gm-layout">
             <aside className="gm-sidebar">
