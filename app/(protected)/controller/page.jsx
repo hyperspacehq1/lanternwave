@@ -17,7 +17,7 @@ function clipTypeFromKey(key) {
 }
 
 function displayNameFromKey(key) {
-  return key.replace(/^clips\//, "");
+  return key.replace(/^tenants\/[^/]+\/clips\//, "");
 }
 
 function streamUrlForKey(key) {
@@ -99,7 +99,7 @@ export default function ControllerPage() {
   const [deleteMessage, setDeleteMessage] = useState("");
   const [nowPlaying, setNowPlayingState] = useState(null);
   const [previewKey, setPreviewKey] = useState(null);
-  const [loopEnabled, setLoopEnabled] = useState(false);
+  const [loopEnabled] = useState(false);
 
   const previewMediaRef = useRef(null);
 
@@ -117,9 +117,8 @@ export default function ControllerPage() {
   async function refreshNowPlaying() {
     const np = await getNowPlaying();
     if (np?.key) {
-      const key = np.key.startsWith("clips/") ? np.key : `clips/${np.key}`;
-      setNowPlayingState({ ...np, key });
-      setPreviewKey(key);
+      setNowPlayingState(np);
+      setPreviewKey(np.key);
     } else {
       setNowPlayingState(null);
       setPreviewKey(null);
@@ -134,14 +133,12 @@ export default function ControllerPage() {
   const previewUrl = previewKey ? streamUrlForKey(previewKey) : null;
   const previewType = previewKey ? clipTypeFromKey(previewKey) : null;
 
- return (
-  <>
-    <Header />
-    <main className="lw-main">
-      <div className="lw-console">...</div>
-    </main>
-  </>
-);
+  return (
+    <>
+      <Header />
+
+      <main className="lw-main">
+        <div className="lw-console">
 
           {/* =========================
               UPLOAD PANEL
@@ -324,6 +321,6 @@ export default function ControllerPage() {
 
         </div>
       </main>
-    </div>
+    </>
   );
 }
