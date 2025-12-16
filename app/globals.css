@@ -105,3 +105,14 @@ body {
 .lw-nav-link-logout:hover {
   color: #ff8a8a;
 }
+
+.lw-header {
+  width: 100%;
+}
+
+.lw-logo,
+.lw-logo img,
+.lw-logo-wrap img {
+  transform: none !important;
+  rotate: 0deg !important;
+}

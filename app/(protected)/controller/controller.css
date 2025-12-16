@@ -127,6 +127,12 @@ body {
   flex: 1;
   padding: 0.8rem;
   display: flex;
+  width: 100%;
+}
+
+.lw-console {
+  width: 100%;
+  max-width: 100%;
 }
 
 /* Panels / console layout */
