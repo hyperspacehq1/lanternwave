@@ -1,84 +1,40 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import "../auth.css";
 
-export default function SignupPage() {
+export default function LoginPage() {
   const router = useRouter();
 
-  const [error, setError] = useState("");
+  const [emailOrUsername, setEmailOrUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const [username, setUsername] = useState("");
-  const [usernameStatus, setUsernameStatus] = useState(null); // null | "checking" | "available" | "taken"
-
-  /* --------------------------------
-     Username availability check
-     -------------------------------- */
-  useEffect(() => {
-    if (!username || username.length < 3) {
-      setUsernameStatus(null);
-      return;
-    }
-
-    setUsernameStatus("checking");
-
-    const handle = setTimeout(async () => {
-      try {
-        const res = await fetch(
-          `/api/auth/check-username?username=${encodeURIComponent(username)}`
-        );
-        const data = await res.json();
-
-        setUsernameStatus(data.available ? "available" : "taken");
-      } catch {
-        setUsernameStatus(null);
-      }
-    }, 400); // debounce
-
-    return () => clearTimeout(handle);
-  }, [username]);
-
-  /* --------------------------------
-     Submit handler
-     -------------------------------- */
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
-
-    if (usernameStatus === "taken") {
-      setError("That username is already taken.");
-      return;
-    }
-
     setLoading(true);
 
-    const form = new FormData(e.currentTarget);
-
-    const payload = {
-      email: form.get("email"),
-      username: form.get("username"),
-      password: form.get("password"),
-    };
-
     try {
-      const res = await fetch("/api/auth/signup", {
+      const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ emailOrUsername, password }),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.message || "Signup failed");
+        setError(data.error || "Login failed");
+        setLoading(false);
+        return;
       }
 
       router.push("/gm-dashboard");
-    } catch (err) {
-      setError(err.message);
-    } finally {
+    } catch {
+      setError("Server error");
       setLoading(false);
     }
   }
@@ -86,55 +42,34 @@ export default function SignupPage() {
   return (
     <main className="lw-main">
       <div className="lw-auth">
-        <div className="lw-auth-card">
+
+        {/* LOGO — OUTSIDE CARD */}
+        <div className="lw-auth-logo-wrap">
           <img
             src="/lanternwave-logo.png"
             alt="Lanternwave"
-            className="lw-logo"
+            className="lw-auth-logo"
           />
+        </div>
 
-          <h1 className="lw-auth-title">Create Account</h1>
+        <div className="lw-auth-card">
+          <h1 className="lw-auth-title">Sign In</h1>
 
           <form onSubmit={handleSubmit} className="lw-auth-form">
             <input
-              name="email"
-              type="email"
-              placeholder="Email"
-              required
-              className="lw-auth-input"
-            />
-
-            <input
-              name="username"
               type="text"
-              placeholder="Username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              placeholder="Email or Username"
+              value={emailOrUsername}
+              onChange={(e) => setEmailOrUsername(e.target.value)}
               required
               className="lw-auth-input"
             />
 
-            {/* Username feedback */}
-            {usernameStatus === "checking" && (
-              <div className="lw-auth-status">
-                Checking username…
-              </div>
-            )}
-            {usernameStatus === "available" && (
-              <div className="lw-auth-status">
-                Username is available
-              </div>
-            )}
-            {usernameStatus === "taken" && (
-              <div className="lw-auth-error">
-                Username already taken
-              </div>
-            )}
-
             <input
-              name="password"
               type="password"
               placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               required
               className="lw-auth-input"
             />
@@ -146,18 +81,55 @@ export default function SignupPage() {
             <button
               type="submit"
               className="lw-auth-submit"
-              disabled={loading || usernameStatus === "taken"}
+              disabled={loading}
             >
-              {loading ? "Creating…" : "Create Account"}
+              {loading ? "Signing in…" : "Sign In"}
             </button>
           </form>
 
           <div className="lw-auth-links">
-            <a href="/" className="lw-auth-link">
-              Back to Sign In
+            <a href="/forgot-password" className="lw-auth-link">
+              Forgot password?
             </a>
           </div>
         </div>
+
+        {/* LOCAL STYLES — SAFE & SCOPED */}
+        <style jsx>{`
+          .lw-auth-logo-wrap {
+            margin-bottom: 1.25rem;
+            display: flex;
+            justify-content: center;
+            pointer-events: none;
+          }
+
+          .lw-auth-logo {
+            width: 160px;
+            height: auto;
+            filter:
+              drop-shadow(0 0 12px rgba(108, 196, 23, 0.45))
+              drop-shadow(0 0 28px rgba(108, 196, 23, 0.25));
+            animation: logoPulse 3.5s ease-in-out infinite;
+          }
+
+          @keyframes logoPulse {
+            0% {
+              filter:
+                drop-shadow(0 0 10px rgba(108, 196, 23, 0.35))
+                drop-shadow(0 0 22px rgba(108, 196, 23, 0.2));
+            }
+            50% {
+              filter:
+                drop-shadow(0 0 18px rgba(108, 196, 23, 0.65))
+                drop-shadow(0 0 42px rgba(108, 196, 23, 0.4));
+            }
+            100% {
+              filter:
+                drop-shadow(0 0 10px rgba(108, 196, 23, 0.35))
+                drop-shadow(0 0 22px rgba(108, 196, 23, 0.2));
+            }
+          }
+        `}</style>
       </div>
     </main>
   );
