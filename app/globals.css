@@ -1,118 +1,210 @@
-/* ===========================================================
-   GLOBAL DARK BACKGROUND (prevents white flashes)
-   =========================================================== */
-html.lw-root,
-body {
-  background: #000 !important;
-  color: #6cc417;
-  min-height: 100%;
-  margin: 0;
-  padding: 0;
+/* ============================================================
+   LANTERNWAVE — GLOBAL STYLES (AUTHORITATIVE)
+   This file is the ONLY place allowed to define:
+   - body / html
+   - fonts
+   - color tokens
+   - header / footer
+   - CRT effects
+   ============================================================ */
+
+/* ------------------------------
+   CSS RESET
+------------------------------ */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
-/* Ensure all pages inherit full-screen black canvas */
+html,
 body {
+  margin: 0;
+  padding: 0;
   width: 100%;
   height: 100%;
+  background: #000000;
+  color: rgb(229, 255, 227);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* Prevent layout surprises */
+body {
   overflow-x: hidden;
 }
 
-/* ===========================================================
-   RETRO CRT PHOSPHOR / SCANLINE / BLOOM TRANSITION SYSTEM
-   (From your uploaded file)
-   =========================================================== */
+/* ------------------------------
+   GLOBAL DESIGN TOKENS
+------------------------------ */
 :root {
-  --crt-green: #6cc417;
-  --crt-bg: #000000;
+  /* Fonts */
+  --font-ui: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-terminal: "MU-TH-UR", system-ui, sans-serif;
+
+  /* Colors */
+  --lw-bg-black: #000000;
+  --lw-green-primary: rgb(108, 196, 23);
+  --lw-green-muted: rgb(163, 197, 159);
+  --lw-text-main: rgb(229, 255, 227);
+  --lw-border-muted: rgba(163, 197, 159, 0.25);
+
+  /* Layout */
+  --lw-header-height: 56px;
 }
 
-/* Base CRT layer */
+/* ------------------------------
+   ROOT APP SHELL
+------------------------------ */
+/* MUST EXIST ONLY ON <html> */
+.lw-root {
+  width: 100%;
+  min-height: 100%;
+  background: var(--lw-bg-black);
+}
+
+/* ------------------------------
+   HEADER (GLOBAL, LOCKED)
+------------------------------ */
+.lw-header {
+  width: 100%;
+  height: var(--lw-header-height);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1.25rem;
+  background: #000000;
+  border-bottom: 1px solid var(--lw-border-muted);
+  font-family: var(--font-terminal);
+  z-index: 100;
+}
+
+/* Left: logo + name */
+.lw-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.lw-logo,
+.lw-logo img,
+.lw-logo svg {
+  height: 24px;
+  width: auto;
+  transform: none !important;
+  rotate: 0deg !important;
+}
+
+/* Title text */
+.lw-header-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--lw-green-muted);
+  text-transform: uppercase;
+}
+
+/* Right: nav */
+.lw-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.lw-nav-link {
+  font-family: var(--font-terminal);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: var(--lw-green-muted);
+  background: transparent;
+  border: 1px solid var(--lw-border-muted);
+  border-radius: 999px;
+  padding: 0.35rem 0.7rem;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.15s ease;
+}
+
+.lw-nav-link:hover {
+  border-color: var(--lw-green-primary);
+  color: var(--lw-green-primary);
+}
+
+.lw-nav-link.active {
+  border-color: var(--lw-green-primary);
+  box-shadow: 0 0 0 1px var(--lw-green-primary) inset;
+  color: var(--lw-green-primary);
+}
+
+/* ------------------------------
+   MAIN CONTENT WRAPPER
+------------------------------ */
+.lw-main {
+  width: 100%;
+  min-height: calc(100vh - var(--lw-header-height));
+  display: flex;
+  flex-direction: column;
+  background: #000000;
+}
+
+/* ------------------------------
+   FOOTER (GLOBAL)
+------------------------------ */
+.lw-footer {
+  width: 100%;
+  padding: 1rem;
+  border-top: 1px solid var(--lw-border-muted);
+  font-family: var(--font-terminal);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: var(--lw-green-muted);
+  display: flex;
+  justify-content: center;
+  gap: 1.5rem;
+}
+
+/* ------------------------------
+   CRT EFFECTS (GLOBAL, SAFE)
+------------------------------ */
 .crt {
-  background: var(--crt-bg);
-  color: var(--crt-green);
   position: relative;
-  overflow: hidden;
 }
 
-/* Scanlines */
+.crt::before,
 .crt::after {
   content: "";
   pointer-events: none;
   position: absolute;
   inset: 0;
+}
+
+.crt::before {
+  background: linear-gradient(
+    rgba(255, 255, 255, 0.03),
+    rgba(0, 0, 0, 0.03)
+  );
+  mix-blend-mode: overlay;
+}
+
+.crt::after {
   background: repeating-linear-gradient(
     to bottom,
-    rgba(0, 255, 0, 0.05) 0px,
-    rgba(0, 255, 0, 0.05) 1px,
-    transparent 2px,
-    transparent 3px
+    rgba(255, 255, 255, 0.03),
+    rgba(255, 255, 255, 0.03) 1px,
+    transparent 1px,
+    transparent 2px
   );
-  mix-blend-mode: screen;
-  opacity: 0.3;
-  z-index: 5;
+  opacity: 0.4;
 }
 
-/* Flicker */
-.crt::before {
-  content: "";
-  pointer-events: none;
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(
-    ellipse at center,
-    rgba(108, 196, 23, 0.15),
-    transparent 70%
-  );
-  opacity: 0.2;
-  animation: crt-flicker 0.08s infinite alternate;
-  z-index: 4;
+/* ------------------------------
+   GLOBAL ELEMENT SANITY
+------------------------------ */
+a {
+  color: inherit;
+  text-decoration: none;
 }
 
-@keyframes crt-flicker {
-  from { opacity: 0.15; }
-  to   { opacity: 0.05; }
-}
-
-/* Fade-out for transitions */
-.crt-fade-out {
-  animation: crtFadeOut 0.9s ease-in forwards;
-}
-
-@keyframes crtFadeOut {
-  0%   { opacity: 1; filter: brightness(1); }
-  40%  { opacity: 0.7; filter: brightness(2); }
-  70%  { opacity: 0.3; filter: brightness(3) saturate(2); }
-  100% { opacity: 0; filter: brightness(0); }
-}
-
-/* Fade-in bloom effect */
-.crt-fade-in {
-  animation: crtFadeIn 1.2s ease-out forwards;
-}
-
-@keyframes crtFadeIn {
-  0%   { opacity: 0; filter: blur(8px) brightness(3) saturate(3); }
-  40%  { opacity: 0.4; filter: blur(3px) brightness(2); }
-  80%  { opacity: 0.9; filter: blur(1px) brightness(1.2); }
-  100% { opacity: 1; filter: none; }
-}
-
-.lw-nav-link-logout {
-  margin-left: 12px;
-  color: #ff6b6b;
-}
-
-.lw-nav-link-logout:hover {
-  color: #ff8a8a;
-}
-
-.lw-header {
-  width: 100%;
-}
-
-.lw-logo,
-.lw-logo img,
-.lw-logo-wrap img {
-  transform: none !important;
-  rotate: 0deg !important;
+button {
+  font-family: inherit;
 }
