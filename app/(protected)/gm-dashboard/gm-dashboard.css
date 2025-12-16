@@ -1,0 +1,104 @@
+/* ============================================================
+   GM DASHBOARD — SCOPED STYLES
+   IMPORTANT:
+   - NO body / html / :root
+   - NO header styles
+   - NO font-face
+   - RELIES ON globals.css TOKENS
+   ============================================================ */
+
+/* ------------------------------
+   ROOT WRAPPER
+------------------------------ */
+.lw-main .gm-root {
+  width: 100%;
+  height: calc(100vh - var(--lw-header-height));
+  box-sizing: border-box;
+}
+
+/* ------------------------------
+   3-COLUMN LAYOUT
+------------------------------ */
+.lw-main .gm-layout {
+  display: grid;
+  grid-template-columns: 260px 1fr 360px;
+  gap: 1.25rem;
+  height: 100%;
+  padding: 1.25rem;
+  box-sizing: border-box;
+}
+
+/* ------------------------------
+   LEFT SIDEBAR
+------------------------------ */
+.lw-main .gm-sidebar {
+  border: 1px solid var(--lw-border-muted);
+  background: #000;
+  padding: 0.75rem;
+  overflow-y: auto;
+}
+
+/* ------------------------------
+   CENTER MAIN (TIMELINE)
+------------------------------ */
+.lw-main .gm-main {
+  border: 1px solid var(--lw-border-muted);
+  background: #000;
+  padding: 1rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ------------------------------
+   RIGHT DETAIL PANEL
+------------------------------ */
+.lw-main .gm-detail {
+  border: 1px solid var(--lw-border-muted);
+  background: #000;
+  padding: 0.75rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* ------------------------------
+   EMPTY / PLACEHOLDER STATES
+------------------------------ */
+.lw-main .gm-empty {
+  font-size: 13px;
+  color: var(--lw-green-muted);
+  padding: 0.5rem;
+}
+
+/* ------------------------------
+   PANEL WRAPPER (OPTIONAL)
+   For future consistency across
+   SessionPanel / Tools / MapViewer
+------------------------------ */
+.lw-main .gm-panel {
+  border: 1px solid var(--lw-border-muted);
+  padding: 0.5rem;
+  background: #000;
+}
+
+/* ------------------------------
+   RESPONSIVE SAFETY
+------------------------------ */
+@media (max-width: 1200px) {
+  .lw-main .gm-layout {
+    grid-template-columns: 220px 1fr 300px;
+  }
+}
+
+@media (max-width: 960px) {
+  .lw-main .gm-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .lw-main .gm-sidebar,
+  .lw-main .gm-detail {
+    display: none;
+  }
+}
