@@ -132,7 +132,7 @@
   text-align: center;
 }
 
-/* Auth logo (must never be transformed/squished) */
+/* Auth logo 
 .lw-main .lw-auth-logo-wrap {
   margin-bottom: 1.25rem;
   display: flex;
@@ -145,10 +145,6 @@
   height: auto;
   transform: none !important;
   rotate: 0deg !important;
-}
-
-.lw-main .lw-auth {
-  flex-direction: column;
 }
 
 /* Brand container */
@@ -173,14 +169,6 @@
   flex-direction: column;
 }
 
-.lw-main .lw-brand {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin-bottom: 1.75rem;
-  pointer-events: none;
-}
-
 .lw-main .lw-brand-logo {
   width: 180px;
   height: auto;
@@ -189,4 +177,26 @@
   filter:
     drop-shadow(0 0 14px rgba(108, 196, 23, 0.45))
     drop-shadow(0 0 34px rgba(108, 196, 23, 0.25));
+}
+.lw-legal {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 2.5rem 1.5rem;
+  line-height: 1.65;
+}
+
+.lw-legal h1 {
+  margin-bottom: 1rem;
+}
+
+.lw-legal h2 {
+  margin-top: 2.5rem;
+}
+
+.lw-legal h3 {
+  margin-top: 1.5rem;
+}
+
+.lw-legal ul {
+  margin-left: 1.25rem;
 }
