@@ -1,18 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import LogoMark from "@/components/LogoMark";
 
 /**
- * Global authenticated header
- * Rendered ONLY inside (app)/layout.jsx
+ * Header
+ * - variant="app"    => GM/CM/Controller/Account (shows 5 app tabs + Logout)
+ * - variant="public" => login/signup/forgot/reset (shows Support/Create Account/Sign In only)
  */
-export default function Header({ auth }) {
+export default function Header({ variant = "app" }) {
   const pathname = usePathname();
-  const router = useRouter();
 
-  const navItems = [
+  const appNavItems = [
     { label: "GM Dashboard", href: "/gm-dashboard" },
     { label: "Campaign Manager", href: "/campaign-manager" },
     { label: "Media Controller", href: "/controller" },
@@ -20,13 +20,20 @@ export default function Header({ auth }) {
     { label: "My Account", href: "/account" },
   ];
 
+  const publicNavItems = [
+    { label: "Support", href: "/support" },
+    { label: "Create Account", href: "/signup" },
+    { label: "Sign In", href: "/" },
+  ];
+
+  const navItems = variant === "public" ? publicNavItems : appNavItems;
+
   async function handleLogout() {
     try {
       await fetch("/api/auth/logout", { method: "POST" });
     } catch (err) {
       console.error("Logout failed:", err);
     } finally {
-      // Force full auth re-evaluation
       window.location.href = "/";
     }
   }
@@ -39,9 +46,7 @@ export default function Header({ auth }) {
           <LogoMark />
         </div>
 
-        <div className="lw-title-block">
-          <h1 className="lw-app-title">LANTERNWAVE</h1>
-        </div>
+        <div className="lw-header-title">LANTERNWAVE</div>
       </div>
 
       {/* RIGHT NAV */}
@@ -55,23 +60,22 @@ export default function Header({ auth }) {
             <Link
               key={item.href}
               href={item.href}
-              className={`lw-nav-link ${
-                isActive ? "lw-nav-link-active" : ""
-              }`}
+              className={`lw-nav-link ${isActive ? "active" : ""}`}
             >
               {item.label}
             </Link>
           );
         })}
 
-        {/* LOGOUT */}
-        <button
-          onClick={handleLogout}
-          className="lw-nav-link lw-nav-link-logout"
-          type="button"
-        >
-          Logout
-        </button>
+        {variant !== "public" && (
+          <button
+            onClick={handleLogout}
+            className="lw-nav-link"
+            type="button"
+          >
+            Logout
+          </button>
+        )}
       </nav>
     </header>
   );
