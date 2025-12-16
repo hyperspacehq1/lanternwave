@@ -14,55 +14,27 @@ const Tools = dynamic(() => import("@/components/gm/Tools"), {
 
 export default function GMDashboard() {
   return (
-    export default function GMDashboard() {
-  return (
     <div className="gm-root">
       <div className="gm-layout">
         <aside className="gm-sidebar">
           <SearchBar onSearch={(q) => console.log("search:", q)} />
         </aside>
 
-        <main className="gm-main">
+        <section className="gm-main">
           <Timeline
             sessions={[]}
             events={[]}
             onSelectSession={(s) => console.log("session:", s)}
           />
-        </main>
+        </section>
 
-        <section className="gm-detail">
+        <aside className="gm-detail">
           <SessionPanel />
           <RelationshipGraph />
           <MapViewer />
           <Tools />
-        </section>
+        </aside>
       </div>
     </div>
-  );
-}
-        <div className="gm-root">
-          <div className="gm-layout">
-            <aside className="gm-sidebar">
-              <SearchBar onSearch={(q) => console.log("search:", q)} />
-            </aside>
-
-            <main className="gm-main">
-              <Timeline
-                sessions={[]}
-                events={[]}
-                onSelectSession={(s) => console.log("session:", s)}
-              />
-            </main>
-
-            <section className="gm-detail">
-              <SessionPanel />
-              <RelationshipGraph />
-              <MapViewer />
-              <Tools />
-            </section>
-          </div>
-        </div>
-      </main>
-    </>
   );
 }
