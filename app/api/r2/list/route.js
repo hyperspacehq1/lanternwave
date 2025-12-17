@@ -1,58 +1,30 @@
 import { NextResponse } from "next/server";
-import { getTenantContext } from "@/lib/tenant/server";
 import { query } from "@/lib/db";
-import { debugApi } from "@/lib/debug/api";
 
 export const runtime = "nodejs";
 
-export async function GET(req) {
-  // ------------------------------------------------------------
-  // DEBUG (safe in prod)
-  // ------------------------------------------------------------
-  debugApi("r2/list", req);
-
+export async function GET() {
   try {
-    // ------------------------------------------------------------
-    // Resolve tenant from cookies
-    // ------------------------------------------------------------
-    const { tenantId } = getTenantContext({ allowAnonymous: true });
-
-    // IMPORTANT (2025 / RSC-safe):
-    // If tenant is not ready during RSC prefetch, return empty list
-    if (!tenantId) {
-      return NextResponse.json({
-        ok: true,
-        tenant: null,
-        items: [],
-      });
-    }
-
-    // ------------------------------------------------------------
-    // DB-first clip listing (source of truth)
-    // ------------------------------------------------------------
-    const { rows } = await query(
+    const result = await query(
       `
       select
-        object_key as key,
-        byte_size as size,
-        created_at as "lastModified"
+        id,
+        object_key,
+        created_at
       from clips
-      where tenant_id = $1
-        and deleted_at is null
       order by created_at desc
-      `,
-      [tenantId]
+      limit 20
+      `
     );
 
     return NextResponse.json({
       ok: true,
-      tenant: tenantId,
-      items: rows,
+      rows: result.rows,
     });
   } catch (err) {
-    console.error("[r2 list]", err);
+    console.error("LIST DB ERROR", err);
     return NextResponse.json(
-      { ok: false, error: "list failed" },
+      { ok: false, error: "db failed" },
       { status: 500 }
     );
   }
