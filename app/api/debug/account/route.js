@@ -2,25 +2,17 @@ import { NextResponse } from "next/server";
 import { cookies, headers } from "next/headers";
 import { query } from "@/lib/db";
 
-// Prevent caching / render artifacts
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-function safeHeadersSnapshot() {
+function headerSnapshot() {
   try {
     const h = headers();
-    // Only return a small, safe subset (avoid leaking secrets)
     const out = {};
     for (const [k, v] of h.entries()) {
       const key = k.toLowerCase();
-      if (
-        key === "cookie" ||
-        key === "authorization" ||
-        key === "x-nf-sign" ||
-        key === "x-nf-request-id"
-      ) {
-        // redacted
-        out[key] = key === "cookie" ? "(present)" : "(redacted)";
+      if (key === "cookie") {
+        out[key] = "(present)";
       } else if (
         key.startsWith("x-forwarded-") ||
         key.startsWith("x-nf-") ||
@@ -39,44 +31,41 @@ function safeHeadersSnapshot() {
 }
 
 export async function GET() {
-  // This endpoint should NEVER 401/500 just because auth is missing.
-  // It must always return observability.
   try {
     const cookieStore = cookies();
-    const all = cookieStore.getAll();
-    const cookieNames = all.map((c) => c.name);
 
-    const lwSession = cookieStore.get("lw_session")?.value || null;
+    // 🔑 ONLY read what we actually need
+    const lwSessionCookie = cookieStore.get("lw_session");
+    const lwSessionValue = lwSessionCookie?.value || null;
 
     const debug = {
       server: {
-        sawCookies: cookieNames,
-        sawLwSession: lwSession ? "(present)" : "(missing)",
-        headers: safeHeadersSnapshot(),
+        sawLwSession: lwSessionValue ? "(present)" : "(missing)",
+        headers: headerSnapshot(),
       },
       auth: {
         userId: null,
-        tenantId: null,
         username: null,
         email: null,
+        tenantId: null,
       },
     };
 
-    // If we don't even see the session cookie, we stop here with clarity.
-    if (!lwSession) {
+    // If server does NOT see the cookie, stop here (this is the core signal)
+    if (!lwSessionValue) {
       return NextResponse.json(
         {
           ok: true,
           debug,
           note:
-            "Server does not see lw_session cookie. This is the root issue. Fix cookie delivery first.",
+            "Server does NOT see lw_session cookie. Auth cannot work until this is resolved.",
         },
         { status: 200 }
       );
     }
 
-    // lw_session is the user id in your current design
-    const userId = lwSession;
+    // In your current system, lw_session === user_id
+    const userId = lwSessionValue;
 
     const userRes = await query(
       `
@@ -95,7 +84,7 @@ export async function GET() {
           ok: true,
           debug,
           note:
-            "Server sees lw_session, but no matching user was found in DB for that userId.",
+            "Server sees lw_session, but no user exists with this ID in the database.",
         },
         { status: 200 }
       );
@@ -130,7 +119,6 @@ export async function GET() {
       { status: 200 }
     );
   } catch (err) {
-    // Even here, return structured data (don’t leave you blind)
     console.error("[debug account] error", err);
     return NextResponse.json(
       {
