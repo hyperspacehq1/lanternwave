@@ -1,17 +1,15 @@
 import { NextResponse } from "next/server";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { getR2Client, R2_BUCKET_NAME } from "@/lib/r2/server";
-import { getTenantContext } from "@/lib/tenant/server";
+import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { guessContentType } from "@/lib/r2/contentType";
 import { query } from "@/lib/db";
 
-// 🚨 Prevent render-time execution / caching
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 /**
  * Convert Node.js stream → Web ReadableStream
- * (required by Next.js Response streaming)
  */
 function nodeStreamToWeb(stream) {
   return new ReadableStream({
@@ -36,31 +34,12 @@ export async function GET(req) {
 
   try {
     // ------------------------------------------------------------
-    // Resolve tenant (AUTH REQUIRED — but NOT exceptional)
+    // Resolve tenant from REQUEST (authoritative)
     // ------------------------------------------------------------
-    const { tenantId, prefix } = getTenantContext({
-      allowAnonymous: true,
-    });
-
-    if (!tenantId || !prefix) {
-      return NextResponse.json(
-        { ok: false, error: "unauthorized" },
-        { status: 401 }
-      );
-    }
+    const { tenantId } = await getTenantContext(req);
 
     // ------------------------------------------------------------
-    // Enforce tenant isolation
-    // ------------------------------------------------------------
-    if (!key.startsWith(prefix + "/")) {
-      return NextResponse.json(
-        { ok: false, error: "invalid tenant key" },
-        { status: 403 }
-      );
-    }
-
-    // ------------------------------------------------------------
-    // Verify clip exists & is not deleted (DB = source of truth)
+    // Verify clip exists & belongs to tenant (DB = truth)
     // ------------------------------------------------------------
     const { rowCount } = await query(
       `

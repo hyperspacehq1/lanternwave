@@ -1,10 +1,9 @@
 import { NextResponse } from "next/server";
 import { DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getR2Client, R2_BUCKET_NAME } from "@/lib/r2/server";
-import { getTenantContext } from "@/lib/tenant/server";
+import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { query } from "@/lib/db";
 
-// 🚨 Prevent render-time execution / caching
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
@@ -21,13 +20,11 @@ export async function DELETE(req) {
     }
 
     // ------------------------------------------------------------
-    // Resolve tenant (AUTH REQUIRED — but NOT exceptional)
+    // Resolve tenant from REQUEST (auth required)
     // ------------------------------------------------------------
-    const { tenantId, prefix } = getTenantContext({
-      allowAnonymous: true,
-    });
+    const { tenantId } = await getTenantContext(req);
 
-    if (!tenantId || !prefix) {
+    if (!tenantId) {
       return NextResponse.json(
         { ok: false, error: "unauthorized" },
         { status: 401 }
@@ -35,17 +32,7 @@ export async function DELETE(req) {
     }
 
     // ------------------------------------------------------------
-    // Enforce tenant isolation
-    // ------------------------------------------------------------
-    if (!key.startsWith(prefix + "/")) {
-      return NextResponse.json(
-        { ok: false, error: "invalid tenant key" },
-        { status: 403 }
-      );
-    }
-
-    // ------------------------------------------------------------
-    // Soft delete DB record (source of truth)
+    // Soft delete DB record (DB = source of truth)
     // ------------------------------------------------------------
     const { rowCount } = await query(
       `

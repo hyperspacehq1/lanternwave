@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
 import { HeadObjectCommand } from "@aws-sdk/client-s3";
 import { getR2Client, R2_BUCKET_NAME } from "@/lib/r2/server";
-import { getTenantContext } from "@/lib/tenant/server";
+import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { guessContentType } from "@/lib/r2/contentType";
 import { query } from "@/lib/db";
 
-// 🚨 Prevent render-time execution / caching
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
@@ -22,26 +21,14 @@ export async function POST(req) {
     }
 
     // ------------------------------------------------------------
-    // Resolve tenant (AUTH REQUIRED — but NOT exceptional)
+    // Resolve tenant from REQUEST (auth required)
     // ------------------------------------------------------------
-    const { tenantId, prefix, userId } = getTenantContext({
-      allowAnonymous: true,
-    });
+    const { tenantId, user } = await getTenantContext(req);
 
-    if (!tenantId || !prefix) {
+    if (!tenantId) {
       return NextResponse.json(
         { ok: false, error: "unauthorized" },
         { status: 401 }
-      );
-    }
-
-    // ------------------------------------------------------------
-    // Enforce tenant isolation
-    // ------------------------------------------------------------
-    if (!key.startsWith(prefix + "/")) {
-      return NextResponse.json(
-        { ok: false, error: "invalid tenant key" },
-        { status: 403 }
       );
     }
 
@@ -61,7 +48,7 @@ export async function POST(req) {
     const mimeType = guessContentType(filename);
 
     // ------------------------------------------------------------
-    // Commit clip to DB (source of truth)
+    // Commit clip to DB (DB = source of truth)
     // ------------------------------------------------------------
     await query(
       `
@@ -78,7 +65,7 @@ export async function POST(req) {
       `,
       [
         tenantId,
-        userId || null,
+        user?.id || null,
         key,
         filename,
         mimeType,

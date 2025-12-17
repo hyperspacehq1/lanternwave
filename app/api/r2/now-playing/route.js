@@ -1,21 +1,21 @@
 import { NextResponse } from "next/server";
-import { getTenantContext } from "@/lib/tenant/server";
 import { query } from "@/lib/db";
+import { getTenantContext } from "@/lib/tenant/getTenantContext";
 
-// 🚨 CRITICAL: prevent execution during server render
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 // ------------------------------------------------------------
 // GET now playing
 // ------------------------------------------------------------
-export async function GET() {
+export async function GET(req) {
   try {
-    const ctx = getTenantContext({ allowAnonymous: true });
+    const { tenantId } = await getTenantContext(req, {
+      allowAnonymous: true,
+    });
 
-    // ✅ During server render or unauthenticated access
-    // this is NOT an error
-    if (!ctx?.tenantId) {
+    // Anonymous / initial render → not an error
+    if (!tenantId) {
       return NextResponse.json({
         ok: true,
         nowPlaying: null,
@@ -29,7 +29,7 @@ export async function GET() {
       where tenant_id = $1
       limit 1
       `,
-      [ctx.tenantId]
+      [tenantId]
     );
 
     if (!rows[0]?.object_key) {
@@ -47,7 +47,6 @@ export async function GET() {
       },
     });
   } catch (err) {
-    // 🚫 No red log for render-time execution
     console.error("[now-playing GET] real error", err);
     return NextResponse.json(
       { ok: false, error: "failed to read now playing" },
@@ -61,10 +60,9 @@ export async function GET() {
 // ------------------------------------------------------------
 export async function POST(req) {
   try {
-    const { tenantId, prefix } = getTenantContext();
+    const { tenantId } = await getTenantContext(req);
 
-    // POST MUST require auth — this is correct
-    if (!tenantId || !prefix) {
+    if (!tenantId) {
       return NextResponse.json(
         { ok: false, error: "unauthorized" },
         { status: 401 }
@@ -74,7 +72,7 @@ export async function POST(req) {
     const body = await req.json();
     const key = body?.key ?? null;
 
-    // STOP (clear now playing)
+    // CLEAR now playing
     if (key === null) {
       await query(
         `
@@ -90,15 +88,7 @@ export async function POST(req) {
       });
     }
 
-    // Enforce tenant isolation
-    if (!key.startsWith(prefix + "/")) {
-      return NextResponse.json(
-        { ok: false, error: "invalid tenant key" },
-        { status: 403 }
-      );
-    }
-
-    // Ensure clip exists and is not deleted
+    // Ensure clip exists and belongs to tenant
     const { rowCount } = await query(
       `
       select 1

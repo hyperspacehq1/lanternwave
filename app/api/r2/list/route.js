@@ -1,16 +1,78 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
-import { getTenantContext } from "@/lib/tenant/server";
 
-// 🚨 Ensure this never runs as a cached render artifact
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-export async function GET() {
-  try {
-    const { tenantId } = getTenantContext({ allowAnonymous: true });
+// ---- helpers (local, explicit, reliable) ----
+function getHeader(req, name) {
+  const h = req?.headers;
+  if (!h) return null;
 
-    // Initial render / unauthenticated — NOT an error
+  const key = name.toLowerCase();
+
+  if (typeof h.get === "function") {
+    return h.get(key);
+  }
+
+  if (typeof h === "object") {
+    return h[key] ?? h[name] ?? null;
+  }
+
+  return null;
+}
+
+function parseCookies(cookieHeader) {
+  const out = {};
+  if (!cookieHeader) return out;
+
+  cookieHeader.split(";").forEach((part) => {
+    const s = part.trim();
+    if (!s) return;
+    const idx = s.indexOf("=");
+    if (idx === -1) return;
+    const k = s.slice(0, idx);
+    const v = s.slice(idx + 1);
+    out[k] = decodeURIComponent(v);
+  });
+
+  return out;
+}
+
+async function resolveTenantFromRequest(req) {
+  const cookieHeader = getHeader(req, "cookie") || "";
+  const cookies = parseCookies(cookieHeader);
+  const lwSession = cookies["lw_session"];
+
+  if (!lwSession) {
+    return { tenantId: null };
+  }
+
+  // lw_session === user_id (current design)
+  const userId = lwSession;
+
+  const tenantRes = await query(
+    `
+    select tenant_id
+    from tenant_users
+    where user_id = $1
+    order by created_at asc
+    limit 1
+    `,
+    [userId]
+  );
+
+  return {
+    tenantId: tenantRes.rows[0]?.tenant_id || null,
+  };
+}
+
+// ---- route ----
+export async function GET(req) {
+  try {
+    const { tenantId } = await resolveTenantFromRequest(req);
+
+    // Initial render / not logged in → empty list (expected)
     if (!tenantId) {
       return NextResponse.json({ ok: true, rows: [] });
     }
@@ -38,7 +100,7 @@ export async function GET() {
       rows: result.rows,
     });
   } catch (err) {
-    console.error("[list GET] real error", err);
+    console.error("[r2/list GET] real error", err);
     return NextResponse.json(
       { ok: false, error: "failed to list clips" },
       { status: 500 }

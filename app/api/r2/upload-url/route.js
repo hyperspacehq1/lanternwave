@@ -2,10 +2,9 @@ import { NextResponse } from "next/server";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { getR2Client, R2_BUCKET_NAME } from "@/lib/r2/server";
-import { getTenantContext } from "@/lib/tenant/server";
+import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { guessContentType } from "@/lib/r2/contentType";
 
-// 🚨 Prevent render-time execution / caching
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
@@ -22,13 +21,11 @@ export async function POST(req) {
     }
 
     // ------------------------------------------------------------
-    // Resolve tenant (AUTH REQUIRED — but NOT exceptional)
+    // Resolve tenant from REQUEST (auth required)
     // ------------------------------------------------------------
-    const { tenantId, prefix } = getTenantContext({
-      allowAnonymous: true,
-    });
+    const { tenantId } = await getTenantContext(req);
 
-    if (!tenantId || !prefix) {
+    if (!tenantId) {
       return NextResponse.json(
         { ok: false, error: "unauthorized" },
         { status: 401 }
@@ -48,9 +45,9 @@ export async function POST(req) {
     }
 
     // ------------------------------------------------------------
-    // Tenant-scoped object key (authoritative)
+    // Tenant-scoped object key (DB is source of truth)
     // ------------------------------------------------------------
-    const key = `${prefix}/clips/${Date.now()}-${safe}`;
+    const key = `clips/${tenantId}/${Date.now()}-${safe}`;
     const contentType = guessContentType(filename);
 
     const client = getR2Client();
