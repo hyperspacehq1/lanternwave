@@ -5,83 +5,92 @@ import { useEffect, useState } from "react";
 export const dynamic = "force-dynamic";
 
 export default function AccountPage() {
-  const [data, setData] = useState(null);
-  const [error, setError] = useState(null);
+  const [status, setStatus] = useState(null);
+  const [raw, setRaw] = useState("");
+  const [json, setJson] = useState(null);
 
-  useEffect(() => {
-    fetch("/api/debug/account", {
+  async function load() {
+    setStatus(null);
+    setRaw("");
+    setJson(null);
+
+    const res = await fetch("/api/debug/account", {
       credentials: "include",
       cache: "no-store",
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error("Failed to load account");
-        return res.json();
-      })
-      .then(setData)
-      .catch((err) => setError(err.message));
+    });
+
+    setStatus(res.status);
+
+    const text = await res.text();
+    setRaw(text);
+
+    try {
+      setJson(JSON.parse(text));
+    } catch {
+      setJson(null);
+    }
+  }
+
+  useEffect(() => {
+    load();
   }, []);
 
   return (
     <div style={{ padding: 32, fontFamily: "monospace" }}>
-      <h1>My Account (Debug)</h1>
+      <h1>My Account (Ultimate Debug)</h1>
 
-      {error && (
-        <div style={{ color: "red", marginTop: 16 }}>
-          ERROR: {error}
+      <div style={{ marginTop: 12 }}>
+        <button onClick={load} style={{ padding: "8px 12px" }}>
+          Reload Debug
+        </button>
+      </div>
+
+      <div style={{ marginTop: 16 }}>
+        <strong>HTTP Status:</strong>{" "}
+        {status === null ? "Loading…" : status}
+      </div>
+
+      {json?.ok && json?.debug && (
+        <div style={{ marginTop: 20 }}>
+          <h2 style={{ margin: "18px 0 8px" }}>Summary</h2>
+          <KV label="Cookie Names Seen (server)" value={(json.debug.server.sawCookies || []).join(", ") || "(none)"} />
+          <KV label="lw_session Seen (server)" value={json.debug.server.sawLwSession} />
+          <KV label="User ID" value={json.debug.auth.userId || "(null)"} />
+          <KV label="Username" value={json.debug.auth.username || "(null)"} />
+          <KV label="Email" value={json.debug.auth.email || "(null)"} />
+          <KV label="Tenant ID" value={json.debug.auth.tenantId || "(null)"} />
+
+          <h2 style={{ margin: "18px 0 8px" }}>Note</h2>
+          <pre style={preStyle}>{json.note || "(none)"}</pre>
+
+          <h2 style={{ margin: "18px 0 8px" }}>Server Header Snapshot</h2>
+          <pre style={preStyle}>
+            {JSON.stringify(json.debug.server.headers || {}, null, 2)}
+          </pre>
         </div>
       )}
 
-      {!data && !error && <div>Loading…</div>}
-
-      {data?.ok && (
-        <table
-          style={{
-            marginTop: 24,
-            borderCollapse: "collapse",
-          }}
-        >
-          <tbody>
-            <Row label="Username" value={data.user.username} />
-            <Row label="Email" value={data.user.email} />
-            <Row label="User ID" value={data.user.id} />
-            <Row label="Tenant ID" value={data.tenant.id} />
-            <Row
-              label="Cookie (lw_session)"
-              value={
-                data.cookie.value
-                  ? data.cookie.value
-                  : "(not present)"
-              }
-            />
-          </tbody>
-        </table>
-      )}
+      <h2 style={{ margin: "18px 0 8px" }}>Raw Response</h2>
+      <pre style={preStyle}>{raw || "(empty)"}</pre>
     </div>
   );
 }
 
-function Row({ label, value }) {
+function KV({ label, value }) {
   return (
-    <tr>
-      <td
-        style={{
-          padding: "6px 12px",
-          borderBottom: "1px solid #ddd",
-          fontWeight: "bold",
-          whiteSpace: "nowrap",
-        }}
-      >
-        {label}
-      </td>
-      <td
-        style={{
-          padding: "6px 12px",
-          borderBottom: "1px solid #ddd",
-          wordBreak: "break-all",
-        }}
-      >
-        {value}
-      </td>
-    </tr>
+    <div style={{ marginTop: 6 }}>
+      <strong>{label}:</strong>{" "}
+      <span style={{ wordBreak: "break-all" }}>{String(value)}</span>
+    </div>
   );
 }
+
+const preStyle = {
+  padding: 12,
+  border: "1px solid #ddd",
+  borderRadius: 8,
+  background: "#fafafa",
+  overflowX: "auto",
+  whiteSpace: "pre-wrap",
+  wordBreak: "break-word",
+};
