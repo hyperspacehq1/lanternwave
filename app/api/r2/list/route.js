@@ -1,31 +1,37 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
+import { getTenantContext } from "@/lib/tenant/server";
 
 export const runtime = "nodejs";
 
 export async function GET() {
-  try {
-    const result = await query(
-      `
-      select
-        id,
-        object_key,
-        created_at
-      from clips
-      order by created_at desc
-      limit 20
-      `
-    );
+  const { tenantId } = getTenantContext({ allowAnonymous: true });
 
-    return NextResponse.json({
-      ok: true,
-      rows: result.rows,
-    });
-  } catch (err) {
-    console.error("LIST DB ERROR", err);
-    return NextResponse.json(
-      { ok: false, error: "db failed" },
-      { status: 500 }
-    );
+  // If no tenant yet (initial load / pre-auth), return empty list
+  if (!tenantId) {
+    return NextResponse.json({ ok: true, rows: [] });
   }
+
+  const result = await query(
+    `
+    select
+      id,
+      title,
+      object_key,
+      mime_type,
+      byte_size,
+      duration_ms,
+      created_at
+    from clips
+    where tenant_id = $1
+      and deleted_at is null
+    order by created_at desc
+    `,
+    [tenantId]
+  );
+
+  return NextResponse.json({
+    ok: true,
+    rows: result.rows,
+  });
 }
