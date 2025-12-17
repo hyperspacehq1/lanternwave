@@ -123,7 +123,7 @@ export async function POST(req) {
     }
 
     /* --------------------------------
-       Set session cookie
+       Set session cookie (2025 SAFE)
        -------------------------------- */
     const response = NextResponse.json({ ok: true });
 
@@ -131,8 +131,8 @@ export async function POST(req) {
       name: "lw_session",
       value: user.id,
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      secure: true,          // REQUIRED for SameSite=None
+      sameSite: "none",      // 🔑 FIX: allow Netlify Functions
       path: "/",
       maxAge: 60 * 60 * 24 * 7, // 7 days
     });
