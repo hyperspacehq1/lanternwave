@@ -1,5 +1,5 @@
 import Header from "@/components/Header";
-import Link from "next/link";
+import Footer from "@/components/Footer";
 
 export default function PublicLayout({ children }) {
   return (
@@ -10,11 +10,7 @@ export default function PublicLayout({ children }) {
         {children}
       </main>
 
-      <footer className="lw-footer">
-        <Link href="/support">Support</Link>
-        <Link href="/privacy-policy">Privacy</Link>
-        <Link href="/terms">Terms</Link>
-      </footer>
+      <Footer variant="public" />
     </>
   );
 }
