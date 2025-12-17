@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
 import { getTenantContext } from "@/lib/tenant/server";
+import { query } from "@/lib/db";
 
 export const runtime = "nodejs";
 
@@ -15,7 +15,7 @@ export async function GET() {
       throw new Error("Tenant context missing");
     }
 
-    const { rows } = await db.query(
+    const { rows } = await query(
       `
       select object_key, updated_at
       from now_playing
@@ -64,7 +64,7 @@ export async function POST(req) {
 
     // STOP (clear now playing)
     if (key === null) {
-      await db.query(
+      await query(
         `
         delete from now_playing
         where tenant_id = $1
@@ -87,7 +87,7 @@ export async function POST(req) {
     }
 
     // Ensure clip exists and is not deleted
-    const { rowCount } = await db.query(
+    const { rowCount } = await query(
       `
       select 1
       from clips
@@ -106,7 +106,7 @@ export async function POST(req) {
     }
 
     // Upsert now playing
-    await db.query(
+    await query(
       `
       insert into now_playing (tenant_id, object_key)
       values ($1, $2)

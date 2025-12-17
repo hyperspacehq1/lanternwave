@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getTenantContext } from "@/lib/tenant/server";
-import { db } from "@/lib/db"; // adjust if your db import differs
+import { query } from "@/lib/db";
 
 export const runtime = "nodejs";
 
@@ -18,7 +18,7 @@ export async function GET() {
     // ------------------------------------------------------------
     // DB-first clip listing (source of truth)
     // ------------------------------------------------------------
-    const { rows } = await db.query(
+    const { rows } = await query(
       `
       select
         object_key as key,

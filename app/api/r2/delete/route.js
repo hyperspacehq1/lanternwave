@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getR2Client, R2_BUCKET_NAME } from "@/lib/r2/server";
 import { getTenantContext } from "@/lib/tenant/server";
-import { db } from "@/lib/db"; // adjust if needed
+import { query } from "@/lib/db";
 
 export const runtime = "nodejs";
 
@@ -38,7 +38,7 @@ export async function DELETE(req) {
     // ------------------------------------------------------------
     // Soft delete DB record (source of truth)
     // ------------------------------------------------------------
-    const { rowCount } = await db.query(
+    const { rowCount } = await query(
       `
       update clips
       set deleted_at = now()

@@ -3,7 +3,7 @@ import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { getR2Client, R2_BUCKET_NAME } from "@/lib/r2/server";
 import { getTenantContext } from "@/lib/tenant/server";
 import { guessContentType } from "@/lib/r2/contentType";
-import { db } from "@/lib/db";
+import { query } from "@/lib/db";
 
 export const runtime = "nodejs";
 
@@ -55,7 +55,7 @@ export async function GET(req) {
     // ------------------------------------------------------------
     // Verify clip exists & is not deleted (DB = source of truth)
     // ------------------------------------------------------------
-    const { rowCount } = await db.query(
+    const { rowCount } = await query(
       `
       select 1
       from clips
