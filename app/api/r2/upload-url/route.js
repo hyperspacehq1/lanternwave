@@ -5,6 +5,8 @@ import { getR2Client, R2_BUCKET_NAME } from "@/lib/r2/server";
 import { getTenantContext } from "@/lib/tenant/server";
 import { guessContentType } from "@/lib/r2/contentType";
 
+// 🚨 Prevent render-time execution / caching
+export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function POST(req) {
@@ -20,12 +22,17 @@ export async function POST(req) {
     }
 
     // ------------------------------------------------------------
-    // Resolve tenant (hard requirement)
+    // Resolve tenant (AUTH REQUIRED — but NOT exceptional)
     // ------------------------------------------------------------
-    const { tenantId, prefix } = getTenantContext();
+    const { tenantId, prefix } = getTenantContext({
+      allowAnonymous: true,
+    });
 
     if (!tenantId || !prefix) {
-      throw new Error("Tenant context missing");
+      return NextResponse.json(
+        { ok: false, error: "unauthorized" },
+        { status: 401 }
+      );
     }
 
     // ------------------------------------------------------------
@@ -66,7 +73,7 @@ export async function POST(req) {
       contentType,
     });
   } catch (err) {
-    console.error("[r2 upload-url]", err);
+    console.error("[r2 upload-url] real error", err);
     return NextResponse.json(
       { ok: false, error: "upload-url failed" },
       { status: 500 }

@@ -5,11 +5,13 @@ import { getTenantContext } from "@/lib/tenant/server";
 import { guessContentType } from "@/lib/r2/contentType";
 import { query } from "@/lib/db";
 
+// 🚨 Prevent render-time execution / caching
+export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 /**
- * Convert Node.js stream to Web ReadableStream
- * (required for Next.js Response streaming)
+ * Convert Node.js stream → Web ReadableStream
+ * (required by Next.js Response streaming)
  */
 function nodeStreamToWeb(stream) {
   return new ReadableStream({
@@ -34,12 +36,17 @@ export async function GET(req) {
 
   try {
     // ------------------------------------------------------------
-    // Resolve tenant
+    // Resolve tenant (AUTH REQUIRED — but NOT exceptional)
     // ------------------------------------------------------------
-    const { tenantId, prefix } = getTenantContext();
+    const { tenantId, prefix } = getTenantContext({
+      allowAnonymous: true,
+    });
 
     if (!tenantId || !prefix) {
-      throw new Error("Tenant context missing");
+      return NextResponse.json(
+        { ok: false, error: "unauthorized" },
+        { status: 401 }
+      );
     }
 
     // ------------------------------------------------------------
@@ -91,7 +98,7 @@ export async function GET(req) {
       },
     });
   } catch (err) {
-    console.error("[r2 stream]", err);
+    console.error("[r2 stream] real error", err);
     return NextResponse.json(
       { ok: false, error: "stream failed" },
       { status: 500 }

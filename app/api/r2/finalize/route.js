@@ -5,6 +5,8 @@ import { getTenantContext } from "@/lib/tenant/server";
 import { guessContentType } from "@/lib/r2/contentType";
 import { query } from "@/lib/db";
 
+// 🚨 Prevent render-time execution / caching
+export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function POST(req) {
@@ -20,12 +22,17 @@ export async function POST(req) {
     }
 
     // ------------------------------------------------------------
-    // Resolve tenant
+    // Resolve tenant (AUTH REQUIRED — but NOT exceptional)
     // ------------------------------------------------------------
-    const { tenantId, prefix, userId } = getTenantContext();
+    const { tenantId, prefix, userId } = getTenantContext({
+      allowAnonymous: true,
+    });
 
     if (!tenantId || !prefix) {
-      throw new Error("Tenant context missing");
+      return NextResponse.json(
+        { ok: false, error: "unauthorized" },
+        { status: 401 }
+      );
     }
 
     // ------------------------------------------------------------
@@ -86,11 +93,10 @@ export async function POST(req) {
       byteSize,
     });
   } catch (err) {
-    console.error("[r2 finalize]", err);
+    console.error("[r2 finalize] real error", err);
     return NextResponse.json(
       { ok: false, error: "finalize failed" },
       { status: 500 }
     );
   }
 }
-
