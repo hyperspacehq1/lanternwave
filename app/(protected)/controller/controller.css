@@ -211,3 +211,38 @@
 .lw-main audio {
   width: 90%;
 }
+
+.loop-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: #6cc5f0;
+  font-size: 18px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+@keyframes loop-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loop-btn.active {
+  border-color: #6cc5f0;
+  box-shadow: 0 0 0 2px rgba(108, 197, 240, 0.35);
+  animation: loop-spin 1.2s linear infinite;
+}
+
+.loop-btn:hover {
+  border-color: #6cc5f0;
+}
+
+.loop-btn.active {
+  border-color: #6cc5f0;
+  box-shadow: 0 0 0 2px rgba(108, 197, 240, 0.35);
+}

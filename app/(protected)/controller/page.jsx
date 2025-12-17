@@ -121,6 +121,7 @@ export default function ControllerPage() {
   const [deleteMessage, setDeleteMessage] = useState("");
   const [nowPlaying, setNowPlayingState] = useState(null);
   const [previewKey, setPreviewKey] = useState(null);
+  const [loop, setLoop] = useState(false);
 
   const previewMediaRef = useRef(null);
 
@@ -133,7 +134,6 @@ export default function ControllerPage() {
       );
       setClips(rows);
 
-      // ✅ AUTH CONFIRMED — safe to call now-playing
       const np = await getNowPlaying();
       if (np?.key) {
         setNowPlayingState(np);
@@ -143,7 +143,6 @@ export default function ControllerPage() {
         setPreviewKey(null);
       }
     } catch {
-      // Not authenticated — do NOT call now-playing
       setClips([]);
       setNowPlayingState(null);
       setPreviewKey(null);
@@ -252,6 +251,14 @@ export default function ControllerPage() {
 
                 <div className="lw-clip-actions">
                   <button
+                    className={`loop-btn ${loop ? "active" : ""}`}
+                    title="Loop playback"
+                    onClick={() => setLoop((v) => !v)}
+                  >
+                    ⟳
+                  </button>
+
+                  <button
                     className="lw-btn"
                     onClick={async () => {
                       const np = await setNowPlaying(key);
@@ -318,6 +325,7 @@ export default function ControllerPage() {
               src={previewUrl}
               autoPlay
               controls
+              loop={loop}
             />
           )}
 
@@ -328,6 +336,7 @@ export default function ControllerPage() {
               src={previewUrl}
               autoPlay
               controls
+              loop={loop}
             />
           )}
         </div>

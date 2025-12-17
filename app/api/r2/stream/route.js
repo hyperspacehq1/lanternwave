@@ -34,12 +34,12 @@ export async function GET(req) {
 
   try {
     // ------------------------------------------------------------
-    // Resolve tenant from REQUEST (authoritative)
+    // Resolve tenant from REQUEST
     // ------------------------------------------------------------
     const { tenantId } = await getTenantContext(req);
 
     // ------------------------------------------------------------
-    // Verify clip exists & belongs to tenant (DB = truth)
+    // Verify clip exists & belongs to tenant
     // ------------------------------------------------------------
     const { rowCount } = await query(
       `
@@ -60,21 +60,47 @@ export async function GET(req) {
     }
 
     // ------------------------------------------------------------
-    // Stream object from R2
+    // Handle HTTP Range (REQUIRED for MP4)
     // ------------------------------------------------------------
+    const range =
+      req.headers.get?.("range") ||
+      req.headers?.range ||
+      undefined;
+
     const client = getR2Client();
+
     const result = await client.send(
       new GetObjectCommand({
         Bucket: R2_BUCKET_NAME,
         Key: key,
+        Range: range,
       })
     );
 
+    const headers = new Headers();
+    headers.set("Content-Type", guessContentType(key));
+    headers.set("Accept-Ranges", "bytes");
+    headers.set("Cache-Control", "no-store");
+
+    // Partial content (video playback)
+    if (range && result.ContentRange) {
+      headers.set("Content-Range", result.ContentRange);
+      headers.set("Content-Length", String(result.ContentLength));
+
+      return new Response(nodeStreamToWeb(result.Body), {
+        status: 206,
+        headers,
+      });
+    }
+
+    // Full content (mp3 / fallback)
+    if (result.ContentLength) {
+      headers.set("Content-Length", String(result.ContentLength));
+    }
+
     return new Response(nodeStreamToWeb(result.Body), {
-      headers: {
-        "Content-Type": guessContentType(key),
-        "Cache-Control": "no-store",
-      },
+      status: 200,
+      headers,
     });
   } catch (err) {
     console.error("[r2 stream] real error", err);
