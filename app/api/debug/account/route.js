@@ -1,47 +1,35 @@
 import { NextResponse } from "next/server";
-import { cookies, headers } from "next/headers";
+import { headers } from "next/headers";
 import { query } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-function headerSnapshot() {
-  try {
-    const h = headers();
-    const out = {};
-    for (const [k, v] of h.entries()) {
-      const key = k.toLowerCase();
-      if (key === "cookie") {
-        out[key] = "(present)";
-      } else if (
-        key.startsWith("x-forwarded-") ||
-        key.startsWith("x-nf-") ||
-        key === "host" ||
-        key === "user-agent" ||
-        key === "referer" ||
-        key === "origin"
-      ) {
-        out[key] = v;
-      }
-    }
-    return out;
-  } catch {
-    return {};
-  }
+function parseCookies(cookieHeader) {
+  const out = {};
+  if (!cookieHeader) return out;
+
+  cookieHeader.split(";").forEach((part) => {
+    const [k, ...v] = part.trim().split("=");
+    if (!k) return;
+    out[k] = decodeURIComponent(v.join("="));
+  });
+
+  return out;
 }
 
 export async function GET() {
   try {
-    const cookieStore = cookies();
+    const h = headers();
+    const cookieHeader = h.get("cookie") || "";
+    const cookies = parseCookies(cookieHeader);
 
-    // 🔑 ONLY read what we actually need
-    const lwSessionCookie = cookieStore.get("lw_session");
-    const lwSessionValue = lwSessionCookie?.value || null;
+    const lwSession = cookies["lw_session"] || null;
 
     const debug = {
       server: {
-        sawLwSession: lwSessionValue ? "(present)" : "(missing)",
-        headers: headerSnapshot(),
+        sawCookieHeader: cookieHeader ? "(present)" : "(missing)",
+        sawLwSession: lwSession ? "(present)" : "(missing)",
       },
       auth: {
         userId: null,
@@ -51,21 +39,18 @@ export async function GET() {
       },
     };
 
-    // If server does NOT see the cookie, stop here (this is the core signal)
-    if (!lwSessionValue) {
-      return NextResponse.json(
-        {
-          ok: true,
-          debug,
-          note:
-            "Server does NOT see lw_session cookie. Auth cannot work until this is resolved.",
-        },
-        { status: 200 }
-      );
+    // 🔴 THIS IS THE CORE TRUTH CHECK
+    if (!lwSession) {
+      return NextResponse.json({
+        ok: true,
+        debug,
+        note:
+          "Server does NOT see lw_session in Cookie header. Auth cannot work until this is resolved.",
+      });
     }
 
-    // In your current system, lw_session === user_id
-    const userId = lwSessionValue;
+    // In your system, lw_session === user_id
+    const userId = lwSession;
 
     const userRes = await query(
       `
@@ -79,15 +64,12 @@ export async function GET() {
 
     if (!userRes.rows[0]) {
       debug.auth.userId = userId;
-      return NextResponse.json(
-        {
-          ok: true,
-          debug,
-          note:
-            "Server sees lw_session, but no user exists with this ID in the database.",
-        },
-        { status: 200 }
-      );
+      return NextResponse.json({
+        ok: true,
+        debug,
+        note:
+          "Server sees lw_session cookie, but no user exists with this ID.",
+      });
     }
 
     const user = userRes.rows[0];
@@ -108,25 +90,19 @@ export async function GET() {
     debug.auth.email = user.email;
     debug.auth.tenantId = tenantRes.rows[0]?.tenant_id || null;
 
-    return NextResponse.json(
-      {
-        ok: true,
-        debug,
-        note: debug.auth.tenantId
-          ? "Auth + tenant lookup succeeded."
-          : "User found, but no tenant_users row found for this user.",
-      },
-      { status: 200 }
-    );
+    return NextResponse.json({
+      ok: true,
+      debug,
+      note: debug.auth.tenantId
+        ? "Auth + tenant lookup succeeded."
+        : "User found, but no tenant_users row found.",
+    });
   } catch (err) {
-    console.error("[debug account] error", err);
-    return NextResponse.json(
-      {
-        ok: false,
-        error: "debug endpoint threw",
-        message: err?.message || String(err),
-      },
-      { status: 200 }
-    );
+    console.error("[debug account] fatal error", err);
+    return NextResponse.json({
+      ok: false,
+      error: "debug endpoint threw",
+      message: err?.message || String(err),
+    });
   }
 }
