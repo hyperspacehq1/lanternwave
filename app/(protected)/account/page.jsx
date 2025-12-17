@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Footer from "@/components/Footer";
 import "./account.css";
 
 export const dynamic = "force-dynamic";
@@ -19,18 +18,15 @@ export default function AccountPage() {
           cache: "no-store",
         });
 
-        if (!res.ok) {
-          throw new Error("Failed to load account");
-        }
+        if (!res.ok) throw new Error("Failed to load");
 
         const data = await res.json();
-
         if (!data?.ok || !data?.debug?.auth?.username) {
           throw new Error("Invalid account data");
         }
 
         setUsername(data.debug.auth.username);
-      } catch (err) {
+      } catch {
         setError("Unable to load account details.");
       } finally {
         setLoading(false);
@@ -46,11 +42,10 @@ export default function AccountPage() {
         <h1 className="account-title">My Account</h1>
 
         {loading && <div className="account-status">Loading…</div>}
-
         {error && <div className="account-error">{error}</div>}
 
         {!loading && !error && (
-          <div className="account-card">
+          <div className="account-panel">
             <div className="account-row">
               <span className="account-label">Username</span>
               <span className="account-value">{username}</span>
@@ -63,8 +58,6 @@ export default function AccountPage() {
           </div>
         )}
       </main>
-
-      <Footer />
     </div>
   );
 }
