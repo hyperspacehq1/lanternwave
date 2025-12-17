@@ -1,66 +1,144 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { getTenantContext } from "@/lib/tenant/server";
+import { cookies, headers } from "next/headers";
 import { query } from "@/lib/db";
 
-// Prevent render caching
+// Prevent caching / render artifacts
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-export async function GET() {
+function safeHeadersSnapshot() {
   try {
-    const ctx = getTenantContext({ allowAnonymous: false });
+    const h = headers();
+    // Only return a small, safe subset (avoid leaking secrets)
+    const out = {};
+    for (const [k, v] of h.entries()) {
+      const key = k.toLowerCase();
+      if (
+        key === "cookie" ||
+        key === "authorization" ||
+        key === "x-nf-sign" ||
+        key === "x-nf-request-id"
+      ) {
+        // redacted
+        out[key] = key === "cookie" ? "(present)" : "(redacted)";
+      } else if (
+        key.startsWith("x-forwarded-") ||
+        key.startsWith("x-nf-") ||
+        key === "host" ||
+        key === "user-agent" ||
+        key === "referer" ||
+        key === "origin"
+      ) {
+        out[key] = v;
+      }
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
 
-    if (!ctx?.userId || !ctx?.tenantId) {
+export async function GET() {
+  // This endpoint should NEVER 401/500 just because auth is missing.
+  // It must always return observability.
+  try {
+    const cookieStore = cookies();
+    const all = cookieStore.getAll();
+    const cookieNames = all.map((c) => c.name);
+
+    const lwSession = cookieStore.get("lw_session")?.value || null;
+
+    const debug = {
+      server: {
+        sawCookies: cookieNames,
+        sawLwSession: lwSession ? "(present)" : "(missing)",
+        headers: safeHeadersSnapshot(),
+      },
+      auth: {
+        userId: null,
+        tenantId: null,
+        username: null,
+        email: null,
+      },
+    };
+
+    // If we don't even see the session cookie, we stop here with clarity.
+    if (!lwSession) {
       return NextResponse.json(
-        { ok: false, error: "unauthorized" },
-        { status: 401 }
+        {
+          ok: true,
+          debug,
+          note:
+            "Server does not see lw_session cookie. This is the root issue. Fix cookie delivery first.",
+        },
+        { status: 200 }
       );
     }
 
-    // Fetch user
-    const { rows } = await query(
+    // lw_session is the user id in your current design
+    const userId = lwSession;
+
+    const userRes = await query(
       `
       select id, username, email
       from users
       where id = $1
       limit 1
       `,
-      [ctx.userId]
+      [userId]
     );
 
-    if (!rows[0]) {
+    if (!userRes.rows[0]) {
+      debug.auth.userId = userId;
       return NextResponse.json(
-        { ok: false, error: "user not found" },
-        { status: 404 }
+        {
+          ok: true,
+          debug,
+          note:
+            "Server sees lw_session, but no matching user was found in DB for that userId.",
+        },
+        { status: 200 }
       );
     }
 
-    // Read cookie directly (server truth)
-    const cookieStore = cookies();
-    const sessionCookie =
-      cookieStore.get("lw_session")?.value || null;
+    const user = userRes.rows[0];
 
-    return NextResponse.json({
-      ok: true,
-      user: {
-        id: rows[0].id,
-        username: rows[0].username,
-        email: rows[0].email,
+    const tenantRes = await query(
+      `
+      select tenant_id
+      from tenant_users
+      where user_id = $1
+      order by created_at asc
+      limit 1
+      `,
+      [user.id]
+    );
+
+    debug.auth.userId = user.id;
+    debug.auth.username = user.username;
+    debug.auth.email = user.email;
+    debug.auth.tenantId = tenantRes.rows[0]?.tenant_id || null;
+
+    return NextResponse.json(
+      {
+        ok: true,
+        debug,
+        note: debug.auth.tenantId
+          ? "Auth + tenant lookup succeeded."
+          : "User found, but no tenant_users row found for this user.",
       },
-      tenant: {
-        id: ctx.tenantId,
-      },
-      cookie: {
-        name: "lw_session",
-        value: sessionCookie,
-      },
-    });
+      { status: 200 }
+    );
   } catch (err) {
+    // Even here, return structured data (don’t leave you blind)
     console.error("[debug account] error", err);
     return NextResponse.json(
-      { ok: false, error: "debug failed" },
-      { status: 500 }
+      {
+        ok: false,
+        error: "debug endpoint threw",
+        message: err?.message || String(err),
+      },
+      { status: 200 }
     );
   }
 }
