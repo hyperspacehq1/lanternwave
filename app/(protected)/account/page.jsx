@@ -1,66 +1,87 @@
-import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { getTenantContext } from "@/lib/tenant/server";
-import { query } from "@/lib/db";
+"use client";
 
-// Prevent render caching
+import { useEffect, useState } from "react";
+
 export const dynamic = "force-dynamic";
-export const runtime = "nodejs";
 
-export async function GET() {
-  try {
-    const ctx = getTenantContext({ allowAnonymous: false });
+export default function AccountPage() {
+  const [data, setData] = useState(null);
+  const [error, setError] = useState(null);
 
-    if (!ctx?.userId || !ctx?.tenantId) {
-      return NextResponse.json(
-        { ok: false, error: "unauthorized" },
-        { status: 401 }
-      );
-    }
+  useEffect(() => {
+    fetch("/api/debug/account", {
+      credentials: "include",
+      cache: "no-store",
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to load account");
+        return res.json();
+      })
+      .then(setData)
+      .catch((err) => setError(err.message));
+  }, []);
 
-    // Fetch user
-    const { rows } = await query(
-      `
-      select id, username, email
-      from users
-      where id = $1
-      limit 1
-      `,
-      [ctx.userId]
-    );
+  return (
+    <div style={{ padding: 32, fontFamily: "monospace" }}>
+      <h1>My Account (Debug)</h1>
 
-    if (!rows[0]) {
-      return NextResponse.json(
-        { ok: false, error: "user not found" },
-        { status: 404 }
-      );
-    }
+      {error && (
+        <div style={{ color: "red", marginTop: 16 }}>
+          ERROR: {error}
+        </div>
+      )}
 
-    // Read cookie directly (server truth)
-    const cookieStore = cookies();
-    const sessionCookie =
-      cookieStore.get("lw_session")?.value || null;
+      {!data && !error && <div>Loading…</div>}
 
-    return NextResponse.json({
-      ok: true,
-      user: {
-        id: rows[0].id,
-        username: rows[0].username,
-        email: rows[0].email,
-      },
-      tenant: {
-        id: ctx.tenantId,
-      },
-      cookie: {
-        name: "lw_session",
-        value: sessionCookie,
-      },
-    });
-  } catch (err) {
-    console.error("[debug account] error", err);
-    return NextResponse.json(
-      { ok: false, error: "debug failed" },
-      { status: 500 }
-    );
-  }
+      {data?.ok && (
+        <table
+          style={{
+            marginTop: 24,
+            borderCollapse: "collapse",
+          }}
+        >
+          <tbody>
+            <Row label="Username" value={data.user.username} />
+            <Row label="Email" value={data.user.email} />
+            <Row label="User ID" value={data.user.id} />
+            <Row label="Tenant ID" value={data.tenant.id} />
+            <Row
+              label="Cookie (lw_session)"
+              value={
+                data.cookie.value
+                  ? data.cookie.value
+                  : "(not present)"
+              }
+            />
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
+
+function Row({ label, value }) {
+  return (
+    <tr>
+      <td
+        style={{
+          padding: "6px 12px",
+          borderBottom: "1px solid #ddd",
+          fontWeight: "bold",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {label}
+      </td>
+      <td
+        style={{
+          padding: "6px 12px",
+          borderBottom: "1px solid #ddd",
+          wordBreak: "break-all",
+        }}
+      >
+        {value}
+      </td>
+    </tr>
+  );
 }
