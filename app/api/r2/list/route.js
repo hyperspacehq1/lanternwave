@@ -1,26 +1,30 @@
-import { debugApi } from "@/lib/debug/api";
-
-export async function GET(req) {
-  debugApi("r2/list", req);
-
-  try {
-    const { tenantId } = getTenantContext();
-
 import { NextResponse } from "next/server";
 import { getTenantContext } from "@/lib/tenant/server";
 import { query } from "@/lib/db";
+import { debugApi } from "@/lib/debug/api";
 
 export const runtime = "nodejs";
 
-export async function GET() {
+export async function GET(req) {
+  // ------------------------------------------------------------
+  // DEBUG (safe in prod)
+  // ------------------------------------------------------------
+  debugApi("r2/list", req);
+
   try {
     // ------------------------------------------------------------
     // Resolve tenant from cookies
     // ------------------------------------------------------------
-    const { tenantId } = getTenantContext();
+    const { tenantId } = getTenantContext({ allowAnonymous: true });
 
+    // IMPORTANT (2025 / RSC-safe):
+    // If tenant is not ready during RSC prefetch, return empty list
     if (!tenantId) {
-      throw new Error("Tenant context missing");
+      return NextResponse.json({
+        ok: true,
+        tenant: null,
+        items: [],
+      });
     }
 
     // ------------------------------------------------------------
