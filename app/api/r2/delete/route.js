@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getR2Client, R2_BUCKET_NAME } from "@/lib/r2/server";
 import { getTenantContext } from "@/lib/tenant/server";
+import { db } from "@/lib/db"; // adjust if needed
 
 export const runtime = "nodejs";
 
@@ -18,9 +19,13 @@ export async function DELETE(req) {
 
   try {
     // ------------------------------------------------------------
-    // Resolve tenant from cookies (Option A)
+    // Resolve tenant
     // ------------------------------------------------------------
-    const { prefix, tenantId } = getTenantContext();
+    const { tenantId, prefix } = getTenantContext();
+
+    if (!tenantId || !prefix) {
+      throw new Error("Tenant context missing");
+    }
 
     // Enforce tenant isolation
     if (!key.startsWith(prefix + "/")) {
@@ -31,7 +36,30 @@ export async function DELETE(req) {
     }
 
     // ------------------------------------------------------------
-    // Delete from R2
+    // Soft delete DB record (source of truth)
+    // ------------------------------------------------------------
+    const { rowCount } = await db.query(
+      `
+      update clips
+      set deleted_at = now()
+      where tenant_id = $1
+        and object_key = $2
+        and deleted_at is null
+      `,
+      [tenantId, key]
+    );
+
+    // If nothing was updated, treat as idempotent success
+    if (rowCount === 0) {
+      return NextResponse.json({
+        ok: true,
+        deleted: key,
+        alreadyDeleted: true,
+      });
+    }
+
+    // ------------------------------------------------------------
+    // Delete from R2 (best-effort)
     // ------------------------------------------------------------
     const client = getR2Client();
 
@@ -45,10 +73,9 @@ export async function DELETE(req) {
     return NextResponse.json({
       ok: true,
       deleted: key,
-      tenant: tenantId,
     });
   } catch (err) {
-    console.error("r2 delete error:", err);
+    console.error("[r2 delete]", err);
     return NextResponse.json(
       { ok: false, error: "delete failed" },
       { status: 500 }

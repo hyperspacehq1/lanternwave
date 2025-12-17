@@ -1,38 +1,46 @@
 import { NextResponse } from "next/server";
-import { query } from "@/lib/db";
+import { db } from "@/lib/db";
 import { getTenantContext } from "@/lib/tenant/server";
 
 export const runtime = "nodejs";
-
-const KV_KEY = "now_playing";
 
 // ------------------------------------------------------------
 // GET now playing
 // ------------------------------------------------------------
 export async function GET() {
   try {
-    // ----------------------------------------------------------
-    // Resolve tenant from cookies (Option A)
-    // ----------------------------------------------------------
     const { tenantId } = getTenantContext();
 
-    const result = await query(
+    if (!tenantId) {
+      throw new Error("Tenant context missing");
+    }
+
+    const { rows } = await db.query(
       `
-      SELECT value
-      FROM debug_kv
-      WHERE tenant_id = $1
-        AND key = $2
-      LIMIT 1
+      select object_key, updated_at
+      from now_playing
+      where tenant_id = $1
+      limit 1
       `,
-      [tenantId, KV_KEY]
+      [tenantId]
     );
+
+    if (!rows[0]?.object_key) {
+      return NextResponse.json({
+        ok: true,
+        nowPlaying: null,
+      });
+    }
 
     return NextResponse.json({
       ok: true,
-      nowPlaying: result.rows[0]?.value || null,
+      nowPlaying: {
+        key: rows[0].object_key,
+        updatedAt: rows[0].updated_at,
+      },
     });
   } catch (err) {
-    console.error("now-playing GET error:", err);
+    console.error("[now-playing GET]", err);
     return NextResponse.json(
       { ok: false, error: "failed to read now playing" },
       { status: 500 }
@@ -41,39 +49,84 @@ export async function GET() {
 }
 
 // ------------------------------------------------------------
-// SET now playing
+// SET / CLEAR now playing
 // ------------------------------------------------------------
 export async function POST(req) {
   try {
-    // ----------------------------------------------------------
-    // Resolve tenant from cookies (Option A)
-    // ----------------------------------------------------------
-    const { tenantId } = getTenantContext();
+    const { tenantId, prefix } = getTenantContext();
+
+    if (!tenantId || !prefix) {
+      throw new Error("Tenant context missing");
+    }
 
     const body = await req.json();
-    const payload = {
-      key: body.key || null,
-      updatedAt: new Date().toISOString(),
-    };
+    const key = body?.key || null;
 
-    await query(
+    // STOP (clear now playing)
+    if (key === null) {
+      await db.query(
+        `
+        delete from now_playing
+        where tenant_id = $1
+        `,
+        [tenantId]
+      );
+
+      return NextResponse.json({
+        ok: true,
+        nowPlaying: null,
+      });
+    }
+
+    // Enforce tenant isolation
+    if (!key.startsWith(prefix + "/")) {
+      return NextResponse.json(
+        { ok: false, error: "invalid tenant key" },
+        { status: 403 }
+      );
+    }
+
+    // Ensure clip exists and is not deleted
+    const { rowCount } = await db.query(
       `
-      INSERT INTO debug_kv (tenant_id, key, value)
-      VALUES ($1, $2, $3)
-      ON CONFLICT (tenant_id, key)
-      DO UPDATE SET
-        value = EXCLUDED.value,
-        updated_at = NOW()
+      select 1
+      from clips
+      where tenant_id = $1
+        and object_key = $2
+        and deleted_at is null
       `,
-      [tenantId, KV_KEY, payload]
+      [tenantId, key]
+    );
+
+    if (rowCount === 0) {
+      return NextResponse.json(
+        { ok: false, error: "clip not found" },
+        { status: 404 }
+      );
+    }
+
+    // Upsert now playing
+    await db.query(
+      `
+      insert into now_playing (tenant_id, object_key)
+      values ($1, $2)
+      on conflict (tenant_id)
+      do update set
+        object_key = excluded.object_key,
+        updated_at = now()
+      `,
+      [tenantId, key]
     );
 
     return NextResponse.json({
       ok: true,
-      nowPlaying: payload,
+      nowPlaying: {
+        key,
+        updatedAt: new Date().toISOString(),
+      },
     });
   } catch (err) {
-    console.error("now-playing POST error:", err);
+    console.error("[now-playing POST]", err);
     return NextResponse.json(
       { ok: false, error: "failed to set now playing" },
       { status: 500 }

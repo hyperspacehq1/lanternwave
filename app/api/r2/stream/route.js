@@ -3,6 +3,7 @@ import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { getR2Client, R2_BUCKET_NAME } from "@/lib/r2/server";
 import { getTenantContext } from "@/lib/tenant/server";
 import { guessContentType } from "@/lib/r2/contentType";
+import { db } from "@/lib/db";
 
 export const runtime = "nodejs";
 
@@ -33,9 +34,13 @@ export async function GET(req) {
 
   try {
     // ------------------------------------------------------------
-    // Resolve tenant from cookies (Option A)
+    // Resolve tenant
     // ------------------------------------------------------------
-    const { prefix } = getTenantContext();
+    const { tenantId, prefix } = getTenantContext();
+
+    if (!tenantId || !prefix) {
+      throw new Error("Tenant context missing");
+    }
 
     // ------------------------------------------------------------
     // Enforce tenant isolation
@@ -44,6 +49,27 @@ export async function GET(req) {
       return NextResponse.json(
         { ok: false, error: "invalid tenant key" },
         { status: 403 }
+      );
+    }
+
+    // ------------------------------------------------------------
+    // Verify clip exists & is not deleted (DB = source of truth)
+    // ------------------------------------------------------------
+    const { rowCount } = await db.query(
+      `
+      select 1
+      from clips
+      where tenant_id = $1
+        and object_key = $2
+        and deleted_at is null
+      `,
+      [tenantId, key]
+    );
+
+    if (rowCount === 0) {
+      return NextResponse.json(
+        { ok: false, error: "clip not found" },
+        { status: 404 }
       );
     }
 
@@ -65,7 +91,7 @@ export async function GET(req) {
       },
     });
   } catch (err) {
-    console.error("r2 stream error:", err);
+    console.error("[r2 stream]", err);
     return NextResponse.json(
       { ok: false, error: "stream failed" },
       { status: 500 }

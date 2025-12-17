@@ -3,12 +3,14 @@ import { HeadObjectCommand } from "@aws-sdk/client-s3";
 import { getR2Client, R2_BUCKET_NAME } from "@/lib/r2/server";
 import { getTenantContext } from "@/lib/tenant/server";
 import { guessContentType } from "@/lib/r2/contentType";
+import { db } from "@/lib/db";
 
 export const runtime = "nodejs";
 
 export async function POST(req) {
   try {
-    const { key } = await req.json();
+    const body = await req.json();
+    const key = body?.key;
 
     if (!key) {
       return NextResponse.json(
@@ -18,11 +20,17 @@ export async function POST(req) {
     }
 
     // ------------------------------------------------------------
-    // Resolve tenant from cookies (Option A)
+    // Resolve tenant
     // ------------------------------------------------------------
-    const { prefix, tenantId } = getTenantContext();
+    const { tenantId, prefix, userId } = getTenantContext();
 
+    if (!tenantId || !prefix) {
+      throw new Error("Tenant context missing");
+    }
+
+    // ------------------------------------------------------------
     // Enforce tenant isolation
+    // ------------------------------------------------------------
     if (!key.startsWith(prefix + "/")) {
       return NextResponse.json(
         { ok: false, error: "invalid tenant key" },
@@ -41,21 +49,48 @@ export async function POST(req) {
       })
     );
 
-    const mimeType = guessContentType(key);
     const byteSize = head.ContentLength || null;
+    const filename = key.split("/").pop();
+    const mimeType = guessContentType(filename);
+
+    // ------------------------------------------------------------
+    // Commit clip to DB (source of truth)
+    // ------------------------------------------------------------
+    await db.query(
+      `
+      insert into clips (
+        tenant_id,
+        user_id,
+        object_key,
+        title,
+        mime_type,
+        byte_size
+      )
+      values ($1, $2, $3, $4, $5, $6)
+      on conflict (object_key) do nothing
+      `,
+      [
+        tenantId,
+        userId || null,
+        key,
+        filename,
+        mimeType,
+        byteSize,
+      ]
+    );
 
     return NextResponse.json({
       ok: true,
       key,
       mimeType,
       byteSize,
-      tenant: tenantId,
     });
   } catch (err) {
-    console.error("r2 finalize error:", err);
+    console.error("[r2 finalize]", err);
     return NextResponse.json(
       { ok: false, error: "finalize failed" },
       { status: 500 }
     );
   }
 }
+

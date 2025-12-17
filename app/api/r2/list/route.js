@@ -1,43 +1,44 @@
 import { NextResponse } from "next/server";
-import { ListObjectsV2Command } from "@aws-sdk/client-s3";
-import { getR2Client, R2_BUCKET_NAME } from "@/lib/r2/server";
 import { getTenantContext } from "@/lib/tenant/server";
+import { db } from "@/lib/db"; // adjust if your db import differs
 
 export const runtime = "nodejs";
 
 export async function GET() {
   try {
     // ------------------------------------------------------------
-    // Resolve tenant from cookies (Option A)
+    // Resolve tenant from cookies
     // ------------------------------------------------------------
-    const { prefix, tenantId } = getTenantContext();
+    const { tenantId } = getTenantContext();
+
+    if (!tenantId) {
+      throw new Error("Tenant context missing");
+    }
 
     // ------------------------------------------------------------
-    // List clips from R2 under tenant namespace
+    // DB-first clip listing (source of truth)
     // ------------------------------------------------------------
-    const client = getR2Client();
-
-    const res = await client.send(
-      new ListObjectsV2Command({
-        Bucket: R2_BUCKET_NAME,
-        Prefix: `${prefix}/clips/`,
-      })
+    const { rows } = await db.query(
+      `
+      select
+        object_key as key,
+        byte_size as size,
+        created_at as "lastModified"
+      from clips
+      where tenant_id = $1
+        and deleted_at is null
+      order by created_at desc
+      `,
+      [tenantId]
     );
-
-    const items =
-      res.Contents?.map((obj) => ({
-        key: obj.Key,
-        size: obj.Size,
-        lastModified: obj.LastModified,
-      })) || [];
 
     return NextResponse.json({
       ok: true,
       tenant: tenantId,
-      items,
+      items: rows,
     });
   } catch (err) {
-    console.error("r2 list error:", err);
+    console.error("[r2 list]", err);
     return NextResponse.json(
       { ok: false, error: "list failed" },
       { status: 500 }

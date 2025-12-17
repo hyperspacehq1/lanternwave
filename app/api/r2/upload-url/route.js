@@ -9,7 +9,8 @@ export const runtime = "nodejs";
 
 export async function POST(req) {
   try {
-    const { filename } = await req.json();
+    const body = await req.json();
+    const filename = body?.filename;
 
     if (!filename) {
       return NextResponse.json(
@@ -19,24 +20,38 @@ export async function POST(req) {
     }
 
     // ------------------------------------------------------------
-    // Resolve tenant from cookies (Option A)
+    // Resolve tenant (hard requirement)
     // ------------------------------------------------------------
-    const { prefix, tenantId } = getTenantContext();
+    const { tenantId, prefix } = getTenantContext();
 
+    if (!tenantId || !prefix) {
+      throw new Error("Tenant context missing");
+    }
+
+    // ------------------------------------------------------------
     // Sanitize filename
+    // ------------------------------------------------------------
     const safe = filename.replace(/[^\w.\-]+/g, "_");
 
+    if (!safe || safe === "." || safe === "_") {
+      return NextResponse.json(
+        { ok: false, error: "invalid filename" },
+        { status: 400 }
+      );
+    }
+
     // ------------------------------------------------------------
-    // Tenant-scoped object key
+    // Tenant-scoped object key (authoritative)
     // ------------------------------------------------------------
     const key = `${prefix}/clips/${Date.now()}-${safe}`;
+    const contentType = guessContentType(filename);
 
     const client = getR2Client();
 
     const cmd = new PutObjectCommand({
       Bucket: R2_BUCKET_NAME,
       Key: key,
-      ContentType: guessContentType(filename),
+      ContentType: contentType,
     });
 
     const uploadUrl = await getSignedUrl(client, cmd, {
@@ -45,12 +60,13 @@ export async function POST(req) {
 
     return NextResponse.json({
       ok: true,
-      tenant: tenantId,
       key,
       uploadUrl,
+      filename: safe,
+      contentType,
     });
   } catch (err) {
-    console.error("r2 upload-url error:", err);
+    console.error("[r2 upload-url]", err);
     return NextResponse.json(
       { ok: false, error: "upload-url failed" },
       { status: 500 }
