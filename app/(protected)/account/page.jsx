@@ -5,29 +5,35 @@ import { useEffect, useState } from "react";
 export const dynamic = "force-dynamic";
 
 export default function AccountPage() {
-  const [status, setStatus] = useState(null);
-  const [raw, setRaw] = useState("");
-  const [json, setJson] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [username, setUsername] = useState(null);
 
   async function load() {
-    setStatus(null);
-    setRaw("");
-    setJson(null);
-
-    const res = await fetch("/api/debug/account", {
-      credentials: "include",
-      cache: "no-store",
-    });
-
-    setStatus(res.status);
-
-    const text = await res.text();
-    setRaw(text);
+    setLoading(true);
+    setError(null);
 
     try {
-      setJson(JSON.parse(text));
-    } catch {
-      setJson(null);
+      const res = await fetch("/api/debug/account", {
+        credentials: "include",
+        cache: "no-store",
+      });
+
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+
+      const data = await res.json();
+
+      if (!data?.ok || !data?.debug?.auth?.username) {
+        throw new Error("Account data unavailable");
+      }
+
+      setUsername(data.debug.auth.username);
+    } catch (err) {
+      setError("Failed to load account");
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -36,61 +42,65 @@ export default function AccountPage() {
   }, []);
 
   return (
-    <div style={{ padding: 32, fontFamily: "monospace" }}>
-      <h1>My Account (Ultimate Debug)</h1>
+    <div style={wrap}>
+      <h1 style={title}>My Account</h1>
 
-      <div style={{ marginTop: 12 }}>
-        <button onClick={load} style={{ padding: "8px 12px" }}>
-          Reload Debug
-        </button>
-      </div>
+      {loading && <div>Loading…</div>}
 
-      <div style={{ marginTop: 16 }}>
-        <strong>HTTP Status:</strong>{" "}
-        {status === null ? "Loading…" : status}
-      </div>
+      {error && <div style={errorStyle}>{error}</div>}
 
-      {json?.ok && json?.debug && (
-        <div style={{ marginTop: 20 }}>
-          <h2 style={{ margin: "18px 0 8px" }}>Summary</h2>
-          <KV label="Cookie Names Seen (server)" value={(json.debug.server.sawCookies || []).join(", ") || "(none)"} />
-          <KV label="lw_session Seen (server)" value={json.debug.server.sawLwSession} />
-          <KV label="User ID" value={json.debug.auth.userId || "(null)"} />
-          <KV label="Username" value={json.debug.auth.username || "(null)"} />
-          <KV label="Email" value={json.debug.auth.email || "(null)"} />
-          <KV label="Tenant ID" value={json.debug.auth.tenantId || "(null)"} />
-
-          <h2 style={{ margin: "18px 0 8px" }}>Note</h2>
-          <pre style={preStyle}>{json.note || "(none)"}</pre>
-
-          <h2 style={{ margin: "18px 0 8px" }}>Server Header Snapshot</h2>
-          <pre style={preStyle}>
-            {JSON.stringify(json.debug.server.headers || {}, null, 2)}
-          </pre>
+      {!loading && !error && (
+        <div style={card}>
+          <Row label="Username" value={username} />
+          <Row label="Plan" value="Observer" />
         </div>
       )}
-
-      <h2 style={{ margin: "18px 0 8px" }}>Raw Response</h2>
-      <pre style={preStyle}>{raw || "(empty)"}</pre>
     </div>
   );
 }
 
-function KV({ label, value }) {
+function Row({ label, value }) {
   return (
-    <div style={{ marginTop: 6 }}>
-      <strong>{label}:</strong>{" "}
-      <span style={{ wordBreak: "break-all" }}>{String(value)}</span>
+    <div style={row}>
+      <span style={labelStyle}>{label}</span>
+      <span style={valueStyle}>{value}</span>
     </div>
   );
 }
 
-const preStyle = {
-  padding: 12,
-  border: "1px solid #ddd",
-  borderRadius: 8,
-  background: "#fafafa",
-  overflowX: "auto",
-  whiteSpace: "pre-wrap",
-  wordBreak: "break-word",
+/* ---------------- styles ---------------- */
+
+const wrap = {
+  padding: 32,
+  maxWidth: 520,
+};
+
+const title = {
+  marginBottom: 24,
+};
+
+const card = {
+  border: "1px solid #e5e7eb",
+  borderRadius: 12,
+  padding: 20,
+  background: "#fff",
+};
+
+const row = {
+  display: "flex",
+  justifyContent: "space-between",
+  padding: "10px 0",
+  borderBottom: "1px solid #f1f5f9",
+};
+
+const labelStyle = {
+  color: "#475569",
+};
+
+const valueStyle = {
+  fontWeight: 600,
+};
+
+const errorStyle = {
+  color: "#b91c1c",
 };
