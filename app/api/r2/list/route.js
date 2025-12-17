@@ -7,7 +7,9 @@ export const runtime = "nodejs";
 export async function GET() {
   const { tenantId } = getTenantContext({ allowAnonymous: true });
 
-  // If no tenant yet (initial load / pre-auth), return empty list
+console.log("LIST tenantId =", tenantId);
+
+// If no tenant yet (initial load / pre-auth), return empty list
   if (!tenantId) {
     return NextResponse.json({ ok: true, rows: [] });
   }
