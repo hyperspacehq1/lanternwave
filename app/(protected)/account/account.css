@@ -1,0 +1,54 @@
+.account-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.account-content {
+  flex: 1;
+  padding: 32px;
+  max-width: 640px;
+}
+
+.account-title {
+  font-size: 1.8rem;
+  margin-bottom: 24px;
+}
+
+.account-status {
+  color: #64748b;
+}
+
+.account-error {
+  color: #b91c1c;
+  margin-top: 12px;
+}
+
+.account-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #ffffff;
+  padding: 20px;
+}
+
+.account-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.account-row:last-child {
+  border-bottom: none;
+}
+
+.account-label {
+  color: #475569;
+  font-size: 0.95rem;
+}
+
+.account-value {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
