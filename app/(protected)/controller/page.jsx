@@ -31,6 +31,9 @@ async function listClips() {
     cache: "no-store",
     credentials: "include",
   });
+
+  if (!res.ok) throw new Error("Not authenticated");
+
   const data = await res.json();
   return data.rows || [];
 }
@@ -86,6 +89,9 @@ async function getNowPlaying() {
     cache: "no-store",
     credentials: "include",
   });
+
+  if (!res.ok) return null;
+
   const data = await res.json();
   return data.nowPlaying || null;
 }
@@ -97,6 +103,9 @@ async function setNowPlaying(key) {
     body: JSON.stringify({ key }),
     headers: { "Content-Type": "application/json" },
   });
+
+  if (!res.ok) throw new Error("Not authenticated");
+
   const data = await res.json();
   return data.nowPlaying || null;
 }
@@ -115,7 +124,7 @@ export default function ControllerPage() {
 
   const previewMediaRef = useRef(null);
 
-  async function refreshClips() {
+  async function refreshClipsAndAuth() {
     setLoadingList(true);
     try {
       const rows = await listClips();
@@ -123,25 +132,28 @@ export default function ControllerPage() {
         (a, b) => new Date(b.created_at) - new Date(a.created_at)
       );
       setClips(rows);
+
+      // ✅ AUTH CONFIRMED — safe to call now-playing
+      const np = await getNowPlaying();
+      if (np?.key) {
+        setNowPlayingState(np);
+        setPreviewKey(np.key);
+      } else {
+        setNowPlayingState(null);
+        setPreviewKey(null);
+      }
+    } catch {
+      // Not authenticated — do NOT call now-playing
+      setClips([]);
+      setNowPlayingState(null);
+      setPreviewKey(null);
     } finally {
       setLoadingList(false);
     }
   }
 
-  async function refreshNowPlaying() {
-    const np = await getNowPlaying();
-    if (np?.key) {
-      setNowPlayingState(np);
-      setPreviewKey(np.key);
-    } else {
-      setNowPlayingState(null);
-      setPreviewKey(null);
-    }
-  }
-
   useEffect(() => {
-    refreshClips();
-    refreshNowPlaying();
+    refreshClipsAndAuth();
   }, []);
 
   const previewUrl = previewKey ? streamUrlForKey(previewKey) : null;
@@ -170,7 +182,7 @@ export default function ControllerPage() {
                   setUploadProgress(pct)
                 );
                 setUploadMessage("Upload complete.");
-                await refreshClips();
+                await refreshClipsAndAuth();
                 setPreviewKey(res.key);
               } catch {
                 setUploadMessage("Upload error.");
@@ -271,7 +283,7 @@ export default function ControllerPage() {
                     onClick={async () => {
                       await deleteClip(key);
                       setDeleteMessage("Clip deleted.");
-                      await refreshClips();
+                      await refreshClipsAndAuth();
                     }}
                   >
                     DELETE
