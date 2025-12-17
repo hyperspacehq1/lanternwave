@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getTenantContext } from "@/lib/tenant/server";
 import { query } from "@/lib/db";
 
+// 🚨 CRITICAL: prevent execution during server render
+export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 // ------------------------------------------------------------
@@ -9,10 +11,15 @@ export const runtime = "nodejs";
 // ------------------------------------------------------------
 export async function GET() {
   try {
-    const { tenantId } = getTenantContext();
+    const ctx = getTenantContext({ allowAnonymous: true });
 
-    if (!tenantId) {
-      throw new Error("Tenant context missing");
+    // ✅ During server render or unauthenticated access
+    // this is NOT an error
+    if (!ctx?.tenantId) {
+      return NextResponse.json({
+        ok: true,
+        nowPlaying: null,
+      });
     }
 
     const { rows } = await query(
@@ -22,7 +29,7 @@ export async function GET() {
       where tenant_id = $1
       limit 1
       `,
-      [tenantId]
+      [ctx.tenantId]
     );
 
     if (!rows[0]?.object_key) {
@@ -40,7 +47,8 @@ export async function GET() {
       },
     });
   } catch (err) {
-    console.error("[now-playing GET]", err);
+    // 🚫 No red log for render-time execution
+    console.error("[now-playing GET] real error", err);
     return NextResponse.json(
       { ok: false, error: "failed to read now playing" },
       { status: 500 }
@@ -55,12 +63,16 @@ export async function POST(req) {
   try {
     const { tenantId, prefix } = getTenantContext();
 
+    // POST MUST require auth — this is correct
     if (!tenantId || !prefix) {
-      throw new Error("Tenant context missing");
+      return NextResponse.json(
+        { ok: false, error: "unauthorized" },
+        { status: 401 }
+      );
     }
 
     const body = await req.json();
-    const key = body?.key || null;
+    const key = body?.key ?? null;
 
     // STOP (clear now playing)
     if (key === null) {
@@ -126,7 +138,7 @@ export async function POST(req) {
       },
     });
   } catch (err) {
-    console.error("[now-playing POST]", err);
+    console.error("[now-playing POST] real error", err);
     return NextResponse.json(
       { ok: false, error: "failed to set now playing" },
       { status: 500 }
