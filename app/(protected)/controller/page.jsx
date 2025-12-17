@@ -24,29 +24,37 @@ function streamUrlForKey(key) {
 }
 
 // ===============================================
-// API helpers
+// API helpers (CLIENT)
 // ===============================================
 async function listClips() {
-  const res = await fetch(`/api/r2/list`, { cache: "no-store" });
+  const res = await fetch("/api/r2/list", {
+    cache: "no-store",
+    credentials: "include",
+  });
   const data = await res.json();
-  return data.items || [];
+  return data.rows || [];
 }
 
 async function deleteClip(key) {
   const res = await fetch(
     `/api/r2/delete?key=${encodeURIComponent(key)}`,
-    { method: "DELETE" }
+    {
+      method: "DELETE",
+      credentials: "include",
+    }
   );
   if (!res.ok) throw new Error("Delete failed");
   return res.json();
 }
 
 async function uploadClip(file, onProgress) {
-  const urlRes = await fetch(`/api/r2/upload-url`, {
+  const urlRes = await fetch("/api/r2/upload-url", {
     method: "POST",
+    credentials: "include",
     body: JSON.stringify({ filename: file.name }),
     headers: { "Content-Type": "application/json" },
   });
+
   const { uploadUrl, key } = await urlRes.json();
 
   await new Promise((resolve, reject) => {
@@ -63,8 +71,9 @@ async function uploadClip(file, onProgress) {
     xhr.send(file);
   });
 
-  await fetch(`/api/r2/finalize`, {
+  await fetch("/api/r2/finalize", {
     method: "POST",
+    credentials: "include",
     body: JSON.stringify({ key }),
     headers: { "Content-Type": "application/json" },
   });
@@ -73,19 +82,23 @@ async function uploadClip(file, onProgress) {
 }
 
 async function getNowPlaying() {
-  const res = await fetch(`/api/r2/now-playing`, { cache: "no-store" });
+  const res = await fetch("/api/r2/now-playing", {
+    cache: "no-store",
+    credentials: "include",
+  });
   const data = await res.json();
-  return data.nowPlaying;
+  return data.nowPlaying || null;
 }
 
 async function setNowPlaying(key) {
-  const res = await fetch(`/api/r2/now-playing`, {
+  const res = await fetch("/api/r2/now-playing", {
     method: "POST",
+    credentials: "include",
     body: JSON.stringify({ key }),
     headers: { "Content-Type": "application/json" },
   });
   const data = await res.json();
-  return data.nowPlaying;
+  return data.nowPlaying || null;
 }
 
 // ===============================================
@@ -105,11 +118,11 @@ export default function ControllerPage() {
   async function refreshClips() {
     setLoadingList(true);
     try {
-      const items = await listClips();
-      items.sort(
-        (a, b) => new Date(b.lastModified) - new Date(a.lastModified)
+      const rows = await listClips();
+      rows.sort(
+        (a, b) => new Date(b.created_at) - new Date(a.created_at)
       );
-      setClips(items);
+      setClips(rows);
     } finally {
       setLoadingList(false);
     }
@@ -205,12 +218,13 @@ export default function ControllerPage() {
           )}
 
           {clips.map((clip) => {
-            const type = clipTypeFromKey(clip.key);
-            const isNow = nowPlaying?.key === clip.key;
+            const key = clip.object_key;
+            const type = clipTypeFromKey(key);
+            const isNow = nowPlaying?.key === key;
 
             return (
               <div
-                key={clip.key}
+                key={key}
                 className={`lw-clip-row ${
                   isNow ? "lw-clip-row-active" : ""
                 }`}
@@ -220,7 +234,7 @@ export default function ControllerPage() {
                     {type.toUpperCase()}
                   </span>
                   <span className="lw-clip-name">
-                    {displayNameFromKey(clip.key)}
+                    {displayNameFromKey(key)}
                   </span>
                 </div>
 
@@ -228,9 +242,9 @@ export default function ControllerPage() {
                   <button
                     className="lw-btn"
                     onClick={async () => {
-                      const np = await setNowPlaying(clip.key);
+                      const np = await setNowPlaying(key);
                       setNowPlayingState(np);
-                      setPreviewKey(clip.key);
+                      setPreviewKey(key);
                     }}
                   >
                     PLAY
@@ -255,7 +269,7 @@ export default function ControllerPage() {
                   <button
                     className="lw-btn lw-btn-danger"
                     onClick={async () => {
-                      await deleteClip(clip.key);
+                      await deleteClip(key);
                       setDeleteMessage("Clip deleted.");
                       await refreshClips();
                     }}
