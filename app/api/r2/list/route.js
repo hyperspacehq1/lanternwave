@@ -1,3 +1,11 @@
+import { debugApi } from "@/lib/debug/api";
+
+export async function GET(req) {
+  debugApi("r2/list", req);
+
+  try {
+    const { tenantId } = getTenantContext();
+
 import { NextResponse } from "next/server";
 import { getTenantContext } from "@/lib/tenant/server";
 import { query } from "@/lib/db";
