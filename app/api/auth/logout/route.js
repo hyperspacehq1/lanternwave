@@ -7,10 +7,11 @@ export async function POST() {
     name: "lw_session",
     value: "",
     httpOnly: true,
-    secure: true,        // REQUIRED for SameSite=None
-    sameSite: "none",    // 🔑 MUST match login route
+    secure: true,
+    sameSite: "none",
     path: "/",
-    maxAge: 0,           // Immediately expire
+    domain: ".lanternwave.com", // 🔑 MUST match login & signup
+    maxAge: 0,                  // Immediately expire
   });
 
   return response;

@@ -5,17 +5,11 @@ import { rateLimit } from "@/lib/rateLimit";
 
 /**
  * POST /api/auth/login
- *
- * Body:
- * {
- *   emailOrUsername: string,
- *   password: string
- * }
  */
 export async function POST(req) {
   try {
     /* --------------------------------
-       SAFE rate limiting (2025)
+       Rate limiting
        -------------------------------- */
     let limit = { ok: true };
 
@@ -27,9 +21,8 @@ export async function POST(req) {
         ip,
         route: "login",
       });
-    } catch (err) {
-      // Rate limiting must NEVER break auth
-      console.warn("Rate limit skipped:", err);
+    } catch {
+      // Never block auth on rate-limit infra
     }
 
     if (!limit.ok) {
@@ -39,9 +32,6 @@ export async function POST(req) {
       );
     }
 
-    /* --------------------------------
-       Parse request
-       -------------------------------- */
     const { emailOrUsername, password } = await req.json();
 
     if (!emailOrUsername || !password) {
@@ -51,21 +41,12 @@ export async function POST(req) {
       );
     }
 
-    /* --------------------------------
-       Find user (email OR username)
-       -------------------------------- */
     const result = await query(
       `
-      SELECT
-        u.id,
-        u.email,
-        u.username,
-        u.password_hash,
-        u.deleted_at
-      FROM users u
-      WHERE
-        LOWER(u.email) = LOWER($1)
-        OR LOWER(u.username) = LOWER($1)
+      SELECT id, password_hash, deleted_at
+      FROM users
+      WHERE LOWER(email) = LOWER($1)
+         OR LOWER(username) = LOWER($1)
       LIMIT 1
       `,
       [emailOrUsername]
@@ -87,24 +68,14 @@ export async function POST(req) {
       );
     }
 
-    /* --------------------------------
-       Verify password
-       -------------------------------- */
-    const passwordOk = await bcrypt.compare(
-      password,
-      user.password_hash
-    );
-
-    if (!passwordOk) {
+    const ok = await bcrypt.compare(password, user.password_hash);
+    if (!ok) {
       return NextResponse.json(
         { error: "Invalid credentials" },
         { status: 401 }
       );
     }
 
-    /* --------------------------------
-       Ensure tenant access
-       -------------------------------- */
     const tenantCheck = await query(
       `
       SELECT tenant_id
@@ -123,7 +94,7 @@ export async function POST(req) {
     }
 
     /* --------------------------------
-       Set session cookie (2025 SAFE)
+       SET COOKIE (FINAL 2025 FORM)
        -------------------------------- */
     const response = NextResponse.json({ ok: true });
 
@@ -131,10 +102,11 @@ export async function POST(req) {
       name: "lw_session",
       value: user.id,
       httpOnly: true,
-      secure: true,          // REQUIRED for SameSite=None
-      sameSite: "none",      // 🔑 FIX: allow Netlify Functions
+      secure: true,
+      sameSite: "none",
       path: "/",
-      maxAge: 60 * 60 * 24 * 7, // 7 days
+      domain: ".lanternwave.com", // 🔑 REQUIRED FOR NETLIFY FUNCTIONS
+      maxAge: 60 * 60 * 24 * 7,
     });
 
     return response;

@@ -92,15 +92,19 @@ export async function POST(req) {
     await query("COMMIT");
 
     /* -------------------------
-       Auto-login (2025 correct)
+       Auto-login (2025 NETLIFY SAFE)
        ------------------------- */
     const res = NextResponse.json({ ok: true });
 
-    res.cookies.set("lw_session", userId, {
+    res.cookies.set({
+      name: "lw_session",
+      value: userId,
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      secure: true,                 // REQUIRED
+      sameSite: "none",             // REQUIRED
       path: "/",
+      domain: ".lanternwave.com",   // 🔑 REQUIRED FOR FUNCTIONS
+      maxAge: 60 * 60 * 24 * 7,
     });
 
     return res;
