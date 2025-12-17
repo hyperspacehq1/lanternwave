@@ -1,27 +1,49 @@
 import { NextResponse } from "next/server";
-import { headers } from "next/headers";
 import { query } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+
+// Robust header getter (works if headers is Web Headers OR plain object)
+function getHeader(req, name) {
+  const key = String(name).toLowerCase();
+  const h = req?.headers;
+
+  if (!h) return null;
+
+  // Web Headers interface
+  if (typeof h.get === "function") {
+    return h.get(key);
+  }
+
+  // Plain object
+  if (typeof h === "object") {
+    return h[key] ?? h[name] ?? h[key.toLowerCase()] ?? null;
+  }
+
+  return null;
+}
 
 function parseCookies(cookieHeader) {
   const out = {};
   if (!cookieHeader) return out;
 
   cookieHeader.split(";").forEach((part) => {
-    const [k, ...v] = part.trim().split("=");
-    if (!k) return;
-    out[k] = decodeURIComponent(v.join("="));
+    const s = part.trim();
+    if (!s) return;
+    const idx = s.indexOf("=");
+    if (idx === -1) return;
+    const k = s.slice(0, idx).trim();
+    const v = s.slice(idx + 1).trim();
+    out[k] = decodeURIComponent(v);
   });
 
   return out;
 }
 
-export async function GET() {
+export async function GET(req) {
   try {
-    const h = headers();
-    const cookieHeader = h.get("cookie") || "";
+    const cookieHeader = getHeader(req, "cookie") || "";
     const cookies = parseCookies(cookieHeader);
 
     const lwSession = cookies["lw_session"] || null;
@@ -39,17 +61,17 @@ export async function GET() {
       },
     };
 
-    // 🔴 THIS IS THE CORE TRUTH CHECK
+    // Core truth #1: does the server see the cookie at all?
     if (!lwSession) {
       return NextResponse.json({
         ok: true,
         debug,
         note:
-          "Server does NOT see lw_session in Cookie header. Auth cannot work until this is resolved.",
+          "Server does NOT see lw_session in the request Cookie header. Fix cookie delivery first.",
       });
     }
 
-    // In your system, lw_session === user_id
+    // Your current design: lw_session === user_id
     const userId = lwSession;
 
     const userRes = await query(
@@ -68,7 +90,7 @@ export async function GET() {
         ok: true,
         debug,
         note:
-          "Server sees lw_session cookie, but no user exists with this ID.",
+          "Server sees lw_session, but no user exists with that ID in DB (cookie value mismatch or wrong DB).",
       });
     }
 
@@ -95,7 +117,7 @@ export async function GET() {
       debug,
       note: debug.auth.tenantId
         ? "Auth + tenant lookup succeeded."
-        : "User found, but no tenant_users row found.",
+        : "User found, but no tenant_users row found for this user.",
     });
   } catch (err) {
     console.error("[debug account] fatal error", err);
