@@ -1,160 +1,194 @@
-// app/api/sessions/route.js
-import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
-import { requireAdmin } from "@/lib/auth";
+import { getTenantContext } from "@/lib/auth/getTenantContext";
+
+export const dynamic = "force-dynamic";
 
 /* -----------------------------------------------------------
    GET /api/sessions?id= OR ?campaign_id=
 ------------------------------------------------------------ */
 export async function GET(req) {
-  try {
-    const { searchParams } = new URL(req.url);
-    const id = searchParams.get("id");
-    const campaignId = searchParams.get("campaign_id");
+  const { tenantId } = await getTenantContext(req);
+  const { searchParams } = new URL(req.url);
 
-    if (id) {
-      const rows = await query`
-        SELECT *
-        FROM sessions
-        WHERE id = ${id}
-        LIMIT 1
-      `;
+  const id = searchParams.get("id");
+  const campaignId = searchParams.get("campaign_id");
 
-      if (!rows.length)
-        return NextResponse.json({ error: "Session not found" }, { status: 404 });
-
-      return NextResponse.json(rows[0], { status: 200 });
-    }
-
-    if (campaignId) {
-      const rows = await query`
-        SELECT *
-        FROM sessions
-        WHERE campaign_id = ${campaignId}
-        ORDER BY created_at ASC
-      `;
-
-      return NextResponse.json(rows, { status: 200 });
-    }
-
-    return NextResponse.json(
-      { error: "Either id or campaign_id is required" },
-      { status: 400 }
+  if (id) {
+    const rows = await query(
+      `
+      SELECT *
+      FROM sessions
+      WHERE tenant_id = $1
+        AND id = $2
+        AND deleted_at IS NULL
+      LIMIT 1
+      `,
+      [tenantId, id]
     );
-  } catch (err) {
-    console.error("GET /sessions error:", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+
+    if (!rows.rows.length) {
+      return Response.json({ error: "Session not found" }, { status: 404 });
+    }
+
+    return Response.json(rows.rows[0]);
   }
+
+  if (campaignId) {
+    const rows = await query(
+      `
+      SELECT *
+      FROM sessions
+      WHERE tenant_id = $1
+        AND campaign_id = $2
+        AND deleted_at IS NULL
+      ORDER BY created_at ASC
+      `,
+      [tenantId, campaignId]
+    );
+
+    return Response.json(rows.rows);
+  }
+
+  return Response.json(
+    { error: "Either id or campaign_id is required" },
+    { status: 400 }
+  );
 }
 
 /* -----------------------------------------------------------
    POST /api/sessions
 ------------------------------------------------------------ */
 export async function POST(req) {
-  try {
-    const auth = requireAdmin(req);
-    if (!auth.ok) return auth.response;
+  const { tenantId } = await getTenantContext(req);
+  const body = await req.json();
 
-    const body = await req.json();
-
-    if (!body.campaign_id) {
-      return NextResponse.json({ error: "campaign_id is required" }, { status: 400 });
-    }
-
-    const rows = await query`
-      INSERT INTO sessions (
-        campaign_id,
-        description,
-        geography,
-        notes,
-        history,
-        created_at,
-        updated_at
-      )
-      VALUES (
-        ${body.campaign_id},
-        ${body.description ?? ""},
-        ${body.geography ?? ""},
-        ${body.notes ?? ""},
-        ${body.history ?? ""},
-        NOW(),
-        NOW()
-      )
-      RETURNING *
-    `;
-
-    return NextResponse.json(rows[0], { status: 201 });
-  } catch (err) {
-    console.error("POST /sessions error:", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  if (!body.campaign_id) {
+    return Response.json(
+      { error: "campaign_id is required" },
+      { status: 400 }
+    );
   }
+
+  // Validate campaign ownership
+  const campaign = await query(
+    `
+    SELECT id
+    FROM campaigns
+    WHERE tenant_id = $1
+      AND id = $2
+      AND deleted_at IS NULL
+    LIMIT 1
+    `,
+    [tenantId, body.campaign_id]
+  );
+
+  if (!campaign.rows.length) {
+    return Response.json(
+      { error: "Invalid campaign_id" },
+      { status: 403 }
+    );
+  }
+
+  const rows = await query(
+    `
+    INSERT INTO sessions (
+      tenant_id,
+      campaign_id,
+      description,
+      geography,
+      notes,
+      history,
+      created_at,
+      updated_at
+    )
+    VALUES ($1,$2,$3,$4,$5,$6,NOW(),NOW())
+    RETURNING *
+    `,
+    [
+      tenantId,
+      body.campaign_id,
+      body.description ?? "",
+      body.geography ?? "",
+      body.notes ?? "",
+      body.history ?? "",
+    ]
+  );
+
+  return Response.json(rows.rows[0], { status: 201 });
 }
 
 /* -----------------------------------------------------------
    PUT /api/sessions?id=
 ------------------------------------------------------------ */
 export async function PUT(req) {
-  try {
-    const auth = requireAdmin(req);
-    if (!auth.ok) return auth.response;
+  const { tenantId } = await getTenantContext(req);
+  const { searchParams } = new URL(req.url);
+  const id = searchParams.get("id");
 
-    const { searchParams } = new URL(req.url);
-    const id = searchParams.get("id");
-
-    if (!id)
-      return NextResponse.json({ error: "id is required" }, { status: 400 });
-
-    const body = await req.json();
-
-    const rows = await query`
-      UPDATE sessions
-      SET
-        description = ${body.description},
-        geography = ${body.geography},
-        notes = ${body.notes},
-        history = ${body.history},
-        updated_at = NOW()
-      WHERE id = ${id}
-      RETURNING *
-    `;
-
-    if (!rows.length)
-      return NextResponse.json({ error: "Session not found" }, { status: 404 });
-
-    return NextResponse.json(rows[0], { status: 200 });
-  } catch (err) {
-    console.error("PUT /sessions error:", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  if (!id) {
+    return Response.json({ error: "id is required" }, { status: 400 });
   }
+
+  const body = await req.json();
+
+  const rows = await query(
+    `
+    UPDATE sessions
+       SET description = COALESCE($3, description),
+           geography  = COALESCE($4, geography),
+           notes      = COALESCE($5, notes),
+           history    = COALESCE($6, history),
+           updated_at = NOW()
+     WHERE tenant_id = $1
+       AND id = $2
+       AND deleted_at IS NULL
+     RETURNING *
+    `,
+    [
+      tenantId,
+      id,
+      body.description,
+      body.geography,
+      body.notes,
+      body.history,
+    ]
+  );
+
+  if (!rows.rows.length) {
+    return Response.json({ error: "Session not found" }, { status: 404 });
+  }
+
+  return Response.json(rows.rows[0]);
 }
 
 /* -----------------------------------------------------------
    DELETE /api/sessions?id=
+   (soft delete)
 ------------------------------------------------------------ */
 export async function DELETE(req) {
-  try {
-    const auth = requireAdmin(req);
-    if (!auth.ok) return auth.response;
+  const { tenantId } = await getTenantContext(req);
+  const { searchParams } = new URL(req.url);
+  const id = searchParams.get("id");
 
-    const { searchParams } = new URL(req.url);
-    const id = searchParams.get("id");
-
-    if (!id)
-      return NextResponse.json({ error: "id is required" }, { status: 400 });
-
-    const rows = await query`
-      DELETE FROM sessions
-      WHERE id = ${id}
-      RETURNING id
-    `;
-
-    if (!rows.length)
-      return NextResponse.json({ error: "Session not found" }, { status: 404 });
-
-    return NextResponse.json({ success: true, id }, { status: 200 });
-  } catch (err) {
-    console.error("DELETE /sessions error:", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  if (!id) {
+    return Response.json({ error: "id is required" }, { status: 400 });
   }
-}
 
+  const rows = await query(
+    `
+    UPDATE sessions
+       SET deleted_at = NOW()
+     WHERE tenant_id = $1
+       AND id = $2
+       AND deleted_at IS NULL
+     RETURNING id
+    `,
+    [tenantId, id]
+  );
+
+  if (!rows.rows.length) {
+    return Response.json({ error: "Session not found" }, { status: 404 });
+  }
+
+  return Response.json({ success: true, id });
+}

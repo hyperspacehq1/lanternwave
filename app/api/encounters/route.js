@@ -1,144 +1,152 @@
-import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
-import { requireAdmin } from "@/lib/auth";
+import { getTenantContext } from "@/lib/auth/getTenantContext";
 import { v4 as uuid } from "uuid";
+
+export const dynamic = "force-dynamic";
 
 /* -----------------------------------------------------------
    GET /api/encounters
    Optional: ?id=
 ------------------------------------------------------------ */
 export async function GET(req) {
+  const { tenantId } = await getTenantContext(req);
+
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
 
-  try {
-    if (id) {
-      const row = await query(
-        `SELECT *
-         FROM encounters
-         WHERE id = $1`,
-        [id]
-      );
-
-      return NextResponse.json(row.rows[0] || null);
-    }
-
-    const list = await query(
-      `SELECT *
-       FROM encounters
-       ORDER BY created_at ASC`
+  if (id) {
+    const result = await query(
+      `
+      SELECT *
+      FROM encounters
+      WHERE tenant_id = $1
+        AND id = $2
+        AND deleted_at IS NULL
+      LIMIT 1
+      `,
+      [tenantId, id]
     );
 
-    return NextResponse.json(list.rows);
-  } catch (err) {
-    console.error("GET /encounters error:", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return Response.json(result.rows[0] || null);
   }
+
+  const list = await query(
+    `
+    SELECT *
+    FROM encounters
+    WHERE tenant_id = $1
+      AND deleted_at IS NULL
+    ORDER BY created_at ASC
+    `,
+    [tenantId]
+  );
+
+  return Response.json(list.rows);
 }
 
 /* -----------------------------------------------------------
    POST /api/encounters
 ------------------------------------------------------------ */
 export async function POST(req) {
-  const headers = Object.fromEntries(req.headers.entries());
-  const auth = requireAdmin(headers);
-  if (!auth.ok) return auth.response;
+  const { tenantId } = await getTenantContext(req);
 
-  try {
-    const body = await req.json();
-    const id = uuid();
+  const body = await req.json();
+  const id = uuid();
 
-    const row = await query(
-      `
-      INSERT INTO encounters (
-        id,
-        name,
-        description,
-        created_at,
-        updated_at
-      )
-      VALUES ($1, $2, $3, NOW(), NOW())
-      RETURNING *
-      `,
-      [
-        id,
-        body.name,
-        body.description,
-      ]
-    );
+  const result = await query(
+    `
+    INSERT INTO encounters (
+      id,
+      tenant_id,
+      name,
+      description,
+      created_at,
+      updated_at
+    )
+    VALUES ($1, $2, $3, $4, NOW(), NOW())
+    RETURNING *
+    `,
+    [
+      id,
+      tenantId,
+      body.name ?? null,
+      body.description ?? null,
+    ]
+  );
 
-    return NextResponse.json(row.rows[0]);
-  } catch (err) {
-    console.error("POST /encounters error:", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
-  }
+  return Response.json(result.rows[0], { status: 201 });
 }
 
 /* -----------------------------------------------------------
    PUT /api/encounters?id=
 ------------------------------------------------------------ */
 export async function PUT(req) {
-  const headers = Object.fromEntries(req.headers.entries());
-  const auth = requireAdmin(headers);
-  if (!auth.ok) return auth.response;
+  const { tenantId } = await getTenantContext(req);
 
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
 
   if (!id) {
-    return NextResponse.json({ error: "id required" }, { status: 400 });
+    return Response.json({ error: "id required" }, { status: 400 });
   }
 
-  try {
-    const body = await req.json();
+  const body = await req.json();
 
-    const row = await query(
-      `
-      UPDATE encounters
-         SET name        = $2,
-             description = $3,
-             updated_at  = NOW()
-       WHERE id = $1
-       RETURNING *
-      `,
-      [
-        id,
-        body.name,
-        body.description,
-      ]
-    );
+  const result = await query(
+    `
+    UPDATE encounters
+       SET name        = $3,
+           description = $4,
+           updated_at  = NOW()
+     WHERE tenant_id = $1
+       AND id = $2
+       AND deleted_at IS NULL
+     RETURNING *
+    `,
+    [
+      tenantId,
+      id,
+      body.name ?? null,
+      body.description ?? null,
+    ]
+  );
 
-    return NextResponse.json(row.rows[0]);
-  } catch (err) {
-    console.error("PUT /encounters error:", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  if (!result.rows.length) {
+    return Response.json({ error: "Not found" }, { status: 404 });
   }
+
+  return Response.json(result.rows[0]);
 }
 
 /* -----------------------------------------------------------
    DELETE /api/encounters?id=
+   (soft delete)
 ------------------------------------------------------------ */
 export async function DELETE(req) {
-  const headers = Object.fromEntries(req.headers.entries());
-  const auth = requireAdmin(headers);
-  if (!auth.ok) return auth.response;
+  const { tenantId } = await getTenantContext(req);
 
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
 
   if (!id) {
-    return NextResponse.json({ error: "id required" }, { status: 400 });
+    return Response.json({ error: "id required" }, { status: 400 });
   }
 
-  try {
-    await query(
-      `DELETE FROM encounters WHERE id = $1`,
-      [id]
-    );
+  const result = await query(
+    `
+    UPDATE encounters
+       SET deleted_at = NOW()
+     WHERE tenant_id = $1
+       AND id = $2
+       AND deleted_at IS NULL
+     RETURNING id
+    `,
+    [tenantId, id]
+  );
 
-    return NextResponse.json({ ok: true });
-  } catch (err) {
-    console.error("DELETE /encounters error:", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  if (!result.rows.length) {
+    return Response.json({ error: "Not found" }, { status: 404 });
   }
+
+  return Response.json({ ok: true });
 }

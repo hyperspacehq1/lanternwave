@@ -1,6 +1,8 @@
-import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
+import { getTenantContext } from "@/lib/auth/getTenantContext";
 import OpenAI from "openai";
+
+export const dynamic = "force-dynamic";
 
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -8,88 +10,114 @@ function tsv(term) {
   return term.trim().split(/\s+/).join(" & ");
 }
 
-async function searchAll(term) {
+async function run(sql, args) {
+  return (await query(sql, args)).rows;
+}
+
+async function searchAll(tenantId, term) {
   const vec = tsv(term);
 
-  async function run(sql) {
-    return (await query(sql, [vec])).rows;
-  }
-
   return {
-    campaigns: await run(`
+    campaigns: await run(
+      `
       SELECT id, name, description, 'campaign' AS type,
-        ts_rank(search_tsv, to_tsquery('english', $1)) AS rank
+        ts_rank(search_tsv, to_tsquery('english', $2)) AS rank
       FROM campaigns
-      WHERE search_tsv @@ to_tsquery('english', $1)
+      WHERE tenant_id = $1
+        AND deleted_at IS NULL
+        AND search_tsv @@ to_tsquery('english', $2)
       ORDER BY rank DESC
       LIMIT 10
-    `),
+      `,
+      [tenantId, vec]
+    ),
 
-    sessions: await run(`
+    sessions: await run(
+      `
       SELECT id, campaign_id, description, geography, 'session' AS type,
-        ts_rank(search_tsv, to_tsquery('english', $1)) AS rank
+        ts_rank(search_tsv, to_tsquery('english', $2)) AS rank
       FROM sessions
-      WHERE search_tsv @@ to_tsquery('english', $1)
+      WHERE tenant_id = $1
+        AND deleted_at IS NULL
+        AND search_tsv @@ to_tsquery('english', $2)
       ORDER BY rank DESC
       LIMIT 10
-    `),
+      `,
+      [tenantId, vec]
+    ),
 
-    events: await run(`
+    events: await run(
+      `
       SELECT id, campaign_id, session_id, description, event_type, weather,
         priority, 'event' AS type,
-        ts_rank(search_tsv, to_tsquery('english', $1)) AS rank
+        ts_rank(search_tsv, to_tsquery('english', $2)) AS rank
       FROM events
-      WHERE search_tsv @@ to_tsquery('english', $1)
+      WHERE tenant_id = $1
+        AND deleted_at IS NULL
+        AND search_tsv @@ to_tsquery('english', $2)
       ORDER BY rank DESC
       LIMIT 10
-    `),
+      `,
+      [tenantId, vec]
+    ),
 
-    encounters: await run(`
+    encounters: await run(
+      `
       SELECT id, campaign_id, session_id, description, notes, priority,
         'encounter' AS type,
-        ts_rank(search_tsv, to_tsquery('english', $1)) AS rank
+        ts_rank(search_tsv, to_tsquery('english', $2)) AS rank
       FROM encounters
-      WHERE search_tsv @@ to_tsquery('english', $1)
+      WHERE tenant_id = $1
+        AND deleted_at IS NULL
+        AND search_tsv @@ to_tsquery('english', $2)
       ORDER BY rank DESC
       LIMIT 10
-    `),
+      `,
+      [tenantId, vec]
+    ),
 
-    npcs: await run(`
+    npcs: await run(
+      `
       SELECT id, first_name, last_name, npc_type, personality, goals,
         'npc' AS type,
-        ts_rank(search_tsv, to_tsquery('english', $1)) AS rank
+        ts_rank(search_tsv, to_tsquery('english', $2)) AS rank
       FROM npcs
-      WHERE search_tsv @@ to_tsquery('english', $1)
+      WHERE tenant_id = $1
+        AND deleted_at IS NULL
+        AND search_tsv @@ to_tsquery('english', $2)
       ORDER BY rank DESC
       LIMIT 10
-    `),
+      `,
+      [tenantId, vec]
+    ),
 
-    items: await run(`
+    items: await run(
+      `
       SELECT id, description, notes, 'item' AS type,
-        ts_rank(search_tsv, to_tsquery('english', $1)) AS rank
+        ts_rank(search_tsv, to_tsquery('english', $2)) AS rank
       FROM items
-      WHERE search_tsv @@ to_tsquery('english', $1)
+      WHERE tenant_id = $1
+        AND deleted_at IS NULL
+        AND search_tsv @@ to_tsquery('english', $2)
       ORDER BY rank DESC
       LIMIT 10
-    `),
+      `,
+      [tenantId, vec]
+    ),
 
-    locations: await run(`
+    locations: await run(
+      `
       SELECT id, description, city, state, notes, 'location' AS type,
-        ts_rank(search_tsv, to_tsquery('english', $1)) AS rank
+        ts_rank(search_tsv, to_tsquery('english', $2)) AS rank
       FROM locations
-      WHERE search_tsv @@ to_tsquery('english', $1)
+      WHERE tenant_id = $1
+        AND deleted_at IS NULL
+        AND search_tsv @@ to_tsquery('english', $2)
       ORDER BY rank DESC
       LIMIT 10
-    `),
-
-    lore: await run(`
-      SELECT id, description, notes, 'lore' AS type,
-        ts_rank(search_tsv, to_tsquery('english', $1)) AS rank
-      FROM lore
-      WHERE search_tsv @@ to_tsquery('english', $1)
-      ORDER BY rank DESC
-      LIMIT 10
-    `),
+      `,
+      [tenantId, vec]
+    ),
   };
 }
 
@@ -98,7 +126,6 @@ async function aiRank(term, sections) {
     const completion = await client.chat.completions.create({
       model: "gpt-4.1-mini",
       temperature: 0.1,
-      timeout: 8000,
       max_tokens: 600,
       messages: [
         { role: "system", content: "Rank these RPG search results by relevance." },
@@ -113,24 +140,23 @@ async function aiRank(term, sections) {
   }
 }
 
+/* -----------------------------------------------------------
+   GET /api/search?q=
+------------------------------------------------------------ */
 export async function GET(req) {
-  try {
-    const { searchParams } = new URL(req.url);
-    const q = searchParams.get("q") || "";
+  const { tenantId } = await getTenantContext(req);
+  const { searchParams } = new URL(req.url);
+  const q = searchParams.get("q") ?? "";
 
-    if (q.trim().length < 2) {
-      return NextResponse.json(
-        { error: "Query must be at least 2 characters." },
-        { status: 400 }
-      );
-    }
-
-    const results = await searchAll(q);
-    const ai_summary = await aiRank(q, results);
-
-    return NextResponse.json({ term: q, results, ai_summary }, { status: 200 });
-  } catch (err) {
-    console.error("api-search error:", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  if (q.trim().length < 2) {
+    return Response.json(
+      { error: "Query must be at least 2 characters." },
+      { status: 400 }
+    );
   }
+
+  const results = await searchAll(tenantId, q);
+  const ai_summary = await aiRank(q, results);
+
+  return Response.json({ term: q, results, ai_summary });
 }
