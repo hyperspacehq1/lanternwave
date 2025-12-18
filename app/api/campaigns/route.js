@@ -28,11 +28,20 @@ export async function GET(req) {
    POST /api/campaigns  (create)
 -------------------------------------------------- */
 export async function POST(req) {
+  const { tenantId } = await getTenantContext(req);
   const body = await req.json();
-  const mapped = toDb(body);
+
+  const { rows } = await query(
+    `
+    INSERT INTO campaigns (tenant_id, name)
+    VALUES ($1, $2)
+    RETURNING *
+    `,
+    [tenantId, body.name]
+  );
 
   return Response.json({
     ok: true,
-    mapped,
+    row: rows[0],
   });
 }
