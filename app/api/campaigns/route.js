@@ -1,6 +1,5 @@
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { query } from "@/lib/db";
-import { toDb, fromDb } from "@/lib/campaignMapper";
 
 export const dynamic = "force-dynamic";
 
