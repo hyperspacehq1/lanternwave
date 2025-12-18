@@ -1,5 +1,6 @@
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { query } from "@/lib/db";
+import { fromDb } from "@/lib/campaignMapper";
 
 export const dynamic = "force-dynamic";
 
@@ -8,7 +9,7 @@ export async function GET(req) {
 
   const { rows } = await query(
     `
-    SELECT id, name
+    SELECT *
       FROM campaigns
      WHERE tenant_id = $1
        AND deleted_at IS NULL
@@ -17,9 +18,5 @@ export async function GET(req) {
     [tenantId]
   );
 
-  return Response.json({
-    ok: true,
-    count: rows.length,
-    rows,
-  });
+  return Response.json(rows.map(fromDb));
 }
