@@ -1,5 +1,5 @@
 import { query } from "@/lib/db";
-import { getTenantContext } from "@/lib/auth/getTenantContext";
+import { getTenantContext } from "@/lib/tenant/getTenantContext";
 
 export const dynamic = "force-dynamic";
 
