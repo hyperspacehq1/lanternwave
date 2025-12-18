@@ -4,9 +4,9 @@ import React, { useEffect, useState } from "react";
 import { useGlobalAudio } from "@/components/GlobalAudio";
 import "./controller.css";
 
-// ===============================================
-// Helpers
-// ===============================================
+/* ================================
+   Helpers
+================================ */
 function clipTypeFromKey(key) {
   const k = key.toLowerCase();
   if (k.endsWith(".mp3")) return "audio";
@@ -24,9 +24,9 @@ function streamUrlForKey(key) {
   return `/api/r2/stream?key=${encodeURIComponent(key)}`;
 }
 
-// ===============================================
-// API helpers (CLIENT)
-// ===============================================
+/* ================================
+   API helpers
+================================ */
 async function listClips() {
   const res = await fetch("/api/r2/list", {
     cache: "no-store",
@@ -43,7 +43,6 @@ async function deleteClip(key) {
     { method: "DELETE", credentials: "include" }
   );
   if (!res.ok) throw new Error("Delete failed");
-  return res.json();
 }
 
 async function uploadClip(file, onProgress) {
@@ -77,7 +76,7 @@ async function uploadClip(file, onProgress) {
     headers: { "Content-Type": "application/json" },
   });
 
-  return { key };
+  return key;
 }
 
 async function getNowPlaying() {
@@ -102,105 +101,74 @@ async function setNowPlaying(key) {
   return data.nowPlaying || null;
 }
 
-// ===============================================
-// Controller Page
-// ===============================================
+/* ================================
+   Controller Page
+================================ */
 export default function ControllerPage() {
   const audio = useGlobalAudio();
 
   const [clips, setClips] = useState([]);
-  const [loadingList, setLoadingList] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(null);
-  const [uploadMessage, setUploadMessage] = useState("");
-  const [deleteMessage, setDeleteMessage] = useState("");
   const [nowPlaying, setNowPlayingState] = useState(null);
   const [loop, setLoop] = useState(false);
 
-  async function refreshClipsAndAuth() {
-    setLoadingList(true);
+  async function refresh() {
+    setLoading(true);
     try {
       const rows = await listClips();
       rows.sort(
         (a, b) => new Date(b.created_at) - new Date(a.created_at)
       );
       setClips(rows);
-
-      const np = await getNowPlaying();
-      setNowPlayingState(np || null);
-    } catch {
-      setClips([]);
-      setNowPlayingState(null);
+      setNowPlayingState(await getNowPlaying());
     } finally {
-      setLoadingList(false);
+      setLoading(false);
     }
   }
 
   useEffect(() => {
-    refreshClipsAndAuth();
+    refresh();
   }, []);
 
   return (
     <div className="lw-console">
-      {/* Upload Panel */}
+      {/* Upload */}
       <section className="lw-panel">
         <h2 className="lw-panel-title">UPLOAD CLIP</h2>
 
         <label className="lw-file-button">
-          <span>SELECT FILE</span>
+          SELECT FILE
           <input
             type="file"
             accept=".mp3,.mp4,.jpg,.jpeg,.png"
             onChange={async (e) => {
               const file = e.target.files?.[0];
               if (!file) return;
-
               setUploadProgress(0);
-              setUploadMessage("");
-
-              try {
-                await uploadClip(file, (pct) =>
-                  setUploadProgress(pct)
-                );
-                setUploadMessage("Upload complete.");
-                await refreshClipsAndAuth();
-              } catch {
-                setUploadMessage("Upload error.");
-              } finally {
-                e.target.value = "";
-                setTimeout(() => setUploadProgress(null), 1500);
-              }
+              await uploadClip(file, setUploadProgress);
+              setUploadProgress(null);
+              e.target.value = "";
+              refresh();
             }}
           />
         </label>
 
         {uploadProgress !== null && (
-          <div className="lw-progress-wrap">
-            <div className="lw-progress-bar">
-              <div
-                className="lw-progress-bar-fill"
-                style={{ width: `${uploadProgress}%` }}
-              />
-            </div>
-            <span className="lw-progress-text">
-              {uploadProgress.toFixed(0)}%
-            </span>
-          </div>
-        )}
-
-        {(uploadMessage || deleteMessage) && (
-          <div className="lw-status-line">
-            {uploadMessage || deleteMessage}
+          <div className="lw-progress-bar">
+            <div
+              className="lw-progress-bar-fill"
+              style={{ width: `${uploadProgress}%` }}
+            />
           </div>
         )}
       </section>
 
-      {/* Clip Library */}
+      {/* Library */}
       <section className="lw-panel">
         <h2 className="lw-panel-title">CLIP LIBRARY</h2>
 
-        {loadingList && (
-          <div className="lw-status-line">Loading…</div>
-        )}
+        {loading && <div>Loading…</div>}
 
         <div className="lw-clip-list">
           {clips.map((clip) => {
@@ -210,9 +178,7 @@ export default function ControllerPage() {
             return (
               <div
                 key={key}
-                className={`lw-clip-row ${
-                  isNow ? "lw-clip-row-active" : ""
-                }`}
+                className={`lw-clip-row ${isNow ? "active" : ""}`}
               >
                 <div className="lw-clip-main">
                   <span className="lw-clip-type">
@@ -226,11 +192,12 @@ export default function ControllerPage() {
                 <div className="lw-clip-actions">
                   <button
                     className={`loop-btn ${loop ? "active" : ""}`}
+                    title="Loop"
                     onClick={() => {
-                      setLoop((v) => !v);
-                      audio.setLoop(!loop);
+                      const v = !loop;
+                      setLoop(v);
+                      audio.setLoop(v);
                     }}
-                    title="Loop playback"
                   >
                     ⟳
                   </button>
@@ -261,8 +228,7 @@ export default function ControllerPage() {
                     className="lw-btn lw-btn-danger"
                     onClick={async () => {
                       await deleteClip(key);
-                      setDeleteMessage("Clip deleted.");
-                      await refreshClipsAndAuth();
+                      refresh();
                     }}
                   >
                     DELETE
@@ -274,7 +240,7 @@ export default function ControllerPage() {
         </div>
       </section>
 
-      {/* Preview */}
+      {/* Audience Preview */}
       <section className="lw-panel">
         <h2 className="lw-panel-title">AUDIENCE PREVIEW</h2>
 
@@ -290,6 +256,29 @@ export default function ControllerPage() {
                 className="lw-preview-media"
                 alt="preview"
               />
+            )}
+
+          {nowPlaying &&
+            clipTypeFromKey(nowPlaying.key) === "video" && (
+              <video
+                className="lw-preview-media"
+                src={streamUrlForKey(nowPlaying.key)}
+                muted
+                autoPlay
+                loop
+                playsInline
+              />
+            )}
+
+          {nowPlaying &&
+            clipTypeFromKey(nowPlaying.key) === "audio" && (
+              <div className="lw-audio-visual">
+                <div className="lw-audio-bar" />
+                <div className="lw-audio-bar" />
+                <div className="lw-audio-bar" />
+                <div className="lw-audio-bar" />
+                <div className="lw-audio-bar" />
+              </div>
             )}
         </div>
       </section>

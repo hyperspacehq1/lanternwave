@@ -38,4 +38,3 @@ export function GlobalAudioProvider({ children }) {
 export function useGlobalAudio() {
   return useContext(AudioContext);
 }
-
