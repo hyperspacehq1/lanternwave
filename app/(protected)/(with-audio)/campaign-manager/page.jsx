@@ -1,67 +1,113 @@
-import { getTenantContext } from "@/lib/tenant/getTenantContext";
-import { query } from "@/lib/db";
-import { toDb, fromDb } from "@/lib/campaignMapper";
+"use client";
 
-export const dynamic = "force-dynamic";
+import { useEffect, useState } from "react";
+import CampaignForm from "@/components/forms/CampaignForm";
 
-/* -------------------------------
-   GET /api/campaigns
--------------------------------- */
-export async function GET(req) {
-  const { tenantId } = await getTenantContext(req);
+export default function CampaignManagerPage() {
+  const [campaigns, setCampaigns] = useState([]);
+  const [active, setActive] = useState(null);
+  const [status, setStatus] = useState("");
+  const [error, setError] = useState("");
 
-  const { rows } = await query(
-    `
-    SELECT *
-      FROM campaigns
-     WHERE tenant_id = $1
-       AND deleted_at IS NULL
-     ORDER BY created_at DESC
-    `,
-    [tenantId]
-  );
+  /* ----------------------------
+     Load campaigns
+  ----------------------------- */
+  useEffect(() => {
+    loadCampaigns();
+  }, []);
 
-  return Response.json(rows.map(fromDb));
-}
-
-/* -------------------------------
-   POST /api/campaigns
--------------------------------- */
-export async function POST(req) {
-  const { tenantId } = await getTenantContext(req);
-  const body = await req.json();
-
-  if (!body?.name || !body.name.trim()) {
-    return Response.json(
-      { error: "Campaign name is required" },
-      { status: 400 }
-    );
+  async function loadCampaigns() {
+    setError("");
+    try {
+      const res = await fetch("/api/campaigns");
+      const data = await res.json();
+      setCampaigns(data);
+      setActive(data[0] || {
+        name: "",
+        description: "",
+        worldSetting: "",
+        campaignDate: "",
+        campaignPackage: "standard",
+      });
+    } catch (e) {
+      setError(String(e));
+    }
   }
 
-  const db = toDb(body);
+  /* ----------------------------
+     Save (create or update)
+  ----------------------------- */
+  async function save() {
+    setStatus("Saving…");
+    setError("");
 
-  const { rows } = await query(
-    `
-    INSERT INTO campaigns (
-      tenant_id,
-      name,
-      description,
-      world_setting,
-      campaign_date,
-      campaign_package
-    )
-    VALUES ($1, $2, $3, $4, $5, COALESCE($6, 'standard'))
-    RETURNING *
-    `,
-    [
-      tenantId,
-      db.name,
-      db.description ?? null,
-      db.world_setting ?? null,
-      db.campaign_date ?? null,
-      db.campaign_package ?? null,
-    ]
+    try {
+      const payload = {
+        name: active.name,
+        description: active.description,
+        world_setting: active.worldSetting || null,
+        campaign_date: active.campaignDate || null,
+        campaign_package: active.campaignPackage || "standard",
+      };
+
+      const res = await fetch("/api/campaigns", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const text = await res.text();
+      let body;
+      try {
+        body = JSON.parse(text);
+      } catch {
+        body = text;
+      }
+
+      if (!res.ok) {
+        throw new Error(
+          typeof body === "string" ? body : body.error || "Save failed"
+        );
+      }
+
+      setStatus("Saved");
+      await loadCampaigns();
+    } catch (e) {
+      setStatus("Save error");
+      setError(String(e));
+    }
+  }
+
+  return (
+    <div className="campaign-manager">
+
+      <div className="cm-sidebar">
+        {campaigns.map((c) => (
+          <div
+            key={c.id}
+            className="cm-list-item"
+            onClick={() => setActive(c)}
+          >
+            {c.name}
+          </div>
+        ))}
+      </div>
+
+      <div className="cm-main">
+        <CampaignForm record={active} onChange={setActive} />
+
+        <div className="cm-actions">
+          <button onClick={save}>Save</button>
+        </div>
+
+        {status && <div className="cm-status">{status}</div>}
+        {error && (
+          <pre className="cm-error">
+            {error}
+          </pre>
+        )}
+      </div>
+
+    </div>
   );
-
-  return Response.json(fromDb(rows[0]), { status: 201 });
 }

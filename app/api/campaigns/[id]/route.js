@@ -1,5 +1,6 @@
 import { query } from "@/lib/db";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
+import { toDb, fromDb } from "@/lib/campaignMapper";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +11,7 @@ export async function GET(req, { params }) {
   const { tenantId } = await getTenantContext(req);
   const { id } = params;
 
-  const result = await query(
+  const { rows } = await query(
     `
     SELECT *
       FROM campaigns
@@ -22,11 +23,11 @@ export async function GET(req, { params }) {
     [tenantId, id]
   );
 
-  if (!result.rows.length) {
+  if (!rows.length) {
     return Response.json({ error: "Campaign not found" }, { status: 404 });
   }
 
-  return Response.json(fromDb(result.rows[0]));
+  return Response.json(fromDb(rows[0]));
 }
 
 /* -----------------------------------------------------------
@@ -62,6 +63,11 @@ export async function PUT(req, { params }) {
     values.push(dbVals.campaign_date);
   }
 
+  if (dbVals.campaign_package !== undefined) {
+    sets.push(`campaign_package = $${i++}`);
+    values.push(dbVals.campaign_package);
+  }
+
   if (!sets.length) {
     return Response.json(
       { error: "No valid fields provided" },
@@ -69,7 +75,7 @@ export async function PUT(req, { params }) {
     );
   }
 
-  const result = await query(
+  const { rows } = await query(
     `
     UPDATE campaigns
        SET ${sets.join(", ")},
@@ -82,21 +88,21 @@ export async function PUT(req, { params }) {
     values
   );
 
-  if (!result.rows.length) {
+  if (!rows.length) {
     return Response.json({ error: "Campaign not found" }, { status: 404 });
   }
 
-  return Response.json(fromDb(result.rows[0]));
+  return Response.json(fromDb(rows[0]));
 }
 
 /* -----------------------------------------------------------
-   DELETE /api/campaigns/:id
+   DELETE /api/campaigns/:id   (soft delete)
 ------------------------------------------------------------ */
 export async function DELETE(req, { params }) {
   const { tenantId } = await getTenantContext(req);
   const { id } = params;
 
-  const result = await query(
+  const { rows } = await query(
     `
     UPDATE campaigns
        SET deleted_at = NOW()
@@ -108,7 +114,7 @@ export async function DELETE(req, { params }) {
     [tenantId, id]
   );
 
-  if (!result.rows.length) {
+  if (!rows.length) {
     return Response.json({ error: "Campaign not found" }, { status: 404 });
   }
 
