@@ -1,14 +1,25 @@
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
+import { query } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req) {
-  const ctx = await getTenantContext(req);
+  const { tenantId } = await getTenantContext(req);
+
+  const { rows } = await query(
+    `
+    SELECT id, name
+      FROM campaigns
+     WHERE tenant_id = $1
+       AND deleted_at IS NULL
+     ORDER BY created_at DESC
+    `,
+    [tenantId]
+  );
 
   return Response.json({
     ok: true,
-    message: "campaigns route reached",
-    tenantId: ctx.tenantId,
-    user: ctx.user,
+    count: rows.length,
+    rows,
   });
 }
