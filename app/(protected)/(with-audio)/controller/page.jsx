@@ -183,7 +183,7 @@ export default function ControllerPage() {
             return (
               <div
                 key={key}
-                className={`lw-clip-row ${isNow ? "active" : ""}`}
+                className={`lw-clip-row ${isNow ? "lw-clip-row-active" : ""}`}
               >
                 <div className="lw-clip-main">
                   <span className="lw-clip-type">
