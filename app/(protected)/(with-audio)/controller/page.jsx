@@ -178,7 +178,7 @@ export default function ControllerPage() {
         <div className="lw-clip-list">
           {clips.map((clip) => {
             const key = clip.object_key;
-            const isNow = previewKey === key;
+            const isNow = audio?.currentKey === key;
 
             return (
               <div
