@@ -28,9 +28,11 @@ export async function GET(req) {
    POST /api/campaigns  (create)
 -------------------------------------------------- */
 export async function POST(req) {
+  const body = await req.json();
+  const mapped = toDb(body);
+
   return Response.json({
     ok: true,
-    message: "Campaign POST reached",
-    body: await req.json(),
+    mapped,
   });
 }
