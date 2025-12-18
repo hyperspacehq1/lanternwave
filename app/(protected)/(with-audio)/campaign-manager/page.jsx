@@ -1,218 +1,128 @@
 "use client";
 
-import React, { useEffect, useState, useMemo } from "react";
-import { v4 as uuidv4 } from "uuid";
+import { useEffect, useState } from "react";
 
-import { cmApi } from "@/lib/cm/api";
-import { getFormComponent } from "@/components/forms";
-
-import "./campaign-manager.css";
-
-const CONTAINER_TYPES = [
-  { id: "campaigns", label: "Campaigns" },
-  { id: "sessions", label: "Sessions" },
-  { id: "events", label: "Events" },
-  { id: "playerCharacters", label: "Player Characters" },
-  { id: "npcs", label: "NPCs" },
-  { id: "encounters", label: "Encounters" },
-  { id: "locations", label: "Locations" },
-  { id: "items", label: "Items" },
-];
-
-export default function CampaignManagerPage() {
-  const [activeType, setActiveType] = useState("campaigns");
-  const [records, setRecords] = useState({});
-  const [selectedId, setSelectedId] = useState(null);
-  const [selectedRecord, setSelectedRecord] = useState(null);
-  const [saveStatus, setSaveStatus] = useState("idle");
-  const [loading, setLoading] = useState(false);
+export default function CampaignManagerDebug() {
+  const [data, setData] = useState({
+    auth: null,
+    campaigns: null,
+    createResult: null,
+    errors: [],
+  });
 
   useEffect(() => {
-    async function load() {
+    (async () => {
+      const result = {
+        auth: null,
+        campaigns: null,
+        createResult: null,
+        errors: [],
+      };
+
+      // ---------- AUTH / TENANT ----------
       try {
-        setLoading(true);
-        const list = await cmApi.list(activeType);
-        setRecords((prev) => ({ ...prev, [activeType]: list }));
-        setSelectedId(list[0]?.id || null);
-        setSelectedRecord(list[0] || null);
-      } catch (err) {
-        console.error("Failed loading", activeType, err);
-      } finally {
-        setLoading(false);
+        const r = await fetch("/api/debug");
+        result.auth = {
+          status: r.status,
+          body: await r.json(),
+        };
+      } catch (e) {
+        result.errors.push({ step: "auth", error: String(e) });
       }
-    }
-    load();
-  }, [activeType]);
 
-  const activeList = records[activeType] || [];
+      // ---------- LIST CAMPAIGNS ----------
+      try {
+        const r = await fetch("/api/campaigns");
+        result.campaigns = {
+          status: r.status,
+          body: r.status === 200 ? await r.json() : await r.text(),
+        };
+      } catch (e) {
+        result.errors.push({ step: "list campaigns", error: String(e) });
+      }
 
-  useEffect(() => {
-    setSelectedRecord(activeList.find((r) => r.id === selectedId) || null);
-  }, [selectedId, activeList]);
+      // ---------- CREATE CAMPAIGN ----------
+      try {
+        const r = await fetch("/api/campaigns", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: "DEBUG CAMPAIGN",
+            description: "Created from debug page",
+            world_setting: "Debug World",
+            campaign_date: "2025-12-18",
+            campaign_package: "standard",
+          }),
+        });
 
-  const handleCreate = () => {
-    const id = uuidv4();
-    const base = { id, _isNew: true };
-    setRecords((p) => ({
-      ...p,
-      [activeType]: [base, ...(p[activeType] || [])],
-    }));
-    setSelectedId(id);
-    setSelectedRecord(base);
-    setSaveStatus("unsaved");
-  };
+        let body;
+        try {
+          body = await r.json();
+        } catch {
+          body = await r.text();
+        }
 
-  const handleDelete = async () => {
-    if (!selectedRecord) return;
+        result.createResult = {
+          status: r.status,
+          body,
+        };
+      } catch (e) {
+        result.errors.push({ step: "create campaign", error: String(e) });
+      }
 
-    if (selectedRecord._isNew) {
-      setRecords((p) => ({
-        ...p,
-        [activeType]: p[activeType].filter(
-          (r) => r.id !== selectedRecord.id
-        ),
-      }));
-      setSelectedId(null);
-      setSelectedRecord(null);
-      setSaveStatus("idle");
-      return;
-    }
-
-    try {
-      setSaveStatus("saving");
-      await cmApi.remove(activeType, selectedRecord.id);
-      setRecords((p) => ({
-        ...p,
-        [activeType]: p[activeType].filter(
-          (r) => r.id !== selectedRecord.id
-        ),
-      }));
-      setSelectedId(null);
-      setSelectedRecord(null);
-      setSaveStatus("saved");
-    } catch {
-      setSaveStatus("error");
-    }
-  };
-
-  const handleSave = async () => {
-    if (!selectedRecord) return;
-    try {
-      setSaveStatus("saving");
-      const { _isNew, id, ...rest } = selectedRecord;
-      const saved = _isNew
-        ? await cmApi.create(activeType, rest)
-        : await cmApi.update(activeType, id, rest);
-
-      setRecords((p) => ({
-        ...p,
-        [activeType]: p[activeType].map((r) =>
-          r.id === saved.id ? saved : r
-        ),
-      }));
-      setSelectedId(saved.id);
-      setSelectedRecord(saved);
-      setSaveStatus("saved");
-    } catch {
-      setSaveStatus("error");
-    }
-  };
-
-  const saveLabel = useMemo(
-    () =>
-      ({
-        unsaved: "Unsaved Changes",
-        saving: "Saving…",
-        saved: "Saved",
-        error: "Save Error",
-        idle: "Idle",
-      }[saveStatus]),
-    [saveStatus]
-  );
+      setData(result);
+    })();
+  }, []);
 
   return (
-    <div className="cm-root">
-      <div className="cm-layout">
-        <aside className="cm-sidebar">
-          <h1 className="cm-title">Campaign Manager</h1>
+    <div
+      style={{
+        padding: 24,
+        fontFamily: "monospace",
+        color: "#00ff99",
+        background: "#000",
+        minHeight: "100vh",
+      }}
+    >
+      <h1>Campaign Manager – Ultimate Debug</h1>
 
-          <div className="cm-container-list">
-            {CONTAINER_TYPES.map((c) => (
-              <button
-                key={c.id}
-                className={`cm-container-btn ${
-                  c.id === activeType ? "active" : ""
-                }`}
-                onClick={() => setActiveType(c.id)}
-              >
-                {c.label}
-              </button>
-            ))}
-          </div>
+      <Section title="1️⃣ Auth / Tenant">
+        {json(data.auth)}
+      </Section>
 
-          <div className="cm-save-status">Status: {saveLabel}</div>
-        </aside>
+      <Section title="2️⃣ GET /api/campaigns">
+        {json(data.campaigns)}
+      </Section>
 
-        <section className="cm-main">
-          <header className="cm-main-header">
-            <h2 className="cm-main-title">
-              {
-                CONTAINER_TYPES.find(
-                  (t) => t.id === activeType
-                )?.label
-              }
-            </h2>
+      <Section title="3️⃣ POST /api/campaigns (Create)">
+        {json(data.createResult)}
+      </Section>
 
-            <div className="cm-main-actions">
-              <button onClick={handleCreate}>+ New</button>
-              <button onClick={handleSave}>Save</button>
-              <button className="danger" onClick={handleDelete}>
-                Delete
-              </button>
-            </div>
-          </header>
-
-          <div className="cm-content">
-            <section className="cm-list">
-              {loading && <div>Loading…</div>}
-              {!loading &&
-                activeList.map((r) => (
-                  <div
-                    key={r.id}
-                    className={`cm-list-item ${
-                      r.id === selectedId ? "selected" : ""
-                    }`}
-                    onClick={() => setSelectedId(r.id)}
-                  >
-                    {r.name || r.title || r.id}
-                  </div>
-                ))}
-            </section>
-
-            <section className="cm-detail">
-              {selectedRecord ? (
-                (() => {
-                  const Form = getFormComponent(activeType);
-                  return (
-                    <Form
-                      record={{
-                        ...selectedRecord,
-                        _type: activeType,
-                      }}
-                      onChange={(u) => {
-                        setSelectedRecord(u);
-                        setSaveStatus("unsaved");
-                      }}
-                    />
-                  );
-                })()
-              ) : (
-                <div>Select or create a record.</div>
-              )}
-            </section>
-          </div>
-        </section>
-      </div>
+      <Section title="4️⃣ Errors">
+        {json(data.errors)}
+      </Section>
     </div>
   );
+}
+
+function Section({ title, children }) {
+  return (
+    <div style={{ marginBottom: 32 }}>
+      <h2 style={{ color: "#6cc5f0" }}>{title}</h2>
+      <pre
+        style={{
+          padding: 16,
+          background: "#111",
+          border: "1px solid #333",
+          overflowX: "auto",
+        }}
+      >
+        {children}
+      </pre>
+    </div>
+  );
+}
+
+function json(value) {
+  return value == null ? "null" : JSON.stringify(value, null, 2);
 }
