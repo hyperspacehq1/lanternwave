@@ -120,4 +120,34 @@ export async function PUT(req) {
   return Response.json(result.rows[0]);
 }
 
-/
+/* -----------------------------------------------------------
+   DELETE /api/items?id=
+   (soft delete)
+------------------------------------------------------------ */
+export async function DELETE(req) {
+  const { tenantId } = await getTenantContext(req);
+  const { searchParams } = new URL(req.url);
+  const id = searchParams.get("id");
+
+  if (!id) {
+    return Response.json({ error: "id is required" }, { status: 400 });
+  }
+
+  const result = await query(
+    `
+    UPDATE items
+       SET deleted_at = NOW()
+     WHERE tenant_id = $1
+       AND id = $2
+       AND deleted_at IS NULL
+     RETURNING id
+    `,
+    [tenantId, id]
+  );
+
+  if (!result.rows.length) {
+    return Response.json({ error: "Item not found" }, { status: 404 });
+  }
+
+  return Response.json({ success: true, id });
+}
