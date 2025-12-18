@@ -15,11 +15,8 @@ const CONTAINER_TYPES = [
   { id: "playerCharacters", label: "Player Characters" },
   { id: "npcs", label: "NPCs" },
   { id: "encounters", label: "Encounters" },
-  { id: "quests", label: "Quests" },
   { id: "locations", label: "Locations" },
   { id: "items", label: "Items" },
-  { id: "lore", label: "Lore" },
-  { id: "logs", label: "Logs" },
 ];
 
 export default function CampaignManagerPage() {
@@ -29,23 +26,45 @@ export default function CampaignManagerPage() {
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [saveStatus, setSaveStatus] = useState("idle");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  // Load list when tab changes
+  /* -----------------------------------------------------------
+     Load list when tab changes
+  ------------------------------------------------------------ */
   useEffect(() => {
     let cancelled = false;
 
     async function load() {
       try {
         setLoading(true);
+        setError(null);
+
         const list = await cmApi.list(activeType);
+
         if (cancelled) return;
 
-        setRecords((prev) => ({ ...prev, [activeType]: list }));
-        setSelectedId(list[0]?.id ?? null);
-        setSelectedRecord(list[0] ?? null);
+        const safeList = Array.isArray(list) ? list : [];
+
+        setRecords((prev) => ({
+          ...prev,
+          [activeType]: safeList,
+        }));
+
+        setSelectedId(safeList[0]?.id ?? null);
+        setSelectedRecord(safeList[0] ?? null);
         setSaveStatus("idle");
       } catch (err) {
         console.error("Failed loading", activeType, err);
+
+        if (!cancelled) {
+          setRecords((prev) => ({
+            ...prev,
+            [activeType]: [],
+          }));
+          setSelectedId(null);
+          setSelectedRecord(null);
+          setError(err?.message || "Failed to load data");
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -59,13 +78,18 @@ export default function CampaignManagerPage() {
 
   const activeList = records[activeType] || [];
 
-  // Sync selected record when list changes
+  /* -----------------------------------------------------------
+     Sync selected record when list changes
+  ------------------------------------------------------------ */
   useEffect(() => {
     setSelectedRecord(
       activeList.find((r) => r.id === selectedId) || null
     );
   }, [selectedId, activeList]);
 
+  /* -----------------------------------------------------------
+     Create
+  ------------------------------------------------------------ */
   const handleCreate = () => {
     const id = uuidv4();
     const base = { id, _isNew: true };
@@ -80,10 +104,12 @@ export default function CampaignManagerPage() {
     setSaveStatus("unsaved");
   };
 
+  /* -----------------------------------------------------------
+     Delete
+  ------------------------------------------------------------ */
   const handleDelete = async () => {
     if (!selectedRecord) return;
 
-    // New, unsaved record — just drop it locally
     if (selectedRecord._isNew) {
       setRecords((p) => ({
         ...p,
@@ -117,6 +143,9 @@ export default function CampaignManagerPage() {
     }
   };
 
+  /* -----------------------------------------------------------
+     Save
+  ------------------------------------------------------------ */
   const handleSave = async () => {
     if (!selectedRecord) return;
 
@@ -219,9 +248,25 @@ export default function CampaignManagerPage() {
             </section>
 
             <section className="cm-detail">
+              {error && (
+                <div style={{ color: "red", marginBottom: 12 }}>
+                  {error}
+                </div>
+              )}
+
               {selectedRecord ? (
                 (() => {
                   const Form = getFormComponent(activeType);
+
+                  if (!Form) {
+                    return (
+                      <div>
+                        No form implemented for{" "}
+                        <strong>{activeType}</strong>.
+                      </div>
+                    );
+                  }
+
                   return (
                     <Form
                       record={{
