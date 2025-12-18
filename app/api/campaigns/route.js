@@ -28,7 +28,7 @@ export async function GET(req) {
    POST /api/campaigns  (create)
 -------------------------------------------------- */
 export async function POST(req) {
-  const { tenantId, user } = await getTenantContext(req);
+  const { tenantId } = await getTenantContext(req);
   const body = await req.json();
 
   if (!body?.name || !body.name.trim()) {
@@ -48,18 +48,18 @@ export async function POST(req) {
       description,
       world_setting,
       campaign_date,
-      created_by
+      campaign_package
     )
-    VALUES ($1, $2, $3, $4, $5, $6)
+    VALUES ($1, $2, $3, $4, $5, COALESCE($6, 'standard'))
     RETURNING *
     `,
     [
       tenantId,
       db.name,
-      db.description,
-      db.world_setting,
-      db.campaign_date,
-      user.id,
+      db.description ?? null,
+      db.world_setting ?? null,
+      db.campaign_date ?? null,
+      db.campaign_package ?? null,
     ]
   );
 

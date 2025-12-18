@@ -1,6 +1,5 @@
 import { query } from "@/lib/db";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
-import { v4 as uuid } from "uuid";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +9,6 @@ export const dynamic = "force-dynamic";
 ------------------------------------------------------------ */
 export async function GET(req) {
   const { tenantId } = await getTenantContext(req);
-
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
 
@@ -18,25 +16,29 @@ export async function GET(req) {
     const result = await query(
       `
       SELECT *
-      FROM items
-      WHERE tenant_id = $1
-        AND id = $2
-        AND deleted_at IS NULL
-      LIMIT 1
+        FROM items
+       WHERE tenant_id = $1
+         AND id = $2
+         AND deleted_at IS NULL
+       LIMIT 1
       `,
       [tenantId, id]
     );
 
-    return Response.json(result.rows[0] || null);
+    if (!result.rows.length) {
+      return Response.json({ error: "Item not found" }, { status: 404 });
+    }
+
+    return Response.json(result.rows[0]);
   }
 
   const list = await query(
     `
     SELECT *
-    FROM items
-    WHERE tenant_id = $1
-      AND deleted_at IS NULL
-    ORDER BY created_at ASC
+      FROM items
+     WHERE tenant_id = $1
+       AND deleted_at IS NULL
+     ORDER BY created_at ASC
     `,
     [tenantId]
   );
@@ -49,27 +51,28 @@ export async function GET(req) {
 ------------------------------------------------------------ */
 export async function POST(req) {
   const { tenantId } = await getTenantContext(req);
-
   const body = await req.json();
-  const id = uuid();
+
+  if (!body.name || !body.name.trim()) {
+    return Response.json(
+      { error: "name is required" },
+      { status: 400 }
+    );
+  }
 
   const result = await query(
     `
     INSERT INTO items (
-      id,
       tenant_id,
       name,
-      description,
-      created_at,
-      updated_at
+      description
     )
-    VALUES ($1, $2, $3, $4, NOW(), NOW())
+    VALUES ($1, $2, $3)
     RETURNING *
     `,
     [
-      id,
       tenantId,
-      body.name ?? null,
+      body.name,
       body.description ?? null,
     ]
   );
@@ -82,12 +85,11 @@ export async function POST(req) {
 ------------------------------------------------------------ */
 export async function PUT(req) {
   const { tenantId } = await getTenantContext(req);
-
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
 
   if (!id) {
-    return Response.json({ error: "id required" }, { status: 400 });
+    return Response.json({ error: "id is required" }, { status: 400 });
   }
 
   const body = await req.json();
@@ -95,8 +97,8 @@ export async function PUT(req) {
   const result = await query(
     `
     UPDATE items
-       SET name        = $3,
-           description = $4,
+       SET name        = COALESCE($3, name),
+           description = COALESCE($4, description),
            updated_at  = NOW()
      WHERE tenant_id = $1
        AND id = $2
@@ -106,47 +108,16 @@ export async function PUT(req) {
     [
       tenantId,
       id,
-      body.name ?? null,
-      body.description ?? null,
+      body.name,
+      body.description,
     ]
   );
 
   if (!result.rows.length) {
-    return Response.json({ error: "Not found" }, { status: 404 });
+    return Response.json({ error: "Item not found" }, { status: 404 });
   }
 
   return Response.json(result.rows[0]);
 }
 
-/* -----------------------------------------------------------
-   DELETE /api/items?id=
-   (soft delete)
------------------------------------------------------------- */
-export async function DELETE(req) {
-  const { tenantId } = await getTenantContext(req);
-
-  const { searchParams } = new URL(req.url);
-  const id = searchParams.get("id");
-
-  if (!id) {
-    return Response.json({ error: "id required" }, { status: 400 });
-  }
-
-  const result = await query(
-    `
-    UPDATE items
-       SET deleted_at = NOW()
-     WHERE tenant_id = $1
-       AND id = $2
-       AND deleted_at IS NULL
-     RETURNING id
-    `,
-    [tenantId, id]
-  );
-
-  if (!result.rows.length) {
-    return Response.json({ error: "Not found" }, { status: 404 });
-  }
-
-  return Response.json({ ok: true });
-}
+/

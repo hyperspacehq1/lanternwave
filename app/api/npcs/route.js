@@ -5,6 +5,10 @@ export const dynamic = "force-dynamic";
 
 /* -----------------------------------------------------------
    GET /api/npcs
+   Optional:
+     ?id=
+     ?campaign_id=
+     ?session_id=
 ------------------------------------------------------------ */
 export async function GET(req) {
   const { tenantId } = await getTenantContext(req);
@@ -16,36 +20,39 @@ export async function GET(req) {
 
   // Single NPC + events
   if (id) {
-    const npcRes = await query(
+    const npc = await query(
       `
       SELECT *
-      FROM npcs
-      WHERE tenant_id = $1
-        AND id = $2
-        AND deleted_at IS NULL
-      LIMIT 1
+        FROM npcs
+       WHERE tenant_id = $1
+         AND id = $2
+         AND deleted_at IS NULL
+       LIMIT 1
       `,
       [tenantId, id]
     );
 
-    if (!npcRes.rows.length) {
+    if (!npc.rows.length) {
       return Response.json({ error: "NPC not found" }, { status: 404 });
     }
 
     const events = await query(
       `
       SELECT e.*
-      FROM event_npcs en
-      JOIN events e ON e.id = en.event_id
-      WHERE en.npc_id = $1
-        AND e.tenant_id = $2
-        AND e.deleted_at IS NULL
-      ORDER BY e.created_at ASC
+        FROM event_npcs en
+        JOIN events e ON e.id = en.event_id
+       WHERE en.npc_id = $1
+         AND e.tenant_id = $2
+         AND e.deleted_at IS NULL
+       ORDER BY e.created_at ASC
       `,
       [id, tenantId]
     );
 
-    return Response.json({ ...npcRes.rows[0], events: events.rows });
+    return Response.json({
+      ...npc.rows[0],
+      events: events.rows,
+    });
   }
 
   // NPCs by campaign
@@ -53,18 +60,19 @@ export async function GET(req) {
     const result = await query(
       `
       SELECT DISTINCT n.*
-      FROM npcs n
-      JOIN event_npcs en ON en.npc_id = n.id
-      JOIN events e ON e.id = en.event_id
-      WHERE e.campaign_id = $1
-        AND n.tenant_id = $2
-        AND e.tenant_id = $2
-        AND n.deleted_at IS NULL
-        AND e.deleted_at IS NULL
-      ORDER BY n.first_name ASC, n.last_name ASC
+        FROM npcs n
+        JOIN event_npcs en ON en.npc_id = n.id
+        JOIN events e ON e.id = en.event_id
+       WHERE e.campaign_id = $1
+         AND n.tenant_id = $2
+         AND e.tenant_id = $2
+         AND n.deleted_at IS NULL
+         AND e.deleted_at IS NULL
+       ORDER BY n.first_name ASC, n.last_name ASC
       `,
       [campaignId, tenantId]
     );
+
     return Response.json(result.rows);
   }
 
@@ -73,18 +81,19 @@ export async function GET(req) {
     const result = await query(
       `
       SELECT DISTINCT n.*
-      FROM npcs n
-      JOIN event_npcs en ON en.npc_id = n.id
-      JOIN events e ON e.id = en.event_id
-      WHERE e.session_id = $1
-        AND n.tenant_id = $2
-        AND e.tenant_id = $2
-        AND n.deleted_at IS NULL
-        AND e.deleted_at IS NULL
-      ORDER BY n.first_name ASC, n.last_name ASC
+        FROM npcs n
+        JOIN event_npcs en ON en.npc_id = n.id
+        JOIN events e ON e.id = en.event_id
+       WHERE e.session_id = $1
+         AND n.tenant_id = $2
+         AND e.tenant_id = $2
+         AND n.deleted_at IS NULL
+         AND e.deleted_at IS NULL
+       ORDER BY n.first_name ASC, n.last_name ASC
       `,
       [sessionId, tenantId]
     );
+
     return Response.json(result.rows);
   }
 
@@ -92,10 +101,10 @@ export async function GET(req) {
   const result = await query(
     `
     SELECT *
-    FROM npcs
-    WHERE tenant_id = $1
-      AND deleted_at IS NULL
-    ORDER BY first_name ASC, last_name ASC
+      FROM npcs
+     WHERE tenant_id = $1
+       AND deleted_at IS NULL
+     ORDER BY first_name ASC, last_name ASC
     `,
     [tenantId]
   );
@@ -110,7 +119,7 @@ export async function POST(req) {
   const { tenantId } = await getTenantContext(req);
   const body = await req.json();
 
-  if (!body.first_name) {
+  if (!body.first_name || !body.first_name.trim()) {
     return Response.json(
       { error: "first_name is required" },
       { status: 400 }
@@ -129,24 +138,22 @@ export async function POST(req) {
       goals,
       faction_alignment,
       secrets,
-      state,
-      created_at,
-      updated_at
+      state
     )
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NOW(),NOW())
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
     RETURNING *
     `,
     [
       tenantId,
       body.first_name,
-      body.last_name ?? "",
-      body.npc_type ?? "neutral",
-      body.data ?? "",
-      body.personality ?? "",
-      body.goals ?? "",
-      body.faction_alignment ?? "",
-      body.secrets ?? "",
-      body.state ?? "alive",
+      body.last_name ?? null,
+      body.npc_type ?? null,
+      body.data ?? null,
+      body.personality ?? null,
+      body.goals ?? null,
+      body.faction_alignment ?? null,
+      body.secrets ?? null,
+      body.state ?? null,
     ]
   );
 

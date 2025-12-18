@@ -1,47 +1,59 @@
 import { query } from "@/lib/db";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
-import { v4 as uuid } from "uuid";
 
 export const dynamic = "force-dynamic";
 
 /* -----------------------------------------------------------
    GET /api/events
-   Optional: ?id=
+   Optional: ?id= OR ?session_id=
 ------------------------------------------------------------ */
 export async function GET(req) {
   const { tenantId } = await getTenantContext(req);
-
   const { searchParams } = new URL(req.url);
+
   const id = searchParams.get("id");
+  const sessionId = searchParams.get("session_id");
 
   if (id) {
     const result = await query(
       `
       SELECT *
-      FROM events
-      WHERE tenant_id = $1
-        AND id = $2
-        AND deleted_at IS NULL
-      LIMIT 1
+        FROM events
+       WHERE tenant_id = $1
+         AND id = $2
+         AND deleted_at IS NULL
+       LIMIT 1
       `,
       [tenantId, id]
     );
 
-    return Response.json(result.rows[0] || null);
+    if (!result.rows.length) {
+      return Response.json({ error: "Event not found" }, { status: 404 });
+    }
+
+    return Response.json(result.rows[0]);
   }
 
-  const list = await query(
-    `
-    SELECT *
-    FROM events
-    WHERE tenant_id = $1
-      AND deleted_at IS NULL
-    ORDER BY created_at ASC
-    `,
-    [tenantId]
-  );
+  if (sessionId) {
+    const result = await query(
+      `
+      SELECT *
+        FROM events
+       WHERE tenant_id = $1
+         AND session_id = $2
+         AND deleted_at IS NULL
+       ORDER BY created_at ASC
+      `,
+      [tenantId, sessionId]
+    );
 
-  return Response.json(list.rows);
+    return Response.json(result.rows);
+  }
+
+  return Response.json(
+    { error: "Either id or session_id is required" },
+    { status: 400 }
+  );
 }
 
 /* -----------------------------------------------------------
@@ -49,26 +61,49 @@ export async function GET(req) {
 ------------------------------------------------------------ */
 export async function POST(req) {
   const { tenantId } = await getTenantContext(req);
-
   const body = await req.json();
-  const id = uuid();
+
+  if (!body.session_id) {
+    return Response.json(
+      { error: "session_id is required" },
+      { status: 400 }
+    );
+  }
+
+  // Validate parent session (tenant + soft-delete safe)
+  const session = await query(
+    `
+    SELECT id
+      FROM sessions
+     WHERE tenant_id = $1
+       AND id = $2
+       AND deleted_at IS NULL
+     LIMIT 1
+    `,
+    [tenantId, body.session_id]
+  );
+
+  if (!session.rows.length) {
+    return Response.json(
+      { error: "Invalid session_id" },
+      { status: 403 }
+    );
+  }
 
   const result = await query(
     `
     INSERT INTO events (
-      id,
       tenant_id,
+      session_id,
       name,
-      description,
-      created_at,
-      updated_at
+      description
     )
-    VALUES ($1, $2, $3, $4, NOW(), NOW())
+    VALUES ($1, $2, $3, $4)
     RETURNING *
     `,
     [
-      id,
       tenantId,
+      body.session_id,
       body.name ?? null,
       body.description ?? null,
     ]
@@ -82,12 +117,11 @@ export async function POST(req) {
 ------------------------------------------------------------ */
 export async function PUT(req) {
   const { tenantId } = await getTenantContext(req);
-
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
 
   if (!id) {
-    return Response.json({ error: "id required" }, { status: 400 });
+    return Response.json({ error: "id is required" }, { status: 400 });
   }
 
   const body = await req.json();
@@ -95,8 +129,8 @@ export async function PUT(req) {
   const result = await query(
     `
     UPDATE events
-       SET name        = $3,
-           description = $4,
+       SET name        = COALESCE($3, name),
+           description = COALESCE($4, description),
            updated_at  = NOW()
      WHERE tenant_id = $1
        AND id = $2
@@ -106,13 +140,13 @@ export async function PUT(req) {
     [
       tenantId,
       id,
-      body.name ?? null,
-      body.description ?? null,
+      body.name,
+      body.description,
     ]
   );
 
   if (!result.rows.length) {
-    return Response.json({ error: "Not found" }, { status: 404 });
+    return Response.json({ error: "Event not found" }, { status: 404 });
   }
 
   return Response.json(result.rows[0]);
@@ -124,12 +158,11 @@ export async function PUT(req) {
 ------------------------------------------------------------ */
 export async function DELETE(req) {
   const { tenantId } = await getTenantContext(req);
-
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
 
   if (!id) {
-    return Response.json({ error: "id required" }, { status: 400 });
+    return Response.json({ error: "id is required" }, { status: 400 });
   }
 
   const result = await query(
@@ -145,8 +178,8 @@ export async function DELETE(req) {
   );
 
   if (!result.rows.length) {
-    return Response.json({ error: "Not found" }, { status: 404 });
+    return Response.json({ error: "Event not found" }, { status: 404 });
   }
 
-  return Response.json({ ok: true });
+  return Response.json({ success: true, id });
 }

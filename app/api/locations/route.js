@@ -5,6 +5,11 @@ export const dynamic = "force-dynamic";
 
 /* -----------------------------------------------------------
    GET /api/locations
+   Optional:
+     ?id=
+     ?event_id=
+     ?session_id=
+     ?campaign_id=
 ------------------------------------------------------------ */
 export async function GET(req) {
   const { tenantId } = await getTenantContext(req);
@@ -20,11 +25,11 @@ export async function GET(req) {
     const loc = await query(
       `
       SELECT *
-      FROM locations
-      WHERE tenant_id = $1
-        AND id = $2
-        AND deleted_at IS NULL
-      LIMIT 1
+        FROM locations
+       WHERE tenant_id = $1
+         AND id = $2
+         AND deleted_at IS NULL
+       LIMIT 1
       `,
       [tenantId, id]
     );
@@ -36,17 +41,20 @@ export async function GET(req) {
     const events = await query(
       `
       SELECT e.*
-      FROM event_locations el
-      JOIN events e ON e.id = el.event_id
-      WHERE el.location_id = $1
-        AND e.tenant_id = $2
-        AND e.deleted_at IS NULL
-      ORDER BY e.created_at ASC
+        FROM event_locations el
+        JOIN events e ON e.id = el.event_id
+       WHERE el.location_id = $1
+         AND e.tenant_id = $2
+         AND e.deleted_at IS NULL
+       ORDER BY e.created_at ASC
       `,
       [id, tenantId]
     );
 
-    return Response.json({ ...loc.rows[0], events: events.rows });
+    return Response.json({
+      ...loc.rows[0],
+      events: events.rows,
+    });
   }
 
   // Locations by event
@@ -54,15 +62,16 @@ export async function GET(req) {
     const out = await query(
       `
       SELECT l.*
-      FROM event_locations el
-      JOIN locations l ON l.id = el.location_id
-      WHERE el.event_id = $1
-        AND l.tenant_id = $2
-        AND l.deleted_at IS NULL
-      ORDER BY l.description ASC
+        FROM event_locations el
+        JOIN locations l ON l.id = el.location_id
+       WHERE el.event_id = $1
+         AND l.tenant_id = $2
+         AND l.deleted_at IS NULL
+       ORDER BY l.description ASC
       `,
       [eventId, tenantId]
     );
+
     return Response.json(out.rows);
   }
 
@@ -71,18 +80,19 @@ export async function GET(req) {
     const out = await query(
       `
       SELECT DISTINCT l.*
-      FROM event_locations el
-      JOIN locations l ON l.id = el.location_id
-      JOIN events e ON e.id = el.event_id
-      WHERE e.session_id = $1
-        AND l.tenant_id = $2
-        AND e.tenant_id = $2
-        AND l.deleted_at IS NULL
-        AND e.deleted_at IS NULL
-      ORDER BY l.description ASC
+        FROM event_locations el
+        JOIN locations l ON l.id = el.location_id
+        JOIN events e ON e.id = el.event_id
+       WHERE e.session_id = $1
+         AND e.tenant_id = $2
+         AND l.tenant_id = $2
+         AND e.deleted_at IS NULL
+         AND l.deleted_at IS NULL
+       ORDER BY l.description ASC
       `,
       [sessionId, tenantId]
     );
+
     return Response.json(out.rows);
   }
 
@@ -91,18 +101,19 @@ export async function GET(req) {
     const out = await query(
       `
       SELECT DISTINCT l.*
-      FROM event_locations el
-      JOIN locations l ON l.id = el.location_id
-      JOIN events e ON e.id = el.event_id
-      WHERE e.campaign_id = $1
-        AND l.tenant_id = $2
-        AND e.tenant_id = $2
-        AND l.deleted_at IS NULL
-        AND e.deleted_at IS NULL
-      ORDER BY l.description ASC
+        FROM event_locations el
+        JOIN locations l ON l.id = el.location_id
+        JOIN events e ON e.id = el.event_id
+       WHERE e.campaign_id = $1
+         AND e.tenant_id = $2
+         AND l.tenant_id = $2
+         AND e.deleted_at IS NULL
+         AND l.deleted_at IS NULL
+       ORDER BY l.description ASC
       `,
       [campaignId, tenantId]
     );
+
     return Response.json(out.rows);
   }
 
@@ -110,10 +121,10 @@ export async function GET(req) {
   const out = await query(
     `
     SELECT *
-    FROM locations
-    WHERE tenant_id = $1
-      AND deleted_at IS NULL
-    ORDER BY description ASC
+      FROM locations
+     WHERE tenant_id = $1
+       AND deleted_at IS NULL
+     ORDER BY description ASC
     `,
     [tenantId]
   );
@@ -128,7 +139,7 @@ export async function POST(req) {
   const { tenantId } = await getTenantContext(req);
   const body = await req.json();
 
-  if (!body.description) {
+  if (!body.description || !body.description.trim()) {
     return Response.json(
       { error: "description is required" },
       { status: 400 }
@@ -146,23 +157,21 @@ export async function POST(req) {
       zip,
       notes,
       secrets,
-      points_of_interest,
-      created_at,
-      updated_at
+      points_of_interest
     )
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW(),NOW())
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
     RETURNING *
     `,
     [
       tenantId,
       body.description,
-      body.street ?? "",
-      body.city ?? "",
-      body.state ?? "",
-      body.zip ?? "",
-      body.notes ?? "",
-      body.secrets ?? "",
-      body.points_of_interest ?? "",
+      body.street ?? null,
+      body.city ?? null,
+      body.state ?? null,
+      body.zip ?? null,
+      body.notes ?? null,
+      body.secrets ?? null,
+      body.points_of_interest ?? null,
     ]
   );
 

@@ -1,11 +1,11 @@
 import { query } from "@/lib/db";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
-import { v4 as uuid } from "uuid";
 
 export const dynamic = "force-dynamic";
 
 /* -----------------------------------------------------------
    GET /api/player-characters
+   Optional: ?id=
 ------------------------------------------------------------ */
 export async function GET(req) {
   const { tenantId } = await getTenantContext(req);
@@ -13,27 +13,35 @@ export async function GET(req) {
   const id = searchParams.get("id");
 
   if (id) {
-    const row = await query(
+    const result = await query(
       `
       SELECT *
-      FROM player_characters
-      WHERE tenant_id = $1
-        AND id = $2
-        AND deleted_at IS NULL
-      LIMIT 1
+        FROM player_characters
+       WHERE tenant_id = $1
+         AND id = $2
+         AND deleted_at IS NULL
+       LIMIT 1
       `,
       [tenantId, id]
     );
-    return Response.json(row.rows[0] || null);
+
+    if (!result.rows.length) {
+      return Response.json(
+        { error: "Player character not found" },
+        { status: 404 }
+      );
+    }
+
+    return Response.json(result.rows[0]);
   }
 
   const list = await query(
     `
     SELECT *
-    FROM player_characters
-    WHERE tenant_id = $1
-      AND deleted_at IS NULL
-    ORDER BY created_at ASC
+      FROM player_characters
+     WHERE tenant_id = $1
+       AND deleted_at IS NULL
+     ORDER BY created_at ASC
     `,
     [tenantId]
   );
@@ -47,30 +55,32 @@ export async function GET(req) {
 export async function POST(req) {
   const { tenantId } = await getTenantContext(req);
   const body = await req.json();
-  const id = uuid();
+
+  if (!body.first_name || !body.first_name.trim()) {
+    return Response.json(
+      { error: "first_name is required" },
+      { status: 400 }
+    );
+  }
 
   const result = await query(
     `
     INSERT INTO player_characters (
-      id,
       tenant_id,
       first_name,
       last_name,
       phone,
-      email,
-      created_at,
-      updated_at
+      email
     )
-    VALUES ($1,$2,$3,$4,$5,$6,NOW(),NOW())
+    VALUES ($1,$2,$3,$4,$5)
     RETURNING *
     `,
     [
-      id,
       tenantId,
-      body.first_name ?? "",
-      body.last_name ?? "",
-      body.phone ?? "",
-      body.email ?? "",
+      body.first_name,
+      body.last_name ?? null,
+      body.phone ?? null,
+      body.email ?? null,
     ]
   );
 
@@ -115,7 +125,10 @@ export async function PUT(req) {
   );
 
   if (!result.rows.length) {
-    return Response.json({ error: "Player character not found" }, { status: 404 });
+    return Response.json(
+      { error: "Player character not found" },
+      { status: 404 }
+    );
   }
 
   return Response.json(result.rows[0]);
@@ -147,8 +160,11 @@ export async function DELETE(req) {
   );
 
   if (!result.rows.length) {
-    return Response.json({ error: "Player character not found" }, { status: 404 });
+    return Response.json(
+      { error: "Player character not found" },
+      { status: 404 }
+    );
   }
 
-  return Response.json({ ok: true });
+  return Response.json({ success: true, id });
 }

@@ -46,6 +46,16 @@ export default function CampaignForm({ record, onChange }) {
         />
       </div>
 
+      <div className="cm-field">
+        <label>Campaign Package</label>
+        <select
+          value={record.campaignPackage || "standard"}
+          onChange={(e) => update("campaignPackage", e.target.value)}
+        >
+          <option value="standard">Standard</option>
+        </select>
+      </div>
+
     </div>
   );
 }

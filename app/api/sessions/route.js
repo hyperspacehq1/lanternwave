@@ -14,39 +14,39 @@ export async function GET(req) {
   const campaignId = searchParams.get("campaign_id");
 
   if (id) {
-    const rows = await query(
+    const result = await query(
       `
       SELECT *
-      FROM sessions
-      WHERE tenant_id = $1
-        AND id = $2
-        AND deleted_at IS NULL
-      LIMIT 1
+        FROM sessions
+       WHERE tenant_id = $1
+         AND id = $2
+         AND deleted_at IS NULL
+       LIMIT 1
       `,
       [tenantId, id]
     );
 
-    if (!rows.rows.length) {
+    if (!result.rows.length) {
       return Response.json({ error: "Session not found" }, { status: 404 });
     }
 
-    return Response.json(rows.rows[0]);
+    return Response.json(result.rows[0]);
   }
 
   if (campaignId) {
-    const rows = await query(
+    const result = await query(
       `
       SELECT *
-      FROM sessions
-      WHERE tenant_id = $1
-        AND campaign_id = $2
-        AND deleted_at IS NULL
-      ORDER BY created_at ASC
+        FROM sessions
+       WHERE tenant_id = $1
+         AND campaign_id = $2
+         AND deleted_at IS NULL
+       ORDER BY created_at ASC
       `,
       [tenantId, campaignId]
     );
 
-    return Response.json(rows.rows);
+    return Response.json(result.rows);
   }
 
   return Response.json(
@@ -69,15 +69,15 @@ export async function POST(req) {
     );
   }
 
-  // Validate campaign ownership
+  // Validate campaign ownership (FK safety + tenant safety)
   const campaign = await query(
     `
     SELECT id
-    FROM campaigns
-    WHERE tenant_id = $1
-      AND id = $2
-      AND deleted_at IS NULL
-    LIMIT 1
+      FROM campaigns
+     WHERE tenant_id = $1
+       AND id = $2
+       AND deleted_at IS NULL
+     LIMIT 1
     `,
     [tenantId, body.campaign_id]
   );
@@ -89,7 +89,7 @@ export async function POST(req) {
     );
   }
 
-  const rows = await query(
+  const result = await query(
     `
     INSERT INTO sessions (
       tenant_id,
@@ -97,24 +97,22 @@ export async function POST(req) {
       description,
       geography,
       notes,
-      history,
-      created_at,
-      updated_at
+      history
     )
-    VALUES ($1,$2,$3,$4,$5,$6,NOW(),NOW())
+    VALUES ($1, $2, $3, $4, $5, $6)
     RETURNING *
     `,
     [
       tenantId,
       body.campaign_id,
-      body.description ?? "",
-      body.geography ?? "",
-      body.notes ?? "",
-      body.history ?? "",
+      body.description ?? null,
+      body.geography ?? null,
+      body.notes ?? null,
+      body.history ?? null,
     ]
   );
 
-  return Response.json(rows.rows[0], { status: 201 });
+  return Response.json(result.rows[0], { status: 201 });
 }
 
 /* -----------------------------------------------------------
@@ -131,7 +129,7 @@ export async function PUT(req) {
 
   const body = await req.json();
 
-  const rows = await query(
+  const result = await query(
     `
     UPDATE sessions
        SET description = COALESCE($3, description),
@@ -154,11 +152,11 @@ export async function PUT(req) {
     ]
   );
 
-  if (!rows.rows.length) {
+  if (!result.rows.length) {
     return Response.json({ error: "Session not found" }, { status: 404 });
   }
 
-  return Response.json(rows.rows[0]);
+  return Response.json(result.rows[0]);
 }
 
 /* -----------------------------------------------------------
@@ -174,7 +172,7 @@ export async function DELETE(req) {
     return Response.json({ error: "id is required" }, { status: 400 });
   }
 
-  const rows = await query(
+  const result = await query(
     `
     UPDATE sessions
        SET deleted_at = NOW()
@@ -186,7 +184,7 @@ export async function DELETE(req) {
     [tenantId, id]
   );
 
-  if (!rows.rows.length) {
+  if (!result.rows.length) {
     return Response.json({ error: "Session not found" }, { status: 404 });
   }
 

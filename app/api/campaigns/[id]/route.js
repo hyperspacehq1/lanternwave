@@ -14,11 +14,11 @@ export async function GET(req, { params }) {
   const result = await query(
     `
     SELECT *
-    FROM campaigns
-    WHERE tenant_id = $1
-      AND id = $2
-      AND deleted_at IS NULL
-    LIMIT 1
+      FROM campaigns
+     WHERE tenant_id = $1
+       AND id = $2
+       AND deleted_at IS NULL
+     LIMIT 1
     `,
     [tenantId, id]
   );
@@ -43,19 +43,22 @@ export async function PUT(req, { params }) {
   const values = [tenantId, id];
   let i = 3;
 
-  if (incoming.name !== undefined) {
+  if (dbVals.name !== undefined) {
     sets.push(`name = $${i++}`);
     values.push(dbVals.name);
   }
-  if (incoming.description !== undefined) {
+
+  if (dbVals.description !== undefined) {
     sets.push(`description = $${i++}`);
     values.push(dbVals.description);
   }
-  if (incoming.worldSetting !== undefined) {
+
+  if (dbVals.world_setting !== undefined) {
     sets.push(`world_setting = $${i++}`);
     values.push(dbVals.world_setting);
   }
-  if (incoming.campaignDate !== undefined) {
+
+  if (dbVals.campaign_date !== undefined) {
     sets.push(`campaign_date = $${i++}`);
     values.push(dbVals.campaign_date);
   }
