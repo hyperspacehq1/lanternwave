@@ -30,12 +30,15 @@ export async function POST(req) {
   const { tenantId } = await getTenantContext(req);
   const body = await req.json();
 
-  if (!body?.name || !body.name.trim()) {
-    return Response.json(
-      { error: "Campaign name is required" },
-      { status: 400 }
-    );
-  }
+  const { rows } = await query(
+    `INSERT INTO campaigns (tenant_id, name)
+     VALUES ($1, $2)
+     RETURNING *`,
+    [tenantId, body.name]
+  );
+
+  return Response.json(rows[0]);
+}
 
   const db = toDb(body);
 
