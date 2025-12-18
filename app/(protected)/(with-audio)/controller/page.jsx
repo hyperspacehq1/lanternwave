@@ -131,6 +131,11 @@ export default function ControllerPage() {
     refresh();
   }, []);
 
+  /* 🔑 PREVIEW SOURCE OF TRUTH */
+  const previewKey = nowPlaying?.key || audio?.currentKey || null;
+  const previewType = previewKey ? clipTypeFromKey(previewKey) : null;
+  const previewUrl = previewKey ? streamUrlForKey(previewKey) : null;
+
   return (
     <div className="lw-console">
       {/* Upload */}
@@ -173,7 +178,7 @@ export default function ControllerPage() {
         <div className="lw-clip-list">
           {clips.map((clip) => {
             const key = clip.object_key;
-            const isNow = nowPlaying?.key === key;
+            const isNow = previewKey === key;
 
             return (
               <div
@@ -245,41 +250,38 @@ export default function ControllerPage() {
         <h2 className="lw-panel-title">AUDIENCE PREVIEW</h2>
 
         <div className="lw-preview-frame">
-          {!nowPlaying && (
+          {!previewKey && (
             <div className="lw-preview-placeholder">NO CLIP</div>
           )}
 
-          {nowPlaying &&
-            clipTypeFromKey(nowPlaying.key) === "image" && (
-              <img
-                src={streamUrlForKey(nowPlaying.key)}
-                className="lw-preview-media"
-                alt="preview"
-              />
-            )}
+          {previewKey && previewType === "image" && (
+            <img
+              src={previewUrl}
+              className="lw-preview-media"
+              alt="preview"
+            />
+          )}
 
-          {nowPlaying &&
-            clipTypeFromKey(nowPlaying.key) === "video" && (
-              <video
-                className="lw-preview-media"
-                src={streamUrlForKey(nowPlaying.key)}
-                muted
-                autoPlay
-                loop
-                playsInline
-              />
-            )}
+          {previewKey && previewType === "video" && (
+            <video
+              className="lw-preview-media"
+              src={previewUrl}
+              muted
+              autoPlay
+              loop
+              playsInline
+            />
+          )}
 
-          {nowPlaying &&
-            clipTypeFromKey(nowPlaying.key) === "audio" && (
-              <div className="lw-audio-visual">
-                <div className="lw-audio-bar" />
-                <div className="lw-audio-bar" />
-                <div className="lw-audio-bar" />
-                <div className="lw-audio-bar" />
-                <div className="lw-audio-bar" />
-              </div>
-            )}
+          {previewKey && previewType === "audio" && (
+            <div className="lw-audio-visual">
+              <div className="lw-audio-bar" />
+              <div className="lw-audio-bar" />
+              <div className="lw-audio-bar" />
+              <div className="lw-audio-bar" />
+              <div className="lw-audio-bar" />
+            </div>
+          )}
         </div>
       </section>
     </div>
