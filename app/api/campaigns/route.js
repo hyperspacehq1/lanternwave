@@ -1,26 +1,35 @@
-export const dynamic = "force-dynamic";
+import { getTenantContext } from "@/lib/tenant/getTenantContext";
+import { query } from "@/lib/db";
+import { toDb, fromDb } from "@/lib/campaignMapper";
 
-/* ---------------- GET ---------------- */
-export async function GET(req) {
-  return new Response(
-    JSON.stringify({
-      ok: true,
-      message: "GET /api/campaigns works",
-    }),
-    { status: 200 }
-  );
-}
-
-/* ---------------- POST ---------------- */
 export async function POST(req) {
+  const { tenantId } = await getTenantContext(req);
   const body = await req.json();
 
-  return new Response(
-    JSON.stringify({
-      ok: true,
-      message: "POST /api/campaigns works",
-      body,
-    }),
-    { status: 201 }
+  const db = toDb(body);
+
+  const { rows } = await query(
+    `
+    INSERT INTO campaigns (
+      tenant_id,
+      name,
+      description,
+      world_setting,
+      campaign_date,
+      campaign_package
+    )
+    VALUES ($1, $2, $3, $4, $5, COALESCE($6, 'standard'))
+    RETURNING *
+    `,
+    [
+      tenantId,
+      db.name,
+      db.description ?? null,
+      db.world_setting ?? null,
+      db.campaign_date ?? null,
+      db.campaign_package ?? null,
+    ]
   );
+
+  return Response.json(fromDb(rows[0]), { status: 201 });
 }
