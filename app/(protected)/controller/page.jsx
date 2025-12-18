@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState } from "react";
+import { useGlobalAudio } from "@/components/GlobalAudio";
 import "./controller.css";
 
 // ===============================================
@@ -31,9 +32,7 @@ async function listClips() {
     cache: "no-store",
     credentials: "include",
   });
-
   if (!res.ok) throw new Error("Not authenticated");
-
   const data = await res.json();
   return data.rows || [];
 }
@@ -41,10 +40,7 @@ async function listClips() {
 async function deleteClip(key) {
   const res = await fetch(
     `/api/r2/delete?key=${encodeURIComponent(key)}`,
-    {
-      method: "DELETE",
-      credentials: "include",
-    }
+    { method: "DELETE", credentials: "include" }
   );
   if (!res.ok) throw new Error("Delete failed");
   return res.json();
@@ -89,9 +85,7 @@ async function getNowPlaying() {
     cache: "no-store",
     credentials: "include",
   });
-
   if (!res.ok) return null;
-
   const data = await res.json();
   return data.nowPlaying || null;
 }
@@ -103,9 +97,7 @@ async function setNowPlaying(key) {
     body: JSON.stringify({ key }),
     headers: { "Content-Type": "application/json" },
   });
-
   if (!res.ok) throw new Error("Not authenticated");
-
   const data = await res.json();
   return data.nowPlaying || null;
 }
@@ -114,16 +106,15 @@ async function setNowPlaying(key) {
 // Controller Page
 // ===============================================
 export default function ControllerPage() {
+  const audio = useGlobalAudio();
+
   const [clips, setClips] = useState([]);
   const [loadingList, setLoadingList] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(null);
   const [uploadMessage, setUploadMessage] = useState("");
   const [deleteMessage, setDeleteMessage] = useState("");
   const [nowPlaying, setNowPlayingState] = useState(null);
-  const [previewKey, setPreviewKey] = useState(null);
   const [loop, setLoop] = useState(false);
-
-  const previewMediaRef = useRef(null);
 
   async function refreshClipsAndAuth() {
     setLoadingList(true);
@@ -135,17 +126,10 @@ export default function ControllerPage() {
       setClips(rows);
 
       const np = await getNowPlaying();
-      if (np?.key) {
-        setNowPlayingState(np);
-        setPreviewKey(np.key);
-      } else {
-        setNowPlayingState(null);
-        setPreviewKey(null);
-      }
+      setNowPlayingState(np || null);
     } catch {
       setClips([]);
       setNowPlayingState(null);
-      setPreviewKey(null);
     } finally {
       setLoadingList(false);
     }
@@ -154,9 +138,6 @@ export default function ControllerPage() {
   useEffect(() => {
     refreshClipsAndAuth();
   }, []);
-
-  const previewUrl = previewKey ? streamUrlForKey(previewKey) : null;
-  const previewType = previewKey ? clipTypeFromKey(previewKey) : null;
 
   return (
     <div className="lw-console">
@@ -177,12 +158,11 @@ export default function ControllerPage() {
               setUploadMessage("");
 
               try {
-                const res = await uploadClip(file, (pct) =>
+                await uploadClip(file, (pct) =>
                   setUploadProgress(pct)
                 );
                 setUploadMessage("Upload complete.");
                 await refreshClipsAndAuth();
-                setPreviewKey(res.key);
               } catch {
                 setUploadMessage("Upload error.");
               } finally {
@@ -207,11 +187,10 @@ export default function ControllerPage() {
           </div>
         )}
 
-        {uploadMessage && (
-          <div className="lw-status-line">{uploadMessage}</div>
-        )}
-        {deleteMessage && (
-          <div className="lw-status-line">{deleteMessage}</div>
+        {(uploadMessage || deleteMessage) && (
+          <div className="lw-status-line">
+            {uploadMessage || deleteMessage}
+          </div>
         )}
       </section>
 
@@ -224,13 +203,8 @@ export default function ControllerPage() {
         )}
 
         <div className="lw-clip-list">
-          {clips.length === 0 && !loadingList && (
-            <div className="lw-status-line">No clips found.</div>
-          )}
-
           {clips.map((clip) => {
             const key = clip.object_key;
-            const type = clipTypeFromKey(key);
             const isNow = nowPlaying?.key === key;
 
             return (
@@ -242,7 +216,7 @@ export default function ControllerPage() {
               >
                 <div className="lw-clip-main">
                   <span className="lw-clip-type">
-                    {type.toUpperCase()}
+                    {clipTypeFromKey(key).toUpperCase()}
                   </span>
                   <span className="lw-clip-name">
                     {displayNameFromKey(key)}
@@ -252,8 +226,11 @@ export default function ControllerPage() {
                 <div className="lw-clip-actions">
                   <button
                     className={`loop-btn ${loop ? "active" : ""}`}
+                    onClick={() => {
+                      setLoop((v) => !v);
+                      audio.setLoop(!loop);
+                    }}
                     title="Loop playback"
-                    onClick={() => setLoop((v) => !v)}
                   >
                     ⟳
                   </button>
@@ -261,9 +238,9 @@ export default function ControllerPage() {
                   <button
                     className="lw-btn"
                     onClick={async () => {
-                      const np = await setNowPlaying(key);
-                      setNowPlayingState(np);
-                      setPreviewKey(key);
+                      await setNowPlaying(key);
+                      setNowPlayingState({ key });
+                      audio.play(streamUrlForKey(key), key);
                     }}
                   >
                     PLAY
@@ -272,14 +249,9 @@ export default function ControllerPage() {
                   <button
                     className="lw-btn"
                     onClick={async () => {
-                      if (previewMediaRef.current) {
-                        previewMediaRef.current.pause();
-                        previewMediaRef.current.removeAttribute("src");
-                        previewMediaRef.current.load();
-                      }
                       await setNowPlaying(null);
                       setNowPlayingState(null);
-                      setPreviewKey(null);
+                      audio.stop();
                     }}
                   >
                     STOP
@@ -307,38 +279,18 @@ export default function ControllerPage() {
         <h2 className="lw-panel-title">AUDIENCE PREVIEW</h2>
 
         <div className="lw-preview-frame">
-          {!previewUrl && (
+          {!nowPlaying && (
             <div className="lw-preview-placeholder">NO CLIP</div>
           )}
 
-          {previewUrl && previewType === "image" && (
-            <img
-              src={previewUrl}
-              className="lw-preview-media"
-              alt="preview"
-            />
-          )}
-
-          {previewUrl && previewType === "audio" && (
-            <audio
-              ref={previewMediaRef}
-              src={previewUrl}
-              autoPlay
-              controls
-              loop={loop}
-            />
-          )}
-
-          {previewUrl && previewType === "video" && (
-            <video
-              ref={previewMediaRef}
-              className="lw-preview-media"
-              src={previewUrl}
-              autoPlay
-              controls
-              loop={loop}
-            />
-          )}
+          {nowPlaying &&
+            clipTypeFromKey(nowPlaying.key) === "image" && (
+              <img
+                src={streamUrlForKey(nowPlaying.key)}
+                className="lw-preview-media"
+                alt="preview"
+              />
+            )}
         </div>
       </section>
     </div>
