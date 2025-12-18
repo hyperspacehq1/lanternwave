@@ -15,11 +15,8 @@ const CONTAINER_TYPES = [
   { id: "playerCharacters", label: "Player Characters" },
   { id: "npcs", label: "NPCs" },
   { id: "encounters", label: "Encounters" },
-  { id: "quests", label: "Quests" },
   { id: "locations", label: "Locations" },
   { id: "items", label: "Items" },
-  { id: "lore", label: "Lore" },
-  { id: "logs", label: "Logs" },
 ];
 
 export default function CampaignManagerPage() {

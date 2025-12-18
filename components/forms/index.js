@@ -6,11 +6,8 @@ import EventForm from "./EventForm";
 import EncounterForm from "./EncounterForm";
 import NpcForm from "./NpcForm";
 import PlayerCharacterForm from "./PlayerCharacterForm";
-import QuestForm from "./QuestForm";
 import ItemForm from "./ItemForm";
 import LocationForm from "./LocationForm";
-import LoreForm from "./LoreForm";
-import LogForm from "./LogForm";
 
 // Specialized registry
 export const FORM_REGISTRY = {
@@ -20,11 +17,8 @@ export const FORM_REGISTRY = {
   encounters: EncounterForm,
   npcs: NpcForm,
   playerCharacters: PlayerCharacterForm,
-  quests: QuestForm,
   items: ItemForm,
   locations: LocationForm,
-  lore: LoreForm,
-  logs: LogForm,
 };
 
 // Fallback generic renderer
