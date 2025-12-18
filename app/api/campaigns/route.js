@@ -12,10 +12,10 @@ export async function GET(req) {
   const { rows } = await query(
     `
     SELECT *
-    FROM campaigns
-    WHERE tenant_id = $1
-      AND deleted_at IS NULL
-    ORDER BY created_at DESC
+      FROM campaigns
+     WHERE tenant_id = $1
+       AND deleted_at IS NULL
+     ORDER BY created_at DESC
     `,
     [tenantId]
   );
@@ -30,15 +30,12 @@ export async function POST(req) {
   const { tenantId } = await getTenantContext(req);
   const body = await req.json();
 
-  const { rows } = await query(
-    `INSERT INTO campaigns (tenant_id, name)
-     VALUES ($1, $2)
-     RETURNING *`,
-    [tenantId, body.name]
-  );
-
-  return Response.json(rows[0]);
-}
+  if (!body?.name || !body.name.trim()) {
+    return Response.json(
+      { error: "Campaign name is required" },
+      { status: 400 }
+    );
+  }
 
   const db = toDb(body);
 
@@ -58,10 +55,10 @@ export async function POST(req) {
     [
       tenantId,
       db.name,
-      db.description ?? null,
-      db.world_setting ?? null,
-      db.campaign_date ?? null,
-      db.campaign_package ?? null,
+      db.description,
+      db.world_setting,
+      db.campaign_date,
+      db.campaign_package,
     ]
   );
 
