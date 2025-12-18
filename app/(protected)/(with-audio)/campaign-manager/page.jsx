@@ -1,128 +1,148 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
-export default function CampaignManagerDebug() {
-  const [data, setData] = useState({
-    auth: null,
-    campaigns: null,
-    createResult: null,
-    errors: [],
+export default function CampaignManagerDebugUI() {
+  const [form, setForm] = useState({
+    name: "",
+    description: "",
+    world_setting: "",
+    campaign_date: "",
   });
 
-  useEffect(() => {
-    (async () => {
-      const result = {
-        auth: null,
-        campaigns: null,
-        createResult: null,
-        errors: [],
-      };
+  const [result, setResult] = useState(null);
+  const [loading, setLoading] = useState(false);
 
-      // ---------- AUTH / TENANT ----------
+  async function submit(e) {
+    e.preventDefault();
+    setLoading(true);
+    setResult(null);
+
+    try {
+      const res = await fetch("/api/campaigns", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...form,
+          campaign_package: "standard",
+        }),
+      });
+
+      const text = await res.text();
+      let body;
       try {
-        const r = await fetch("/api/debug");
-        result.auth = {
-          status: r.status,
-          body: await r.json(),
-        };
-      } catch (e) {
-        result.errors.push({ step: "auth", error: String(e) });
+        body = JSON.parse(text);
+      } catch {
+        body = text;
       }
 
-      // ---------- LIST CAMPAIGNS ----------
-      try {
-        const r = await fetch("/api/campaigns");
-        result.campaigns = {
-          status: r.status,
-          body: r.status === 200 ? await r.json() : await r.text(),
-        };
-      } catch (e) {
-        result.errors.push({ step: "list campaigns", error: String(e) });
-      }
-
-      // ---------- CREATE CAMPAIGN ----------
-      try {
-        const r = await fetch("/api/campaigns", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: "DEBUG CAMPAIGN",
-            description: "Created from debug page",
-            world_setting: "Debug World",
-            campaign_date: "2025-12-18",
-            campaign_package: "standard",
-          }),
-        });
-
-        let body;
-        try {
-          body = await r.json();
-        } catch {
-          body = await r.text();
-        }
-
-        result.createResult = {
-          status: r.status,
-          body,
-        };
-      } catch (e) {
-        result.errors.push({ step: "create campaign", error: String(e) });
-      }
-
-      setData(result);
-    })();
-  }, []);
+      setResult({
+        status: res.status,
+        ok: res.ok,
+        body,
+      });
+    } catch (err) {
+      setResult({
+        status: "network-error",
+        ok: false,
+        body: String(err),
+      });
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <div
       style={{
-        padding: 24,
-        fontFamily: "monospace",
-        color: "#00ff99",
+        padding: 32,
         background: "#000",
+        color: "#e6e6e6",
         minHeight: "100vh",
+        fontFamily: "system-ui, monospace",
       }}
     >
-      <h1>Campaign Manager – Ultimate Debug</h1>
+      <h1 style={{ color: "#6cc5f0" }}>Campaign Manager – UI Debug</h1>
 
-      <Section title="1️⃣ Auth / Tenant">
-        {json(data.auth)}
-      </Section>
+      {/* -------- FORM -------- */}
+      <form onSubmit={submit} style={{ maxWidth: 520 }}>
+        <Field
+          label="Campaign Name (required)"
+          value={form.name}
+          onChange={(v) => setForm({ ...form, name: v })}
+        />
 
-      <Section title="2️⃣ GET /api/campaigns">
-        {json(data.campaigns)}
-      </Section>
+        <Field
+          label="Description"
+          value={form.description}
+          onChange={(v) => setForm({ ...form, description: v })}
+        />
 
-      <Section title="3️⃣ POST /api/campaigns (Create)">
-        {json(data.createResult)}
-      </Section>
+        <Field
+          label="World Setting"
+          value={form.world_setting}
+          onChange={(v) => setForm({ ...form, world_setting: v })}
+        />
 
-      <Section title="4️⃣ Errors">
-        {json(data.errors)}
-      </Section>
+        <Field
+          label="Campaign Date"
+          type="date"
+          value={form.campaign_date}
+          onChange={(v) => setForm({ ...form, campaign_date: v })}
+        />
+
+        <button
+          type="submit"
+          disabled={loading}
+          style={{
+            marginTop: 16,
+            padding: "10px 16px",
+            background: "#6cc5f0",
+            color: "#000",
+            border: "none",
+            cursor: "pointer",
+            fontWeight: 600,
+          }}
+        >
+          {loading ? "Creating…" : "Create Campaign"}
+        </button>
+      </form>
+
+      {/* -------- RESULT -------- */}
+      <div style={{ marginTop: 40 }}>
+        <h2 style={{ color: "#6cc5f0" }}>Result</h2>
+        <pre
+          style={{
+            background: "#111",
+            padding: 16,
+            border: "1px solid #333",
+            overflowX: "auto",
+            whiteSpace: "pre-wrap",
+          }}
+        >
+          {result ? JSON.stringify(result, null, 2) : "No submission yet"}
+        </pre>
+      </div>
     </div>
   );
 }
 
-function Section({ title, children }) {
+function Field({ label, value, onChange, type = "text" }) {
   return (
-    <div style={{ marginBottom: 32 }}>
-      <h2 style={{ color: "#6cc5f0" }}>{title}</h2>
-      <pre
+    <div style={{ marginBottom: 12 }}>
+      <label style={{ display: "block", marginBottom: 4 }}>{label}</label>
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
         style={{
-          padding: 16,
+          width: "100%",
+          padding: 8,
           background: "#111",
+          color: "#e6e6e6",
           border: "1px solid #333",
-          overflowX: "auto",
         }}
-      >
-        {children}
-      </pre>
+      />
     </div>
   );
-}
-
-function json(value) {
-  return value == null ? "null" : JSON.stringify(value, null, 2);
 }
