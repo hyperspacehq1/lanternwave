@@ -32,8 +32,8 @@ export default function SessionForm({ record, onChange }) {
       <div className="cm-field">
         <label>Campaign</label>
         <select
-          value={record.campaignId || ""}
-          onChange={(e) => update("campaignId", e.target.value)}
+          value={record.campaign_id || ""}
+          onChange={(e) => update("campaign_id", e.target.value)}
         >
           <option value="">Select campaign…</option>
           {campaigns.map((c) => (
