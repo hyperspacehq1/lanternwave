@@ -1,8 +1,7 @@
-// components/forms/EventForm.jsx
 "use client";
 
 import React, { useEffect, useState } from "react";
-// Import { cmApi } from "@/lib/cm/client";
+import { cmApi } from "@/lib/cm/api";
 
 export default function EventForm({ record, onChange }) {
   const [campaigns, setCampaigns] = useState([]);
@@ -12,11 +11,47 @@ export default function EventForm({ record, onChange }) {
   const [locations, setLocations] = useState([]);
 
   useEffect(() => {
-    cmApi.list("campaigns").then(setCampaigns);
-    cmApi.list("sessions").then(setSessions);
-    cmApi.list("npcs").then(setNpcs);
-    cmApi.list("items").then(setItems);
-    cmApi.list("locations").then(setLocations);
+    let cancelled = false;
+
+    async function load() {
+      try {
+        const [
+          campaignRows,
+          sessionRows,
+          npcRows,
+          itemRows,
+          locationRows,
+        ] = await Promise.all([
+          cmApi.list("campaigns"),
+          cmApi.list("sessions"),
+          cmApi.list("npcs"),
+          cmApi.list("items"),
+          cmApi.list("locations"),
+        ]);
+
+        if (cancelled) return;
+
+        setCampaigns(Array.isArray(campaignRows) ? campaignRows : []);
+        setSessions(Array.isArray(sessionRows) ? sessionRows : []);
+        setNpcs(Array.isArray(npcRows) ? npcRows : []);
+        setItems(Array.isArray(itemRows) ? itemRows : []);
+        setLocations(Array.isArray(locationRows) ? locationRows : []);
+      } catch (err) {
+        console.error("Failed to load event dependencies", err);
+        if (!cancelled) {
+          setCampaigns([]);
+          setSessions([]);
+          setNpcs([]);
+          setItems([]);
+          setLocations([]);
+        }
+      }
+    }
+
+    load();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const update = (field, value) =>
@@ -30,16 +65,17 @@ export default function EventForm({ record, onChange }) {
 
   return (
     <div className="cm-detail-form">
-
       <div className="cm-field">
         <label>Campaign</label>
         <select
           value={record.campaignId || ""}
           onChange={(e) => update("campaignId", e.target.value)}
         >
-          <option value="">Select...</option>
+          <option value="">Select…</option>
           {campaigns.map((c) => (
-            <option key={c.id} value={c.id}>{c.name}</option>
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
           ))}
         </select>
       </div>
@@ -50,9 +86,11 @@ export default function EventForm({ record, onChange }) {
           value={record.sessionId || ""}
           onChange={(e) => update("sessionId", e.target.value)}
         >
-          <option value="">Select...</option>
+          <option value="">Select…</option>
           {sessions.map((s) => (
-            <option key={s.id} value={s.id}>{s.description}</option>
+            <option key={s.id} value={s.id}>
+              {s.description || s.id}
+            </option>
           ))}
         </select>
       </div>
@@ -96,7 +134,9 @@ export default function EventForm({ record, onChange }) {
         <input
           type="number"
           value={record.priority || 0}
-          onChange={(e) => update("priority", parseInt(e.target.value))}
+          onChange={(e) =>
+            update("priority", parseInt(e.target.value || "0", 10))
+          }
         />
       </div>
 
@@ -105,11 +145,13 @@ export default function EventForm({ record, onChange }) {
         <input
           type="number"
           value={record.countdownMinutes || 0}
-          onChange={(e) => update("countdownMinutes", parseInt(e.target.value))}
+          onChange={(e) =>
+            update("countdownMinutes", parseInt(e.target.value || "0", 10))
+          }
         />
       </div>
 
-      {/* Multi-select NPCs */}
+      {/* NPCs */}
       <div className="cm-field">
         <label>NPCs</label>
         <div className="cm-multiselect">

@@ -1,8 +1,7 @@
-// components/forms/EncounterForm.jsx
 "use client";
 
 import React, { useEffect, useState } from "react";
-// import { cmApi } from "@/lib/cm/client";
+import { cmApi } from "@/lib/cm/api";
 
 export default function EncounterForm({ record, onChange }) {
   const [npcs, setNpcs] = useState([]);
@@ -12,14 +11,51 @@ export default function EncounterForm({ record, onChange }) {
   const [types, setTypes] = useState([]);
 
   useEffect(() => {
-    cmApi.list("npcs").then(setNpcs);
-    cmApi.list("items").then(setItems);
-    cmApi.list("locations").then(setLocations);
-    cmApi.list("lore").then(setLore);
-    cmApi.list("encounterTypes").then(setTypes).catch(() => setTypes([]));
+    let cancelled = false;
+
+    async function load() {
+      try {
+        const [
+          npcRows,
+          itemRows,
+          locationRows,
+          loreRows,
+          typeRows,
+        ] = await Promise.all([
+          cmApi.list("npcs"),
+          cmApi.list("items"),
+          cmApi.list("locations"),
+          cmApi.list("lore"),
+          cmApi.list("encounterTypes").catch(() => []),
+        ]);
+
+        if (cancelled) return;
+
+        setNpcs(Array.isArray(npcRows) ? npcRows : []);
+        setItems(Array.isArray(itemRows) ? itemRows : []);
+        setLocations(Array.isArray(locationRows) ? locationRows : []);
+        setLore(Array.isArray(loreRows) ? loreRows : []);
+        setTypes(Array.isArray(typeRows) ? typeRows : []);
+      } catch (err) {
+        console.error("Failed to load encounter dependencies", err);
+        if (!cancelled) {
+          setNpcs([]);
+          setItems([]);
+          setLocations([]);
+          setLore([]);
+          setTypes([]);
+        }
+      }
+    }
+
+    load();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const update = (f, v) => onChange({ ...record, [f]: v });
+  const update = (field, value) =>
+    onChange({ ...record, [field]: value });
 
   const toggle = (field, id) =>
     update(
@@ -31,7 +67,6 @@ export default function EncounterForm({ record, onChange }) {
 
   return (
     <div className="cm-detail-form">
-
       <div className="cm-field">
         <label>Description</label>
         <textarea
@@ -53,7 +88,9 @@ export default function EncounterForm({ record, onChange }) {
         <input
           type="number"
           value={record.priority || 0}
-          onChange={(e) => update("priority", parseInt(e.target.value))}
+          onChange={(e) =>
+            update("priority", parseInt(e.target.value || "0", 10))
+          }
         />
       </div>
 
@@ -137,7 +174,7 @@ export default function EncounterForm({ record, onChange }) {
         </div>
       </div>
 
-      {/* Types */}
+      {/* Encounter Types */}
       {types.length > 0 && (
         <div className="cm-field">
           <label>Encounter Types</label>
@@ -158,7 +195,6 @@ export default function EncounterForm({ record, onChange }) {
           </div>
         </div>
       )}
-
     </div>
   );
 }
