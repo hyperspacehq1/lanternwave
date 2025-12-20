@@ -15,6 +15,7 @@ export async function POST(req) {
       );
     }
 
+    // Validate campaign ownership
     const campaign = await query(
       `
       SELECT id
@@ -34,24 +35,23 @@ export async function POST(req) {
       );
     }
 
+    // INSERT session (NO geography column)
     const { rows } = await query(
       `
       INSERT INTO sessions (
         tenant_id,
         campaign_id,
         description,
-        geography,
         notes,
         history
       )
-      VALUES ($1, $2, $3, $4, $5, $6)
+      VALUES ($1, $2, $3, $4, $5)
       RETURNING *
       `,
       [
         tenantId,
         body.campaign_id,
         body.description ?? null,
-        body.geography ?? null,
         body.notes ?? null,
         body.history ?? null,
       ]
