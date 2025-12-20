@@ -26,14 +26,12 @@ export default function CampaignManagerPage() {
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [saveStatus, setSaveStatus] = useState("idle");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
 
   const [campaigns, setCampaigns] = useState([]);
   const [activeCampaignId, setActiveCampaignId] = useState("");
+  const [activeSessionId, setActiveSessionId] = useState("");
 
-  /* -----------------------------------------------------------
-     Load campaigns for selector
-  ------------------------------------------------------------ */
+  // Load campaigns
   useEffect(() => {
     cmApi
       .list("campaigns")
@@ -41,53 +39,45 @@ export default function CampaignManagerPage() {
       .catch(() => setCampaigns([]));
   }, []);
 
-  /* -----------------------------------------------------------
-     Load list when tab or campaign changes
-  ------------------------------------------------------------ */
+  // Load list
   useEffect(() => {
     let cancelled = false;
 
     async function load() {
+      setLoading(true);
+      let list = [];
+
       try {
-        setLoading(true);
-        setError(null);
-
-        let list = [];
-
         if (activeType === "sessions") {
           if (!activeCampaignId) {
-            setRecords((p) => ({ ...p, sessions: [] }));
-            setSelectedId(null);
-            setSelectedRecord(null);
-            return;
+            list = [];
+          } else {
+            const res = await fetch(
+              `/api/sessions?campaign_id=${activeCampaignId}`,
+              { credentials: "include" }
+            );
+            list = await res.json();
           }
-
-          const res = await fetch(
-            `/api/sessions?campaign_id=${activeCampaignId}`,
-            { credentials: "include" }
-          );
-
-          list = await res.json();
+        } else if (activeType === "events") {
+          if (!activeSessionId) {
+            list = [];
+          } else {
+            const res = await fetch(
+              `/api/events?session_id=${activeSessionId}`,
+              { credentials: "include" }
+            );
+            list = await res.json();
+          }
         } else {
           list = await cmApi.list(activeType);
         }
 
         if (cancelled) return;
 
-        const safeList = Array.isArray(list) ? list : [];
-
-        setRecords((p) => ({
-          ...p,
-          [activeType]: safeList,
-        }));
-
-        // ✅ derive selection from the list we JUST fetched
-        setSelectedId(safeList[0]?.id ?? null);
-        setSelectedRecord(safeList[0] ?? null);
-        setSaveStatus("idle");
-      } catch (err) {
-        console.error("Failed loading", activeType, err);
-        if (!cancelled) setError("Failed to load data");
+        const safe = Array.isArray(list) ? list : [];
+        setRecords((p) => ({ ...p, [activeType]: safe }));
+        setSelectedId(safe[0]?.id ?? null);
+        setSelectedRecord(safe[0] ?? null);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -97,20 +87,22 @@ export default function CampaignManagerPage() {
     return () => {
       cancelled = true;
     };
-  }, [activeType, activeCampaignId]);
+  }, [activeType, activeCampaignId, activeSessionId]);
 
   const activeList = records[activeType] || [];
 
-  /* -----------------------------------------------------------
-     Create
-  ------------------------------------------------------------ */
   const handleCreate = () => {
     const id = uuidv4();
+    let base = { id, _isNew: true };
 
-    const base =
-      activeType === "sessions"
-        ? { id, _isNew: true, campaign_id: activeCampaignId }
-        : { id, _isNew: true };
+    if (activeType === "sessions") {
+      base.campaign_id = activeCampaignId;
+    }
+
+    if (activeType === "events") {
+      base.campaign_id = activeCampaignId;
+      base.session_id = activeSessionId;
+    }
 
     setRecords((p) => ({
       ...p,
@@ -122,33 +114,25 @@ export default function CampaignManagerPage() {
     setSaveStatus("unsaved");
   };
 
-  /* -----------------------------------------------------------
-     Save
-  ------------------------------------------------------------ */
   const handleSave = async () => {
     if (!selectedRecord) return;
 
-    try {
-      setSaveStatus("saving");
-      const { _isNew, id, ...payload } = selectedRecord;
+    const { _isNew, id, ...payload } = selectedRecord;
 
-      const saved = _isNew
-        ? await cmApi.create(activeType, payload)
-        : await cmApi.update(activeType, id, payload);
+    const saved = _isNew
+      ? await cmApi.create(activeType, payload)
+      : await cmApi.update(activeType, id, payload);
 
-      setRecords((p) => ({
-        ...p,
-        [activeType]: p[activeType].map((r) =>
-          r.id === saved.id ? saved : r
-        ),
-      }));
+    setRecords((p) => ({
+      ...p,
+      [activeType]: p[activeType].map((r) =>
+        r.id === saved.id ? saved : r
+      ),
+    }));
 
-      setSelectedId(saved.id);
-      setSelectedRecord(saved);
-      setSaveStatus("saved");
-    } catch {
-      setSaveStatus("error");
-    }
+    setSelectedId(saved.id);
+    setSelectedRecord(saved);
+    setSaveStatus("saved");
   };
 
   const saveLabel = useMemo(
@@ -169,19 +153,17 @@ export default function CampaignManagerPage() {
         <aside className="cm-sidebar">
           <h1 className="cm-title">Campaign Manager</h1>
 
-          <div className="cm-container-list">
-            {CONTAINER_TYPES.map((c) => (
-              <button
-                key={c.id}
-                className={`cm-container-btn ${
-                  c.id === activeType ? "active" : ""
-                }`}
-                onClick={() => setActiveType(c.id)}
-              >
-                {c.label}
-              </button>
-            ))}
-          </div>
+          {CONTAINER_TYPES.map((c) => (
+            <button
+              key={c.id}
+              className={`cm-container-btn ${
+                c.id === activeType ? "active" : ""
+              }`}
+              onClick={() => setActiveType(c.id)}
+            >
+              {c.label}
+            </button>
+          ))}
 
           <div className="cm-save-status">Status: {saveLabel}</div>
         </aside>
@@ -189,10 +171,13 @@ export default function CampaignManagerPage() {
         <section className="cm-main">
           <header className="cm-main-header">
             <h2>{activeType}</h2>
-            <div className="cm-main-actions">
+            <div>
               <button
                 onClick={handleCreate}
-                disabled={activeType === "sessions" && !activeCampaignId}
+                disabled={
+                  (activeType === "sessions" && !activeCampaignId) ||
+                  (activeType === "events" && !activeSessionId)
+                }
               >
                 + New
               </button>
@@ -200,20 +185,41 @@ export default function CampaignManagerPage() {
             </div>
           </header>
 
-          {activeType === "sessions" && (
+          {(activeType === "sessions" || activeType === "events") && (
             <div style={{ marginBottom: 12 }}>
               <label>
                 Campaign:&nbsp;
                 <select
                   value={activeCampaignId}
-                  onChange={(e) =>
-                    setActiveCampaignId(e.target.value)
-                  }
+                  onChange={(e) => {
+                    setActiveCampaignId(e.target.value);
+                    setActiveSessionId("");
+                  }}
                 >
                   <option value="">Select campaign…</option>
                   {campaigns.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          )}
+
+          {activeType === "events" && (
+            <div style={{ marginBottom: 12 }}>
+              <label>
+                Session:&nbsp;
+                <select
+                  value={activeSessionId}
+                  onChange={(e) => setActiveSessionId(e.target.value)}
+                  disabled={!activeCampaignId}
+                >
+                  <option value="">Select session…</option>
+                  {(records.sessions || []).map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
                     </option>
                   ))}
                 </select>

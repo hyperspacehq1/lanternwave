@@ -7,34 +7,45 @@ export default function EventForm({ record, onChange }) {
   const [campaigns, setCampaigns] = useState([]);
   const [sessions, setSessions] = useState([]);
 
+  // Load campaigns once
+  useEffect(() => {
+    cmApi
+      .list("campaigns")
+      .then((rows) => setCampaigns(Array.isArray(rows) ? rows : []))
+      .catch(() => setCampaigns([]));
+  }, []);
+
+  // Load sessions when campaign changes
   useEffect(() => {
     let cancelled = false;
 
-    async function load() {
+    async function loadSessions() {
+      if (!record.campaign_id) {
+        setSessions([]);
+        return;
+      }
+
       try {
-        const [campaignRows, sessionRows] = await Promise.all([
-          cmApi.list("campaigns"),
-          cmApi.list("sessions"),
-        ]);
+        const res = await fetch(
+          `/api/sessions?campaign_id=${record.campaign_id}`,
+          { credentials: "include" }
+        );
 
-        if (cancelled) return;
-
-        setCampaigns(Array.isArray(campaignRows) ? campaignRows : []);
-        setSessions(Array.isArray(sessionRows) ? sessionRows : []);
-      } catch (err) {
-        console.error("Failed to load event dependencies", err);
+        const rows = await res.json();
         if (!cancelled) {
-          setCampaigns([]);
-          setSessions([]);
+          setSessions(Array.isArray(rows) ? rows : []);
         }
+      } catch (err) {
+        console.error("Failed to load sessions", err);
+        if (!cancelled) setSessions([]);
       }
     }
 
-    load();
+    loadSessions();
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [record.campaign_id]);
 
   const update = (field, value) =>
     onChange({ ...record, [field]: value });
@@ -45,7 +56,10 @@ export default function EventForm({ record, onChange }) {
         <label>Campaign</label>
         <select
           value={record.campaign_id || ""}
-          onChange={(e) => update("campaign_id", e.target.value)}
+          onChange={(e) => {
+            update("campaign_id", e.target.value);
+            update("session_id", "");
+          }}
         >
           <option value="">Select campaign…</option>
           {campaigns.map((c) => (
@@ -61,6 +75,7 @@ export default function EventForm({ record, onChange }) {
         <select
           value={record.session_id || ""}
           onChange={(e) => update("session_id", e.target.value)}
+          disabled={!record.campaign_id}
         >
           <option value="">Select session…</option>
           {sessions.map((s) => (
