@@ -6,13 +6,15 @@ export const dynamic = "force-dynamic";
 
 /* -----------------------------------------------------------
    GET /api/encounters
-   Optional: ?id=
+   ?id=
+   ?session_id=
 ------------------------------------------------------------ */
 export async function GET(req) {
   const { tenantId } = await getTenantContext(req);
-
   const { searchParams } = new URL(req.url);
+
   const id = searchParams.get("id");
+  const sessionId = searchParams.get("session_id");
 
   if (id) {
     const result = await query(
@@ -30,18 +32,23 @@ export async function GET(req) {
     return Response.json(result.rows[0] || null);
   }
 
-  const list = await query(
-    `
-    SELECT *
-    FROM encounters
-    WHERE tenant_id = $1
-      AND deleted_at IS NULL
-    ORDER BY created_at ASC
-    `,
-    [tenantId]
-  );
+  if (sessionId) {
+    const result = await query(
+      `
+      SELECT *
+      FROM encounters
+      WHERE tenant_id = $1
+        AND session_id = $2
+        AND deleted_at IS NULL
+      ORDER BY priority DESC, created_at ASC
+      `,
+      [tenantId, sessionId]
+    );
 
-  return Response.json(list.rows);
+    return Response.json(result.rows);
+  }
+
+  return Response.json([]);
 }
 
 /* -----------------------------------------------------------
@@ -49,28 +56,49 @@ export async function GET(req) {
 ------------------------------------------------------------ */
 export async function POST(req) {
   const { tenantId } = await getTenantContext(req);
-
   const body = await req.json();
   const id = uuid();
+
+  if (!body?.session_id || !body?.campaign_id) {
+    return Response.json(
+      { error: "campaign_id and session_id are required" },
+      { status: 400 }
+    );
+  }
+
+  if (!body?.name || !body.name.trim()) {
+    return Response.json(
+      { error: "name is required" },
+      { status: 400 }
+    );
+  }
 
   const result = await query(
     `
     INSERT INTO encounters (
       id,
       tenant_id,
+      campaign_id,
+      session_id,
       name,
       description,
+      notes,
+      priority,
       created_at,
       updated_at
     )
-    VALUES ($1, $2, $3, $4, NOW(), NOW())
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,NOW(),NOW())
     RETURNING *
     `,
     [
       id,
       tenantId,
-      body.name ?? null,
+      body.campaign_id,
+      body.session_id,
+      body.name.trim(),
       body.description ?? null,
+      body.notes ?? null,
+      body.priority ?? 0,
     ]
   );
 
@@ -82,7 +110,6 @@ export async function POST(req) {
 ------------------------------------------------------------ */
 export async function PUT(req) {
   const { tenantId } = await getTenantContext(req);
-
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
 
@@ -95,8 +122,10 @@ export async function PUT(req) {
   const result = await query(
     `
     UPDATE encounters
-       SET name        = $3,
-           description = $4,
+       SET name        = COALESCE($3, name),
+           description = COALESCE($4, description),
+           notes       = COALESCE($5, notes),
+           priority    = COALESCE($6, priority),
            updated_at  = NOW()
      WHERE tenant_id = $1
        AND id = $2
@@ -106,25 +135,21 @@ export async function PUT(req) {
     [
       tenantId,
       id,
-      body.name ?? null,
-      body.description ?? null,
+      body.name,
+      body.description,
+      body.notes,
+      body.priority,
     ]
   );
 
-  if (!result.rows.length) {
-    return Response.json({ error: "Not found" }, { status: 404 });
-  }
-
-  return Response.json(result.rows[0]);
+  return Response.json(result.rows[0] || null);
 }
 
 /* -----------------------------------------------------------
    DELETE /api/encounters?id=
-   (soft delete)
 ------------------------------------------------------------ */
 export async function DELETE(req) {
   const { tenantId } = await getTenantContext(req);
-
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
 
@@ -132,21 +157,16 @@ export async function DELETE(req) {
     return Response.json({ error: "id required" }, { status: 400 });
   }
 
-  const result = await query(
+  await query(
     `
     UPDATE encounters
        SET deleted_at = NOW()
      WHERE tenant_id = $1
        AND id = $2
        AND deleted_at IS NULL
-     RETURNING id
     `,
     [tenantId, id]
   );
 
-  if (!result.rows.length) {
-    return Response.json({ error: "Not found" }, { status: 404 });
-  }
-
-  return Response.json({ ok: true });
+  return Response.json({ ok: true, id });
 }
