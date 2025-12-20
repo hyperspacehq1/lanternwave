@@ -35,17 +35,16 @@ export async function POST(req) {
       );
     }
 
-    // INSERT session (NO geography column)
+    // INSERT session (NO geography, NO history)
     const { rows } = await query(
       `
       INSERT INTO sessions (
         tenant_id,
         campaign_id,
         description,
-        notes,
-        history
+        notes
       )
-      VALUES ($1, $2, $3, $4, $5)
+      VALUES ($1, $2, $3, $4)
       RETURNING *
       `,
       [
@@ -53,7 +52,6 @@ export async function POST(req) {
         body.campaign_id,
         body.description ?? null,
         body.notes ?? null,
-        body.history ?? null,
       ]
     );
 
