@@ -5,10 +5,9 @@ import { v4 as uuidv4 } from "uuid";
 export function makeRandomSession() {
   return {
     campaign_id: "",
-    description: `Session ${uuidv4().slice(0, 8)}`,
-    geography: "Unknown region",
-    notes: "Auto-generated debug notes",
-    history: "Debug history entry",
+    name: `Session ${uuidv4().slice(0, 8)}`,
+    description: "",
+    notes: "",
   };
 }
 
@@ -40,9 +39,18 @@ export default function DebugSessionForm({
       </label>
 
       <label>
+        Name <strong>(required)</strong>
+        <input
+          type="text"
+          value={value.name || ""}
+          onChange={(e) => update("name", e.target.value)}
+        />
+      </label>
+
+      <label>
         Description
         <textarea
-          value={value.description}
+          value={value.description || ""}
           onChange={(e) =>
             update("description", e.target.value)
           }
@@ -50,32 +58,10 @@ export default function DebugSessionForm({
       </label>
 
       <label>
-        Geography
-        <textarea
-          value={value.geography}
-          onChange={(e) =>
-            update("geography", e.target.value)
-          }
-        />
-      </label>
-
-      <label>
         Notes
         <textarea
-          value={value.notes}
-          onChange={(e) =>
-            update("notes", e.target.value)
-          }
-        />
-      </label>
-
-      <label>
-        History
-        <textarea
-          value={value.history}
-          onChange={(e) =>
-            update("history", e.target.value)
-          }
+          value={value.notes || ""}
+          onChange={(e) => update("notes", e.target.value)}
         />
       </label>
     </div>

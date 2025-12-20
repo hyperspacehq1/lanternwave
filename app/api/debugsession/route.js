@@ -15,6 +15,13 @@ export async function POST(req) {
       );
     }
 
+    if (!body?.name || !body.name.trim()) {
+      return Response.json(
+        { error: "name is required" },
+        { status: 400 }
+      );
+    }
+
     // Validate campaign ownership
     const campaign = await query(
       `
@@ -35,21 +42,22 @@ export async function POST(req) {
       );
     }
 
-    // INSERT session (NO geography, NO history)
     const { rows } = await query(
       `
       INSERT INTO sessions (
         tenant_id,
         campaign_id,
+        name,
         description,
         notes
       )
-      VALUES ($1, $2, $3, $4)
+      VALUES ($1, $2, $3, $4, $5)
       RETURNING *
       `,
       [
         tenantId,
         body.campaign_id,
+        body.name.trim(),
         body.description ?? null,
         body.notes ?? null,
       ]
