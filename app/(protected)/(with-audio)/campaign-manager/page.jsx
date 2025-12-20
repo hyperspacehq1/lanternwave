@@ -52,6 +52,8 @@ export default function CampaignManagerPage() {
         setLoading(true);
         setError(null);
 
+        let list = [];
+
         if (activeType === "sessions") {
           if (!activeCampaignId) {
             setRecords((p) => ({ ...p, sessions: [] }));
@@ -65,34 +67,27 @@ export default function CampaignManagerPage() {
             { credentials: "include" }
           );
 
-          const list = await res.json();
-
-          if (!cancelled) {
-            setRecords((p) => ({
-              ...p,
-              sessions: Array.isArray(list) ? list : [],
-            }));
-          }
+          list = await res.json();
         } else {
-          const list = await cmApi.list(activeType);
-
-          if (!cancelled) {
-            setRecords((p) => ({
-              ...p,
-              [activeType]: Array.isArray(list) ? list : [],
-            }));
-          }
+          list = await cmApi.list(activeType);
         }
 
-        const current = records[activeType] || [];
-        setSelectedId(current[0]?.id ?? null);
-        setSelectedRecord(current[0] ?? null);
+        if (cancelled) return;
+
+        const safeList = Array.isArray(list) ? list : [];
+
+        setRecords((p) => ({
+          ...p,
+          [activeType]: safeList,
+        }));
+
+        // ✅ derive selection from the list we JUST fetched
+        setSelectedId(safeList[0]?.id ?? null);
+        setSelectedRecord(safeList[0] ?? null);
         setSaveStatus("idle");
       } catch (err) {
         console.error("Failed loading", activeType, err);
-        if (!cancelled) {
-          setError("Failed to load data");
-        }
+        if (!cancelled) setError("Failed to load data");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -105,15 +100,6 @@ export default function CampaignManagerPage() {
   }, [activeType, activeCampaignId]);
 
   const activeList = records[activeType] || [];
-
-  /* -----------------------------------------------------------
-     Sync selected record
-  ------------------------------------------------------------ */
-  useEffect(() => {
-    setSelectedRecord(
-      activeList.find((r) => r.id === selectedId) || null
-    );
-  }, [selectedId, activeList]);
 
   /* -----------------------------------------------------------
      Create
@@ -137,7 +123,7 @@ export default function CampaignManagerPage() {
   };
 
   /* -----------------------------------------------------------
-     Save / Delete unchanged
+     Save
   ------------------------------------------------------------ */
   const handleSave = async () => {
     if (!selectedRecord) return;
@@ -247,7 +233,7 @@ export default function CampaignManagerPage() {
                     }`}
                     onClick={() => setSelectedId(r.id)}
                   >
-                    {r.name || r.id}
+                    {r.name}
                   </div>
                 ))}
             </section>

@@ -6,44 +6,26 @@ import { cmApi } from "@/lib/cm/api";
 export default function EventForm({ record, onChange }) {
   const [campaigns, setCampaigns] = useState([]);
   const [sessions, setSessions] = useState([]);
-  const [npcs, setNpcs] = useState([]);
-  const [items, setItems] = useState([]);
-  const [locations, setLocations] = useState([]);
 
   useEffect(() => {
     let cancelled = false;
 
     async function load() {
       try {
-        const [
-          campaignRows,
-          sessionRows,
-          npcRows,
-          itemRows,
-          locationRows,
-        ] = await Promise.all([
+        const [campaignRows, sessionRows] = await Promise.all([
           cmApi.list("campaigns"),
           cmApi.list("sessions"),
-          cmApi.list("npcs"),
-          cmApi.list("items"),
-          cmApi.list("locations"),
         ]);
 
         if (cancelled) return;
 
         setCampaigns(Array.isArray(campaignRows) ? campaignRows : []);
         setSessions(Array.isArray(sessionRows) ? sessionRows : []);
-        setNpcs(Array.isArray(npcRows) ? npcRows : []);
-        setItems(Array.isArray(itemRows) ? itemRows : []);
-        setLocations(Array.isArray(locationRows) ? locationRows : []);
       } catch (err) {
         console.error("Failed to load event dependencies", err);
         if (!cancelled) {
           setCampaigns([]);
           setSessions([]);
-          setNpcs([]);
-          setItems([]);
-          setLocations([]);
         }
       }
     }
@@ -57,21 +39,15 @@ export default function EventForm({ record, onChange }) {
   const update = (field, value) =>
     onChange({ ...record, [field]: value });
 
-  const toggleMulti = (field, id) => {
-    const prev = record[field] || [];
-    const exists = prev.includes(id);
-    update(field, exists ? prev.filter(i => i !== id) : [...prev, id]);
-  };
-
   return (
     <div className="cm-detail-form">
       <div className="cm-field">
         <label>Campaign</label>
         <select
-          value={record.campaignId || ""}
-          onChange={(e) => update("campaignId", e.target.value)}
+          value={record.campaign_id || ""}
+          onChange={(e) => update("campaign_id", e.target.value)}
         >
-          <option value="">Select…</option>
+          <option value="">Select campaign…</option>
           {campaigns.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}
@@ -83,16 +59,27 @@ export default function EventForm({ record, onChange }) {
       <div className="cm-field">
         <label>Session</label>
         <select
-          value={record.sessionId || ""}
-          onChange={(e) => update("sessionId", e.target.value)}
+          value={record.session_id || ""}
+          onChange={(e) => update("session_id", e.target.value)}
         >
-          <option value="">Select…</option>
+          <option value="">Select session…</option>
           {sessions.map((s) => (
             <option key={s.id} value={s.id}>
-              {s.description || s.id}
+              {s.name}
             </option>
           ))}
         </select>
+      </div>
+
+      <div className="cm-field">
+        <label>
+          Name <strong>(required)</strong>
+        </label>
+        <input
+          type="text"
+          value={record.name || ""}
+          onChange={(e) => update("name", e.target.value)}
+        />
       </div>
 
       <div className="cm-field">
@@ -107,25 +94,8 @@ export default function EventForm({ record, onChange }) {
         <label>Event Type</label>
         <input
           type="text"
-          value={record.eventType || ""}
-          onChange={(e) => update("eventType", e.target.value)}
-        />
-      </div>
-
-      <div className="cm-field">
-        <label>Weather</label>
-        <input
-          type="text"
-          value={record.weather || ""}
-          onChange={(e) => update("weather", e.target.value)}
-        />
-      </div>
-
-      <div className="cm-field">
-        <label>Trigger Detail</label>
-        <textarea
-          value={record.triggerDetail || ""}
-          onChange={(e) => update("triggerDetail", e.target.value)}
+          value={record.event_type || ""}
+          onChange={(e) => update("event_type", e.target.value)}
         />
       </div>
 
@@ -133,82 +103,11 @@ export default function EventForm({ record, onChange }) {
         <label>Priority</label>
         <input
           type="number"
-          value={record.priority || 0}
+          value={record.priority ?? 0}
           onChange={(e) =>
             update("priority", parseInt(e.target.value || "0", 10))
           }
         />
-      </div>
-
-      <div className="cm-field">
-        <label>Countdown (minutes)</label>
-        <input
-          type="number"
-          value={record.countdownMinutes || 0}
-          onChange={(e) =>
-            update("countdownMinutes", parseInt(e.target.value || "0", 10))
-          }
-        />
-      </div>
-
-      {/* NPCs */}
-      <div className="cm-field">
-        <label>NPCs</label>
-        <div className="cm-multiselect">
-          {npcs.map((npc) => (
-            <div
-              key={npc.id}
-              className={
-                (record.npcIds || []).includes(npc.id)
-                  ? "ms-item selected"
-                  : "ms-item"
-              }
-              onClick={() => toggleMulti("npcIds", npc.id)}
-            >
-              {npc.firstName} {npc.lastName}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Items */}
-      <div className="cm-field">
-        <label>Items</label>
-        <div className="cm-multiselect">
-          {items.map((it) => (
-            <div
-              key={it.id}
-              className={
-                (record.itemIds || []).includes(it.id)
-                  ? "ms-item selected"
-                  : "ms-item"
-              }
-              onClick={() => toggleMulti("itemIds", it.id)}
-            >
-              {it.description}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Locations */}
-      <div className="cm-field">
-        <label>Locations</label>
-        <div className="cm-multiselect">
-          {locations.map((loc) => (
-            <div
-              key={loc.id}
-              className={
-                (record.locationIds || []).includes(loc.id)
-                  ? "ms-item selected"
-                  : "ms-item"
-              }
-              onClick={() => toggleMulti("locationIds", loc.id)}
-            >
-              {loc.description}
-            </div>
-          ))}
-        </div>
       </div>
     </div>
   );
