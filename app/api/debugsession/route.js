@@ -42,6 +42,7 @@ export async function POST(req) {
       );
     }
 
+    // INSERT session (schema-aligned)
     const { rows } = await query(
       `
       INSERT INTO sessions (
@@ -57,7 +58,7 @@ export async function POST(req) {
       [
         tenantId,
         body.campaign_id,
-        body.name.trim(),
+        body.name,
         body.description ?? null,
         body.notes ?? null,
       ]

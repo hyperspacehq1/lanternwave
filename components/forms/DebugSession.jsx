@@ -5,7 +5,7 @@ import { v4 as uuidv4 } from "uuid";
 export function makeRandomSession() {
   return {
     campaign_id: "",
-    name: `Session ${uuidv4().slice(0, 8)}`,
+    name: `Session ${uuidv4().slice(0, 6)}`,
     description: "",
     notes: "",
   };
@@ -39,7 +39,7 @@ export default function DebugSessionForm({
       </label>
 
       <label>
-        Name <strong>(required)</strong>
+        Name (required)
         <input
           type="text"
           value={value.name || ""}

@@ -14,9 +14,7 @@ async function readResponseSafely(res) {
   let json = null;
   try {
     json = text ? JSON.parse(text) : null;
-  } catch {
-    json = null;
-  }
+  } catch {}
   return { status: res.status, ok: res.ok, text, json };
 }
 
@@ -43,10 +41,9 @@ export default function DebugSessionPage() {
     try {
       const payload = {
         campaign_id: form.campaign_id,
+        name: form.name,
         description: form.description,
-        geography: form.geography,
         notes: form.notes,
-        history: form.history,
       };
 
       addLog({
@@ -73,11 +70,7 @@ export default function DebugSessionPage() {
         response: parsed,
       });
     } catch (e) {
-      addLog({
-        kind: "error",
-        step: "exception",
-        error: String(e),
-      });
+      addLog({ kind: "error", error: String(e) });
     } finally {
       setBusy(false);
     }
@@ -86,11 +79,7 @@ export default function DebugSessionPage() {
   function autopopulate() {
     const next = makeRandomSession();
     setForm(next);
-    addLog({
-      kind: "ok",
-      step: "autopopulate",
-      payload: next,
-    });
+    addLog({ kind: "ok", step: "autopopulate", payload: next });
   }
 
   return (
@@ -119,25 +108,20 @@ export default function DebugSessionPage() {
       <div style={{ marginTop: 24 }}>
         <h2>Logs</h2>
 
-        {log.length === 0 ? (
-          <div style={{ opacity: 0.7 }}>No logs yet.</div>
-        ) : (
-          log.map((entry, i) => (
-            <pre
-              key={i}
-              style={{
-                background: "rgba(255,255,255,0.04)",
-                border: "1px solid rgba(255,255,255,0.12)",
-                padding: 12,
-                borderRadius: 10,
-                marginBottom: 12,
-                overflow: "auto",
-              }}
-            >
-              {JSON.stringify(entry, null, 2)}
-            </pre>
-          ))
-        )}
+        {log.map((entry, i) => (
+          <pre
+            key={i}
+            style={{
+              background: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(255,255,255,0.12)",
+              padding: 12,
+              borderRadius: 10,
+              marginBottom: 12,
+            }}
+          >
+            {JSON.stringify(entry, null, 2)}
+          </pre>
+        ))}
       </div>
     </div>
   );
