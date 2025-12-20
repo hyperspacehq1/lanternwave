@@ -5,9 +5,6 @@ export const dynamic = "force-dynamic";
 
 /* -----------------------------------------------------------
    GET /api/sessions
-   Optional:
-     ?id=
-     ?campaign_id=
 ------------------------------------------------------------ */
 export async function GET(req) {
   try {
@@ -17,7 +14,6 @@ export async function GET(req) {
     const id = searchParams.get("id");
     const campaignId = searchParams.get("campaign_id");
 
-    // Single session by id
     if (id) {
       const { rows } = await query(
         `
@@ -34,7 +30,6 @@ export async function GET(req) {
       return Response.json(rows[0] ?? null);
     }
 
-    // Sessions for a campaign
     if (campaignId) {
       const { rows } = await query(
         `
@@ -51,9 +46,6 @@ export async function GET(req) {
       return Response.json(rows);
     }
 
-    // IMPORTANT:
-    // For Campaign Manager tabs, a plain list must NEVER error.
-    // Return empty list instead of 400.
     return Response.json([]);
   } catch (err) {
     console.error("GET /api/sessions failed", err);
@@ -76,7 +68,13 @@ export async function POST(req) {
       );
     }
 
-    // Validate campaign ownership
+    if (!body?.name || !body.name.trim()) {
+      return Response.json(
+        { error: "name is required" },
+        { status: 400 }
+      );
+    }
+
     const campaign = await query(
       `
       SELECT id
@@ -101,21 +99,19 @@ export async function POST(req) {
       INSERT INTO sessions (
         tenant_id,
         campaign_id,
+        name,
         description,
-        geography,
-        notes,
-        history
+        notes
       )
-      VALUES ($1, $2, $3, $4, $5, $6)
+      VALUES ($1, $2, $3, $4, $5)
       RETURNING *
       `,
       [
         tenantId,
         body.campaign_id,
+        body.name.trim(),
         body.description ?? null,
-        body.geography ?? null,
         body.notes ?? null,
-        body.history ?? null,
       ]
     );
 
@@ -147,11 +143,10 @@ export async function PUT(req) {
     const { rows } = await query(
       `
       UPDATE sessions
-         SET description = COALESCE($3, description),
-             geography  = COALESCE($4, geography),
-             notes      = COALESCE($5, notes),
-             history    = COALESCE($6, history),
-             updated_at = NOW()
+         SET name        = COALESCE($3, name),
+             description = COALESCE($4, description),
+             notes       = COALESCE($5, notes),
+             updated_at  = NOW()
        WHERE tenant_id = $1
          AND id = $2
          AND deleted_at IS NULL
@@ -160,10 +155,9 @@ export async function PUT(req) {
       [
         tenantId,
         id,
+        body.name,
         body.description,
-        body.geography,
         body.notes,
-        body.history,
       ]
     );
 
@@ -179,7 +173,6 @@ export async function PUT(req) {
 
 /* -----------------------------------------------------------
    DELETE /api/sessions?id=
-   (soft delete)
 ------------------------------------------------------------ */
 export async function DELETE(req) {
   try {

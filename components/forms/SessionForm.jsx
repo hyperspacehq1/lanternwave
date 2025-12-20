@@ -45,6 +45,17 @@ export default function SessionForm({ record, onChange }) {
       </div>
 
       <div className="cm-field">
+        <label>
+          Name <strong>(required)</strong>
+        </label>
+        <input
+          type="text"
+          value={record.name || ""}
+          onChange={(e) => update("name", e.target.value)}
+        />
+      </div>
+
+      <div className="cm-field">
         <label>Description</label>
         <textarea
           value={record.description || ""}
@@ -53,26 +64,10 @@ export default function SessionForm({ record, onChange }) {
       </div>
 
       <div className="cm-field">
-        <label>Geography</label>
-        <textarea
-          value={record.geography || ""}
-          onChange={(e) => update("geography", e.target.value)}
-        />
-      </div>
-
-      <div className="cm-field">
         <label>Notes</label>
         <textarea
           value={record.notes || ""}
           onChange={(e) => update("notes", e.target.value)}
-        />
-      </div>
-
-      <div className="cm-field">
-        <label>History</label>
-        <textarea
-          value={record.history || ""}
-          onChange={(e) => update("history", e.target.value)}
         />
       </div>
     </div>
