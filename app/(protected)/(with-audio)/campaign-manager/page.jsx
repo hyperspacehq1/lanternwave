@@ -31,7 +31,9 @@ export default function CampaignManagerPage() {
   const [activeCampaignId, setActiveCampaignId] = useState("");
   const [activeSessionId, setActiveSessionId] = useState("");
 
-  // Load campaigns
+  /* ------------------------------------------------------------
+     Load campaigns
+  ------------------------------------------------------------ */
   useEffect(() => {
     cmApi
       .list("campaigns")
@@ -39,7 +41,9 @@ export default function CampaignManagerPage() {
       .catch(() => setCampaigns([]));
   }, []);
 
-  // Load list
+  /* ------------------------------------------------------------
+     Load records for active type
+  ------------------------------------------------------------ */
   useEffect(() => {
     let cancelled = false;
 
@@ -58,12 +62,12 @@ export default function CampaignManagerPage() {
             );
             list = await res.json();
           }
-        } else if (activeType === "events") {
+        } else if (activeType === "events" || activeType === "encounters") {
           if (!activeSessionId) {
             list = [];
           } else {
             const res = await fetch(
-              `/api/events?session_id=${activeSessionId}`,
+              `/api/${activeType}?session_id=${activeSessionId}`,
               { credentials: "include" }
             );
             list = await res.json();
@@ -91,6 +95,9 @@ export default function CampaignManagerPage() {
 
   const activeList = records[activeType] || [];
 
+  /* ------------------------------------------------------------
+     Create new record (CRITICAL FIX HERE)
+  ------------------------------------------------------------ */
   const handleCreate = () => {
     const id = uuidv4();
     let base = { id, _isNew: true };
@@ -99,7 +106,7 @@ export default function CampaignManagerPage() {
       base.campaign_id = activeCampaignId;
     }
 
-    if (activeType === "events") {
+    if (activeType === "events" || activeType === "encounters") {
       base.campaign_id = activeCampaignId;
       base.session_id = activeSessionId;
     }
@@ -114,6 +121,9 @@ export default function CampaignManagerPage() {
     setSaveStatus("unsaved");
   };
 
+  /* ------------------------------------------------------------
+     Save record
+  ------------------------------------------------------------ */
   const handleSave = async () => {
     if (!selectedRecord) return;
 
@@ -176,7 +186,8 @@ export default function CampaignManagerPage() {
                 onClick={handleCreate}
                 disabled={
                   (activeType === "sessions" && !activeCampaignId) ||
-                  (activeType === "events" && !activeSessionId)
+                  ((activeType === "events" || activeType === "encounters") &&
+                    !activeSessionId)
                 }
               >
                 + New
@@ -185,7 +196,9 @@ export default function CampaignManagerPage() {
             </div>
           </header>
 
-          {(activeType === "sessions" || activeType === "events") && (
+          {(activeType === "sessions" ||
+            activeType === "events" ||
+            activeType === "encounters") && (
             <div style={{ marginBottom: 12 }}>
               <label>
                 Campaign:&nbsp;
@@ -207,7 +220,7 @@ export default function CampaignManagerPage() {
             </div>
           )}
 
-          {activeType === "events" && (
+          {(activeType === "events" || activeType === "encounters") && (
             <div style={{ marginBottom: 12 }}>
               <label>
                 Session:&nbsp;
@@ -237,7 +250,10 @@ export default function CampaignManagerPage() {
                     className={`cm-list-item ${
                       r.id === selectedId ? "selected" : ""
                     }`}
-                    onClick={() => setSelectedId(r.id)}
+                    onClick={() => {
+                      setSelectedId(r.id);
+                      setSelectedRecord(r);
+                    }}
                   >
                     {r.name}
                   </div>
