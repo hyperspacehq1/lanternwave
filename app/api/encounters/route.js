@@ -6,8 +6,6 @@ export const dynamic = "force-dynamic";
 
 /* -----------------------------------------------------------
    GET /api/encounters
-   ?id=
-   ?session_id=
 ------------------------------------------------------------ */
 export async function GET(req) {
   const { tenantId } = await getTenantContext(req);
@@ -40,7 +38,7 @@ export async function GET(req) {
       WHERE tenant_id = $1
         AND session_id = $2
         AND deleted_at IS NULL
-      ORDER BY priority DESC, created_at ASC
+      ORDER BY created_at ASC
       `,
       [tenantId, sessionId]
     );
@@ -59,7 +57,7 @@ export async function POST(req) {
   const body = await req.json();
   const id = uuid();
 
-  if (!body?.session_id || !body?.campaign_id) {
+  if (!body?.campaign_id || !body?.session_id) {
     return Response.json(
       { error: "campaign_id and session_id are required" },
       { status: 400 }
@@ -83,11 +81,10 @@ export async function POST(req) {
       name,
       description,
       notes,
-      priority,
       created_at,
       updated_at
     )
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,NOW(),NOW())
+    VALUES ($1,$2,$3,$4,$5,$6,$7,NOW(),NOW())
     RETURNING *
     `,
     [
@@ -98,7 +95,6 @@ export async function POST(req) {
       body.name.trim(),
       body.description ?? null,
       body.notes ?? null,
-      body.priority ?? 0,
     ]
   );
 
@@ -125,7 +121,6 @@ export async function PUT(req) {
        SET name        = COALESCE($3, name),
            description = COALESCE($4, description),
            notes       = COALESCE($5, notes),
-           priority    = COALESCE($6, priority),
            updated_at  = NOW()
      WHERE tenant_id = $1
        AND id = $2
@@ -138,7 +133,6 @@ export async function PUT(req) {
       body.name,
       body.description,
       body.notes,
-      body.priority,
     ]
   );
 

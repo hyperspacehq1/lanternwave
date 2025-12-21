@@ -34,17 +34,6 @@ export default function EncounterForm({ record, onChange }) {
           onChange={(e) => update("notes", e.target.value)}
         />
       </div>
-
-      <div className="cm-field">
-        <label>Priority</label>
-        <input
-          type="number"
-          value={record.priority ?? 0}
-          onChange={(e) =>
-            update("priority", parseInt(e.target.value || "0", 10))
-          }
-        />
-      </div>
     </div>
   );
 }
