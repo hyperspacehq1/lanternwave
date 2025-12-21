@@ -1,16 +1,17 @@
-// components/forms/PlayerCharacterForm.jsx
 "use client";
+
 import React from "react";
 
 export default function PlayerCharacterForm({ record, onChange }) {
-  if (!record) return null;
-  const update = (f, v) => onChange({ ...record, [f]: v });
+  const update = (field, value) =>
+    onChange({ ...record, [field]: value });
 
   return (
     <div className="cm-detail-form">
-
       <div className="cm-field">
-        <label>First Name</label>
+        <label>
+          First Name <strong>(required)</strong>
+        </label>
         <input
           type="text"
           value={record.firstName || ""}
@@ -19,7 +20,9 @@ export default function PlayerCharacterForm({ record, onChange }) {
       </div>
 
       <div className="cm-field">
-        <label>Last Name</label>
+        <label>
+          Last Name <strong>(required)</strong>
+        </label>
         <input
           type="text"
           value={record.lastName || ""}
@@ -52,7 +55,6 @@ export default function PlayerCharacterForm({ record, onChange }) {
           onChange={(e) => update("notes", e.target.value)}
         />
       </div>
-
     </div>
   );
 }

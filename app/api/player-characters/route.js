@@ -1,49 +1,43 @@
 import { query } from "@/lib/db";
-import { getTenantContext } from "@/lib/tenant/getTenantContext";
+import { v4 as uuid } from "uuid";
 
 export const dynamic = "force-dynamic";
 
 /* -----------------------------------------------------------
    GET /api/player-characters
-   Optional: ?id=
+   ?id=
+   ?campaign_id=
 ------------------------------------------------------------ */
 export async function GET(req) {
-  const { tenantId } = await getTenantContext(req);
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
+  const campaignId = searchParams.get("campaign_id");
 
   if (id) {
     const result = await query(
       `
       SELECT *
-        FROM player_characters
-       WHERE tenant_id = $1
-         AND id = $2
-         AND deleted_at IS NULL
-       LIMIT 1
+      FROM player_characters
+      WHERE id = $1
+      LIMIT 1
       `,
-      [tenantId, id]
+      [id]
     );
+    return Response.json(result.rows[0] || null);
+  }
 
-    if (!result.rows.length) {
-      return Response.json(
-        { error: "Player character not found" },
-        { status: 404 }
-      );
-    }
-
-    return Response.json(result.rows[0]);
+  if (!campaignId) {
+    return Response.json([]);
   }
 
   const list = await query(
     `
     SELECT *
-      FROM player_characters
-     WHERE tenant_id = $1
-       AND deleted_at IS NULL
-     ORDER BY created_at ASC
+    FROM player_characters
+    WHERE campaign_id = $1
+    ORDER BY created_at ASC
     `,
-    [tenantId]
+    [campaignId]
   );
 
   return Response.json(list.rows);
@@ -53,12 +47,18 @@ export async function GET(req) {
    POST /api/player-characters
 ------------------------------------------------------------ */
 export async function POST(req) {
-  const { tenantId } = await getTenantContext(req);
   const body = await req.json();
 
-  if (!body.first_name || !body.first_name.trim()) {
+  if (!body.campaign_id) {
     return Response.json(
-      { error: "first_name is required" },
+      { error: "campaign_id is required" },
+      { status: 400 }
+    );
+  }
+
+  if (!body.firstName || !body.lastName) {
+    return Response.json(
+      { error: "firstName and lastName are required" },
       { status: 400 }
     );
   }
@@ -66,21 +66,25 @@ export async function POST(req) {
   const result = await query(
     `
     INSERT INTO player_characters (
-      tenant_id,
+      id,
+      campaign_id,
       first_name,
       last_name,
       phone,
-      email
+      email,
+      notes
     )
-    VALUES ($1,$2,$3,$4,$5)
+    VALUES ($1,$2,$3,$4,$5,$6,$7)
     RETURNING *
     `,
     [
-      tenantId,
-      body.first_name,
-      body.last_name ?? null,
+      uuid(),
+      body.campaign_id,
+      body.firstName.trim(),
+      body.lastName.trim(),
       body.phone ?? null,
       body.email ?? null,
+      body.notes ?? null,
     ]
   );
 
@@ -91,80 +95,35 @@ export async function POST(req) {
    PUT /api/player-characters?id=
 ------------------------------------------------------------ */
 export async function PUT(req) {
-  const { tenantId } = await getTenantContext(req);
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
+  const body = await req.json();
 
   if (!id) {
     return Response.json({ error: "id required" }, { status: 400 });
   }
 
-  const body = await req.json();
-
   const result = await query(
     `
     UPDATE player_characters
-       SET first_name = COALESCE($3, first_name),
-           last_name  = COALESCE($4, last_name),
-           phone      = COALESCE($5, phone),
-           email      = COALESCE($6, email),
+       SET first_name = COALESCE($2, first_name),
+           last_name  = COALESCE($3, last_name),
+           phone      = COALESCE($4, phone),
+           email      = COALESCE($5, email),
+           notes      = COALESCE($6, notes),
            updated_at = NOW()
-     WHERE tenant_id = $1
-       AND id = $2
-       AND deleted_at IS NULL
+     WHERE id = $1
      RETURNING *
     `,
     [
-      tenantId,
       id,
-      body.first_name,
-      body.last_name,
+      body.firstName,
+      body.lastName,
       body.phone,
       body.email,
+      body.notes,
     ]
   );
 
-  if (!result.rows.length) {
-    return Response.json(
-      { error: "Player character not found" },
-      { status: 404 }
-    );
-  }
-
-  return Response.json(result.rows[0]);
-}
-
-/* -----------------------------------------------------------
-   DELETE /api/player-characters?id=
-   (soft delete)
------------------------------------------------------------- */
-export async function DELETE(req) {
-  const { tenantId } = await getTenantContext(req);
-  const { searchParams } = new URL(req.url);
-  const id = searchParams.get("id");
-
-  if (!id) {
-    return Response.json({ error: "id required" }, { status: 400 });
-  }
-
-  const result = await query(
-    `
-    UPDATE player_characters
-       SET deleted_at = NOW()
-     WHERE tenant_id = $1
-       AND id = $2
-       AND deleted_at IS NULL
-     RETURNING id
-    `,
-    [tenantId, id]
-  );
-
-  if (!result.rows.length) {
-    return Response.json(
-      { error: "Player character not found" },
-      { status: 404 }
-    );
-  }
-
-  return Response.json({ success: true, id });
+  return Response.json(result.rows[0] || null);
 }

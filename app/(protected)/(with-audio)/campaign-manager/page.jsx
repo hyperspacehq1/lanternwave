@@ -43,7 +43,6 @@ export default function CampaignManagerPage() {
 
   /* ------------------------------------------------------------
      Load sessions when campaign changes
-     (needed for Sessions, Events, Encounters)
   ------------------------------------------------------------ */
   useEffect(() => {
     let cancelled = false;
@@ -94,7 +93,8 @@ export default function CampaignManagerPage() {
       try {
         if (activeType === "sessions") {
           list = records.sessions || [];
-        } else if (activeType === "events" || activeType === "encounters") {
+        } 
+        else if (activeType === "events" || activeType === "encounters") {
           if (!activeSessionId) {
             list = [];
           } else {
@@ -104,7 +104,19 @@ export default function CampaignManagerPage() {
             );
             list = await res.json();
           }
-        } else {
+        }
+        else if (activeType === "playerCharacters") {
+          if (!activeCampaignId) {
+            list = [];
+          } else {
+            const res = await fetch(
+              `/api/player-characters?campaign_id=${activeCampaignId}`,
+              { credentials: "include" }
+            );
+            list = await res.json();
+          }
+        }
+        else {
           list = await cmApi.list(activeType);
         }
 
@@ -123,7 +135,7 @@ export default function CampaignManagerPage() {
     return () => {
       cancelled = true;
     };
-  }, [activeType, activeSessionId]);
+  }, [activeType, activeSessionId, activeCampaignId]);
 
   const activeList = records[activeType] || [];
 
@@ -141,6 +153,10 @@ export default function CampaignManagerPage() {
     if (activeType === "events" || activeType === "encounters") {
       base.campaign_id = activeCampaignId;
       base.session_id = activeSessionId;
+    }
+
+    if (activeType === "playerCharacters") {
+      base.campaign_id = activeCampaignId;
     }
 
     setRecords((p) => ({
@@ -218,6 +234,7 @@ export default function CampaignManagerPage() {
                 onClick={handleCreate}
                 disabled={
                   (activeType === "sessions" && !activeCampaignId) ||
+                  (activeType === "playerCharacters" && !activeCampaignId) ||
                   ((activeType === "events" ||
                     activeType === "encounters") &&
                     !activeSessionId)
@@ -231,7 +248,8 @@ export default function CampaignManagerPage() {
 
           {(activeType === "sessions" ||
             activeType === "events" ||
-            activeType === "encounters") && (
+            activeType === "encounters" ||
+            activeType === "playerCharacters") && (
             <div style={{ marginBottom: 12 }}>
               <label>
                 Campaign:&nbsp;
@@ -288,7 +306,7 @@ export default function CampaignManagerPage() {
                       setSelectedRecord(r);
                     }}
                   >
-                    {r.name}
+                    {r.name ?? `${r.first_name} ${r.last_name}`}
                   </div>
                 ))}
             </section>
