@@ -32,7 +32,7 @@ export default function CampaignManagerPage() {
   const [activeSessionId, setActiveSessionId] = useState("");
 
   /* ------------------------------------------------------------
-     Load campaigns
+     Load campaigns once
   ------------------------------------------------------------ */
   useEffect(() => {
     cmApi
@@ -40,6 +40,46 @@ export default function CampaignManagerPage() {
       .then((rows) => setCampaigns(Array.isArray(rows) ? rows : []))
       .catch(() => setCampaigns([]));
   }, []);
+
+  /* ------------------------------------------------------------
+     Load sessions when campaign changes
+     (needed for Sessions, Events, Encounters)
+  ------------------------------------------------------------ */
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadSessions() {
+      if (!activeCampaignId) {
+        setRecords((p) => ({ ...p, sessions: [] }));
+        setActiveSessionId("");
+        return;
+      }
+
+      try {
+        const res = await fetch(
+          `/api/sessions?campaign_id=${activeCampaignId}`,
+          { credentials: "include" }
+        );
+        const rows = await res.json();
+
+        if (!cancelled) {
+          setRecords((p) => ({
+            ...p,
+            sessions: Array.isArray(rows) ? rows : [],
+          }));
+        }
+      } catch {
+        if (!cancelled) {
+          setRecords((p) => ({ ...p, sessions: [] }));
+        }
+      }
+    }
+
+    loadSessions();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeCampaignId]);
 
   /* ------------------------------------------------------------
      Load records for active type
@@ -53,15 +93,7 @@ export default function CampaignManagerPage() {
 
       try {
         if (activeType === "sessions") {
-          if (!activeCampaignId) {
-            list = [];
-          } else {
-            const res = await fetch(
-              `/api/sessions?campaign_id=${activeCampaignId}`,
-              { credentials: "include" }
-            );
-            list = await res.json();
-          }
+          list = records.sessions || [];
         } else if (activeType === "events" || activeType === "encounters") {
           if (!activeSessionId) {
             list = [];
@@ -91,12 +123,12 @@ export default function CampaignManagerPage() {
     return () => {
       cancelled = true;
     };
-  }, [activeType, activeCampaignId, activeSessionId]);
+  }, [activeType, activeSessionId]);
 
   const activeList = records[activeType] || [];
 
   /* ------------------------------------------------------------
-     Create new record (CRITICAL FIX HERE)
+     Create new record
   ------------------------------------------------------------ */
   const handleCreate = () => {
     const id = uuidv4();
@@ -186,7 +218,8 @@ export default function CampaignManagerPage() {
                 onClick={handleCreate}
                 disabled={
                   (activeType === "sessions" && !activeCampaignId) ||
-                  ((activeType === "events" || activeType === "encounters") &&
+                  ((activeType === "events" ||
+                    activeType === "encounters") &&
                     !activeSessionId)
                 }
               >
