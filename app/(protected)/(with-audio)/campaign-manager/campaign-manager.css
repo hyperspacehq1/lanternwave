@@ -235,3 +235,25 @@
   min-height: 120px;
   resize: vertical;
 }
+.cm-join-panel {
+  margin-top: 24px;
+  padding-top: 12px;
+  border-top: 1px solid #333;
+}
+
+.cm-join-panel ul {
+  list-style: none;
+  padding: 0;
+}
+
+.cm-join-panel li {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.cm-join-add {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}

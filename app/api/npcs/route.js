@@ -5,10 +5,8 @@ export const dynamic = "force-dynamic";
 
 /* -----------------------------------------------------------
    GET /api/npcs
-   Optional:
-     ?id=
-     ?campaign_id=
-     ?session_id=
+   ?id=
+   ?campaign_id=
 ------------------------------------------------------------ */
 export async function GET(req) {
   const { tenantId } = await getTenantContext(req);
@@ -16,11 +14,9 @@ export async function GET(req) {
 
   const id = searchParams.get("id");
   const campaignId = searchParams.get("campaign_id");
-  const sessionId = searchParams.get("session_id");
 
-  // Single NPC + events
   if (id) {
-    const npc = await query(
+    const result = await query(
       `
       SELECT *
         FROM npcs
@@ -31,80 +27,31 @@ export async function GET(req) {
       `,
       [tenantId, id]
     );
-
-    if (!npc.rows.length) {
-      return Response.json({ error: "NPC not found" }, { status: 404 });
-    }
-
-    const events = await query(
-      `
-      SELECT e.*
-        FROM event_npcs en
-        JOIN events e ON e.id = en.event_id
-       WHERE en.npc_id = $1
-         AND e.tenant_id = $2
-         AND e.deleted_at IS NULL
-       ORDER BY e.created_at ASC
-      `,
-      [id, tenantId]
-    );
-
-    return Response.json({
-      ...npc.rows[0],
-      events: events.rows,
-    });
+    return Response.json(result.rows[0] || null);
   }
 
-  // NPCs by campaign
   if (campaignId) {
     const result = await query(
       `
-      SELECT DISTINCT n.*
-        FROM npcs n
-        JOIN event_npcs en ON en.npc_id = n.id
-        JOIN events e ON e.id = en.event_id
-       WHERE e.campaign_id = $1
-         AND n.tenant_id = $2
-         AND e.tenant_id = $2
-         AND n.deleted_at IS NULL
-         AND e.deleted_at IS NULL
-       ORDER BY n.first_name ASC, n.last_name ASC
+      SELECT *
+        FROM npcs
+       WHERE tenant_id = $1
+         AND campaign_id = $2
+         AND deleted_at IS NULL
+       ORDER BY name ASC
       `,
-      [campaignId, tenantId]
+      [tenantId, campaignId]
     );
-
     return Response.json(result.rows);
   }
 
-  // NPCs by session
-  if (sessionId) {
-    const result = await query(
-      `
-      SELECT DISTINCT n.*
-        FROM npcs n
-        JOIN event_npcs en ON en.npc_id = n.id
-        JOIN events e ON e.id = en.event_id
-       WHERE e.session_id = $1
-         AND n.tenant_id = $2
-         AND e.tenant_id = $2
-         AND n.deleted_at IS NULL
-         AND e.deleted_at IS NULL
-       ORDER BY n.first_name ASC, n.last_name ASC
-      `,
-      [sessionId, tenantId]
-    );
-
-    return Response.json(result.rows);
-  }
-
-  // All NPCs
   const result = await query(
     `
     SELECT *
       FROM npcs
      WHERE tenant_id = $1
        AND deleted_at IS NULL
-     ORDER BY first_name ASC, last_name ASC
+     ORDER BY name ASC
     `,
     [tenantId]
   );
@@ -119,9 +66,16 @@ export async function POST(req) {
   const { tenantId } = await getTenantContext(req);
   const body = await req.json();
 
-  if (!body.first_name || !body.first_name.trim()) {
+  if (!body.campaign_id) {
     return Response.json(
-      { error: "first_name is required" },
+      { error: "campaign_id is required" },
+      { status: 400 }
+    );
+  }
+
+  if (!body.name || !body.name.trim()) {
+    return Response.json(
+      { error: "name is required" },
       { status: 400 }
     );
   }
@@ -130,30 +84,28 @@ export async function POST(req) {
     `
     INSERT INTO npcs (
       tenant_id,
-      first_name,
-      last_name,
+      campaign_id,
+      name,
       npc_type,
-      data,
-      personality,
+      description,
       goals,
       faction_alignment,
       secrets,
-      state
+      notes
     )
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
     RETURNING *
     `,
     [
       tenantId,
-      body.first_name,
-      body.last_name ?? null,
+      body.campaign_id,
+      body.name.trim(),
       body.npc_type ?? null,
-      body.data ?? null,
-      body.personality ?? null,
+      body.description ?? null,
       body.goals ?? null,
       body.faction_alignment ?? null,
       body.secrets ?? null,
-      body.state ?? null,
+      body.notes ?? null,
     ]
   );
 
@@ -167,26 +119,23 @@ export async function PUT(req) {
   const { tenantId } = await getTenantContext(req);
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
+  const body = await req.json();
 
   if (!id) {
-    return Response.json({ error: "id is required" }, { status: 400 });
+    return Response.json({ error: "id required" }, { status: 400 });
   }
-
-  const body = await req.json();
 
   const result = await query(
     `
     UPDATE npcs
-       SET first_name        = COALESCE($3, first_name),
-           last_name         = COALESCE($4, last_name),
-           npc_type          = COALESCE($5, npc_type),
-           data              = COALESCE($6, data),
-           personality       = COALESCE($7, personality),
-           goals             = COALESCE($8, goals),
-           faction_alignment = COALESCE($9, faction_alignment),
-           secrets           = COALESCE($10, secrets),
-           state             = COALESCE($11, state),
-           updated_at        = NOW()
+       SET name               = COALESCE($3, name),
+           npc_type           = COALESCE($4, npc_type),
+           description        = COALESCE($5, description),
+           goals              = COALESCE($6, goals),
+           faction_alignment  = COALESCE($7, faction_alignment),
+           secrets            = COALESCE($8, secrets),
+           notes              = COALESCE($9, notes),
+           updated_at         = NOW()
      WHERE tenant_id = $1
        AND id = $2
        AND deleted_at IS NULL
@@ -195,53 +144,15 @@ export async function PUT(req) {
     [
       tenantId,
       id,
-      body.first_name,
-      body.last_name,
+      body.name,
       body.npc_type,
-      body.data,
-      body.personality,
+      body.description,
       body.goals,
       body.faction_alignment,
       body.secrets,
-      body.state,
+      body.notes,
     ]
   );
 
-  if (!result.rows.length) {
-    return Response.json({ error: "NPC not found" }, { status: 404 });
-  }
-
-  return Response.json(result.rows[0]);
-}
-
-/* -----------------------------------------------------------
-   DELETE /api/npcs?id=
-   (soft delete)
------------------------------------------------------------- */
-export async function DELETE(req) {
-  const { tenantId } = await getTenantContext(req);
-  const { searchParams } = new URL(req.url);
-  const id = searchParams.get("id");
-
-  if (!id) {
-    return Response.json({ error: "id is required" }, { status: 400 });
-  }
-
-  const result = await query(
-    `
-    UPDATE npcs
-       SET deleted_at = NOW()
-     WHERE tenant_id = $1
-       AND id = $2
-       AND deleted_at IS NULL
-     RETURNING id
-    `,
-    [tenantId, id]
-  );
-
-  if (!result.rows.length) {
-    return Response.json({ error: "NPC not found" }, { status: 404 });
-  }
-
-  return Response.json({ success: true, id });
+  return Response.json(result.rows[0] || null);
 }

@@ -1,30 +1,24 @@
-// components/forms/NpcForm.jsx
 "use client";
 
 import React from "react";
 
 export default function NpcForm({ record, onChange }) {
   if (!record) return null;
-  const update = (f, v) => onChange({ ...record, [f]: v });
+
+  const update = (field, value) =>
+    onChange({ ...record, [field]: value });
 
   return (
     <div className="cm-detail-form">
 
       <div className="cm-field">
-        <label>First Name</label>
+        <label>
+          Name <strong>(required)</strong>
+        </label>
         <input
           type="text"
-          value={record.firstName || ""}
-          onChange={(e) => update("firstName", e.target.value)}
-        />
-      </div>
-
-      <div className="cm-field">
-        <label>Last Name</label>
-        <input
-          type="text"
-          value={record.lastName || ""}
-          onChange={(e) => update("lastName", e.target.value)}
+          value={record.name || ""}
+          onChange={(e) => update("name", e.target.value)}
         />
       </div>
 
@@ -32,16 +26,16 @@ export default function NpcForm({ record, onChange }) {
         <label>NPC Type</label>
         <input
           type="text"
-          value={record.npcType || ""}
-          onChange={(e) => update("npcType", e.target.value)}
+          value={record.npc_type || ""}
+          onChange={(e) => update("npc_type", e.target.value)}
         />
       </div>
 
       <div className="cm-field">
-        <label>Personality</label>
+        <label>Description</label>
         <textarea
-          value={record.personality || ""}
-          onChange={(e) => update("personality", e.target.value)}
+          value={record.description || ""}
+          onChange={(e) => update("description", e.target.value)}
         />
       </div>
 
@@ -54,18 +48,18 @@ export default function NpcForm({ record, onChange }) {
       </div>
 
       <div className="cm-field">
-        <label>History</label>
+        <label>Faction Alignment</label>
         <textarea
-          value={record.history || ""}
-          onChange={(e) => update("history", e.target.value)}
+          value={record.faction_alignment || ""}
+          onChange={(e) => update("faction_alignment", e.target.value)}
         />
       </div>
 
       <div className="cm-field">
-        <label>Appearances</label>
+        <label>Secrets</label>
         <textarea
-          value={record.appearances || ""}
-          onChange={(e) => update("appearances", e.target.value)}
+          value={record.secrets || ""}
+          onChange={(e) => update("secrets", e.target.value)}
         />
       </div>
 
