@@ -190,7 +190,15 @@ export default function CampaignManagerPage() {
 
   setSaveStatus("saving");
 
-  const { _isNew, id, ...payload } = selectedRecord;
+ const { _isNew, id, ...payload } = selectedRecord;
+
+if (rules.campaign) {
+  payload.campaign_id = activeCampaignId;
+}
+
+if (rules.session) {
+  payload.session_id = activeSessionId;
+}
 
   const saved = _isNew
     ? await cmApi.create(activeType, payload)
