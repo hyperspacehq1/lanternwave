@@ -27,7 +27,6 @@ export async function GET(req) {
       `,
       [tenantId, id]
     );
-
     return Response.json(result.rows[0] || null);
   }
 
@@ -79,9 +78,15 @@ export async function POST(req) {
       name,
       description,
       notes,
-      sensory
+      sensory,
+      world,
+      address_street,
+      address_city,
+      address_state,
+      address_zip,
+      address_country
     )
-    VALUES ($1,$2,$3,$4,$5,$6)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
     RETURNING *
     `,
     [
@@ -91,6 +96,12 @@ export async function POST(req) {
       body.description ?? null,
       body.notes ?? null,
       body.sensory ?? null,
+      body.world ?? null,
+      body.address_street ?? null,
+      body.address_city ?? null,
+      body.address_state ?? null,
+      body.address_zip ?? null,
+      body.address_country ?? null,
     ]
   );
 
@@ -113,11 +124,17 @@ export async function PUT(req) {
   const result = await query(
     `
     UPDATE locations
-       SET name        = COALESCE($3, name),
-           description = COALESCE($4, description),
-           notes       = COALESCE($5, notes),
-           sensory     = COALESCE($6, sensory),
-           updated_at  = NOW()
+       SET name             = COALESCE($3, name),
+           description      = COALESCE($4, description),
+           notes            = COALESCE($5, notes),
+           sensory          = COALESCE($6, sensory),
+           world            = COALESCE($7, world),
+           address_street   = COALESCE($8, address_street),
+           address_city     = COALESCE($9, address_city),
+           address_state    = COALESCE($10, address_state),
+           address_zip      = COALESCE($11, address_zip),
+           address_country  = COALESCE($12, address_country),
+           updated_at       = NOW()
      WHERE tenant_id = $1
        AND id = $2
        AND deleted_at IS NULL
@@ -130,34 +147,14 @@ export async function PUT(req) {
       body.description,
       body.notes,
       body.sensory,
+      body.world,
+      body.address_street,
+      body.address_city,
+      body.address_state,
+      body.address_zip,
+      body.address_country,
     ]
   );
 
   return Response.json(result.rows[0] || null);
-}
-
-/* -----------------------------------------------------------
-   DELETE /api/locations?id=
------------------------------------------------------------- */
-export async function DELETE(req) {
-  const { tenantId } = await getTenantContext(req);
-  const { searchParams } = new URL(req.url);
-  const id = searchParams.get("id");
-
-  if (!id) {
-    return Response.json({ error: "id required" }, { status: 400 });
-  }
-
-  await query(
-    `
-    UPDATE locations
-       SET deleted_at = NOW()
-     WHERE tenant_id = $1
-       AND id = $2
-       AND deleted_at IS NULL
-    `,
-    [tenantId, id]
-  );
-
-  return Response.json({ success: true, id });
 }
