@@ -4,9 +4,14 @@ import { getTenantContext } from "@/lib/tenant/getTenantContext";
 export const dynamic = "force-dynamic";
 
 /* -----------------------------------------------------------
+   Helpers
+------------------------------------------------------------ */
+function pick(body, camel, snake) {
+  return body[camel] ?? body[snake] ?? null;
+}
+
+/* -----------------------------------------------------------
    GET /api/items
-   ?id=
-   ?campaign_id=
 ------------------------------------------------------------ */
 export async function GET(req) {
   const { tenantId } = await getTenantContext(req);
@@ -27,7 +32,6 @@ export async function GET(req) {
       `,
       [tenantId, id]
     );
-
     return Response.json(result.rows[0] || null);
   }
 
@@ -57,14 +61,23 @@ export async function POST(req) {
   const { tenantId } = await getTenantContext(req);
   const body = await req.json();
 
-  if (!body.campaign_id) {
+  const campaignId =
+    body.campaign_id ?? body.campaignId ?? null;
+
+  const name = pick(body, "name", "name");
+  const itemType = pick(body, "itemType", "item_type");
+  const description = pick(body, "description", "description");
+  const notes = pick(body, "notes", "notes");
+  const properties = pick(body, "properties", "properties");
+
+  if (!campaignId) {
     return Response.json(
       { error: "campaign_id is required" },
       { status: 400 }
     );
   }
 
-  if (!body.name || !body.name.trim()) {
+  if (!name || !name.trim()) {
     return Response.json(
       { error: "name is required" },
       { status: 400 }
@@ -87,12 +100,12 @@ export async function POST(req) {
     `,
     [
       tenantId,
-      body.campaign_id,
-      body.name.trim(),
-      body.item_type ?? null,
-      body.description ?? null,
-      body.notes ?? null,
-      body.properties ?? null,
+      campaignId,
+      name.trim(),
+      itemType,
+      description,
+      notes,
+      properties,
     ]
   );
 
@@ -129,11 +142,11 @@ export async function PUT(req) {
     [
       tenantId,
       id,
-      body.name,
-      body.item_type,
-      body.description,
-      body.notes,
-      body.properties,
+      pick(body, "name", "name"),
+      pick(body, "itemType", "item_type"),
+      pick(body, "description", "description"),
+      pick(body, "notes", "notes"),
+      pick(body, "properties", "properties"),
     ]
   );
 

@@ -4,9 +4,14 @@ import { getTenantContext } from "@/lib/tenant/getTenantContext";
 export const dynamic = "force-dynamic";
 
 /* -----------------------------------------------------------
+   Helpers
+------------------------------------------------------------ */
+function pick(body, camel, snake) {
+  return body[camel] ?? body[snake] ?? null;
+}
+
+/* -----------------------------------------------------------
    GET /api/locations
-   ?id=
-   ?campaign_id=
 ------------------------------------------------------------ */
 export async function GET(req) {
   const { tenantId } = await getTenantContext(req);
@@ -56,14 +61,29 @@ export async function POST(req) {
   const { tenantId } = await getTenantContext(req);
   const body = await req.json();
 
-  if (!body.campaign_id) {
+  const name = pick(body, "name", "name");
+  const description = pick(body, "description", "description");
+  const notes = pick(body, "notes", "notes");
+  const sensory = pick(body, "sensory", "sensory");
+  const world = pick(body, "world", "world");
+
+  const address_street = pick(body, "addressStreet", "address_street");
+  const address_city = pick(body, "addressCity", "address_city");
+  const address_state = pick(body, "addressState", "address_state");
+  const address_zip = pick(body, "addressZip", "address_zip");
+  const address_country = pick(body, "addressCountry", "address_country");
+
+  const campaignId =
+    body.campaign_id ?? body.campaignId ?? null;
+
+  if (!campaignId) {
     return Response.json(
       { error: "campaign_id is required" },
       { status: 400 }
     );
   }
 
-  if (!body.name || !body.name.trim()) {
+  if (!name || !name.trim()) {
     return Response.json(
       { error: "name is required" },
       { status: 400 }
@@ -91,17 +111,17 @@ export async function POST(req) {
     `,
     [
       tenantId,
-      body.campaign_id,
-      body.name.trim(),
-      body.description ?? null,
-      body.notes ?? null,
-      body.sensory ?? null,
-      body.world ?? null,
-      body.address_street ?? null,
-      body.address_city ?? null,
-      body.address_state ?? null,
-      body.address_zip ?? null,
-      body.address_country ?? null,
+      campaignId,
+      name.trim(),
+      description,
+      notes,
+      sensory,
+      world,
+      address_street,
+      address_city,
+      address_state,
+      address_zip,
+      address_country,
     ]
   );
 
@@ -124,17 +144,17 @@ export async function PUT(req) {
   const result = await query(
     `
     UPDATE locations
-       SET name             = COALESCE($3, name),
-           description      = COALESCE($4, description),
-           notes            = COALESCE($5, notes),
-           sensory          = COALESCE($6, sensory),
-           world            = COALESCE($7, world),
-           address_street   = COALESCE($8, address_street),
-           address_city     = COALESCE($9, address_city),
-           address_state    = COALESCE($10, address_state),
-           address_zip      = COALESCE($11, address_zip),
-           address_country  = COALESCE($12, address_country),
-           updated_at       = NOW()
+       SET name            = COALESCE($3, name),
+           description     = COALESCE($4, description),
+           notes           = COALESCE($5, notes),
+           sensory         = COALESCE($6, sensory),
+           world           = COALESCE($7, world),
+           address_street  = COALESCE($8, address_street),
+           address_city    = COALESCE($9, address_city),
+           address_state   = COALESCE($10, address_state),
+           address_zip     = COALESCE($11, address_zip),
+           address_country = COALESCE($12, address_country),
+           updated_at      = NOW()
      WHERE tenant_id = $1
        AND id = $2
        AND deleted_at IS NULL
@@ -143,16 +163,16 @@ export async function PUT(req) {
     [
       tenantId,
       id,
-      body.name,
-      body.description,
-      body.notes,
-      body.sensory,
-      body.world,
-      body.address_street,
-      body.address_city,
-      body.address_state,
-      body.address_zip,
-      body.address_country,
+      pick(body, "name", "name"),
+      pick(body, "description", "description"),
+      pick(body, "notes", "notes"),
+      pick(body, "sensory", "sensory"),
+      pick(body, "world", "world"),
+      pick(body, "addressStreet", "address_street"),
+      pick(body, "addressCity", "address_city"),
+      pick(body, "addressState", "address_state"),
+      pick(body, "addressZip", "address_zip"),
+      pick(body, "addressCountry", "address_country"),
     ]
   );
 
