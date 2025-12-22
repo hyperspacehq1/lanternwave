@@ -325,7 +325,11 @@ export default function CampaignManagerPage() {
                       setSelectedRecord(r);
                     }}
                   >
-                    {r.name ?? `${r.first_name} ${r.last_name}`}
+                   {r.name ??
+  [r.firstName, r.lastName]
+    .filter(Boolean)
+    .join(" ") ||
+  "Unnamed"}
                   </div>
                 ))}
             </section>
