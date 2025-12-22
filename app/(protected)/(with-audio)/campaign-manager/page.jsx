@@ -186,37 +186,36 @@ export default function CampaignManagerPage() {
      Save record
   ------------------------------------------------------------ */
   const handleSave = async () => {
-    if (!selectedRecord) return;
+  if (!selectedRecord) return;
 
-    const { _isNew, id, ...payload } = selectedRecord;
+  setSaveStatus("saving");
 
-    const saved = _isNew
-      ? await cmApi.create(activeType, payload)
-      : await cmApi.update(activeType, id, payload);
+  const { _isNew, id, ...payload } = selectedRecord;
 
-    setRecords((p) => ({
+  const saved = _isNew
+    ? await cmApi.create(activeType, payload)
+    : await cmApi.update(activeType, id, payload);
+
+  setRecords((p) => {
+    const list = p[activeType] || [];
+
+    const next = _isNew
+      ? [
+          saved,
+          ...list.filter((r) => r.id !== id) // remove temp record
+        ]
+      : list.map((r) => (r.id === saved.id ? saved : r));
+
+    return {
       ...p,
-      [activeType]: p[activeType].map((r) =>
-        r.id === saved.id ? saved : r
-      ),
-    }));
+      [activeType]: next,
+    };
+  });
 
-    setSelectedId(saved.id);
-    setSelectedRecord(saved);
-    setSaveStatus("saved");
-  };
-
-  const saveLabel = useMemo(
-    () =>
-      ({
-        unsaved: "Unsaved Changes",
-        saving: "Saving…",
-        saved: "Saved",
-        error: "Save Error",
-        idle: "Idle",
-      }[saveStatus]),
-    [saveStatus]
-  );
+  setSelectedId(saved.id);
+  setSelectedRecord(saved);
+  setSaveStatus("saved");
+};
 
   const rules = ENTITY_RULES[activeType] || {};
 
