@@ -8,6 +8,20 @@ import { getFormComponent } from "@/components/forms";
 
 import "./campaign-manager.css";
 
+/* ------------------------------------------------------------
+   Entity rules (single source of truth)
+------------------------------------------------------------ */
+const ENTITY_RULES = {
+  campaigns: {},
+  sessions: { campaign: true },
+  playerCharacters: { campaign: true },
+  npcs: { campaign: true },
+  locations: { campaign: true },
+  items: { campaign: true },
+  events: { campaign: true, session: true },
+  encounters: { campaign: true, session: true },
+};
+
 const CONTAINER_TYPES = [
   { id: "campaigns", label: "Campaigns" },
   { id: "sessions", label: "Sessions" },
@@ -91,10 +105,12 @@ export default function CampaignManagerPage() {
       let list = [];
 
       try {
+        const rules = ENTITY_RULES[activeType] || {};
+
         if (activeType === "sessions") {
           list = records.sessions || [];
-        } 
-        else if (activeType === "events" || activeType === "encounters") {
+        }
+        else if (rules.session) {
           if (!activeSessionId) {
             list = [];
           } else {
@@ -105,12 +121,12 @@ export default function CampaignManagerPage() {
             list = await res.json();
           }
         }
-        else if (activeType === "playerCharacters") {
+        else if (rules.campaign) {
           if (!activeCampaignId) {
             list = [];
           } else {
             const res = await fetch(
-              `/api/player-characters?campaign_id=${activeCampaignId}`,
+              `/api/${activeType}?campaign_id=${activeCampaignId}`,
               { credentials: "include" }
             );
             list = await res.json();
@@ -144,19 +160,16 @@ export default function CampaignManagerPage() {
   ------------------------------------------------------------ */
   const handleCreate = () => {
     const id = uuidv4();
+    const rules = ENTITY_RULES[activeType] || {};
+
     let base = { id, _isNew: true };
 
-    if (activeType === "sessions") {
+    if (rules.campaign) {
       base.campaign_id = activeCampaignId;
     }
 
-    if (activeType === "events" || activeType === "encounters") {
-      base.campaign_id = activeCampaignId;
+    if (rules.session) {
       base.session_id = activeSessionId;
-    }
-
-    if (activeType === "playerCharacters") {
-      base.campaign_id = activeCampaignId;
     }
 
     setRecords((p) => ({
@@ -205,6 +218,8 @@ export default function CampaignManagerPage() {
     [saveStatus]
   );
 
+  const rules = ENTITY_RULES[activeType] || {};
+
   return (
     <div className="cm-root">
       <div className="cm-layout">
@@ -233,11 +248,8 @@ export default function CampaignManagerPage() {
               <button
                 onClick={handleCreate}
                 disabled={
-                  (activeType === "sessions" && !activeCampaignId) ||
-                  (activeType === "playerCharacters" && !activeCampaignId) ||
-                  ((activeType === "events" ||
-                    activeType === "encounters") &&
-                    !activeSessionId)
+                  (rules.campaign && !activeCampaignId) ||
+                  (rules.session && !activeSessionId)
                 }
               >
                 + New
@@ -246,10 +258,7 @@ export default function CampaignManagerPage() {
             </div>
           </header>
 
-          {(activeType === "sessions" ||
-            activeType === "events" ||
-            activeType === "encounters" ||
-            activeType === "playerCharacters") && (
+          {rules.campaign && (
             <div style={{ marginBottom: 12 }}>
               <label>
                 Campaign:&nbsp;
@@ -271,7 +280,7 @@ export default function CampaignManagerPage() {
             </div>
           )}
 
-          {(activeType === "events" || activeType === "encounters") && (
+          {rules.session && (
             <div style={{ marginBottom: 12 }}>
               <label>
                 Session:&nbsp;

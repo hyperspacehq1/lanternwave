@@ -4,9 +4,14 @@ import { getTenantContext } from "@/lib/tenant/getTenantContext";
 export const dynamic = "force-dynamic";
 
 /* -----------------------------------------------------------
+   Helpers
+------------------------------------------------------------ */
+function pick(body, camel, snake) {
+  return body[camel] ?? body[snake] ?? null;
+}
+
+/* -----------------------------------------------------------
    GET /api/npcs
-   ?id=
-   ?campaign_id=
 ------------------------------------------------------------ */
 export async function GET(req) {
   const { tenantId } = await getTenantContext(req);
@@ -66,14 +71,25 @@ export async function POST(req) {
   const { tenantId } = await getTenantContext(req);
   const body = await req.json();
 
-  if (!body.campaign_id) {
+  const campaignId =
+    body.campaign_id ?? body.campaignId ?? null;
+
+  const name = pick(body, "name", "name");
+  const npcType = pick(body, "npcType", "npc_type");
+  const description = pick(body, "description", "description");
+  const goals = pick(body, "goals", "goals");
+  const factionAlignment = pick(body, "factionAlignment", "faction_alignment");
+  const secrets = pick(body, "secrets", "secrets");
+  const notes = pick(body, "notes", "notes");
+
+  if (!campaignId) {
     return Response.json(
       { error: "campaign_id is required" },
       { status: 400 }
     );
   }
 
-  if (!body.name || !body.name.trim()) {
+  if (!name || !name.trim()) {
     return Response.json(
       { error: "name is required" },
       { status: 400 }
@@ -98,14 +114,14 @@ export async function POST(req) {
     `,
     [
       tenantId,
-      body.campaign_id,
-      body.name.trim(),
-      body.npc_type ?? null,
-      body.description ?? null,
-      body.goals ?? null,
-      body.faction_alignment ?? null,
-      body.secrets ?? null,
-      body.notes ?? null,
+      campaignId,
+      name.trim(),
+      npcType,
+      description,
+      goals,
+      factionAlignment,
+      secrets,
+      notes,
     ]
   );
 
@@ -128,14 +144,14 @@ export async function PUT(req) {
   const result = await query(
     `
     UPDATE npcs
-       SET name               = COALESCE($3, name),
-           npc_type           = COALESCE($4, npc_type),
-           description        = COALESCE($5, description),
-           goals              = COALESCE($6, goals),
-           faction_alignment  = COALESCE($7, faction_alignment),
-           secrets            = COALESCE($8, secrets),
-           notes              = COALESCE($9, notes),
-           updated_at         = NOW()
+       SET name              = COALESCE($3, name),
+           npc_type          = COALESCE($4, npc_type),
+           description       = COALESCE($5, description),
+           goals             = COALESCE($6, goals),
+           faction_alignment = COALESCE($7, faction_alignment),
+           secrets           = COALESCE($8, secrets),
+           notes             = COALESCE($9, notes),
+           updated_at        = NOW()
      WHERE tenant_id = $1
        AND id = $2
        AND deleted_at IS NULL
@@ -144,13 +160,13 @@ export async function PUT(req) {
     [
       tenantId,
       id,
-      body.name,
-      body.npc_type,
-      body.description,
-      body.goals,
-      body.faction_alignment,
-      body.secrets,
-      body.notes,
+      pick(body, "name", "name"),
+      pick(body, "npcType", "npc_type"),
+      pick(body, "description", "description"),
+      pick(body, "goals", "goals"),
+      pick(body, "factionAlignment", "faction_alignment"),
+      pick(body, "secrets", "secrets"),
+      pick(body, "notes", "notes"),
     ]
   );
 
