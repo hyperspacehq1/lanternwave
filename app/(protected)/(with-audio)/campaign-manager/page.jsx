@@ -19,7 +19,7 @@ const ENTITY_RULES = {
   locations: { campaign: true },
   items: { campaign: true },
   events: { campaign: true, session: true },
-  encounters: { campaign: true, session: true },
+  encounters: { campaign: true },
 };
 
 const CONTAINER_TYPES = [
