@@ -5,8 +5,6 @@ export const dynamic = "force-dynamic";
 
 /* -----------------------------------------------------------
    GET /api/player-characters
-   ?id=
-   ?campaign_id=
 ------------------------------------------------------------ */
 export async function GET(req) {
   const { searchParams } = new URL(req.url);
@@ -49,6 +47,16 @@ export async function GET(req) {
 export async function POST(req) {
   const body = await req.json();
 
+  const firstName =
+    body.firstName ??
+    body.first_name ??
+    null;
+
+  const lastName =
+    body.lastName ??
+    body.last_name ??
+    null;
+
   if (!body.campaign_id) {
     return Response.json(
       { error: "campaign_id is required" },
@@ -56,7 +64,7 @@ export async function POST(req) {
     );
   }
 
-  if (!body.firstName || !body.lastName) {
+  if (!firstName || !lastName) {
     return Response.json(
       { error: "firstName and lastName are required" },
       { status: 400 }
@@ -80,8 +88,8 @@ export async function POST(req) {
     [
       uuid(),
       body.campaign_id,
-      body.firstName.trim(),
-      body.lastName.trim(),
+      firstName.trim(),
+      lastName.trim(),
       body.phone ?? null,
       body.email ?? null,
       body.notes ?? null,
@@ -117,8 +125,8 @@ export async function PUT(req) {
     `,
     [
       id,
-      body.firstName,
-      body.lastName,
+      body.firstName ?? body.first_name,
+      body.lastName ?? body.last_name,
       body.phone,
       body.email,
       body.notes,
