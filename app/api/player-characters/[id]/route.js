@@ -8,7 +8,7 @@ export async function PUT(req, { params }) {
   const body = await req.json();
 
   const first_name = body.firstName ?? body.first_name ?? null;
-  const last_name = body.lastName ?? body.last_name ?? null;
+  const last_name  = body.lastName  ?? body.last_name  ?? null;
   const phone = body.phone ?? null;
   const email = body.email ?? null;
   const notes = body.notes ?? null;
@@ -30,6 +30,7 @@ export async function PUT(req, { params }) {
            notes      = $5,
            updated_at = NOW()
      WHERE id = $6
+       AND deleted_at IS NULL
      RETURNING *
     `,
     [first_name, last_name, phone, email, notes, id]
@@ -52,7 +53,11 @@ export async function DELETE(req, { params }) {
   const id = params.id;
 
   await query(
-    `DELETE FROM player_characters WHERE id = $1`,
+    `
+    UPDATE player_characters
+       SET deleted_at = NOW()
+     WHERE id = $1
+    `,
     [id]
   );
 
