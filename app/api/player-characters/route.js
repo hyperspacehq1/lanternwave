@@ -14,13 +14,24 @@ export async function GET(req) {
   if (id) {
     const result = await query(
       `
-      SELECT *
+      SELECT
+        id,
+        campaign_id,
+        first_name AS "firstName",
+        last_name  AS "lastName",
+        phone,
+        email,
+        notes,
+        created_at,
+        updated_at
       FROM player_characters
       WHERE id = $1
+        AND deleted_at IS NULL
       LIMIT 1
       `,
       [id]
     );
+
     return Response.json(result.rows[0] || null);
   }
 
@@ -30,9 +41,19 @@ export async function GET(req) {
 
   const list = await query(
     `
-    SELECT *
+    SELECT
+      id,
+      campaign_id,
+      first_name AS "firstName",
+      last_name  AS "lastName",
+      phone,
+      email,
+      notes,
+      created_at,
+      updated_at
     FROM player_characters
     WHERE campaign_id = $1
+      AND deleted_at IS NULL
     ORDER BY created_at ASC
     `,
     [campaignId]
