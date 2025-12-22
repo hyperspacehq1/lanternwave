@@ -5,7 +5,6 @@ export const dynamic = "force-dynamic";
 
 /* -----------------------------------------------------------
    GET /api/encounters/:id/npcs
-   Returns NPCs appearing in an encounter
 ------------------------------------------------------------ */
 export async function GET(req, { params }) {
   const { tenantId } = await getTenantContext(req);
@@ -24,6 +23,10 @@ export async function GET(req, { params }) {
     JOIN npcs n
       ON n.id = en.npc_id
      AND n.deleted_at IS NULL
+     AND n.tenant_id = $2
+    JOIN encounters e
+      ON e.id = en.encounter_id
+     AND e.tenant_id = $2
     WHERE en.encounter_id = $1
       AND en.tenant_id = $2
     ORDER BY
@@ -38,7 +41,6 @@ export async function GET(req, { params }) {
 
 /* -----------------------------------------------------------
    POST /api/encounters/:id/npcs
-   Body: { npc_id, role?, initiative_order?, is_hidden?, notes? }
 ------------------------------------------------------------ */
 export async function POST(req, { params }) {
   const { tenantId } = await getTenantContext(req);
@@ -52,47 +54,6 @@ export async function POST(req, { params }) {
     );
   }
 
-  // Ensure encounter exists and belongs to tenant
-  const encounter = await query(
-    `
-    SELECT id
-    FROM encounters
-    WHERE id = $1
-      AND tenant_id = $2
-      AND deleted_at IS NULL
-    LIMIT 1
-    `,
-    [encounterId, tenantId]
-  );
-
-  if (!encounter.rows.length) {
-    return Response.json(
-      { error: "Invalid encounter" },
-      { status: 404 }
-    );
-  }
-
-  // Ensure NPC exists and belongs to tenant
-  const npc = await query(
-    `
-    SELECT id
-    FROM npcs
-    WHERE id = $1
-      AND tenant_id = $2
-      AND deleted_at IS NULL
-    LIMIT 1
-    `,
-    [body.npc_id, tenantId]
-  );
-
-  if (!npc.rows.length) {
-    return Response.json(
-      { error: "Invalid npc_id" },
-      { status: 404 }
-    );
-  }
-
-  // Insert into join table
   const result = await query(
     `
     INSERT INTO encounter_npcs (
@@ -105,7 +66,7 @@ export async function POST(req, { params }) {
       notes
     )
     VALUES ($1,$2,$3,$4,$5,$6,$7)
-    ON CONFLICT (encounter_id, npc_id)
+    ON CONFLICT (tenant_id, encounter_id, npc_id)
     DO UPDATE SET
       role = EXCLUDED.role,
       initiative_order = EXCLUDED.initiative_order,
@@ -130,7 +91,6 @@ export async function POST(req, { params }) {
 
 /* -----------------------------------------------------------
    DELETE /api/encounters/:id/npcs
-   Body: { npc_id }
 ------------------------------------------------------------ */
 export async function DELETE(req, { params }) {
   const { tenantId } = await getTenantContext(req);
@@ -147,16 +107,12 @@ export async function DELETE(req, { params }) {
   await query(
     `
     DELETE FROM encounter_npcs
-    WHERE tenant_id = $1
-      AND encounter_id = $2
-      AND npc_id = $3
+     WHERE tenant_id = $1
+       AND encounter_id = $2
+       AND npc_id = $3
     `,
     [tenantId, encounterId, body.npc_id]
   );
 
-  return Response.json({
-    ok: true,
-    encounter_id: encounterId,
-    npc_id: body.npc_id,
-  });
+  return Response.json({ ok: true });
 }

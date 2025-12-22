@@ -13,7 +13,7 @@ export async function GET(req, { params }) {
   const result = await query(
     `
     SELECT
-      ei.id              AS join_id,
+      ei.id        AS join_id,
       ei.item_id,
       i.name,
       i.item_type,
@@ -24,13 +24,15 @@ export async function GET(req, { params }) {
     JOIN items i
       ON i.id = ei.item_id
      AND i.deleted_at IS NULL
+     AND i.tenant_id = $2
     JOIN encounters e
       ON e.id = ei.encounter_id
-     AND e.tenant_id = $1
-    WHERE ei.encounter_id = $2
+     AND e.tenant_id = $2
+    WHERE ei.encounter_id = $1
+      AND ei.tenant_id = $2
     ORDER BY i.name ASC
     `,
-    [tenantId, encounterId]
+    [encounterId, tenantId]
   );
 
   return Response.json(result.rows);
@@ -60,26 +62,12 @@ export async function POST(req, { params }) {
       quantity,
       notes
     )
-    SELECT
-      $1,
-      $2,
-      $3,
-      $4,
-      $5
-    WHERE EXISTS (
-      SELECT 1
-      FROM encounters
-      WHERE id = $2 AND tenant_id = $1
-    )
-    AND EXISTS (
-      SELECT 1
-      FROM items
-      WHERE id = $3 AND tenant_id = $1 AND deleted_at IS NULL
-    )
-    ON CONFLICT (encounter_id, item_id)
+    VALUES ($1,$2,$3,$4,$5)
+    ON CONFLICT (tenant_id, encounter_id, item_id)
     DO UPDATE SET
       quantity = EXCLUDED.quantity,
-      notes    = EXCLUDED.notes
+      notes    = EXCLUDED.notes,
+      updated_at = NOW()
     RETURNING *
     `,
     [
@@ -95,7 +83,7 @@ export async function POST(req, { params }) {
 }
 
 /* -----------------------------------------------------------
-   DELETE /api/encounters/:id/items?item_id=
+   DELETE /api/encounters/:id/items
 ------------------------------------------------------------ */
 export async function DELETE(req, { params }) {
   const { tenantId } = await getTenantContext(req);
