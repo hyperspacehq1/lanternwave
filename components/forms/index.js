@@ -16,7 +16,10 @@ export const FORM_REGISTRY = {
   events: EventForm,
   encounters: EncounterForm,
   npcs: NpcForm,
-  playerCharacters: PlayerCharacterForm,
+
+  // FIX: must match API + page entity key exactly
+  "player-characters": PlayerCharacterForm,
+
   items: ItemForm,
   locations: LocationForm,
 };
@@ -30,13 +33,18 @@ function GenericFallbackForm({ record, onChange }) {
   return (
     <div className="cm-detail-form">
       {Object.entries(record)
-        .filter(([key]) => !["_isNew", "_type", "id", "createdAt", "updatedAt"].includes(key))
+        .filter(
+          ([key]) =>
+            !["_isNew", "_type", "id", "createdAt", "updatedAt"].includes(key)
+        )
         .map(([key, value]) => (
           <div className="cm-field" key={key}>
             <label>{key.replace(/([A-Z])/g, " $1")}</label>
             <textarea
               value={value || ""}
-              onChange={(e) => onChange({ ...record, [key]: e.target.value })}
+              onChange={(e) =>
+                onChange({ ...record, [key]: e.target.value })
+              }
             />
           </div>
         ))}
