@@ -46,7 +46,7 @@ export default function CampaignManagerPage() {
   const [activeSessionId, setActiveSessionId] = useState("");
 
   /* ------------------------------------------------------------
-     Save label (FIXED – required for build)
+     Save label
   ------------------------------------------------------------ */
   const saveLabel = useMemo(
     () =>
@@ -63,7 +63,7 @@ export default function CampaignManagerPage() {
   const rules = ENTITY_RULES[activeType] || {};
 
   /* ------------------------------------------------------------
-     Load campaigns once
+     Load campaigns
   ------------------------------------------------------------ */
   useEffect(() => {
     cmApi
@@ -172,16 +172,10 @@ export default function CampaignManagerPage() {
   ------------------------------------------------------------ */
   const handleCreate = () => {
     const id = uuidv4();
-
     let base = { id, _isNew: true };
 
-    if (rules.campaign) {
-      base.campaign_id = activeCampaignId;
-    }
-
-    if (rules.session) {
-      base.session_id = activeSessionId;
-    }
+    if (rules.campaign) base.campaign_id = activeCampaignId;
+    if (rules.session) base.session_id = activeSessionId;
 
     setRecords((p) => ({
       ...p,
@@ -194,7 +188,7 @@ export default function CampaignManagerPage() {
   };
 
   /* ------------------------------------------------------------
-     Save record (FIXED – reinject context + temp-id replace)
+     Save record
   ------------------------------------------------------------ */
   const handleSave = async () => {
     if (!selectedRecord) return;
@@ -203,13 +197,8 @@ export default function CampaignManagerPage() {
 
     const { _isNew, id, ...payload } = selectedRecord;
 
-    if (rules.campaign) {
-      payload.campaign_id = activeCampaignId;
-    }
-
-    if (rules.session) {
-      payload.session_id = activeSessionId;
-    }
+    if (rules.campaign) payload.campaign_id = activeCampaignId;
+    if (rules.session) payload.session_id = activeSessionId;
 
     const saved = _isNew
       ? await cmApi.create(activeType, payload)
@@ -217,7 +206,6 @@ export default function CampaignManagerPage() {
 
     setRecords((p) => {
       const list = p[activeType] || [];
-
       const next = _isNew
         ? [saved, ...list.filter((r) => r.id !== id)]
         : list.map((r) => (r.id === saved.id ? saved : r));
@@ -290,26 +278,6 @@ export default function CampaignManagerPage() {
             </div>
           )}
 
-          {rules.session && (
-            <div style={{ marginBottom: 12 }}>
-              <label>
-                Session:&nbsp;
-                <select
-                  value={activeSessionId}
-                  onChange={(e) => setActiveSessionId(e.target.value)}
-                  disabled={!activeCampaignId}
-                >
-                  <option value="">Select session…</option>
-                  {(records.sessions || []).map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-          )}
-
           <div className="cm-content">
             <section className="cm-list">
               {loading && <div>Loading…</div>}
@@ -325,11 +293,10 @@ export default function CampaignManagerPage() {
                       setSelectedRecord(r);
                     }}
                   >
-                   {r.name ??
-  [r.firstName, r.lastName]
-    .filter(Boolean)
-    .join(" ") ||
-  "Unnamed"}
+                    {(
+                      r.name ??
+                      [r.firstName, r.lastName].filter(Boolean).join(" ")
+                    ) || "Unnamed"}
                   </div>
                 ))}
             </section>
