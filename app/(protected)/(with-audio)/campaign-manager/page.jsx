@@ -46,6 +46,23 @@ export default function CampaignManagerPage() {
   const [activeSessionId, setActiveSessionId] = useState("");
 
   /* ------------------------------------------------------------
+     Save label (FIXED – required for build)
+  ------------------------------------------------------------ */
+  const saveLabel = useMemo(
+    () =>
+      ({
+        unsaved: "Unsaved Changes",
+        saving: "Saving…",
+        saved: "Saved",
+        error: "Save Error",
+        idle: "Idle",
+      }[saveStatus]),
+    [saveStatus]
+  );
+
+  const rules = ENTITY_RULES[activeType] || {};
+
+  /* ------------------------------------------------------------
      Load campaigns once
   ------------------------------------------------------------ */
   useEffect(() => {
@@ -105,12 +122,9 @@ export default function CampaignManagerPage() {
       let list = [];
 
       try {
-        const rules = ENTITY_RULES[activeType] || {};
-
         if (activeType === "sessions") {
           list = records.sessions || [];
-        }
-        else if (rules.session) {
+        } else if (rules.session) {
           if (!activeSessionId) {
             list = [];
           } else {
@@ -120,8 +134,7 @@ export default function CampaignManagerPage() {
             );
             list = await res.json();
           }
-        }
-        else if (rules.campaign) {
+        } else if (rules.campaign) {
           if (!activeCampaignId) {
             list = [];
           } else {
@@ -131,8 +144,7 @@ export default function CampaignManagerPage() {
             );
             list = await res.json();
           }
-        }
-        else {
+        } else {
           list = await cmApi.list(activeType);
         }
 
@@ -160,7 +172,6 @@ export default function CampaignManagerPage() {
   ------------------------------------------------------------ */
   const handleCreate = () => {
     const id = uuidv4();
-    const rules = ENTITY_RULES[activeType] || {};
 
     let base = { id, _isNew: true };
 
@@ -183,49 +194,41 @@ export default function CampaignManagerPage() {
   };
 
   /* ------------------------------------------------------------
-     Save record
+     Save record (FIXED – reinject context + temp-id replace)
   ------------------------------------------------------------ */
   const handleSave = async () => {
-  if (!selectedRecord) return;
+    if (!selectedRecord) return;
 
-  setSaveStatus("saving");
+    setSaveStatus("saving");
 
- const { _isNew, id, ...payload } = selectedRecord;
+    const { _isNew, id, ...payload } = selectedRecord;
 
-if (rules.campaign) {
-  payload.campaign_id = activeCampaignId;
-}
+    if (rules.campaign) {
+      payload.campaign_id = activeCampaignId;
+    }
 
-if (rules.session) {
-  payload.session_id = activeSessionId;
-}
+    if (rules.session) {
+      payload.session_id = activeSessionId;
+    }
 
-  const saved = _isNew
-    ? await cmApi.create(activeType, payload)
-    : await cmApi.update(activeType, id, payload);
+    const saved = _isNew
+      ? await cmApi.create(activeType, payload)
+      : await cmApi.update(activeType, id, payload);
 
-  setRecords((p) => {
-    const list = p[activeType] || [];
+    setRecords((p) => {
+      const list = p[activeType] || [];
 
-    const next = _isNew
-      ? [
-          saved,
-          ...list.filter((r) => r.id !== id) // remove temp record
-        ]
-      : list.map((r) => (r.id === saved.id ? saved : r));
+      const next = _isNew
+        ? [saved, ...list.filter((r) => r.id !== id)]
+        : list.map((r) => (r.id === saved.id ? saved : r));
 
-    return {
-      ...p,
-      [activeType]: next,
-    };
-  });
+      return { ...p, [activeType]: next };
+    });
 
-  setSelectedId(saved.id);
-  setSelectedRecord(saved);
-  setSaveStatus("saved");
-};
-
-  const rules = ENTITY_RULES[activeType] || {};
+    setSelectedId(saved.id);
+    setSelectedRecord(saved);
+    setSaveStatus("saved");
+  };
 
   return (
     <div className="cm-root">
