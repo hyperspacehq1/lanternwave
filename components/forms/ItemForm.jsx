@@ -62,7 +62,7 @@ export default function ItemForm({ record, onChange }) {
                 e.target.value ? JSON.parse(e.target.value) : null
               );
             } catch {
-              // ignore invalid JSON for now
+              // intentionally ignore invalid JSON until user fixes it
             }
           }}
         />
