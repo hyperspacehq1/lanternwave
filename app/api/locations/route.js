@@ -10,6 +10,23 @@ function pick(body, camel, snake) {
   return body[camel] ?? body[snake] ?? null;
 }
 
+function normalizeSensory(input) {
+  if (input == null || input === "") return null;
+
+  if (typeof input === "object") return input;
+
+  try {
+    const parsed = JSON.parse(input);
+    if (typeof parsed === "object") return parsed;
+  } catch {}
+
+  return {
+    text: String(input).trim(),
+    source: "human",
+    updated_at: new Date().toISOString(),
+  };
+}
+
 /* -----------------------------------------------------------
    GET /api/locations
 ------------------------------------------------------------ */
@@ -64,7 +81,7 @@ export async function POST(req) {
   const name = pick(body, "name", "name");
   const description = pick(body, "description", "description");
   const notes = pick(body, "notes", "notes");
-  const sensory = pick(body, "sensory", "sensory");
+  const sensory = normalizeSensory(pick(body, "sensory", "sensory"));
   const world = pick(body, "world", "world");
 
   const address_street = pick(body, "addressStreet", "address_street");
@@ -166,7 +183,7 @@ export async function PUT(req) {
       pick(body, "name", "name"),
       pick(body, "description", "description"),
       pick(body, "notes", "notes"),
-      pick(body, "sensory", "sensory"),
+      normalizeSensory(pick(body, "sensory", "sensory")),
       pick(body, "world", "world"),
       pick(body, "addressStreet", "address_street"),
       pick(body, "addressCity", "address_city"),
