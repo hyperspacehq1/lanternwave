@@ -1,4 +1,4 @@
-import { pool } from "@/lib/db";
+import { query } from "@/lib/db";
 
 /* -------------------------------------------------
    PUT /api/player-characters/:id

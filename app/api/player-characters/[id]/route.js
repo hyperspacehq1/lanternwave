@@ -1,4 +1,4 @@
-import { pool } from "@/lib/db";
+import { query } from "@/lib/db";
 
 /* -------------------------------------------------
    PUT /api/player-characters/:id
@@ -20,39 +20,38 @@ export async function PUT(req, { params }) {
     );
   }
 
-  const { rows } = await pool.query(
+  const result = await query(
     `
     UPDATE player_characters
-    SET
-      first_name = $1,
-      last_name  = $2,
-      phone      = $3,
-      email      = $4,
-      notes      = $5,
-      updated_at = now()
-    WHERE id = $6
-    RETURNING *
+       SET first_name = $1,
+           last_name  = $2,
+           phone      = $3,
+           email      = $4,
+           notes      = $5,
+           updated_at = NOW()
+     WHERE id = $6
+     RETURNING *
     `,
     [first_name, last_name, phone, email, notes, id]
   );
 
-  if (!rows.length) {
+  if (!result.rows.length) {
     return Response.json(
       { error: "player_character not found" },
       { status: 404 }
     );
   }
 
-  return Response.json(rows[0]);
+  return Response.json(result.rows[0]);
 }
 
 /* -------------------------------------------------
-   DELETE /api/player-characters/:id (optional but recommended)
+   DELETE /api/player-characters/:id
 -------------------------------------------------- */
 export async function DELETE(req, { params }) {
   const id = params.id;
 
-  await pool.query(
+  await query(
     `DELETE FROM player_characters WHERE id = $1`,
     [id]
   );
