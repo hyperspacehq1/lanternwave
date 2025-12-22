@@ -14,7 +14,7 @@ import "./campaign-manager.css";
 const ENTITY_RULES = {
   campaigns: {},
   sessions: { campaign: true },
-  playerCharacters: { campaign: true },
+  "player-characters": { campaign: true },
   npcs: { campaign: true },
   locations: { campaign: true },
   items: { campaign: true },
@@ -26,7 +26,7 @@ const CONTAINER_TYPES = [
   { id: "campaigns", label: "Campaigns" },
   { id: "sessions", label: "Sessions" },
   { id: "events", label: "Events" },
-  { id: "playerCharacters", label: "Player Characters" },
+  { id: "player-characters", label: "Player Characters" },
   { id: "npcs", label: "NPCs" },
   { id: "encounters", label: "Encounters" },
   { id: "locations", label: "Locations" },
