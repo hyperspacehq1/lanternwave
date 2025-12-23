@@ -8,6 +8,13 @@ export default function PlayerCharacterForm({ record, onChange }) {
 
   return (
     <div className="cm-detail-form">
+      {/* Read-only Campaign Context */}
+      {record._campaignName && (
+        <div className="cm-context-badge">
+          <strong>Campaign:</strong> {record._campaignName}
+        </div>
+      )}
+
       <div className="cm-field">
         <label>
           First Name <strong>(required)</strong>

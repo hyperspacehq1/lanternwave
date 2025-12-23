@@ -62,6 +62,10 @@ export default function CampaignManagerPage() {
 
   const rules = ENTITY_RULES[activeType] || {};
 
+  const activeCampaign = campaigns.find(
+    (c) => c.id === activeCampaignId
+  );
+
   /* ------------------------------------------------------------
      Load campaigns
   ------------------------------------------------------------ */
@@ -134,9 +138,18 @@ export default function CampaignManagerPage() {
   }, [activeCampaignId]);
 
   /* ------------------------------------------------------------
+     HARD ASSERTION
+     Non-campaign tabs require an active campaign
+  ------------------------------------------------------------ */
+  const campaignRequired =
+    activeType !== "campaigns" && rules.campaign && !activeCampaignId;
+
+  /* ------------------------------------------------------------
      Load records for active type
   ------------------------------------------------------------ */
   useEffect(() => {
+    if (campaignRequired) return;
+
     let cancelled = false;
 
     async function load() {
@@ -157,15 +170,11 @@ export default function CampaignManagerPage() {
             list = await res.json();
           }
         } else if (rules.campaign) {
-          if (!activeCampaignId) {
-            list = [];
-          } else {
-            const res = await fetch(
-              `/api/${activeType}?campaign_id=${activeCampaignId}`,
-              { credentials: "include" }
-            );
-            list = await res.json();
-          }
+          const res = await fetch(
+            `/api/${activeType}?campaign_id=${activeCampaignId}`,
+            { credentials: "include" }
+          );
+          list = await res.json();
         } else {
           list = await cmApi.list(activeType);
         }
@@ -354,50 +363,67 @@ export default function CampaignManagerPage() {
             </div>
           )}
 
-          <div className="cm-content">
-            <section className="cm-list">
-              {loading && <div>Loading…</div>}
-              {!loading &&
-                activeList.map((r) => (
-                  <div
-                    key={r.id}
-                    className={`cm-list-item ${
-                      r.id === selectedId ? "selected" : ""
-                    }`}
-                    onClick={() => {
-                      setSelectedId(r.id);
-                      setSelectedRecord(r);
-                    }}
-                  >
-                    {(
-                      r.name ??
-                      [r.firstName, r.lastName].filter(Boolean).join(" ")
-                    ) || "Unnamed"}
-                  </div>
-                ))}
-            </section>
-
-            <section className="cm-detail">
-              {selectedRecord ? (
-                (() => {
-                  const Form = getFormComponent(activeType);
-                  return Form ? (
-                    <Form
-                      record={{ ...selectedRecord, _type: activeType }}
-                      onChange={(next) => {
-                        setSelectedRecord(next);
-                        setSaveStatus("unsaved");
+          {/* HARD ASSERTION UI */}
+          {campaignRequired ? (
+            <div className="cm-empty-state">
+              <strong>Select a Campaign</strong>
+              <p>
+                You must select a campaign before working with{" "}
+                {activeType}.
+              </p>
+            </div>
+          ) : (
+            <div className="cm-content">
+              <section className="cm-list">
+                {loading && <div>Loading…</div>}
+                {!loading &&
+                  activeList.map((r) => (
+                    <div
+                      key={r.id}
+                      className={`cm-list-item ${
+                        r.id === selectedId ? "selected" : ""
+                      }`}
+                      onClick={() => {
+                        setSelectedId(r.id);
+                        setSelectedRecord(r);
                       }}
-                    />
-                  ) : (
-                    <div>No form implemented.</div>
-                  );
-                })()
-              ) : (
-                <div>Select or create a record.</div>
-              )}
-            </section>
-          </div>
+                    >
+                      {(
+                        r.name ??
+                        [r.firstName, r.lastName]
+                          .filter(Boolean)
+                          .join(" ")
+                      ) || "Unnamed"}
+                    </div>
+                  ))}
+              </section>
+
+              <section className="cm-detail">
+                {selectedRecord ? (
+                  (() => {
+                    const Form = getFormComponent(activeType);
+                    return Form ? (
+                      <Form
+                        record={{
+                          ...selectedRecord,
+                          _type: activeType,
+                          _campaignName: activeCampaign?.name,
+                        }}
+                        onChange={(next) => {
+                          setSelectedRecord(next);
+                          setSaveStatus("unsaved");
+                        }}
+                      />
+                    ) : (
+                      <div>No form implemented.</div>
+                    );
+                  })()
+                ) : (
+                  <div>Select or create a record.</div>
+                )}
+              </section>
+            </div>
+          )}
         </section>
       </div>
     </div>
