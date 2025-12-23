@@ -4,11 +4,11 @@ import { getTenantContext } from "@/lib/tenant/getTenantContext";
 
 export const dynamic = "force-dynamic";
 
-/* -----------------------------------------------------------
+/* -------------------------------------------------
    Helpers
------------------------------------------------------------- */
+-------------------------------------------------- */
 function pick(body, camel, snake) {
-  return body[camel] ?? body[snake] ?? null;
+  return body[camel] ?? body[snake];
 }
 
 function normalizeSensory(input) {
@@ -55,8 +55,15 @@ export async function GET(req) {
       rows[0]
         ? sanitizeRow(rows[0], {
             name: 120,
+            world: 120,
             description: 10000,
             notes: 10000,
+            sensory: 20000,
+            addressStreet: 200,
+            addressCity: 120,
+            addressState: 120,
+            addressZip: 40,
+            addressCountry: 120,
           })
         : null
     );
@@ -81,8 +88,15 @@ export async function GET(req) {
   return Response.json(
     sanitizeRows(rows, {
       name: 120,
+      world: 120,
       description: 10000,
       notes: 10000,
+      sensory: 20000,
+      addressStreet: 200,
+      addressCity: 120,
+      addressState: 120,
+      addressZip: 40,
+      addressCountry: 120,
     })
   );
 }
@@ -94,19 +108,8 @@ export async function POST(req) {
   const { tenantId } = await getTenantContext(req);
   const body = await req.json();
 
-  const name = pick(body, "name", "name");
-  const description = pick(body, "description", "description");
-  const notes = pick(body, "notes", "notes");
-  const sensory = normalizeSensory(pick(body, "sensory", "sensory"));
-  const world = pick(body, "world", "world");
-
-  const address_street = pick(body, "addressStreet", "address_street");
-  const address_city = pick(body, "addressCity", "address_city");
-  const address_state = pick(body, "addressState", "address_state");
-  const address_zip = pick(body, "addressZip", "address_zip");
-  const address_country = pick(body, "addressCountry", "address_country");
-
   const campaignId = body.campaign_id ?? body.campaignId ?? null;
+  const name = body.name?.trim();
 
   if (!campaignId) {
     return Response.json(
@@ -115,7 +118,7 @@ export async function POST(req) {
     );
   }
 
-  if (!name || !name.trim()) {
+  if (!name) {
     return Response.json(
       { error: "name is required" },
       { status: 400 }
@@ -128,10 +131,10 @@ export async function POST(req) {
       tenant_id,
       campaign_id,
       name,
+      world,
       description,
       notes,
       sensory,
-      world,
       address_street,
       address_city,
       address_state,
@@ -144,24 +147,31 @@ export async function POST(req) {
     [
       tenantId,
       campaignId,
-      name.trim(),
-      description,
-      notes,
-      sensory,
-      world,
-      address_street,
-      address_city,
-      address_state,
-      address_zip,
-      address_country,
+      name,
+      body.world ?? null,
+      body.description ?? null,
+      body.notes ?? null,
+      normalizeSensory(body.sensory),
+      body.addressStreet ?? null,
+      body.addressCity ?? null,
+      body.addressState ?? null,
+      body.addressZip ?? null,
+      body.addressCountry ?? null,
     ]
   );
 
   return Response.json(
     sanitizeRow(rows[0], {
       name: 120,
+      world: 120,
       description: 10000,
       notes: 10000,
+      sensory: 20000,
+      addressStreet: 200,
+      addressCity: 120,
+      addressState: 120,
+      addressZip: 40,
+      addressCountry: 120,
     }),
     { status: 201 }
   );
@@ -180,47 +190,100 @@ export async function PUT(req) {
     return Response.json({ error: "id required" }, { status: 400 });
   }
 
+  if ("name" in body && (!body.name || !body.name.trim())) {
+    return Response.json(
+      { error: "name cannot be blank" },
+      { status: 400 }
+    );
+  }
+
+  const sets = [];
+  const values = [tenantId, id];
+  let i = 3;
+
+  if (body.name !== undefined) {
+    sets.push(`name = $${i++}`);
+    values.push(body.name.trim());
+  }
+
+  if (body.world !== undefined) {
+    sets.push(`world = $${i++}`);
+    values.push(body.world);
+  }
+
+  if (body.description !== undefined) {
+    sets.push(`description = $${i++}`);
+    values.push(body.description);
+  }
+
+  if (body.notes !== undefined) {
+    sets.push(`notes = $${i++}`);
+    values.push(body.notes);
+  }
+
+  if (body.sensory !== undefined) {
+    sets.push(`sensory = $${i++}`);
+    values.push(normalizeSensory(body.sensory));
+  }
+
+  if (body.addressStreet !== undefined) {
+    sets.push(`address_street = $${i++}`);
+    values.push(body.addressStreet);
+  }
+
+  if (body.addressCity !== undefined) {
+    sets.push(`address_city = $${i++}`);
+    values.push(body.addressCity);
+  }
+
+  if (body.addressState !== undefined) {
+    sets.push(`address_state = $${i++}`);
+    values.push(body.addressState);
+  }
+
+  if (body.addressZip !== undefined) {
+    sets.push(`address_zip = $${i++}`);
+    values.push(body.addressZip);
+  }
+
+  if (body.addressCountry !== undefined) {
+    sets.push(`address_country = $${i++}`);
+    values.push(body.addressCountry);
+  }
+
+  if (!sets.length) {
+    return Response.json(
+      { error: "No valid fields provided" },
+      { status: 400 }
+    );
+  }
+
   const { rows } = await query(
     `
     UPDATE locations
-       SET name            = COALESCE($3, name),
-           description     = COALESCE($4, description),
-           notes           = COALESCE($5, notes),
-           sensory         = COALESCE($6, sensory),
-           world           = COALESCE($7, world),
-           address_street  = COALESCE($8, address_street),
-           address_city    = COALESCE($9, address_city),
-           address_state   = COALESCE($10, address_state),
-           address_zip     = COALESCE($11, address_zip),
-           address_country = COALESCE($12, address_country),
-           updated_at      = NOW()
+       SET ${sets.join(", ")},
+           updated_at = NOW()
      WHERE tenant_id = $1
        AND id = $2
        AND deleted_at IS NULL
      RETURNING *
     `,
-    [
-      tenantId,
-      id,
-      pick(body, "name", "name"),
-      pick(body, "description", "description"),
-      pick(body, "notes", "notes"),
-      normalizeSensory(pick(body, "sensory", "sensory")),
-      pick(body, "world", "world"),
-      pick(body, "addressStreet", "address_street"),
-      pick(body, "addressCity", "address_city"),
-      pick(body, "addressState", "address_state"),
-      pick(body, "addressZip", "address_zip"),
-      pick(body, "addressCountry", "address_country"),
-    ]
+    values
   );
 
   return Response.json(
     rows[0]
       ? sanitizeRow(rows[0], {
           name: 120,
+          world: 120,
           description: 10000,
           notes: 10000,
+          sensory: 20000,
+          addressStreet: 200,
+          addressCity: 120,
+          addressState: 120,
+          addressZip: 40,
+          addressCountry: 120,
         })
       : null
   );
@@ -255,8 +318,15 @@ export async function DELETE(req) {
     rows[0]
       ? sanitizeRow(rows[0], {
           name: 120,
+          world: 120,
           description: 10000,
           notes: 10000,
+          sensory: 20000,
+          addressStreet: 200,
+          addressCity: 120,
+          addressState: 120,
+          addressZip: 40,
+          addressCountry: 120,
         })
       : null
   );

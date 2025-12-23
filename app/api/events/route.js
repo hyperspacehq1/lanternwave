@@ -4,6 +4,17 @@ import { sanitizeRow, sanitizeRows } from "@/lib/api/sanitize";
 
 export const dynamic = "force-dynamic";
 
+const ALLOWED_EVENT_TYPES = new Set([
+  "combat",
+  "story",
+  "exploration",
+  "social",
+  "downtime",
+]);
+
+const MIN_PRIORITY = 0;
+const MAX_PRIORITY = 100;
+
 /* -----------------------------------------------------------
    GET /api/events
 ------------------------------------------------------------ */
@@ -33,7 +44,8 @@ export async function GET(req) {
           ? sanitizeRow(rows[0], {
               name: 120,
               description: 10000,
-              notes: 10000,
+              eventType: 50,
+              priority: 10,
             })
           : null
       );
@@ -56,7 +68,8 @@ export async function GET(req) {
         sanitizeRows(rows, {
           name: 120,
           description: 10000,
-          notes: 10000,
+          eventType: 50,
+          priority: 10,
         })
       );
     }
@@ -89,6 +102,28 @@ export async function POST(req) {
     if (!body?.name || !body.name.trim()) {
       return Response.json(
         { error: "name is required" },
+        { status: 400 }
+      );
+    }
+
+    if (
+      body.event_type !== undefined &&
+      !ALLOWED_EVENT_TYPES.has(body.event_type)
+    ) {
+      return Response.json(
+        { error: "Invalid event type" },
+        { status: 400 }
+      );
+    }
+
+    if (
+      body.priority !== undefined &&
+      (typeof body.priority !== "number" ||
+        body.priority < MIN_PRIORITY ||
+        body.priority > MAX_PRIORITY)
+    ) {
+      return Response.json(
+        { error: "Invalid priority" },
         { status: 400 }
       );
     }
@@ -141,7 +176,8 @@ export async function POST(req) {
       sanitizeRow(rows[0], {
         name: 120,
         description: 10000,
-        notes: 10000,
+        eventType: 50,
+        priority: 10,
       }),
       { status: 201 }
     );
@@ -169,27 +205,77 @@ export async function PUT(req) {
 
     const body = await req.json();
 
+    if ("name" in body && (!body.name || !body.name.trim())) {
+      return Response.json(
+        { error: "name cannot be blank" },
+        { status: 400 }
+      );
+    }
+
+    if (
+      "event_type" in body &&
+      !ALLOWED_EVENT_TYPES.has(body.event_type)
+    ) {
+      return Response.json(
+        { error: "Invalid event type" },
+        { status: 400 }
+      );
+    }
+
+    if (
+      "priority" in body &&
+      (typeof body.priority !== "number" ||
+        body.priority < MIN_PRIORITY ||
+        body.priority > MAX_PRIORITY)
+    ) {
+      return Response.json(
+        { error: "Invalid priority" },
+        { status: 400 }
+      );
+    }
+
+    const sets = [];
+    const values = [tenantId, id];
+    let i = 3;
+
+    if (body.name !== undefined) {
+      sets.push(`name = $${i++}`);
+      values.push(body.name.trim());
+    }
+
+    if (body.description !== undefined) {
+      sets.push(`description = $${i++}`);
+      values.push(body.description);
+    }
+
+    if (body.event_type !== undefined) {
+      sets.push(`event_type = $${i++}`);
+      values.push(body.event_type);
+    }
+
+    if (body.priority !== undefined) {
+      sets.push(`priority = $${i++}`);
+      values.push(body.priority);
+    }
+
+    if (!sets.length) {
+      return Response.json(
+        { error: "No valid fields provided" },
+        { status: 400 }
+      );
+    }
+
     const { rows } = await query(
       `
       UPDATE events
-         SET name        = COALESCE($3, name),
-             description = COALESCE($4, description),
-             event_type  = COALESCE($5, event_type),
-             priority    = COALESCE($6, priority),
-             updated_at  = NOW()
+         SET ${sets.join(", ")},
+             updated_at = NOW()
        WHERE tenant_id = $1
          AND id = $2
          AND deleted_at IS NULL
        RETURNING *
       `,
-      [
-        tenantId,
-        id,
-        body.name,
-        body.description,
-        body.event_type,
-        body.priority,
-      ]
+      values
     );
 
     return Response.json(
@@ -197,7 +283,8 @@ export async function PUT(req) {
         ? sanitizeRow(rows[0], {
             name: 120,
             description: 10000,
-            notes: 10000,
+            eventType: 50,
+            priority: 10,
           })
         : null
     );
@@ -241,7 +328,8 @@ export async function DELETE(req) {
         ? sanitizeRow(rows[0], {
             name: 120,
             description: 10000,
-            notes: 10000,
+            eventType: 50,
+            priority: 10,
           })
         : null
     );

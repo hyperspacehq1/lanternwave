@@ -20,7 +20,7 @@ export async function GET(req) {
   if (id) {
     const { rows } = await query(
       `
-      SELECT *
+      SELECT id, campaign_id, name, description, created_at, updated_at
         FROM encounters
        WHERE tenant_id = $1
          AND id = $2
@@ -35,7 +35,6 @@ export async function GET(req) {
         ? sanitizeRow(rows[0], {
             name: 120,
             description: 10000,
-            notes: 10000,
           })
         : null
     );
@@ -44,7 +43,7 @@ export async function GET(req) {
   if (campaignId) {
     const { rows } = await query(
       `
-      SELECT *
+      SELECT id, campaign_id, name, description, created_at, updated_at
         FROM encounters
        WHERE tenant_id = $1
          AND campaign_id = $2
@@ -58,7 +57,6 @@ export async function GET(req) {
       sanitizeRows(rows, {
         name: 120,
         description: 10000,
-        notes: 10000,
       })
     );
   }
@@ -98,11 +96,10 @@ export async function POST(req) {
       campaign_id,
       name,
       description,
-      notes,
       created_at,
       updated_at
     )
-    VALUES ($1,$2,$3,$4,$5,$6,NOW(),NOW())
+    VALUES ($1,$2,$3,$4,$5,NOW(),NOW())
     RETURNING *
     `,
     [
@@ -111,7 +108,6 @@ export async function POST(req) {
       campaignId,
       name,
       body.description ?? null,
-      body.notes ?? null,
     ]
   );
 
@@ -119,7 +115,6 @@ export async function POST(req) {
     sanitizeRow(rows[0], {
       name: 120,
       description: 10000,
-      notes: 10000,
     }),
     { status: 201 }
   );
@@ -132,26 +127,51 @@ export async function PUT(req) {
   const { tenantId } = await getTenantContext(req);
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
+  const body = await req.json();
 
   if (!id) {
     return Response.json({ error: "id required" }, { status: 400 });
   }
 
-  const body = await req.json();
+  if ("name" in body && (!body.name || !body.name.trim())) {
+    return Response.json(
+      { error: "name cannot be blank" },
+      { status: 400 }
+    );
+  }
+
+  const sets = [];
+  const values = [tenantId, id];
+  let i = 3;
+
+  if (body.name !== undefined) {
+    sets.push(`name = $${i++}`);
+    values.push(body.name.trim());
+  }
+
+  if (body.description !== undefined) {
+    sets.push(`description = $${i++}`);
+    values.push(body.description);
+  }
+
+  if (!sets.length) {
+    return Response.json(
+      { error: "No valid fields provided" },
+      { status: 400 }
+    );
+  }
 
   const { rows } = await query(
     `
     UPDATE encounters
-       SET name        = COALESCE($3, name),
-           description = COALESCE($4, description),
-           notes       = COALESCE($5, notes),
-           updated_at  = NOW()
+       SET ${sets.join(", ")},
+           updated_at = NOW()
      WHERE tenant_id = $1
        AND id = $2
        AND deleted_at IS NULL
      RETURNING *
     `,
-    [tenantId, id, body.name, body.description, body.notes]
+    values
   );
 
   return Response.json(
@@ -159,7 +179,6 @@ export async function PUT(req) {
       ? sanitizeRow(rows[0], {
           name: 120,
           description: 10000,
-          notes: 10000,
         })
       : null
   );
@@ -195,7 +214,6 @@ export async function DELETE(req) {
       ? sanitizeRow(rows[0], {
           name: 120,
           description: 10000,
-          notes: 10000,
         })
       : null
   );

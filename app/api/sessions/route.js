@@ -165,25 +165,50 @@ export async function PUT(req) {
 
     const body = await req.json();
 
+    if ("name" in body && (!body.name || !body.name.trim())) {
+      return Response.json(
+        { error: "name cannot be blank" },
+        { status: 400 }
+      );
+    }
+
+    const sets = [];
+    const values = [tenantId, id];
+    let i = 3;
+
+    if (body.name !== undefined) {
+      sets.push(`name = $${i++}`);
+      values.push(body.name.trim());
+    }
+
+    if (body.description !== undefined) {
+      sets.push(`description = $${i++}`);
+      values.push(body.description);
+    }
+
+    if (body.notes !== undefined) {
+      sets.push(`notes = $${i++}`);
+      values.push(body.notes);
+    }
+
+    if (!sets.length) {
+      return Response.json(
+        { error: "No valid fields provided" },
+        { status: 400 }
+      );
+    }
+
     const { rows } = await query(
       `
       UPDATE sessions
-         SET name        = COALESCE($3, name),
-             description = COALESCE($4, description),
-             notes       = COALESCE($5, notes),
-             updated_at  = NOW()
+         SET ${sets.join(", ")},
+             updated_at = NOW()
        WHERE tenant_id = $1
          AND id = $2
          AND deleted_at IS NULL
        RETURNING *
       `,
-      [
-        tenantId,
-        id,
-        body.name,
-        body.description,
-        body.notes,
-      ]
+      values
     );
 
     return Response.json(

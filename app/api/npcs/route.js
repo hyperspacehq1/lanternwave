@@ -4,11 +4,17 @@ import { getTenantContext } from "@/lib/tenant/getTenantContext";
 
 export const dynamic = "force-dynamic";
 
-/* -----------------------------------------------------------
-   Helpers
------------------------------------------------------------- */
+const ALLOWED_NPC_TYPES = new Set([
+  "ally",
+  "enemy",
+  "neutral",
+  "merchant",
+  "authority",
+  "mystic",
+]);
+
 function pick(body, camel, snake) {
-  return body[camel] ?? body[snake] ?? null;
+  return body[camel] ?? body[snake];
 }
 
 /* -----------------------------------------------------------
@@ -38,7 +44,11 @@ export async function GET(req) {
       rows[0]
         ? sanitizeRow(rows[0], {
             name: 120,
+            npcType: 50,
             description: 10000,
+            goals: 10000,
+            factionAlignment: 100,
+            secrets: 10000,
             notes: 10000,
           })
         : null
@@ -61,7 +71,11 @@ export async function GET(req) {
     return Response.json(
       sanitizeRows(rows, {
         name: 120,
+        npcType: 50,
         description: 10000,
+        goals: 10000,
+        factionAlignment: 100,
+        secrets: 10000,
         notes: 10000,
       })
     );
@@ -81,7 +95,11 @@ export async function GET(req) {
   return Response.json(
     sanitizeRows(rows, {
       name: 120,
+      npcType: 50,
       description: 10000,
+      goals: 10000,
+      factionAlignment: 100,
+      secrets: 10000,
       notes: 10000,
     })
   );
@@ -95,14 +113,8 @@ export async function POST(req) {
   const body = await req.json();
 
   const campaignId = body.campaign_id ?? body.campaignId ?? null;
-
   const name = pick(body, "name", "name");
   const npcType = pick(body, "npcType", "npc_type");
-  const description = pick(body, "description", "description");
-  const goals = pick(body, "goals", "goals");
-  const factionAlignment = pick(body, "factionAlignment", "faction_alignment");
-  const secrets = pick(body, "secrets", "secrets");
-  const notes = pick(body, "notes", "notes");
 
   if (!campaignId) {
     return Response.json(
@@ -114,6 +126,13 @@ export async function POST(req) {
   if (!name || !name.trim()) {
     return Response.json(
       { error: "name is required" },
+      { status: 400 }
+    );
+  }
+
+  if (npcType !== undefined && !ALLOWED_NPC_TYPES.has(npcType)) {
+    return Response.json(
+      { error: "Invalid npc type" },
       { status: 400 }
     );
   }
@@ -138,19 +157,23 @@ export async function POST(req) {
       tenantId,
       campaignId,
       name.trim(),
-      npcType,
-      description,
-      goals,
-      factionAlignment,
-      secrets,
-      notes,
+      npcType ?? null,
+      pick(body, "description", "description") ?? null,
+      pick(body, "goals", "goals") ?? null,
+      pick(body, "factionAlignment", "faction_alignment") ?? null,
+      pick(body, "secrets", "secrets") ?? null,
+      pick(body, "notes", "notes") ?? null,
     ]
   );
 
   return Response.json(
     sanitizeRow(rows[0], {
       name: 120,
+      npcType: 50,
       description: 10000,
+      goals: 10000,
+      factionAlignment: 100,
+      secrets: 10000,
       notes: 10000,
     }),
     { status: 201 }
@@ -170,40 +193,92 @@ export async function PUT(req) {
     return Response.json({ error: "id required" }, { status: 400 });
   }
 
+  if ("name" in body && (!body.name || !body.name.trim())) {
+    return Response.json(
+      { error: "name cannot be blank" },
+      { status: 400 }
+    );
+  }
+
+  if (
+    "npcType" in body &&
+    body.npcType !== undefined &&
+    !ALLOWED_NPC_TYPES.has(body.npcType)
+  ) {
+    return Response.json(
+      { error: "Invalid npc type" },
+      { status: 400 }
+    );
+  }
+
+  const sets = [];
+  const values = [tenantId, id];
+  let i = 3;
+
+  if (body.name !== undefined) {
+    sets.push(`name = $${i++}`);
+    values.push(body.name.trim());
+  }
+
+  if (body.npcType !== undefined) {
+    sets.push(`npc_type = $${i++}`);
+    values.push(body.npcType);
+  }
+
+  if (body.description !== undefined) {
+    sets.push(`description = $${i++}`);
+    values.push(body.description);
+  }
+
+  if (body.goals !== undefined) {
+    sets.push(`goals = $${i++}`);
+    values.push(body.goals);
+  }
+
+  if (body.factionAlignment !== undefined) {
+    sets.push(`faction_alignment = $${i++}`);
+    values.push(body.factionAlignment);
+  }
+
+  if (body.secrets !== undefined) {
+    sets.push(`secrets = $${i++}`);
+    values.push(body.secrets);
+  }
+
+  if (body.notes !== undefined) {
+    sets.push(`notes = $${i++}`);
+    values.push(body.notes);
+  }
+
+  if (!sets.length) {
+    return Response.json(
+      { error: "No valid fields provided" },
+      { status: 400 }
+    );
+  }
+
   const { rows } = await query(
     `
     UPDATE npcs
-       SET name              = COALESCE($3, name),
-           npc_type          = COALESCE($4, npc_type),
-           description       = COALESCE($5, description),
-           goals             = COALESCE($6, goals),
-           faction_alignment = COALESCE($7, faction_alignment),
-           secrets           = COALESCE($8, secrets),
-           notes             = COALESCE($9, notes),
-           updated_at        = NOW()
+       SET ${sets.join(", ")},
+           updated_at = NOW()
      WHERE tenant_id = $1
        AND id = $2
        AND deleted_at IS NULL
      RETURNING *
     `,
-    [
-      tenantId,
-      id,
-      pick(body, "name", "name"),
-      pick(body, "npcType", "npc_type"),
-      pick(body, "description", "description"),
-      pick(body, "goals", "goals"),
-      pick(body, "factionAlignment", "faction_alignment"),
-      pick(body, "secrets", "secrets"),
-      pick(body, "notes", "notes"),
-    ]
+    values
   );
 
   return Response.json(
     rows[0]
       ? sanitizeRow(rows[0], {
           name: 120,
+          npcType: 50,
           description: 10000,
+          goals: 10000,
+          factionAlignment: 100,
+          secrets: 10000,
           notes: 10000,
         })
       : null
@@ -239,7 +314,11 @@ export async function DELETE(req) {
     rows[0]
       ? sanitizeRow(rows[0], {
           name: 120,
+          npcType: 50,
           description: 10000,
+          goals: 10000,
+          factionAlignment: 100,
+          secrets: 10000,
           notes: 10000,
         })
       : null

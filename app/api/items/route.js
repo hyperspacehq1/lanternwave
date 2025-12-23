@@ -1,18 +1,19 @@
+import { sanitizeRow, sanitizeRows } from "@/lib/api/sanitize";
 import { query } from "@/lib/db";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
-import { sanitizeRow, sanitizeRows } from "@/lib/api/sanitize";
 
 export const dynamic = "force-dynamic";
 
-/* -----------------------------------------------------------
+/* -------------------------------------------------
    Helpers
------------------------------------------------------------- */
+-------------------------------------------------- */
 function pick(body, camel, snake) {
-  return body[camel] ?? body[snake] ?? null;
+  return body[camel] ?? body[snake];
 }
 
-function normalizeJson(input) {
+function normalizeProperties(input) {
   if (input == null || input === "") return null;
+
   if (typeof input === "object") return input;
 
   try {
@@ -54,8 +55,10 @@ export async function GET(req) {
       rows[0]
         ? sanitizeRow(rows[0], {
             name: 120,
+            itemType: 50,
             description: 10000,
             notes: 10000,
+            properties: 20000,
           })
         : null
     );
@@ -80,8 +83,10 @@ export async function GET(req) {
   return Response.json(
     sanitizeRows(rows, {
       name: 120,
+      itemType: 50,
       description: 10000,
       notes: 10000,
+      properties: 20000,
     })
   );
 }
@@ -93,13 +98,8 @@ export async function POST(req) {
   const { tenantId } = await getTenantContext(req);
   const body = await req.json();
 
-  const name = pick(body, "name", "name");
-  const item_type = pick(body, "itemType", "item_type");
-  const description = pick(body, "description", "description");
-  const notes = pick(body, "notes", "notes");
-  const properties = normalizeJson(pick(body, "properties", "properties"));
-
   const campaignId = body.campaign_id ?? body.campaignId ?? null;
+  const name = body.name?.trim();
 
   if (!campaignId) {
     return Response.json(
@@ -108,7 +108,7 @@ export async function POST(req) {
     );
   }
 
-  if (!name || !name.trim()) {
+  if (!name) {
     return Response.json(
       { error: "name is required" },
       { status: 400 }
@@ -132,19 +132,21 @@ export async function POST(req) {
     [
       tenantId,
       campaignId,
-      name.trim(),
-      item_type,
-      description,
-      notes,
-      properties,
+      name,
+      body.itemType ?? body.item_type ?? null,
+      body.description ?? null,
+      body.notes ?? null,
+      normalizeProperties(body.properties),
     ]
   );
 
   return Response.json(
     sanitizeRow(rows[0], {
       name: 120,
+      itemType: 50,
       description: 10000,
       notes: 10000,
+      properties: 20000,
     }),
     { status: 201 }
   );
@@ -163,37 +165,70 @@ export async function PUT(req) {
     return Response.json({ error: "id required" }, { status: 400 });
   }
 
+  if ("name" in body && (!body.name || !body.name.trim())) {
+    return Response.json(
+      { error: "name cannot be blank" },
+      { status: 400 }
+    );
+  }
+
+  const sets = [];
+  const values = [tenantId, id];
+  let i = 3;
+
+  if (body.name !== undefined) {
+    sets.push(`name = $${i++}`);
+    values.push(body.name.trim());
+  }
+
+  if (body.itemType !== undefined || body.item_type !== undefined) {
+    sets.push(`item_type = $${i++}`);
+    values.push(body.itemType ?? body.item_type);
+  }
+
+  if (body.description !== undefined) {
+    sets.push(`description = $${i++}`);
+    values.push(body.description);
+  }
+
+  if (body.notes !== undefined) {
+    sets.push(`notes = $${i++}`);
+    values.push(body.notes);
+  }
+
+  if (body.properties !== undefined) {
+    sets.push(`properties = $${i++}`);
+    values.push(normalizeProperties(body.properties));
+  }
+
+  if (!sets.length) {
+    return Response.json(
+      { error: "No valid fields provided" },
+      { status: 400 }
+    );
+  }
+
   const { rows } = await query(
     `
     UPDATE items
-       SET name        = COALESCE($3, name),
-           item_type   = COALESCE($4, item_type),
-           description = COALESCE($5, description),
-           notes       = COALESCE($6, notes),
-           properties  = COALESCE($7, properties),
-           updated_at  = NOW()
+       SET ${sets.join(", ")},
+           updated_at = NOW()
      WHERE tenant_id = $1
        AND id = $2
        AND deleted_at IS NULL
      RETURNING *
     `,
-    [
-      tenantId,
-      id,
-      pick(body, "name", "name"),
-      pick(body, "itemType", "item_type"),
-      pick(body, "description", "description"),
-      pick(body, "notes", "notes"),
-      normalizeJson(pick(body, "properties", "properties")),
-    ]
+    values
   );
 
   return Response.json(
     rows[0]
       ? sanitizeRow(rows[0], {
           name: 120,
+          itemType: 50,
           description: 10000,
           notes: 10000,
+          properties: 20000,
         })
       : null
   );
@@ -228,8 +263,10 @@ export async function DELETE(req) {
     rows[0]
       ? sanitizeRow(rows[0], {
           name: 120,
+          itemType: 50,
           description: 10000,
           notes: 10000,
+          properties: 20000,
         })
       : null
   );

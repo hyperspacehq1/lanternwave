@@ -42,6 +42,8 @@ export async function GET(req) {
         ? sanitizeRow(rows[0], {
             firstName: 60,
             lastName: 60,
+            phone: 40,
+            email: 254,
             notes: 10000,
           })
         : null
@@ -77,6 +79,8 @@ export async function GET(req) {
     sanitizeRows(rows, {
       firstName: 60,
       lastName: 60,
+      phone: 40,
+      email: 254,
       notes: 10000,
     })
   );
@@ -138,6 +142,8 @@ export async function POST(req) {
     sanitizeRow(rows[0], {
       firstName: 60,
       lastName: 60,
+      phone: 40,
+      email: 254,
       notes: 10000,
     }),
     { status: 201 }
@@ -167,29 +173,53 @@ export async function PUT(req) {
     );
   }
 
+  const sets = [];
+  const values = [tenantId, id];
+  let i = 3;
+
+  if (body.firstName !== undefined || body.first_name !== undefined) {
+    sets.push(`first_name = $${i++}`);
+    values.push((body.firstName ?? body.first_name).trim());
+  }
+
+  if (body.lastName !== undefined || body.last_name !== undefined) {
+    sets.push(`last_name = $${i++}`);
+    values.push((body.lastName ?? body.last_name).trim());
+  }
+
+  if (body.phone !== undefined) {
+    sets.push(`phone = $${i++}`);
+    values.push(body.phone);
+  }
+
+  if (body.email !== undefined) {
+    sets.push(`email = $${i++}`);
+    values.push(body.email);
+  }
+
+  if (body.notes !== undefined) {
+    sets.push(`notes = $${i++}`);
+    values.push(body.notes);
+  }
+
+  if (!sets.length) {
+    return Response.json(
+      { error: "No valid fields provided" },
+      { status: 400 }
+    );
+  }
+
   const { rows } = await query(
     `
     UPDATE player_characters
-       SET first_name = COALESCE($3, first_name),
-           last_name  = COALESCE($4, last_name),
-           phone      = COALESCE($5, phone),
-           email      = COALESCE($6, email),
-           notes      = COALESCE($7, notes),
+       SET ${sets.join(", ")},
            updated_at = NOW()
      WHERE tenant_id = $1
        AND id = $2
        AND deleted_at IS NULL
      RETURNING *
     `,
-    [
-      tenantId,
-      id,
-      body.firstName ?? body.first_name,
-      body.lastName ?? body.last_name,
-      body.phone,
-      body.email,
-      body.notes,
-    ]
+    values
   );
 
   return Response.json(
@@ -197,6 +227,8 @@ export async function PUT(req) {
       ? sanitizeRow(rows[0], {
           firstName: 60,
           lastName: 60,
+          phone: 40,
+          email: 254,
           notes: 10000,
         })
       : null
@@ -233,6 +265,8 @@ export async function DELETE(req) {
       ? sanitizeRow(rows[0], {
           firstName: 60,
           lastName: 60,
+          phone: 40,
+          email: 254,
           notes: 10000,
         })
       : null
