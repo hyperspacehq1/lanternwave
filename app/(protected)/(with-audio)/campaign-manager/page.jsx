@@ -256,19 +256,7 @@ export default function CampaignManagerPage() {
             </div>
           </header>
 
-          {/* 👇 Option A helper text (NEW) */}
-          {activeType === "events" && !activeSessionId && (
-            <div
-              style={{
-                marginBottom: 12,
-                opacity: 0.7,
-                fontStyle: "italic",
-              }}
-            >
-              Select a session to add events.
-            </div>
-          )}
-
+          {/* Campaign selector */}
           {rules.campaign && (
             <div style={{ marginBottom: 12 }}>
               <label>
@@ -291,52 +279,23 @@ export default function CampaignManagerPage() {
             </div>
           )}
 
-          <div className="cm-content">
-            <section className="cm-list">
-              {loading && <div>Loading…</div>}
-              {!loading &&
-                activeList.map((r) => (
-                  <div
-                    key={r.id}
-                    className={`cm-list-item ${
-                      r.id === selectedId ? "selected" : ""
-                    }`}
-                    onClick={() => {
-                      setSelectedId(r.id);
-                      setSelectedRecord(r);
-                    }}
-                  >
-                    {(
-                      r.name ??
-                      [r.firstName, r.lastName].filter(Boolean).join(" ")
-                    ) || "Unnamed"}
-                  </div>
-                ))}
-            </section>
-
-            <section className="cm-detail">
-              {selectedRecord ? (
-                (() => {
-                  const Form = getFormComponent(activeType);
-                  return Form ? (
-                    <Form
-                      record={{ ...selectedRecord, _type: activeType }}
-                      onChange={(next) => {
-                        setSelectedRecord(next);
-                        setSaveStatus("unsaved");
-                      }}
-                    />
-                  ) : (
-                    <div>No form implemented.</div>
-                  );
-                })()
-              ) : (
-                <div>Select or create a record.</div>
-              )}
-            </section>
-          </div>
-        </section>
-      </div>
-    </div>
-  );
-}
+          {/* ✅ Session selector (FIX) */}
+          {rules.session && (
+            <div style={{ marginBottom: 12 }}>
+              <label>
+                Session:&nbsp;
+                <select
+                  value={activeSessionId}
+                  onChange={(e) => setActiveSessionId(e.target.value)}
+                  disabled={!activeCampaignId}
+                >
+                  <option value="">Select session…</option>
+                  {(records.sessions || []).map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          )}
