@@ -13,14 +13,6 @@ const ALLOWED_CAMPAIGN_PACKAGES = new Set([
 ]);
 
 /* -----------------------------------------------------------
-   Helper — read id from query (?id=)
------------------------------------------------------------- */
-function getId(req) {
-  const { searchParams } = new URL(req.url);
-  return searchParams.get("id");
-}
-
-/* -----------------------------------------------------------
    GET /api/campaigns?id=
 ------------------------------------------------------------ */
 export async function GET(req) {
@@ -31,7 +23,9 @@ export async function GET(req) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const id = getId(req);
+  const { searchParams } = new URL(req.url);
+  const id = searchParams.get("id");
+
   if (!id) {
     return Response.json({ error: "id required" }, { status: 400 });
   }
@@ -74,7 +68,9 @@ export async function PUT(req) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const id = getId(req);
+  const { searchParams } = new URL(req.url);
+  const id = searchParams.get("id");
+
   if (!id) {
     return Response.json({ error: "id required" }, { status: 400 });
   }
@@ -115,3 +111,99 @@ export async function PUT(req) {
     values.push(db.name);
   }
   if (db.description !== undefined) {
+    sets.push(`description = $${i++}`);
+    values.push(db.description);
+  }
+  if (db.world_setting !== undefined) {
+    sets.push(`world_setting = $${i++}`);
+    values.push(db.world_setting);
+  }
+  if (db.campaign_date !== undefined) {
+    sets.push(`campaign_date = $${i++}`);
+    values.push(db.campaign_date);
+  }
+  if (db.campaign_package !== undefined) {
+    sets.push(`campaign_package = $${i++}`);
+    values.push(db.campaign_package);
+  }
+
+  if (!sets.length) {
+    return Response.json(
+      { error: "No valid fields provided" },
+      { status: 400 }
+    );
+  }
+
+  const { rows } = await query(
+    `
+    UPDATE campaigns
+       SET ${sets.join(", ")},
+           updated_at = NOW()
+     WHERE tenant_id = $1
+       AND id = $2
+       AND deleted_at IS NULL
+     RETURNING *
+    `,
+    values
+  );
+
+  if (!rows.length) {
+    return Response.json({ error: "Campaign not found" }, { status: 404 });
+  }
+
+  return Response.json(
+    sanitizeRow(fromDb(rows[0]), {
+      name: 120,
+      description: 10000,
+      worldSetting: 10000,
+      campaignDate: 50,
+      campaignPackage: 50,
+    })
+  );
+}
+
+/* -----------------------------------------------------------
+   DELETE /api/campaigns?id=
+------------------------------------------------------------ */
+export async function DELETE(req) {
+  let tenantId;
+  try {
+    ({ tenantId } = await getTenantContext(req));
+  } catch {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { searchParams } = new URL(req.url);
+  const id = searchParams.get("id");
+
+  if (!id) {
+    return Response.json({ error: "id required" }, { status: 400 });
+  }
+
+  const { rows } = await query(
+    `
+    UPDATE campaigns
+       SET deleted_at = NOW(),
+           updated_at = NOW()
+     WHERE tenant_id = $1
+       AND id = $2
+       AND deleted_at IS NULL
+     RETURNING *
+    `,
+    [tenantId, id]
+  );
+
+  if (!rows.length) {
+    return Response.json({ error: "Campaign not found" }, { status: 404 });
+  }
+
+  return Response.json(
+    sanitizeRow(fromDb(rows[0]), {
+      name: 120,
+      description: 10000,
+      worldSetting: 10000,
+      campaignDate: 50,
+      campaignPackage: 50,
+    })
+  );
+}
