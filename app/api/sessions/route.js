@@ -64,7 +64,10 @@ export async function GET(req) {
     return Response.json([]);
   } catch (err) {
     console.error("GET /api/sessions failed", err);
-    return Response.json([], { status: 200 });
+    return Response.json(
+      { error: "Failed to load sessions" },
+      { status: 500 }
+    );
   }
 }
 
@@ -130,7 +133,14 @@ export async function POST(req) {
       ]
     );
 
-    return Response.json(rows[0], { status: 201 });
+    return Response.json(
+      sanitizeRow(rows[0], {
+        name: 120,
+        description: 10000,
+        notes: 10000,
+      }),
+      { status: 201 }
+    );
   } catch (err) {
     console.error("POST /api/sessions failed", err);
     return Response.json(
@@ -176,7 +186,15 @@ export async function PUT(req) {
       ]
     );
 
-    return Response.json(rows[0] ?? null);
+    return Response.json(
+      rows[0]
+        ? sanitizeRow(rows[0], {
+            name: 120,
+            description: 10000,
+            notes: 10000,
+          })
+        : null
+    );
   } catch (err) {
     console.error("PUT /api/sessions failed", err);
     return Response.json(
@@ -187,7 +205,7 @@ export async function PUT(req) {
 }
 
 /* -----------------------------------------------------------
-   DELETE /api/sessions?id=
+   DELETE /api/sessions?id=   (SOFT DELETE)
 ------------------------------------------------------------ */
 export async function DELETE(req) {
   try {
@@ -202,16 +220,25 @@ export async function DELETE(req) {
     const { rows } = await query(
       `
       UPDATE sessions
-         SET deleted_at = NOW()
+         SET deleted_at = NOW(),
+             updated_at = NOW()
        WHERE tenant_id = $1
          AND id = $2
          AND deleted_at IS NULL
-       RETURNING id
+       RETURNING *
       `,
       [tenantId, id]
     );
 
-    return Response.json({ success: true, id: rows[0]?.id ?? id });
+    return Response.json(
+      rows[0]
+        ? sanitizeRow(rows[0], {
+            name: 120,
+            description: 10000,
+            notes: 10000,
+          })
+        : null
+    );
   } catch (err) {
     console.error("DELETE /api/sessions failed", err);
     return Response.json(

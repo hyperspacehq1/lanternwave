@@ -17,9 +17,8 @@ export async function GET(req) {
   const id = searchParams.get("id");
   const campaignId = searchParams.get("campaign_id");
 
-  // Fetch single encounter
   if (id) {
-    const result = await query(
+    const { rows } = await query(
       `
       SELECT *
         FROM encounters
@@ -31,12 +30,19 @@ export async function GET(req) {
       [tenantId, id]
     );
 
-    return Response.json(result.rows[0] || null, { status: 200 });
+    return Response.json(
+      rows[0]
+        ? sanitizeRow(rows[0], {
+            name: 120,
+            description: 10000,
+            notes: 10000,
+          })
+        : null
+    );
   }
 
-  // Fetch encounters for campaign
   if (campaignId) {
-    const result = await query(
+    const { rows } = await query(
       `
       SELECT *
         FROM encounters
@@ -48,35 +54,43 @@ export async function GET(req) {
       [tenantId, campaignId]
     );
 
-    return Response.json(result.rows, { status: 200 });
+    return Response.json(
+      sanitizeRows(rows, {
+        name: 120,
+        description: 10000,
+        notes: 10000,
+      })
+    );
   }
 
-  // No scope provided
-  return Response.json([], { status: 200 });
+  return Response.json([]);
 }
 
 /* -----------------------------------------------------------
    POST /api/encounters
-   - Option A: campaign only
-   - requires: campaign_id + name
 ------------------------------------------------------------ */
 export async function POST(req) {
   const { tenantId } = await getTenantContext(req);
   const body = await req.json();
-  const id = uuid();
 
   const campaignId = body.campaign_id ?? body.campaignId ?? null;
   const name = body.name?.trim();
 
   if (!campaignId) {
-    return Response.json({ error: "campaign_id is required" }, { status: 400 });
+    return Response.json(
+      { error: "campaign_id is required" },
+      { status: 400 }
+    );
   }
 
   if (!name) {
-    return Response.json({ error: "name is required" }, { status: 400 });
+    return Response.json(
+      { error: "name is required" },
+      { status: 400 }
+    );
   }
 
-  const result = await query(
+  const { rows } = await query(
     `
     INSERT INTO encounters (
       id,
@@ -92,7 +106,7 @@ export async function POST(req) {
     RETURNING *
     `,
     [
-      id,
+      uuid(),
       tenantId,
       campaignId,
       name,
@@ -101,7 +115,14 @@ export async function POST(req) {
     ]
   );
 
-  return Response.json(result.rows[0], { status: 201 });
+  return Response.json(
+    sanitizeRow(rows[0], {
+      name: 120,
+      description: 10000,
+      notes: 10000,
+    }),
+    { status: 201 }
+  );
 }
 
 /* -----------------------------------------------------------
@@ -118,7 +139,7 @@ export async function PUT(req) {
 
   const body = await req.json();
 
-  const result = await query(
+  const { rows } = await query(
     `
     UPDATE encounters
        SET name        = COALESCE($3, name),
@@ -133,11 +154,19 @@ export async function PUT(req) {
     [tenantId, id, body.name, body.description, body.notes]
   );
 
-  return Response.json(result.rows[0] || null, { status: 200 });
+  return Response.json(
+    rows[0]
+      ? sanitizeRow(rows[0], {
+          name: 120,
+          description: 10000,
+          notes: 10000,
+        })
+      : null
+  );
 }
 
 /* -----------------------------------------------------------
-   DELETE /api/encounters?id=
+   DELETE /api/encounters?id=   (SOFT DELETE)
 ------------------------------------------------------------ */
 export async function DELETE(req) {
   const { tenantId } = await getTenantContext(req);
@@ -148,7 +177,7 @@ export async function DELETE(req) {
     return Response.json({ error: "id required" }, { status: 400 });
   }
 
-  await query(
+  const { rows } = await query(
     `
     UPDATE encounters
        SET deleted_at = NOW(),
@@ -156,9 +185,18 @@ export async function DELETE(req) {
      WHERE tenant_id = $1
        AND id = $2
        AND deleted_at IS NULL
+     RETURNING *
     `,
     [tenantId, id]
   );
 
-  return Response.json({ ok: true }, { status: 200 });
+  return Response.json(
+    rows[0]
+      ? sanitizeRow(rows[0], {
+          name: 120,
+          description: 10000,
+          notes: 10000,
+        })
+      : null
+  );
 }

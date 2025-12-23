@@ -1,7 +1,7 @@
 import { sanitizeRow, sanitizeRows } from "@/lib/api/sanitize";
 import { query } from "@/lib/db";
+import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { v4 as uuid } from "uuid";
-import { sanitizeRow, sanitizeRows } from "@/lib/api/sanitize";
 
 export const dynamic = "force-dynamic";
 
@@ -9,12 +9,14 @@ export const dynamic = "force-dynamic";
    GET /api/player-characters
 ------------------------------------------------------------ */
 export async function GET(req) {
+  const { tenantId } = await getTenantContext(req);
   const { searchParams } = new URL(req.url);
+
   const id = searchParams.get("id");
   const campaignId = searchParams.get("campaign_id");
 
   if (id) {
-    const result = await query(
+    const { rows } = await query(
       `
       SELECT
         id,
@@ -27,21 +29,30 @@ export async function GET(req) {
         created_at,
         updated_at
       FROM player_characters
-      WHERE id = $1
+      WHERE tenant_id = $1
+        AND id = $2
         AND deleted_at IS NULL
       LIMIT 1
       `,
-      [id]
+      [tenantId, id]
     );
 
-    return Response.json(result.rows[0] || null);
+    return Response.json(
+      rows[0]
+        ? sanitizeRow(rows[0], {
+            firstName: 60,
+            lastName: 60,
+            notes: 10000,
+          })
+        : null
+    );
   }
 
   if (!campaignId) {
     return Response.json([]);
   }
 
-  const list = await query(
+  const { rows } = await query(
     `
     SELECT
       id,
@@ -54,50 +65,54 @@ export async function GET(req) {
       created_at,
       updated_at
     FROM player_characters
-    WHERE campaign_id = $1
+    WHERE tenant_id = $1
+      AND campaign_id = $2
       AND deleted_at IS NULL
     ORDER BY created_at ASC
     `,
-    [campaignId]
+    [tenantId, campaignId]
   );
 
-  return Response.json(list.rows);
+  return Response.json(
+    sanitizeRows(rows, {
+      firstName: 60,
+      lastName: 60,
+      notes: 10000,
+    })
+  );
 }
 
 /* -----------------------------------------------------------
    POST /api/player-characters
 ------------------------------------------------------------ */
 export async function POST(req) {
+  const { tenantId } = await getTenantContext(req);
   const body = await req.json();
 
-  const firstName =
-    body.firstName ??
-    body.first_name ??
-    null;
+  const campaignId = body.campaign_id ?? body.campaignId ?? null;
 
-  const lastName =
-    body.lastName ??
-    body.last_name ??
-    null;
+  const firstName = body.firstName ?? body.first_name ?? null;
+  const lastName = body.lastName ?? body.last_name ?? null;
 
-  if (!body.campaign_id) {
+  if (!campaignId) {
     return Response.json(
       { error: "campaign_id is required" },
       { status: 400 }
     );
   }
 
-  if (!firstName || !lastName) {
+  if (!firstName || !firstName.trim() || !lastName || !lastName.trim()) {
     return Response.json(
       { error: "firstName and lastName are required" },
       { status: 400 }
     );
   }
 
-  const result = await query(
+  const { rows } = await query(
     `
     INSERT INTO player_characters (
       id,
+      tenant_id,
       campaign_id,
       first_name,
       last_name,
@@ -105,12 +120,13 @@ export async function POST(req) {
       email,
       notes
     )
-    VALUES ($1,$2,$3,$4,$5,$6,$7)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
     RETURNING *
     `,
     [
       uuid(),
-      body.campaign_id,
+      tenantId,
+      campaignId,
       firstName.trim(),
       lastName.trim(),
       body.phone ?? null,
@@ -119,13 +135,21 @@ export async function POST(req) {
     ]
   );
 
-  return Response.json(result.rows[0], { status: 201 });
+  return Response.json(
+    sanitizeRow(rows[0], {
+      firstName: 60,
+      lastName: 60,
+      notes: 10000,
+    }),
+    { status: 201 }
+  );
 }
 
 /* -----------------------------------------------------------
    PUT /api/player-characters?id=
 ------------------------------------------------------------ */
 export async function PUT(req) {
+  const { tenantId } = await getTenantContext(req);
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
   const body = await req.json();
@@ -134,19 +158,33 @@ export async function PUT(req) {
     return Response.json({ error: "id required" }, { status: 400 });
   }
 
-  const result = await query(
+  // Guard against blanking required fields
+  if (
+    ("firstName" in body && !body.firstName?.trim()) ||
+    ("lastName" in body && !body.lastName?.trim())
+  ) {
+    return Response.json(
+      { error: "firstName and lastName cannot be blank" },
+      { status: 400 }
+    );
+  }
+
+  const { rows } = await query(
     `
     UPDATE player_characters
-       SET first_name = COALESCE($2, first_name),
-           last_name  = COALESCE($3, last_name),
-           phone      = COALESCE($4, phone),
-           email      = COALESCE($5, email),
-           notes      = COALESCE($6, notes),
+       SET first_name = COALESCE($3, first_name),
+           last_name  = COALESCE($4, last_name),
+           phone      = COALESCE($5, phone),
+           email      = COALESCE($6, email),
+           notes      = COALESCE($7, notes),
            updated_at = NOW()
-     WHERE id = $1
+     WHERE tenant_id = $1
+       AND id = $2
+       AND deleted_at IS NULL
      RETURNING *
     `,
     [
+      tenantId,
       id,
       body.firstName ?? body.first_name,
       body.lastName ?? body.last_name,
@@ -156,17 +194,49 @@ export async function PUT(req) {
     ]
   );
 
- export async function GET(req) {
-  const rows = await /* existing query logic */;
+  return Response.json(
+    rows[0]
+      ? sanitizeRow(rows[0], {
+          firstName: 60,
+          lastName: 60,
+          notes: 10000,
+        })
+      : null
+  );
+}
+
+/* -----------------------------------------------------------
+   DELETE /api/player-characters?id=   (SOFT DELETE)
+------------------------------------------------------------ */
+export async function DELETE(req) {
+  const { tenantId } = await getTenantContext(req);
+  const { searchParams } = new URL(req.url);
+  const id = searchParams.get("id");
+
+  if (!id) {
+    return Response.json({ error: "id required" }, { status: 400 });
+  }
+
+  const { rows } = await query(
+    `
+    UPDATE player_characters
+       SET deleted_at = NOW(),
+           updated_at = NOW()
+     WHERE tenant_id = $1
+       AND id = $2
+       AND deleted_at IS NULL
+     RETURNING *
+    `,
+    [tenantId, id]
+  );
 
   return Response.json(
-    sanitizeRows(
-      rows.map(fromDb),
-      {
-        firstName: 60,
-        lastName: 60,
-        notes: 10000,
-      }
-    )
+    rows[0]
+      ? sanitizeRow(rows[0], {
+          firstName: 60,
+          lastName: 60,
+          notes: 10000,
+        })
+      : null
   );
 }

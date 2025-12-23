@@ -38,7 +38,7 @@ export async function GET(req) {
   const campaignId = searchParams.get("campaign_id");
 
   if (id) {
-    const result = await query(
+    const { rows } = await query(
       `
       SELECT *
         FROM items
@@ -51,8 +51,8 @@ export async function GET(req) {
     );
 
     return Response.json(
-      result.rows[0]
-        ? sanitizeRow(result.rows[0], {
+      rows[0]
+        ? sanitizeRow(rows[0], {
             name: 120,
             description: 10000,
             notes: 10000,
@@ -65,7 +65,7 @@ export async function GET(req) {
     return Response.json([]);
   }
 
-  const list = await query(
+  const { rows } = await query(
     `
     SELECT *
       FROM items
@@ -78,7 +78,7 @@ export async function GET(req) {
   );
 
   return Response.json(
-    sanitizeRows(list.rows, {
+    sanitizeRows(rows, {
       name: 120,
       description: 10000,
       notes: 10000,
@@ -115,7 +115,7 @@ export async function POST(req) {
     );
   }
 
-  const result = await query(
+  const { rows } = await query(
     `
     INSERT INTO items (
       tenant_id,
@@ -140,18 +140,30 @@ export async function POST(req) {
     ]
   );
 
-  return Response.json(result.rows[0], { status: 201 });
+  return Response.json(
+    sanitizeRow(rows[0], {
+      name: 120,
+      description: 10000,
+      notes: 10000,
+    }),
+    { status: 201 }
+  );
 }
 
 /* -----------------------------------------------------------
-   PUT /api/items/:id
+   PUT /api/items?id=
 ------------------------------------------------------------ */
-export async function PUT(req, { params }) {
+export async function PUT(req) {
   const { tenantId } = await getTenantContext(req);
-  const id = params.id;
+  const { searchParams } = new URL(req.url);
+  const id = searchParams.get("id");
   const body = await req.json();
 
-  const result = await query(
+  if (!id) {
+    return Response.json({ error: "id required" }, { status: 400 });
+  }
+
+  const { rows } = await query(
     `
     UPDATE items
        SET name        = COALESCE($3, name),
@@ -176,25 +188,49 @@ export async function PUT(req, { params }) {
     ]
   );
 
-  return Response.json(result.rows[0] || null);
+  return Response.json(
+    rows[0]
+      ? sanitizeRow(rows[0], {
+          name: 120,
+          description: 10000,
+          notes: 10000,
+        })
+      : null
+  );
 }
 
 /* -----------------------------------------------------------
-   DELETE /api/items/:id
+   DELETE /api/items?id=   (SOFT DELETE)
 ------------------------------------------------------------ */
-export async function DELETE(req, { params }) {
+export async function DELETE(req) {
   const { tenantId } = await getTenantContext(req);
-  const id = params.id;
+  const { searchParams } = new URL(req.url);
+  const id = searchParams.get("id");
 
-  await query(
+  if (!id) {
+    return Response.json({ error: "id required" }, { status: 400 });
+  }
+
+  const { rows } = await query(
     `
     UPDATE items
-       SET deleted_at = NOW()
+       SET deleted_at = NOW(),
+           updated_at = NOW()
      WHERE tenant_id = $1
        AND id = $2
+       AND deleted_at IS NULL
+     RETURNING *
     `,
     [tenantId, id]
   );
 
-  return Response.json({ success: true, id });
+  return Response.json(
+    rows[0]
+      ? sanitizeRow(rows[0], {
+          name: 120,
+          description: 10000,
+          notes: 10000,
+        })
+      : null
+  );
 }

@@ -2,12 +2,11 @@ import { sanitizeRow, sanitizeRows } from "@/lib/api/sanitize";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { query } from "@/lib/db";
 import { toDb, fromDb } from "@/lib/campaignMapper";
-import { sanitizeRow, sanitizeRows } from "@/lib/api/sanitize";
 
 export const dynamic = "force-dynamic";
 
 /* -------------------------------------------------
-   GET /api/campaigns  (list)
+   GET /api/campaigns
 -------------------------------------------------- */
 export async function GET(req) {
   const { tenantId } = await getTenantContext(req);
@@ -23,11 +22,18 @@ export async function GET(req) {
     [tenantId]
   );
 
-  return Response.json(rows.map(fromDb));
+  return Response.json(
+    sanitizeRows(rows.map(fromDb), {
+      name: 120,
+      description: 10000,
+      worldSetting: 10000,
+      notes: 10000,
+    })
+  );
 }
 
 /* -------------------------------------------------
-   POST /api/campaigns  (create)
+   POST /api/campaigns
 -------------------------------------------------- */
 export async function POST(req) {
   const { tenantId } = await getTenantContext(req);
@@ -65,18 +71,50 @@ export async function POST(req) {
     ]
   );
 
-export async function GET(req) {
-  const rows = await /* existing query logic */;
+  return Response.json(
+    sanitizeRow(fromDb(rows[0]), {
+      name: 120,
+      description: 10000,
+      worldSetting: 10000,
+      notes: 10000,
+    }),
+    { status: 201 }
+  );
+}
+
+/* -----------------------------------------------------------
+   DELETE /api/campaigns?id=   (SOFT DELETE)
+------------------------------------------------------------ */
+export async function DELETE(req) {
+  const { tenantId } = await getTenantContext(req);
+  const { searchParams } = new URL(req.url);
+  const id = searchParams.get("id");
+
+  if (!id) {
+    return Response.json({ error: "id required" }, { status: 400 });
+  }
+
+  const { rows } = await query(
+    `
+    UPDATE campaigns
+       SET deleted_at = NOW(),
+           updated_at = NOW()
+     WHERE tenant_id = $1
+       AND id = $2
+       AND deleted_at IS NULL
+     RETURNING *
+    `,
+    [tenantId, id]
+  );
 
   return Response.json(
-    sanitizeRows(
-      rows.map(fromDb),
-      {
-        name: 120,
-        description: 10000,
-        worldSetting: 10000,
-        notes: 10000,
-      }
-    )
+    rows[0]
+      ? sanitizeRow(fromDb(rows[0]), {
+          name: 120,
+          description: 10000,
+          worldSetting: 10000,
+          notes: 10000,
+        })
+      : null
   );
 }

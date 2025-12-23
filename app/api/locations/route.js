@@ -1,7 +1,6 @@
 import { sanitizeRow, sanitizeRows } from "@/lib/api/sanitize";
 import { query } from "@/lib/db";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
-import { sanitizeRow, sanitizeRows } from "@/lib/api/sanitize";
 
 export const dynamic = "force-dynamic";
 
@@ -40,7 +39,7 @@ export async function GET(req) {
   const campaignId = searchParams.get("campaign_id");
 
   if (id) {
-    const result = await query(
+    const { rows } = await query(
       `
       SELECT *
         FROM locations
@@ -51,14 +50,23 @@ export async function GET(req) {
       `,
       [tenantId, id]
     );
-    return Response.json(result.rows[0] || null);
+
+    return Response.json(
+      rows[0]
+        ? sanitizeRow(rows[0], {
+            name: 120,
+            description: 10000,
+            notes: 10000,
+          })
+        : null
+    );
   }
 
   if (!campaignId) {
     return Response.json([]);
   }
 
-  const list = await query(
+  const { rows } = await query(
     `
     SELECT *
       FROM locations
@@ -70,7 +78,13 @@ export async function GET(req) {
     [tenantId, campaignId]
   );
 
-  return Response.json(list.rows);
+  return Response.json(
+    sanitizeRows(rows, {
+      name: 120,
+      description: 10000,
+      notes: 10000,
+    })
+  );
 }
 
 /* -----------------------------------------------------------
@@ -92,8 +106,7 @@ export async function POST(req) {
   const address_zip = pick(body, "addressZip", "address_zip");
   const address_country = pick(body, "addressCountry", "address_country");
 
-  const campaignId =
-    body.campaign_id ?? body.campaignId ?? null;
+  const campaignId = body.campaign_id ?? body.campaignId ?? null;
 
   if (!campaignId) {
     return Response.json(
@@ -109,7 +122,7 @@ export async function POST(req) {
     );
   }
 
-  const result = await query(
+  const { rows } = await query(
     `
     INSERT INTO locations (
       tenant_id,
@@ -144,7 +157,14 @@ export async function POST(req) {
     ]
   );
 
-  return Response.json(result.rows[0], { status: 201 });
+  return Response.json(
+    sanitizeRow(rows[0], {
+      name: 120,
+      description: 10000,
+      notes: 10000,
+    }),
+    { status: 201 }
+  );
 }
 
 /* -----------------------------------------------------------
@@ -160,7 +180,7 @@ export async function PUT(req) {
     return Response.json({ error: "id required" }, { status: 400 });
   }
 
-  const result = await query(
+  const { rows } = await query(
     `
     UPDATE locations
        SET name            = COALESCE($3, name),
@@ -195,17 +215,49 @@ export async function PUT(req) {
     ]
   );
 
- export async function GET(req) {
-  const rows = await /* existing query logic */;
+  return Response.json(
+    rows[0]
+      ? sanitizeRow(rows[0], {
+          name: 120,
+          description: 10000,
+          notes: 10000,
+        })
+      : null
+  );
+}
+
+/* -----------------------------------------------------------
+   DELETE /api/locations?id=   (SOFT DELETE)
+------------------------------------------------------------ */
+export async function DELETE(req) {
+  const { tenantId } = await getTenantContext(req);
+  const { searchParams } = new URL(req.url);
+  const id = searchParams.get("id");
+
+  if (!id) {
+    return Response.json({ error: "id required" }, { status: 400 });
+  }
+
+  const { rows } = await query(
+    `
+    UPDATE locations
+       SET deleted_at = NOW(),
+           updated_at = NOW()
+     WHERE tenant_id = $1
+       AND id = $2
+       AND deleted_at IS NULL
+     RETURNING *
+    `,
+    [tenantId, id]
+  );
 
   return Response.json(
-    sanitizeRows(
-      rows.map(fromDb),
-      {
-        name: 120,
-        description: 10000,
-        notes: 10000,
-      }
-    )
+    rows[0]
+      ? sanitizeRow(rows[0], {
+          name: 120,
+          description: 10000,
+          notes: 10000,
+        })
+      : null
   );
 }
