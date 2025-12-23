@@ -7,7 +7,8 @@ export const dynamic = "force-dynamic";
 
 /* -----------------------------------------------------------
    GET /api/encounters
-   - campaign-scoped
+   - ?id=... (single)
+   - ?campaign_id=... (list by campaign)
 ------------------------------------------------------------ */
 export async function GET(req) {
   const { tenantId } = await getTenantContext(req);
@@ -30,7 +31,7 @@ export async function GET(req) {
       [tenantId, id]
     );
 
-    return Response.json(result.rows[0] || null);
+    return Response.json(result.rows[0] || null, { status: 200 });
   }
 
   // Fetch encounters for campaign
@@ -47,15 +48,17 @@ export async function GET(req) {
       [tenantId, campaignId]
     );
 
-    return Response.json(result.rows);
+    return Response.json(result.rows, { status: 200 });
   }
 
-  return Response.json([]);
+  // No scope provided
+  return Response.json([], { status: 200 });
 }
 
 /* -----------------------------------------------------------
    POST /api/encounters
-   - campaign only (Option A)
+   - Option A: campaign only
+   - requires: campaign_id + name
 ------------------------------------------------------------ */
 export async function POST(req) {
   const { tenantId } = await getTenantContext(req);
@@ -66,17 +69,11 @@ export async function POST(req) {
   const name = body.name?.trim();
 
   if (!campaignId) {
-    return Response.json(
-      { error: "campaign_id is required" },
-      { status: 400 }
-    );
+    return Response.json({ error: "campaign_id is required" }, { status: 400 });
   }
 
   if (!name) {
-    return Response.json(
-      { error: "name is required" },
-      { status: 400 }
-    );
+    return Response.json({ error: "name is required" }, { status: 400 });
   }
 
   const result = await query(
@@ -133,16 +130,10 @@ export async function PUT(req) {
        AND deleted_at IS NULL
      RETURNING *
     `,
-    [
-      tenantId,
-      id,
-      body.name,
-      body.description,
-      body.notes,
-    ]
+    [tenantId, id, body.name, body.description, body.notes]
   );
 
-  return Response.json(result.rows[0] || null);
+  return Response.json(result.rows[0] || null, { status: 200 });
 }
 
 /* -----------------------------------------------------------
@@ -160,7 +151,8 @@ export async function DELETE(req) {
   await query(
     `
     UPDATE encounters
-       SET deleted_at = NOW()
+       SET deleted_at = NOW(),
+           updated_at = NOW()
      WHERE tenant_id = $1
        AND id = $2
        AND deleted_at IS NULL
@@ -168,17 +160,5 @@ export async function DELETE(req) {
     [tenantId, id]
   );
 
-export async function GET(req) {
-  const rows = await /* existing query logic */;
-
-  return Response.json(
-    sanitizeRows(
-      rows.map(fromDb),
-      {
-        name: 120,
-        description: 10000,
-        notes: 10000,
-      }
-    )
-  );
+  return Response.json({ ok: true }, { status: 200 });
 }
