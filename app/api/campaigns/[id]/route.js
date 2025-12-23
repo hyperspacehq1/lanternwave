@@ -142,4 +142,15 @@ export async function DELETE(req, { params }) {
   );
 
   if (!rows.length) {
-    return Response.json({ error: "Campaign not found" }, { status: 40
+    return Response.json({ error: "Campaign not found" }, { status: 404 });
+  }
+
+  return Response.json(
+    sanitizeRow(fromDb(rows[0]), {
+      name: 120,
+      description: 10000,
+      worldSetting: 10000,
+      notes: 10000,
+    })
+  );
+}
