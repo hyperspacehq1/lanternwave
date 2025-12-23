@@ -1,4 +1,4 @@
-import { sanitizeRow, sanitizeRows } from "@/lib/api/sanitize";
+import { sanitizeRow } from "@/lib/api/sanitize";
 import { query } from "@/lib/db";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { toDb, fromDb } from "@/lib/campaignMapper";
@@ -9,7 +9,13 @@ export const dynamic = "force-dynamic";
    GET /api/campaigns/:id
 ------------------------------------------------------------ */
 export async function GET(req, { params }) {
-  const { tenantId } = await getTenantContext(req);
+  let tenantId;
+  try {
+    ({ tenantId } = await getTenantContext(req));
+  } catch {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { id } = params;
 
   const { rows } = await query(
@@ -42,7 +48,13 @@ export async function GET(req, { params }) {
    PUT /api/campaigns/:id
 ------------------------------------------------------------ */
 export async function PUT(req, { params }) {
-  const { tenantId } = await getTenantContext(req);
+  let tenantId;
+  try {
+    ({ tenantId } = await getTenantContext(req));
+  } catch {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { id } = params;
   const incoming = await req.json();
   const dbVals = toDb(incoming);
@@ -107,7 +119,13 @@ export async function PUT(req, { params }) {
    DELETE /api/campaigns/:id   (soft delete)
 ------------------------------------------------------------ */
 export async function DELETE(req, { params }) {
-  const { tenantId } = await getTenantContext(req);
+  let tenantId;
+  try {
+    ({ tenantId } = await getTenantContext(req));
+  } catch {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { id } = params;
 
   const { rows } = await query(
@@ -124,15 +142,4 @@ export async function DELETE(req, { params }) {
   );
 
   if (!rows.length) {
-    return Response.json({ error: "Campaign not found" }, { status: 404 });
-  }
-
-  return Response.json(
-    sanitizeRow(fromDb(rows[0]), {
-      name: 120,
-      description: 10000,
-      worldSetting: 10000,
-      notes: 10000,
-    })
-  );
-}
+    return Response.json({ error: "Campaign not found" }, { status: 40

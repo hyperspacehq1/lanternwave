@@ -9,7 +9,12 @@ export const dynamic = "force-dynamic";
    GET /api/campaigns
 -------------------------------------------------- */
 export async function GET(req) {
-  const { tenantId } = await getTenantContext(req);
+  let tenantId;
+  try {
+    ({ tenantId } = await getTenantContext(req));
+  } catch {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
   const { rows } = await query(
     `
@@ -36,7 +41,13 @@ export async function GET(req) {
    POST /api/campaigns
 -------------------------------------------------- */
 export async function POST(req) {
-  const { tenantId } = await getTenantContext(req);
+  let tenantId;
+  try {
+    ({ tenantId } = await getTenantContext(req));
+  } catch {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const body = await req.json();
 
   if (!body?.name || !body.name.trim()) {
@@ -82,11 +93,17 @@ export async function POST(req) {
   );
 }
 
-/* -----------------------------------------------------------
+/* -------------------------------------------------
    DELETE /api/campaigns?id=   (SOFT DELETE)
------------------------------------------------------------- */
+-------------------------------------------------- */
 export async function DELETE(req) {
-  const { tenantId } = await getTenantContext(req);
+  let tenantId;
+  try {
+    ({ tenantId } = await getTenantContext(req));
+  } catch {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
 
