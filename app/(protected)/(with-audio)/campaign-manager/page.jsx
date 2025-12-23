@@ -218,6 +218,32 @@ export default function CampaignManagerPage() {
     setSaveStatus("saved");
   };
 
+  /* ------------------------------------------------------------
+     Delete record (SOFT DELETE)
+  ------------------------------------------------------------ */
+  const handleDelete = async () => {
+    if (!selectedRecord || selectedRecord._isNew) return;
+
+    const confirmed = window.confirm(
+      "Confirm Delete?\n\nThis action cannot be undone."
+    );
+
+    if (!confirmed) return;
+
+    await cmApi.delete(activeType, selectedRecord.id);
+
+    setRecords((p) => ({
+      ...p,
+      [activeType]: (p[activeType] || []).filter(
+        (r) => r.id !== selectedRecord.id
+      ),
+    }));
+
+    setSelectedId(null);
+    setSelectedRecord(null);
+    setSaveStatus("idle");
+  };
+
   return (
     <div className="cm-root">
       <div className="cm-layout">
@@ -252,7 +278,16 @@ export default function CampaignManagerPage() {
               >
                 + New
               </button>
+
               <button onClick={handleSave}>Save</button>
+
+              <button
+                onClick={handleDelete}
+                disabled={!selectedRecord || selectedRecord._isNew}
+                style={{ marginLeft: 8 }}
+              >
+                Delete
+              </button>
             </div>
           </header>
 
@@ -279,7 +314,7 @@ export default function CampaignManagerPage() {
             </div>
           )}
 
-          {/* ✅ Session selector (FIX) */}
+          {/* Session selector (Events) */}
           {rules.session && (
             <div style={{ marginBottom: 12 }}>
               <label>
@@ -299,3 +334,53 @@ export default function CampaignManagerPage() {
               </label>
             </div>
           )}
+
+          <div className="cm-content">
+            <section className="cm-list">
+              {loading && <div>Loading…</div>}
+              {!loading &&
+                activeList.map((r) => (
+                  <div
+                    key={r.id}
+                    className={`cm-list-item ${
+                      r.id === selectedId ? "selected" : ""
+                    }`}
+                    onClick={() => {
+                      setSelectedId(r.id);
+                      setSelectedRecord(r);
+                    }}
+                  >
+                    {(
+                      r.name ??
+                      [r.firstName, r.lastName].filter(Boolean).join(" ")
+                    ) || "Unnamed"}
+                  </div>
+                ))}
+            </section>
+
+            <section className="cm-detail">
+              {selectedRecord ? (
+                (() => {
+                  const Form = getFormComponent(activeType);
+                  return Form ? (
+                    <Form
+                      record={{ ...selectedRecord, _type: activeType }}
+                      onChange={(next) => {
+                        setSelectedRecord(next);
+                        setSaveStatus("unsaved");
+                      }}
+                    />
+                  ) : (
+                    <div>No form implemented.</div>
+                  );
+                })()
+              ) : (
+                <div>Select or create a record.</div>
+              )}
+            </section>
+          </div>
+        </section>
+      </div>
+    </div>
+  );
+}
