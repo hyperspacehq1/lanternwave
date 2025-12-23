@@ -1,3 +1,4 @@
+import { sanitizeRow, sanitizeRows } from "@/lib/api/sanitize";
 // app/api/ai-search/route.js
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";

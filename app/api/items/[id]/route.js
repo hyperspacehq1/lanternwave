@@ -1,4 +1,5 @@
 import { query } from "@/lib/db";
+import { sanitizeRow, sanitizeRows } from "@/lib/api/sanitize";
 
 /* -------------------------------------------------
    PUT /api/player-characters/:id
@@ -57,5 +58,17 @@ export async function DELETE(req, { params }) {
     [id]
   );
 
-  return Response.json({ ok: true });
+export async function GET(req) {
+  const rows = await /* existing query logic */;
+
+  return Response.json(
+    sanitizeRows(
+      rows.map(fromDb),
+      {
+        name: 120,
+        description: 10000,
+        notes: 10000,
+      }
+    )
+  );
 }

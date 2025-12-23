@@ -1,5 +1,6 @@
 import { query } from "@/lib/db";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
+import { sanitizeRow, sanitizeRows } from "@/lib/api/sanitize";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +13,6 @@ function pick(body, camel, snake) {
 
 function normalizeJson(input) {
   if (input == null || input === "") return null;
-
   if (typeof input === "object") return input;
 
   try {
@@ -20,7 +20,6 @@ function normalizeJson(input) {
     if (typeof parsed === "object") return parsed;
   } catch {}
 
-  // human free-text fallback
   return {
     text: String(input).trim(),
     source: "human",
@@ -51,7 +50,15 @@ export async function GET(req) {
       [tenantId, id]
     );
 
-    return Response.json(result.rows[0] || null);
+    return Response.json(
+      result.rows[0]
+        ? sanitizeRow(result.rows[0], {
+            name: 120,
+            description: 10000,
+            notes: 10000,
+          })
+        : null
+    );
   }
 
   if (!campaignId) {
@@ -70,7 +77,13 @@ export async function GET(req) {
     [tenantId, campaignId]
   );
 
-  return Response.json(list.rows);
+  return Response.json(
+    sanitizeRows(list.rows, {
+      name: 120,
+      description: 10000,
+      notes: 10000,
+    })
+  );
 }
 
 /* -----------------------------------------------------------
@@ -84,12 +97,9 @@ export async function POST(req) {
   const item_type = pick(body, "itemType", "item_type");
   const description = pick(body, "description", "description");
   const notes = pick(body, "notes", "notes");
-  const properties = normalizeJson(
-    pick(body, "properties", "properties")
-  );
+  const properties = normalizeJson(pick(body, "properties", "properties"));
 
-  const campaignId =
-    body.campaign_id ?? body.campaignId ?? null;
+  const campaignId = body.campaign_id ?? body.campaignId ?? null;
 
   if (!campaignId) {
     return Response.json(
@@ -145,7 +155,7 @@ export async function PUT(req, { params }) {
     `
     UPDATE items
        SET name        = COALESCE($3, name),
-           item_type  = COALESCE($4, item_type),
+           item_type   = COALESCE($4, item_type),
            description = COALESCE($5, description),
            notes       = COALESCE($6, notes),
            properties  = COALESCE($7, properties),

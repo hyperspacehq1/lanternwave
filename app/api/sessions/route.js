@@ -1,5 +1,6 @@
 import { query } from "@/lib/db";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
+import { sanitizeRow, sanitizeRows } from "@/lib/api/sanitize";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +28,15 @@ export async function GET(req) {
         [tenantId, id]
       );
 
-      return Response.json(rows[0] ?? null);
+      return Response.json(
+        rows[0]
+          ? sanitizeRow(rows[0], {
+              name: 120,
+              description: 10000,
+              notes: 10000,
+            })
+          : null
+      );
     }
 
     if (campaignId) {
@@ -43,7 +52,13 @@ export async function GET(req) {
         [tenantId, campaignId]
       );
 
-      return Response.json(rows);
+      return Response.json(
+        sanitizeRows(rows, {
+          name: 120,
+          description: 10000,
+          notes: 10000,
+        })
+      );
     }
 
     return Response.json([]);

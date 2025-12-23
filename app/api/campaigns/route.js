@@ -1,6 +1,8 @@
+import { sanitizeRow, sanitizeRows } from "@/lib/api/sanitize";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { query } from "@/lib/db";
 import { toDb, fromDb } from "@/lib/campaignMapper";
+import { sanitizeRow, sanitizeRows } from "@/lib/api/sanitize";
 
 export const dynamic = "force-dynamic";
 
@@ -63,5 +65,18 @@ export async function POST(req) {
     ]
   );
 
-  return Response.json(fromDb(rows[0]), { status: 201 });
+export async function GET(req) {
+  const rows = await /* existing query logic */;
+
+  return Response.json(
+    sanitizeRows(
+      rows.map(fromDb),
+      {
+        name: 120,
+        description: 10000,
+        worldSetting: 10000,
+        notes: 10000,
+      }
+    )
+  );
 }

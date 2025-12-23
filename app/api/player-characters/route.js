@@ -1,5 +1,7 @@
+import { sanitizeRow, sanitizeRows } from "@/lib/api/sanitize";
 import { query } from "@/lib/db";
 import { v4 as uuid } from "uuid";
+import { sanitizeRow, sanitizeRows } from "@/lib/api/sanitize";
 
 export const dynamic = "force-dynamic";
 
@@ -154,5 +156,17 @@ export async function PUT(req) {
     ]
   );
 
-  return Response.json(result.rows[0] || null);
+ export async function GET(req) {
+  const rows = await /* existing query logic */;
+
+  return Response.json(
+    sanitizeRows(
+      rows.map(fromDb),
+      {
+        firstName: 60,
+        lastName: 60,
+        notes: 10000,
+      }
+    )
+  );
 }

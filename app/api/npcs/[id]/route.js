@@ -1,5 +1,6 @@
 import { query } from "@/lib/db";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
+import { sanitizeRow, sanitizeRows } from "@/lib/api/sanitize";
 
 function pick(body, camel, snake) {
   return body[camel] ?? body[snake] ?? null;

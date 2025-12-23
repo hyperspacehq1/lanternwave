@@ -1,4 +1,5 @@
 import { query } from "@/lib/db";
+import { sanitizeRow, sanitizeRows } from "@/lib/api/sanitize";
 
 /* -------------------------------------------------
    PUT /api/player-characters/:id

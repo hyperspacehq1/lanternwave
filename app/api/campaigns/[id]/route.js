@@ -1,6 +1,8 @@
+import { sanitizeRow, sanitizeRows } from "@/lib/api/sanitize";
 import { query } from "@/lib/db";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { toDb, fromDb } from "@/lib/campaignMapper";
+import { sanitizeRow, sanitizeRows } from "@/lib/api/sanitize";
 
 export const dynamic = "force-dynamic";
 
@@ -118,5 +120,18 @@ export async function DELETE(req, { params }) {
     return Response.json({ error: "Campaign not found" }, { status: 404 });
   }
 
-  return Response.json({ success: true, id });
+export async function GET(req, { params }) {
+  const row = await /* existing query logic */;
+
+  return Response.json(
+    sanitizeRow(
+      fromDb(row),
+      {
+        name: 120,
+        description: 10000,
+        worldSetting: 10000,
+        notes: 10000,
+      }
+    )
+  );
 }

@@ -1,3 +1,4 @@
+import { sanitizeRow, sanitizeRows } from "@/lib/api/sanitize";
 import { query } from "@/lib/db";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import OpenAI from "openai";
