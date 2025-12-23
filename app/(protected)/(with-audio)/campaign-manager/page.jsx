@@ -73,6 +73,28 @@ export default function CampaignManagerPage() {
   }, []);
 
   /* ------------------------------------------------------------
+     Auto-select campaign (newest on first load)
+  ------------------------------------------------------------ */
+  useEffect(() => {
+    if (!campaigns.length) return;
+
+    const stored = sessionStorage.getItem("activeCampaignId");
+    if (stored && campaigns.find((c) => c.id === stored)) {
+      setActiveCampaignId(stored);
+      return;
+    }
+
+    const newest = [...campaigns].sort(
+      (a, b) => new Date(b.created_at) - new Date(a.created_at)
+    )[0];
+
+    if (newest) {
+      setActiveCampaignId(newest.id);
+      sessionStorage.setItem("activeCampaignId", newest.id);
+    }
+  }, [campaigns]);
+
+  /* ------------------------------------------------------------
      Load sessions when campaign changes
   ------------------------------------------------------------ */
   useEffect(() => {
@@ -163,12 +185,12 @@ export default function CampaignManagerPage() {
     return () => {
       cancelled = true;
     };
-  }, [activeType, activeSessionId, activeCampaignId]);
+  }, [activeType, activeCampaignId, activeSessionId]);
 
   const activeList = records[activeType] || [];
 
   /* ------------------------------------------------------------
-     Create new record
+     Create
   ------------------------------------------------------------ */
   const handleCreate = () => {
     const id = uuidv4();
@@ -188,7 +210,7 @@ export default function CampaignManagerPage() {
   };
 
   /* ------------------------------------------------------------
-     Save record
+     Save
   ------------------------------------------------------------ */
   const handleSave = async () => {
     if (!selectedRecord) return;
@@ -219,15 +241,12 @@ export default function CampaignManagerPage() {
   };
 
   /* ------------------------------------------------------------
-     Delete record (SOFT DELETE)
+     Delete (soft)
   ------------------------------------------------------------ */
   const handleDelete = async () => {
     if (!selectedRecord || selectedRecord._isNew) return;
 
-    const confirmed = window.confirm(
-      "Confirm Delete?\n\nThis action cannot be undone."
-    );
-
+    const confirmed = window.confirm("Confirm Delete? Yes or No.");
     if (!confirmed) return;
 
     await cmApi.delete(activeType, selectedRecord.id);
@@ -278,9 +297,7 @@ export default function CampaignManagerPage() {
               >
                 + New
               </button>
-
               <button onClick={handleSave}>Save</button>
-
               <button
                 onClick={handleDelete}
                 disabled={!selectedRecord || selectedRecord._isNew}
@@ -291,16 +308,18 @@ export default function CampaignManagerPage() {
             </div>
           </header>
 
-          {/* Campaign selector */}
-          {rules.campaign && (
+          {/* Campaign selector ONLY on Campaigns tab */}
+          {activeType === "campaigns" && (
             <div style={{ marginBottom: 12 }}>
               <label>
                 Campaign:&nbsp;
                 <select
                   value={activeCampaignId}
                   onChange={(e) => {
-                    setActiveCampaignId(e.target.value);
+                    const id = e.target.value;
+                    setActiveCampaignId(id);
                     setActiveSessionId("");
+                    sessionStorage.setItem("activeCampaignId", id);
                   }}
                 >
                   <option value="">Select campaign…</option>
@@ -314,7 +333,7 @@ export default function CampaignManagerPage() {
             </div>
           )}
 
-          {/* Session selector (Events) */}
+          {/* Session selector (Events only) */}
           {rules.session && (
             <div style={{ marginBottom: 12 }}>
               <label>
