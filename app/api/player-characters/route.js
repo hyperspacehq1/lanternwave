@@ -90,7 +90,6 @@ export async function POST(req) {
   const body = await req.json();
 
   const campaignId = body.campaign_id ?? body.campaignId ?? null;
-
   const firstName = body.firstName ?? body.first_name ?? null;
   const lastName = body.lastName ?? body.last_name ?? null;
 
@@ -101,7 +100,7 @@ export async function POST(req) {
     );
   }
 
-  if (!firstName || !firstName.trim() || !lastName || !lastName.trim()) {
+  if (!firstName?.trim() || !lastName?.trim()) {
     return Response.json(
       { error: "firstName and lastName are required" },
       { status: 400 }
@@ -158,7 +157,6 @@ export async function PUT(req) {
     return Response.json({ error: "id required" }, { status: 400 });
   }
 
-  // Guard against blanking required fields
   if (
     ("firstName" in body && !body.firstName?.trim()) ||
     ("lastName" in body && !body.lastName?.trim())

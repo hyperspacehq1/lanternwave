@@ -256,6 +256,19 @@ export default function CampaignManagerPage() {
             </div>
           </header>
 
+          {/* 👇 Option A helper text (NEW) */}
+          {activeType === "events" && !activeSessionId && (
+            <div
+              style={{
+                marginBottom: 12,
+                opacity: 0.7,
+                fontStyle: "italic",
+              }}
+            >
+              Select a session to add events.
+            </div>
+          )}
+
           {rules.campaign && (
             <div style={{ marginBottom: 12 }}>
               <label>
