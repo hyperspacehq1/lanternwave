@@ -1,7 +1,6 @@
-import { sanitizeRow, sanitizeRows } from "@/lib/api/sanitize";
+import { sanitizeRows } from "@/lib/api/sanitize";
 import { query } from "@/lib/db";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
-import { sanitizeRow, sanitizeRows } from "@/lib/api/sanitize";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +11,7 @@ export async function GET(req, { params }) {
   const { tenantId } = await getTenantContext(req);
   const encounterId = params.id;
 
-  const result = await query(
+  const { rows } = await query(
     `
     SELECT
       el.id        AS join_id,
@@ -35,7 +34,12 @@ export async function GET(req, { params }) {
     [encounterId, tenantId]
   );
 
-  return Response.json(result.rows);
+  return Response.json(
+    sanitizeRows(rows, {
+      name: 120,
+      notes: 10000,
+    })
+  );
 }
 
 /* -----------------------------------------------------------
@@ -47,13 +51,10 @@ export async function POST(req, { params }) {
   const body = await req.json();
 
   if (!body.location_id) {
-    return Response.json(
-      { error: "location_id is required" },
-      { status: 400 }
-    );
+    return Response.json({ error: "location_id is required" }, { status: 400 });
   }
 
-  const result = await query(
+  const { rows } = await query(
     `
     INSERT INTO encounter_locations (
       tenant_id,
@@ -68,19 +69,14 @@ export async function POST(req, { params }) {
       updated_at = NOW()
     RETURNING *
     `,
-    [
-      tenantId,
-      encounterId,
-      body.location_id,
-      body.notes ?? null,
-    ]
+    [tenantId, encounterId, body.location_id, body.notes ?? null]
   );
 
-  return Response.json(result.rows[0], { status: 201 });
+  return Response.json(rows[0], { status: 201 });
 }
 
 /* -----------------------------------------------------------
-   DELETE /api/encounters/:id/locations
+   DELETE /api/encounters/:id/locations?location_id=
 ------------------------------------------------------------ */
 export async function DELETE(req, { params }) {
   const { tenantId } = await getTenantContext(req);
@@ -89,10 +85,7 @@ export async function DELETE(req, { params }) {
   const locationId = searchParams.get("location_id");
 
   if (!locationId) {
-    return Response.json(
-      { error: "location_id is required" },
-      { status: 400 }
-    );
+    return Response.json({ error: "location_id is required" }, { status: 400 });
   }
 
   await query(
@@ -105,17 +98,5 @@ export async function DELETE(req, { params }) {
     [tenantId, encounterId, locationId]
   );
 
- export async function GET(req, { params }) {
-  const rows = await /* existing join query */;
-
-  return Response.json(
-    sanitizeRows(
-      rows,
-      {
-        name: 120,
-        description: 10000,
-        notes: 10000,
-      }
-    )
-  );
+  return Response.json({ ok: true }, { status: 200 });
 }

@@ -2,7 +2,6 @@ import { sanitizeRow, sanitizeRows } from "@/lib/api/sanitize";
 import { query } from "@/lib/db";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { toDb, fromDb } from "@/lib/campaignMapper";
-import { sanitizeRow, sanitizeRows } from "@/lib/api/sanitize";
 
 export const dynamic = "force-dynamic";
 
@@ -29,7 +28,14 @@ export async function GET(req, { params }) {
     return Response.json({ error: "Campaign not found" }, { status: 404 });
   }
 
-  return Response.json(fromDb(rows[0]));
+  return Response.json(
+    sanitizeRow(fromDb(rows[0]), {
+      name: 120,
+      description: 10000,
+      worldSetting: 10000,
+      notes: 10000,
+    })
+  );
 }
 
 /* -----------------------------------------------------------
@@ -49,32 +55,25 @@ export async function PUT(req, { params }) {
     sets.push(`name = $${i++}`);
     values.push(dbVals.name);
   }
-
   if (dbVals.description !== undefined) {
     sets.push(`description = $${i++}`);
     values.push(dbVals.description);
   }
-
   if (dbVals.world_setting !== undefined) {
     sets.push(`world_setting = $${i++}`);
     values.push(dbVals.world_setting);
   }
-
   if (dbVals.campaign_date !== undefined) {
     sets.push(`campaign_date = $${i++}`);
     values.push(dbVals.campaign_date);
   }
-
   if (dbVals.campaign_package !== undefined) {
     sets.push(`campaign_package = $${i++}`);
     values.push(dbVals.campaign_package);
   }
 
   if (!sets.length) {
-    return Response.json(
-      { error: "No valid fields provided" },
-      { status: 400 }
-    );
+    return Response.json({ error: "No valid fields provided" }, { status: 400 });
   }
 
   const { rows } = await query(
@@ -94,7 +93,14 @@ export async function PUT(req, { params }) {
     return Response.json({ error: "Campaign not found" }, { status: 404 });
   }
 
-  return Response.json(fromDb(rows[0]));
+  return Response.json(
+    sanitizeRow(fromDb(rows[0]), {
+      name: 120,
+      description: 10000,
+      worldSetting: 10000,
+      notes: 10000,
+    })
+  );
 }
 
 /* -----------------------------------------------------------
@@ -107,11 +113,12 @@ export async function DELETE(req, { params }) {
   const { rows } = await query(
     `
     UPDATE campaigns
-       SET deleted_at = NOW()
+       SET deleted_at = NOW(),
+           updated_at = NOW()
      WHERE tenant_id = $1
        AND id = $2
        AND deleted_at IS NULL
-     RETURNING id
+     RETURNING *
     `,
     [tenantId, id]
   );
@@ -120,18 +127,12 @@ export async function DELETE(req, { params }) {
     return Response.json({ error: "Campaign not found" }, { status: 404 });
   }
 
-export async function GET(req, { params }) {
-  const row = await /* existing query logic */;
-
   return Response.json(
-    sanitizeRow(
-      fromDb(row),
-      {
-        name: 120,
-        description: 10000,
-        worldSetting: 10000,
-        notes: 10000,
-      }
-    )
+    sanitizeRow(fromDb(rows[0]), {
+      name: 120,
+      description: 10000,
+      worldSetting: 10000,
+      notes: 10000,
+    })
   );
 }

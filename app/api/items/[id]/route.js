@@ -1,74 +1,122 @@
+import { sanitizeRow } from "@/lib/api/sanitize";
 import { query } from "@/lib/db";
-import { sanitizeRow, sanitizeRows } from "@/lib/api/sanitize";
+import { getTenantContext } from "@/lib/tenant/getTenantContext";
 
-/* -------------------------------------------------
-   PUT /api/player-characters/:id
--------------------------------------------------- */
-export async function PUT(req, { params }) {
-  const id = params.id;
-  const body = await req.json();
+export const dynamic = "force-dynamic";
 
-  const first_name = body.firstName ?? body.first_name ?? null;
-  const last_name = body.lastName ?? body.last_name ?? null;
-  const phone = body.phone ?? null;
-  const email = body.email ?? null;
-  const notes = body.notes ?? null;
+/* -----------------------------------------------------------
+   GET /api/items/:id
+------------------------------------------------------------ */
+export async function GET(req, { params }) {
+  const { tenantId } = await getTenantContext(req);
+  const id = params?.id;
 
-  if (!first_name || !last_name) {
-    return Response.json(
-      { error: "firstName and lastName are required" },
-      { status: 400 }
-    );
+  if (!id) {
+    return Response.json({ error: "id required" }, { status: 400 });
   }
 
-  const { rows } = await pool.query(
+  const { rows } = await query(
     `
-    UPDATE player_characters
-    SET
-      first_name = $1,
-      last_name  = $2,
-      phone      = $3,
-      email      = $4,
-      notes      = $5,
-      updated_at = now()
-    WHERE id = $6
-    RETURNING *
+    SELECT *
+      FROM items
+     WHERE tenant_id = $1
+       AND id = $2
+       AND deleted_at IS NULL
+     LIMIT 1
     `,
-    [first_name, last_name, phone, email, notes, id]
+    [tenantId, id]
   );
-
-  if (!rows.length) {
-    return Response.json(
-      { error: "player_character not found" },
-      { status: 404 }
-    );
-  }
-
-  return Response.json(rows[0]);
-}
-
-/* -------------------------------------------------
-   DELETE /api/player-characters/:id (optional but recommended)
--------------------------------------------------- */
-export async function DELETE(req, { params }) {
-  const id = params.id;
-
-  await pool.query(
-    `DELETE FROM player_characters WHERE id = $1`,
-    [id]
-  );
-
-export async function GET(req) {
-  const rows = await /* existing query logic */;
 
   return Response.json(
-    sanitizeRows(
-      rows.map(fromDb),
-      {
-        name: 120,
-        description: 10000,
-        notes: 10000,
-      }
-    )
+    rows[0]
+      ? sanitizeRow(rows[0], {
+          name: 120,
+          description: 10000,
+          notes: 10000,
+        })
+      : null
+  );
+}
+
+/* -----------------------------------------------------------
+   PUT /api/items/:id
+------------------------------------------------------------ */
+export async function PUT(req, { params }) {
+  const { tenantId } = await getTenantContext(req);
+  const id = params?.id;
+  const body = await req.json();
+
+  if (!id) {
+    return Response.json({ error: "id required" }, { status: 400 });
+  }
+
+  const { rows } = await query(
+    `
+    UPDATE items
+       SET name        = COALESCE($3, name),
+           item_type   = COALESCE($4, item_type),
+           description = COALESCE($5, description),
+           notes       = COALESCE($6, notes),
+           properties  = COALESCE($7, properties),
+           updated_at  = NOW()
+     WHERE tenant_id = $1
+       AND id = $2
+       AND deleted_at IS NULL
+     RETURNING *
+    `,
+    [
+      tenantId,
+      id,
+      body.name,
+      body.item_type ?? body.itemType,
+      body.description,
+      body.notes,
+      body.properties,
+    ]
+  );
+
+  return Response.json(
+    rows[0]
+      ? sanitizeRow(rows[0], {
+          name: 120,
+          description: 10000,
+          notes: 10000,
+        })
+      : null
+  );
+}
+
+/* -----------------------------------------------------------
+   DELETE /api/items/:id  (SOFT DELETE)
+------------------------------------------------------------ */
+export async function DELETE(req, { params }) {
+  const { tenantId } = await getTenantContext(req);
+  const id = params?.id;
+
+  if (!id) {
+    return Response.json({ error: "id required" }, { status: 400 });
+  }
+
+  const { rows } = await query(
+    `
+    UPDATE items
+       SET deleted_at = NOW(),
+           updated_at = NOW()
+     WHERE tenant_id = $1
+       AND id = $2
+       AND deleted_at IS NULL
+     RETURNING *
+    `,
+    [tenantId, id]
+  );
+
+  return Response.json(
+    rows[0]
+      ? sanitizeRow(rows[0], {
+          name: 120,
+          description: 10000,
+          notes: 10000,
+        })
+      : null
   );
 }

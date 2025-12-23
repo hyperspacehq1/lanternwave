@@ -1,7 +1,6 @@
-import { sanitizeRow, sanitizeRows } from "@/lib/api/sanitize";
+import { sanitizeRows } from "@/lib/api/sanitize";
 import { query } from "@/lib/db";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
-import { sanitizeRow, sanitizeRows } from "@/lib/api/sanitize";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +11,7 @@ export async function GET(req, { params }) {
   const { tenantId } = await getTenantContext(req);
   const encounterId = params.id;
 
-  const result = await query(
+  const { rows } = await query(
     `
     SELECT
       ei.id        AS join_id,
@@ -37,7 +36,12 @@ export async function GET(req, { params }) {
     [encounterId, tenantId]
   );
 
-  return Response.json(result.rows);
+  return Response.json(
+    sanitizeRows(rows, {
+      name: 120,
+      notes: 10000,
+    })
+  );
 }
 
 /* -----------------------------------------------------------
@@ -49,13 +53,10 @@ export async function POST(req, { params }) {
   const body = await req.json();
 
   if (!body.item_id) {
-    return Response.json(
-      { error: "item_id is required" },
-      { status: 400 }
-    );
+    return Response.json({ error: "item_id is required" }, { status: 400 });
   }
 
-  const result = await query(
+  const { rows } = await query(
     `
     INSERT INTO encounter_items (
       tenant_id,
@@ -81,11 +82,11 @@ export async function POST(req, { params }) {
     ]
   );
 
-  return Response.json(result.rows[0], { status: 201 });
+  return Response.json(rows[0], { status: 201 });
 }
 
 /* -----------------------------------------------------------
-   DELETE /api/encounters/:id/items
+   DELETE /api/encounters/:id/items?item_id=
 ------------------------------------------------------------ */
 export async function DELETE(req, { params }) {
   const { tenantId } = await getTenantContext(req);
@@ -94,10 +95,7 @@ export async function DELETE(req, { params }) {
   const itemId = searchParams.get("item_id");
 
   if (!itemId) {
-    return Response.json(
-      { error: "item_id is required" },
-      { status: 400 }
-    );
+    return Response.json({ error: "item_id is required" }, { status: 400 });
   }
 
   await query(
@@ -110,17 +108,5 @@ export async function DELETE(req, { params }) {
     [tenantId, encounterId, itemId]
   );
 
- export async function GET(req, { params }) {
-  const rows = await /* existing join query */;
-
-  return Response.json(
-    sanitizeRows(
-      rows,
-      {
-        name: 120,
-        description: 10000,
-        notes: 10000,
-      }
-    )
-  );
+  return Response.json({ ok: true }, { status: 200 });
 }
