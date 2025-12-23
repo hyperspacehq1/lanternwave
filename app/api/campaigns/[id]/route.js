@@ -5,6 +5,13 @@ import { toDb, fromDb } from "@/lib/campaignMapper";
 
 export const dynamic = "force-dynamic";
 
+const ALLOWED_CAMPAIGN_PACKAGES = new Set([
+  "standard",
+  "starter",
+  "advanced",
+  "premium",
+]);
+
 /* -----------------------------------------------------------
    GET /api/campaigns/:id
 ------------------------------------------------------------ */
@@ -39,7 +46,8 @@ export async function GET(req, { params }) {
       name: 120,
       description: 10000,
       worldSetting: 10000,
-      notes: 10000,
+      campaignDate: 50,
+      campaignPackage: 50,
     })
   );
 }
@@ -56,32 +64,56 @@ export async function PUT(req, { params }) {
   }
 
   const { id } = params;
-  const incoming = await req.json();
-  const dbVals = toDb(incoming);
+  const body = await req.json();
+
+  if ("name" in body && (!body.name || !body.name.trim())) {
+    return Response.json(
+      { error: "Campaign name cannot be blank" },
+      { status: 400 }
+    );
+  }
+
+  if (
+    "campaignPackage" in body &&
+    !ALLOWED_CAMPAIGN_PACKAGES.has(body.campaignPackage)
+  ) {
+    return Response.json(
+      { error: "Invalid campaign package" },
+      { status: 400 }
+    );
+  }
+
+  const db = toDb({
+    name: body?.name,
+    description: body?.description,
+    worldSetting: body?.worldSetting,
+    campaignDate: body?.campaignDate,
+    campaignPackage: body?.campaignPackage,
+  });
 
   const sets = [];
   const values = [tenantId, id];
   let i = 3;
 
-  if (dbVals.name !== undefined) {
+  if (db.name !== undefined) {
     sets.push(`name = $${i++}`);
-    values.push(dbVals.name);
+    values.push(db.name);
   }
-  if (dbVals.description !== undefined) {
+  if (db.description !== undefined) {
     sets.push(`description = $${i++}`);
-    values.push(dbVals.description);
+    values.push(db.description);
   }
-  if (dbVals.world_setting !== undefined) {
+  if (db.world_setting !== undefined) {
     sets.push(`world_setting = $${i++}`);
-    values.push(dbVals.world_setting);
+    values.push(db.world_setting);
   }
-  if (dbVals.campaign_date !== undefined) {
+  if (db.campaign_date !== undefined) {
     sets.push(`campaign_date = $${i++}`);
-    values.push(dbVals.campaign_date);
+    values.push(db.campaign_date);
   }
-  if (dbVals.campaign_package !== undefined) {
+  if (db.campaign_package !== undefined) {
     sets.push(`campaign_package = $${i++}`);
-    values.push(dbVals.campaign_package);
+    values.push(db.campaign_package);
   }
 
   if (!sets.length) {
@@ -110,13 +142,14 @@ export async function PUT(req, { params }) {
       name: 120,
       description: 10000,
       worldSetting: 10000,
-      notes: 10000,
+      campaignDate: 50,
+      campaignPackage: 50,
     })
   );
 }
 
 /* -----------------------------------------------------------
-   DELETE /api/campaigns/:id   (soft delete)
+   DELETE /api/campaigns/:id
 ------------------------------------------------------------ */
 export async function DELETE(req, { params }) {
   let tenantId;
@@ -150,7 +183,8 @@ export async function DELETE(req, { params }) {
       name: 120,
       description: 10000,
       worldSetting: 10000,
-      notes: 10000,
+      campaignDate: 50,
+      campaignPackage: 50,
     })
   );
 }

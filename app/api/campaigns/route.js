@@ -5,6 +5,13 @@ import { toDb, fromDb } from "@/lib/campaignMapper";
 
 export const dynamic = "force-dynamic";
 
+const ALLOWED_CAMPAIGN_PACKAGES = new Set([
+  "standard",
+  "starter",
+  "advanced",
+  "premium",
+]);
+
 /* -------------------------------------------------
    GET /api/campaigns
 -------------------------------------------------- */
@@ -32,7 +39,8 @@ export async function GET(req) {
       name: 120,
       description: 10000,
       worldSetting: 10000,
-      notes: 10000,
+      campaignDate: 50,
+      campaignPackage: 50,
     })
   );
 }
@@ -50,14 +58,27 @@ export async function POST(req) {
 
   const body = await req.json();
 
-  if (!body?.name || !body.name.trim()) {
+  const name =
+    typeof body?.name === "string" && body.name.trim()
+      ? body.name.trim()
+      : "New Campaign";
+
+  const campaignPackage = body?.campaignPackage ?? "standard";
+
+  if (!ALLOWED_CAMPAIGN_PACKAGES.has(campaignPackage)) {
     return Response.json(
-      { error: "Campaign name is required" },
+      { error: "Invalid campaign package" },
       { status: 400 }
     );
   }
 
-  const db = toDb(body);
+  const db = toDb({
+    name,
+    description: body?.description,
+    worldSetting: body?.worldSetting,
+    campaignDate: body?.campaignDate,
+    campaignPackage,
+  });
 
   const { rows } = await query(
     `
@@ -69,7 +90,7 @@ export async function POST(req) {
       campaign_date,
       campaign_package
     )
-    VALUES ($1, $2, $3, $4, $5, COALESCE($6, 'standard'))
+    VALUES ($1, $2, $3, $4, $5, $6)
     RETURNING *
     `,
     [
@@ -78,7 +99,7 @@ export async function POST(req) {
       db.description ?? null,
       db.world_setting ?? null,
       db.campaign_date ?? null,
-      db.campaign_package ?? null,
+      db.campaign_package,
     ]
   );
 
@@ -87,14 +108,15 @@ export async function POST(req) {
       name: 120,
       description: 10000,
       worldSetting: 10000,
-      notes: 10000,
+      campaignDate: 50,
+      campaignPackage: 50,
     }),
     { status: 201 }
   );
 }
 
 /* -------------------------------------------------
-   DELETE /api/campaigns?id=   (SOFT DELETE)
+   DELETE /api/campaigns?id=
 -------------------------------------------------- */
 export async function DELETE(req) {
   let tenantId;
@@ -130,7 +152,8 @@ export async function DELETE(req) {
           name: 120,
           description: 10000,
           worldSetting: 10000,
-          notes: 10000,
+          campaignDate: 50,
+          campaignPackage: 50,
         })
       : null
   );
