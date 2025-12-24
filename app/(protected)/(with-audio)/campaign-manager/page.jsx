@@ -83,7 +83,7 @@ export default function CampaignManagerPage() {
     activeType !== "campaigns" && rules.campaign && !activeCampaignId;
 
   /* ------------------------------------------------------------
-     Load records
+     Load records (with click-spam protection)
   ------------------------------------------------------------ */
   useEffect(() => {
     if (campaignRequired) return;
@@ -116,7 +116,9 @@ export default function CampaignManagerPage() {
     }
 
     load();
-    return () => (cancelled = true);
+    return () => {
+      cancelled = true;
+    };
   }, [activeType, activeCampaignId]);
 
   const activeList = records[activeType] || [];
@@ -136,6 +138,8 @@ export default function CampaignManagerPage() {
      Actions
   ------------------------------------------------------------ */
   const handleCreate = () => {
+    if (loading) return;
+
     const id = uuidv4();
     const base = { id, _isNew: true, campaign_id: activeCampaignId };
 
@@ -150,7 +154,9 @@ export default function CampaignManagerPage() {
   };
 
   const handleSave = async () => {
-    if (!selectedRecord) return;
+    if (!selectedRecord || loading) return;
+
+    setSaveStatus("saving");
 
     const { _isNew, id, ...payload } = selectedRecord;
     const saved = _isNew
@@ -169,7 +175,7 @@ export default function CampaignManagerPage() {
   };
 
   const handleDelete = async () => {
-    if (!selectedRecord?.id) return;
+    if (!selectedRecord?.id || loading) return;
 
     await cmApi.remove(activeType, selectedRecord.id);
 
@@ -194,10 +200,14 @@ export default function CampaignManagerPage() {
           {CONTAINER_TYPES.map((c) => (
             <button
               key={c.id}
+              disabled={loading}
               className={`cm-container-btn ${
                 c.id === activeType ? "active" : ""
-              }`}
-              onClick={() => setActiveType(c.id)}
+              } ${loading ? "disabled" : ""}`}
+              onClick={() => {
+                if (loading) return;
+                setActiveType(c.id);
+              }}
             >
               {c.label}
             </button>
@@ -213,23 +223,39 @@ export default function CampaignManagerPage() {
               {activeType.replace("-", " ")}
             </div>
             <div className="cm-main-actions">
-              <button className="cm-button" onClick={handleCreate}>
+              <button
+                className="cm-button"
+                onClick={handleCreate}
+                disabled={loading}
+              >
                 + New
               </button>
-              <button className="cm-button" onClick={handleSave}>
+              <button
+                className="cm-button"
+                onClick={handleSave}
+                disabled={loading}
+              >
                 Save
               </button>
               <button
                 className="cm-button danger"
                 onClick={handleDelete}
+                disabled={loading}
               >
                 Delete
               </button>
             </div>
           </div>
 
-          {/* 🔍 SEARCH — TOP RIGHT UNDER HEADER */}
-          {!campaignRequired && (
+          {/* LOADING INDICATOR */}
+          {loading && (
+            <div className="cm-loading-indicator">
+              Loading {activeType.replace("-", " ")}…
+            </div>
+          )}
+
+          {/* 🔍 SEARCH */}
+          {!campaignRequired && !loading && (
             <div
               style={{
                 display: "flex",
@@ -251,7 +277,7 @@ export default function CampaignManagerPage() {
               Select a campaign to continue.
             </div>
           ) : (
-            <div className="cm-content">
+            <div className="cm-content" hidden={loading}>
               <section className="cm-list">
                 {filteredList.map((r) => (
                   <div
@@ -260,6 +286,8 @@ export default function CampaignManagerPage() {
                       r.id === selectedId ? "selected" : ""
                     }`}
                     onClick={() => {
+                      if (loading) return;
+
                       setSelectedId(r.id);
                       setSelectedRecord(r);
 

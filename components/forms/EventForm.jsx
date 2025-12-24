@@ -2,6 +2,15 @@
 
 import React, { useEffect, useState } from "react";
 
+const EVENT_TYPES = [
+  { value: "", label: "— Select type —" },
+  { value: "combat", label: "Combat" },
+  { value: "story", label: "Story" },
+  { value: "exploration", label: "Exploration" },
+  { value: "social", label: "Social" },
+  { value: "downtime", label: "Downtime" },
+];
+
 export default function EventForm({ record, onChange }) {
   if (!record) return null;
 
@@ -50,12 +59,19 @@ export default function EventForm({ record, onChange }) {
 
       <div className="cm-field">
         <label className="cm-label">Event Type</label>
-        <input
+        <select
           className="cm-input"
-          type="text"
           value={record.event_type || ""}
-          onChange={(e) => update("event_type", e.target.value)}
-        />
+          onChange={(e) =>
+            update("event_type", e.target.value || null)
+          }
+        >
+          {EVENT_TYPES.map((t) => (
+            <option key={t.value} value={t.value}>
+              {t.label}
+            </option>
+          ))}
+        </select>
       </div>
 
       <div className="cm-field">
@@ -63,6 +79,8 @@ export default function EventForm({ record, onChange }) {
         <input
           className="cm-input"
           type="number"
+          min={0}
+          max={100}
           value={record.priority ?? 0}
           onChange={(e) =>
             update("priority", parseInt(e.target.value || "0", 10))

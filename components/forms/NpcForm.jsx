@@ -2,6 +2,16 @@
 
 import React, { useEffect, useState } from "react";
 
+const NPC_TYPES = [
+  { value: "", label: "— Select type —" },
+  { value: "ally", label: "Ally" },
+  { value: "enemy", label: "Enemy" },
+  { value: "neutral", label: "Neutral" },
+  { value: "merchant", label: "Merchant" },
+  { value: "authority", label: "Authority" },
+  { value: "mystic", label: "Mystic" },
+];
+
 export default function NpcForm({ record, onChange }) {
   if (!record) return null;
 
@@ -41,12 +51,19 @@ export default function NpcForm({ record, onChange }) {
 
       <div className="cm-field">
         <label className="cm-label">NPC Type</label>
-        <input
+        <select
           className="cm-input"
-          type="text"
           value={record.npc_type || ""}
-          onChange={(e) => update("npc_type", e.target.value)}
-        />
+          onChange={(e) =>
+            update("npc_type", e.target.value || null)
+          }
+        >
+          {NPC_TYPES.map((t) => (
+            <option key={t.value} value={t.value}>
+              {t.label}
+            </option>
+          ))}
+        </select>
       </div>
 
       <div className="cm-field">
@@ -72,7 +89,9 @@ export default function NpcForm({ record, onChange }) {
         <textarea
           className="cm-textarea"
           value={record.faction_alignment || ""}
-          onChange={(e) => update("faction_alignment", e.target.value)}
+          onChange={(e) =>
+            update("faction_alignment", e.target.value)
+          }
         />
       </div>
 
