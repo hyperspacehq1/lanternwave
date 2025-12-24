@@ -109,6 +109,7 @@ export default function ControllerPage() {
 
   const [clips, setClips] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [busyKey, setBusyKey] = useState(null); // 🔒 per-clip lock
   const [uploadProgress, setUploadProgress] = useState(null);
   const [nowPlaying, setNowPlayingState] = useState(null);
   const [loop, setLoop] = useState(false);
@@ -142,19 +143,27 @@ export default function ControllerPage() {
       <section className="lw-panel">
         <h2 className="lw-panel-title">UPLOAD CLIP</h2>
 
-        <label className="lw-file-button">
+        <label className={`lw-file-button ${loading ? "disabled" : ""}`}>
           SELECT FILE
           <input
             type="file"
+            disabled={loading}
             accept=".mp3,.mp4,.jpg,.jpeg,.png"
             onChange={async (e) => {
               const file = e.target.files?.[0];
-              if (!file) return;
+              if (!file || loading) return;
+
               setUploadProgress(0);
-              await uploadClip(file, setUploadProgress);
-              setUploadProgress(null);
-              e.target.value = "";
-              refresh();
+              setLoading(true);
+
+              try {
+                await uploadClip(file, setUploadProgress);
+                setUploadProgress(null);
+                e.target.value = "";
+                await refresh();
+              } finally {
+                setLoading(false);
+              }
             }}
           />
         </label>
@@ -173,12 +182,13 @@ export default function ControllerPage() {
       <section className="lw-panel">
         <h2 className="lw-panel-title">CLIP LIBRARY</h2>
 
-        {loading && <div>Loading…</div>}
+        {loading && <div className="lw-loading">Loading clips…</div>}
 
         <div className="lw-clip-list">
           {clips.map((clip) => {
             const key = clip.object_key;
             const isNow = audio?.currentKey === key;
+            const isBusy = busyKey === key || loading;
 
             return (
               <div
@@ -197,6 +207,7 @@ export default function ControllerPage() {
                 <div className="lw-clip-actions">
                   <button
                     className={`loop-btn ${loop ? "active" : ""}`}
+                    disabled={isBusy}
                     title="Loop"
                     onClick={() => {
                       const v = !loop;
@@ -209,10 +220,16 @@ export default function ControllerPage() {
 
                   <button
                     className="lw-btn"
+                    disabled={isBusy}
                     onClick={async () => {
-                      await setNowPlaying(key);
-                      setNowPlayingState({ key });
-                      audio.play(streamUrlForKey(key), key);
+                      setBusyKey(key);
+                      try {
+                        await setNowPlaying(key);
+                        setNowPlayingState({ key });
+                        audio.play(streamUrlForKey(key), key);
+                      } finally {
+                        setBusyKey(null);
+                      }
                     }}
                   >
                     PLAY
@@ -220,10 +237,16 @@ export default function ControllerPage() {
 
                   <button
                     className="lw-btn"
+                    disabled={isBusy}
                     onClick={async () => {
-                      await setNowPlaying(null);
-                      setNowPlayingState(null);
-                      audio.stop();
+                      setBusyKey(key);
+                      try {
+                        await setNowPlaying(null);
+                        setNowPlayingState(null);
+                        audio.stop();
+                      } finally {
+                        setBusyKey(null);
+                      }
                     }}
                   >
                     STOP
@@ -231,9 +254,15 @@ export default function ControllerPage() {
 
                   <button
                     className="lw-btn lw-btn-danger"
+                    disabled={isBusy}
                     onClick={async () => {
-                      await deleteClip(key);
-                      refresh();
+                      setBusyKey(key);
+                      try {
+                        await deleteClip(key);
+                        await refresh();
+                      } finally {
+                        setBusyKey(null);
+                      }
                     }}
                   >
                     DELETE

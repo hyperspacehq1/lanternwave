@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import "./account.css";
 
 export const dynamic = "force-dynamic";
@@ -10,9 +10,16 @@ export default function AccountPage() {
   const [error, setError] = useState(null);
   const [username, setUsername] = useState(null);
 
+  const loadingRef = useRef(false); // 🔒 prevents double-loads
+
   useEffect(() => {
+    if (loadingRef.current) return;
+    loadingRef.current = true;
+
     async function loadAccount() {
       try {
+        setLoading(true);
+
         const res = await fetch("/api/account", {
           credentials: "include",
           cache: "no-store",
@@ -34,6 +41,7 @@ export default function AccountPage() {
         setError("Unable to load account details.");
       } finally {
         setLoading(false);
+        loadingRef.current = false;
       }
     }
 
@@ -45,18 +53,28 @@ export default function AccountPage() {
       <main className="account-content">
         <h1 className="account-title">My Account</h1>
 
-        {loading && (
-          <div className="account-status">
-            Loading…
+        {/* Loading Skeleton */}
+        {loading && !error && (
+          <div className="account-panel account-skeleton">
+            <div className="account-row">
+              <span className="account-label skeleton-box" />
+              <span className="account-value skeleton-box wide" />
+            </div>
+            <div className="account-row">
+              <span className="account-label skeleton-box" />
+              <span className="account-value skeleton-box" />
+            </div>
           </div>
         )}
 
+        {/* Error */}
         {error && (
           <div className="account-error">
             {error}
           </div>
         )}
 
+        {/* Loaded */}
         {!loading && !error && (
           <div className="account-panel">
             <div className="account-row">
@@ -74,4 +92,3 @@ export default function AccountPage() {
     </div>
   );
 }
-
