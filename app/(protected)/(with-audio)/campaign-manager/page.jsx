@@ -44,6 +44,9 @@ export default function CampaignManagerPage() {
   const [campaigns, setCampaigns] = useState([]);
   const [activeCampaignId, setActiveCampaignId] = useState("");
 
+  /* 🔍 SEARCH STATE */
+  const [searchTerm, setSearchTerm] = useState("");
+
   const saveLabel = useMemo(
     () =>
       ({
@@ -67,12 +70,11 @@ export default function CampaignManagerPage() {
   }, []);
 
   /* ------------------------------------------------------------
-     Auto-select first campaign if none selected
+     Auto-select first campaign
   ------------------------------------------------------------ */
   useEffect(() => {
     if (!campaigns.length) return;
     if (activeCampaignId) return;
-
     setActiveCampaignId(campaigns[0].id);
   }, [campaigns, activeCampaignId]);
 
@@ -106,6 +108,7 @@ export default function CampaignManagerPage() {
           setRecords((p) => ({ ...p, [activeType]: list || [] }));
           setSelectedId(list?.[0]?.id ?? null);
           setSelectedRecord(list?.[0] ?? null);
+          setSearchTerm("");
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -117,6 +120,17 @@ export default function CampaignManagerPage() {
   }, [activeType, activeCampaignId]);
 
   const activeList = records[activeType] || [];
+
+  /* ------------------------------------------------------------
+     SEARCH FILTER
+  ------------------------------------------------------------ */
+  const filteredList = useMemo(() => {
+    if (!searchTerm) return activeList;
+    const q = searchTerm.toLowerCase();
+    return activeList.filter((r) =>
+      (r.name || "Unnamed").toLowerCase().includes(q)
+    );
+  }, [activeList, searchTerm]);
 
   /* ------------------------------------------------------------
      Actions
@@ -193,6 +207,7 @@ export default function CampaignManagerPage() {
         </aside>
 
         <section className="cm-main">
+          {/* HEADER */}
           <div className="cm-main-header">
             <div className="cm-main-title">
               {activeType.replace("-", " ")}
@@ -213,6 +228,24 @@ export default function CampaignManagerPage() {
             </div>
           </div>
 
+          {/* 🔍 SEARCH — TOP RIGHT UNDER HEADER */}
+          {!campaignRequired && (
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                marginBottom: "0.75rem",
+              }}
+            >
+              <input
+                className="cm-search"
+                placeholder={`Search ${activeType.replace("-", " ")}`}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+          )}
+
           {campaignRequired ? (
             <div className="cm-detail-empty">
               Select a campaign to continue.
@@ -220,7 +253,7 @@ export default function CampaignManagerPage() {
           ) : (
             <div className="cm-content">
               <section className="cm-list">
-                {activeList.map((r) => (
+                {filteredList.map((r) => (
                   <div
                     key={r.id}
                     className={`cm-list-item ${
@@ -230,7 +263,6 @@ export default function CampaignManagerPage() {
                       setSelectedId(r.id);
                       setSelectedRecord(r);
 
-                      // 🔑 CRITICAL FIX
                       if (activeType === "campaigns") {
                         setActiveCampaignId(r.id);
                       }
