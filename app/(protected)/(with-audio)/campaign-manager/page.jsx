@@ -9,7 +9,7 @@ import { getFormComponent } from "@/components/forms";
 import "./campaign-manager.css";
 
 /* ------------------------------------------------------------
-   Entity rules (single source of truth)
+   Entity rules
 ------------------------------------------------------------ */
 const ENTITY_RULES = {
   campaigns: {},
@@ -33,20 +33,6 @@ const CONTAINER_TYPES = [
   { id: "items", label: "Items" },
 ];
 
-/* ------------------------------------------------------------
-   🔍 Highlight helper
------------------------------------------------------------- */
-function highlight(text, query) {
-  if (!text || !query) return text;
-
-  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const regex = new RegExp(`(${escaped})`, "gi");
-
-  return text.split(regex).map((part, i) =>
-    regex.test(part) ? <mark key={i}>{part}</mark> : <span key={i}>{part}</span>
-  );
-}
-
 export default function CampaignManagerPage() {
   const [activeType, setActiveType] = useState("campaigns");
   const [records, setRecords] = useState({});
@@ -57,12 +43,6 @@ export default function CampaignManagerPage() {
 
   const [campaigns, setCampaigns] = useState([]);
   const [activeCampaignId, setActiveCampaignId] = useState("");
-  const [activeSessionId, setActiveSessionId] = useState("");
-
-  /* 🔍 SEARCH STATE */
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState([]);
-  const searchAbort = useRef(null);
 
   const saveLabel = useMemo(
     () =>
@@ -76,9 +56,6 @@ export default function CampaignManagerPage() {
     [saveStatus]
   );
 
-  const rules = ENTITY_RULES[activeType] || {};
-  const activeCampaign = campaigns.find((c) => c.id === activeCampaignId);
-
   /* ------------------------------------------------------------
      Load campaigns
   ------------------------------------------------------------ */
@@ -86,85 +63,7 @@ export default function CampaignManagerPage() {
     cmApi.list("campaigns").then(setCampaigns).catch(() => setCampaigns([]));
   }, []);
 
-  /* ------------------------------------------------------------
-     Auto-select campaign
-  ------------------------------------------------------------ */
-  useEffect(() => {
-    if (!campaigns.length) return;
-
-    const stored = sessionStorage.getItem("activeCampaignId");
-    const found = campaigns.find((c) => c.id === stored);
-    if (found) {
-      setActiveCampaignId(found.id);
-      return;
-    }
-
-    const newest = [...campaigns].sort(
-      (a, b) => new Date(b.created_at) - new Date(a.created_at)
-    )[0];
-
-    if (newest) {
-      setActiveCampaignId(newest.id);
-      sessionStorage.setItem("activeCampaignId", newest.id);
-    }
-  }, [campaigns]);
-
-  /* ------------------------------------------------------------
-     🔍 SEARCH EFFECT (debounced)
-  ------------------------------------------------------------ */
-  useEffect(() => {
-    if (!searchQuery.trim()) {
-      setSearchResults([]);
-      return;
-    }
-
-    if (searchAbort.current) searchAbort.current.abort();
-    const controller = new AbortController();
-    searchAbort.current = controller;
-
-    const t = setTimeout(async () => {
-      try {
-        const res = await fetch(
-          `/api/search?q=${encodeURIComponent(searchQuery)}`,
-          { signal: controller.signal }
-        );
-        const json = await res.json();
-        setSearchResults(json.results || []);
-      } catch {
-        /* ignore */
-      }
-    }, 250);
-
-    return () => clearTimeout(t);
-  }, [searchQuery]);
-
-  /* ------------------------------------------------------------
-     🔍 Handle search selection
-  ------------------------------------------------------------ */
-  const handleSearchSelect = (r) => {
-    setSearchQuery("");
-    setSearchResults([]);
-
-    if (r.campaignId !== activeCampaignId) {
-      setActiveCampaignId(r.campaignId);
-      sessionStorage.setItem("activeCampaignId", r.campaignId);
-    }
-
-    setActiveType(r.tab);
-
-    setTimeout(() => {
-      const list = records[r.tab] || [];
-      const found = list.find((x) => x.id === r.id);
-      if (found) {
-        setSelectedId(found.id);
-        setSelectedRecord(found);
-      }
-    }, 150);
-  };
-
-  /* ------------------------------------------------------------
-     HARD ASSERTION
-  ------------------------------------------------------------ */
+  const rules = ENTITY_RULES[activeType] || {};
   const campaignRequired =
     activeType !== "campaigns" && rules.campaign && !activeCampaignId;
 
@@ -206,50 +105,63 @@ export default function CampaignManagerPage() {
 
   const activeList = records[activeType] || [];
 
+  /* ------------------------------------------------------------
+     Actions
+  ------------------------------------------------------------ */
+  const handleCreate = () => {
+    const id = uuidv4();
+    const base = { id, _isNew: true, campaign_id: activeCampaignId };
+
+    setRecords((p) => ({
+      ...p,
+      [activeType]: [base, ...(p[activeType] || [])],
+    }));
+
+    setSelectedId(id);
+    setSelectedRecord(base);
+    setSaveStatus("unsaved");
+  };
+
+  const handleSave = async () => {
+    if (!selectedRecord) return;
+
+    const { _isNew, id, ...payload } = selectedRecord;
+    const saved = _isNew
+      ? await cmApi.create(activeType, payload)
+      : await cmApi.update(activeType, id, payload);
+
+    setRecords((p) => ({
+      ...p,
+      [activeType]: p[activeType].map((r) =>
+        r.id === saved.id ? saved : r
+      ),
+    }));
+
+    setSelectedRecord(saved);
+    setSaveStatus("saved");
+  };
+
+  const handleDelete = async () => {
+    if (!selectedRecord?.id) return;
+    await cmApi.remove(activeType, selectedRecord.id);
+
+    setRecords((p) => ({
+      ...p,
+      [activeType]: p[activeType].filter(
+        (r) => r.id !== selectedRecord.id
+      ),
+    }));
+
+    setSelectedRecord(null);
+    setSelectedId(null);
+    setSaveStatus("idle");
+  };
+
   return (
     <div className="cm-root">
       <div className="cm-layout">
         <aside className="cm-sidebar">
           <h1 className="cm-title">Campaign Manager</h1>
-
-          {/* 🔍 SEARCH INPUT */}
-          <input
-            className="cm-search"
-            placeholder="Search campaigns, NPCs, locations…"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-
-          {/* 🔍 SEARCH RESULTS (updated) */}
-          {searchResults.length > 0 && (
-            <div className="cm-search-results">
-              {searchResults.map((r) => (
-                <div
-                  key={`${r.entityType}-${r.id}`}
-                  className="cm-search-result"
-                  onClick={() => handleSearchSelect(r)}
-                >
-                  <div className="cm-search-row">
-                    <span
-                      className={`cm-search-icon cm-icon-${r.icon} cm-icon-${r.color}`}
-                      aria-hidden
-                    />
-                    <div className="cm-search-text">
-                      <div className="cm-search-label">
-                        {highlight(r.label, searchQuery)}
-                      </div>
-                      {r.snippet && (
-                        <div className="cm-search-snippet">
-                          {highlight(r.snippet, searchQuery)}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="cm-search-meta">{r.entityLabel}</div>
-                </div>
-              ))}
-            </div>
-          )}
 
           {CONTAINER_TYPES.map((c) => (
             <button
@@ -267,6 +179,27 @@ export default function CampaignManagerPage() {
         </aside>
 
         <section className="cm-main">
+          {/* 🔑 RESTORED ACTION HEADER */}
+          <div className="cm-main-header">
+            <div className="cm-main-title">
+              {activeType.replace("-", " ")}
+            </div>
+            <div className="cm-main-actions">
+              <button className="cm-button" onClick={handleCreate}>
+                + New
+              </button>
+              <button className="cm-button" onClick={handleSave}>
+                Save
+              </button>
+              <button
+                className="cm-button danger"
+                onClick={handleDelete}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+
           {campaignRequired ? (
             <div className="cm-detail-empty">
               Select a campaign to continue.
@@ -298,7 +231,10 @@ export default function CampaignManagerPage() {
                       <Form
                         record={{
                           ...selectedRecord,
-                          _campaignName: activeCampaign?.name,
+                          _campaignName:
+                            campaigns.find(
+                              (c) => c.id === activeCampaignId
+                            )?.name,
                         }}
                         onChange={(next) => {
                           setSelectedRecord(next);
