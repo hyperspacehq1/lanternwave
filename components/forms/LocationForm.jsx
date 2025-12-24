@@ -8,6 +8,17 @@ export default function LocationForm({ record, onChange }) {
   const update = (field, value) =>
     onChange({ ...record, [field]: value });
 
+  /* ---------------------------------------------
+     Campaign change pulse
+  --------------------------------------------- */
+  const [pulse, setPulse] = useState(false);
+
+  useEffect(() => {
+    setPulse(true);
+    const t = setTimeout(() => setPulse(false), 1200);
+    return () => clearTimeout(t);
+  }, [record._campaignName]);
+
   const [hasAddress, setHasAddress] = useState(false);
 
   useEffect(() => {
@@ -24,18 +35,18 @@ export default function LocationForm({ record, onChange }) {
 
   return (
     <div className="cm-detail-form">
-      {/* Read-only Campaign Context */}
-      {record._campaignName && (
-        <div className="cm-context-badge">
-          <strong>Campaign:</strong> {record._campaignName}
-        </div>
-      )}
+
+      {/* 🔒 Locked campaign header */}
+      <div className={`cm-campaign-header ${pulse ? "pulse" : ""}`}>
+        Campaign: {record._campaignName || "Unnamed Campaign"}
+      </div>
 
       <div className="cm-field">
-        <label>
+        <label className="cm-label">
           Name <strong>(required)</strong>
         </label>
         <input
+          className="cm-input"
           type="text"
           value={record.name || ""}
           onChange={(e) => update("name", e.target.value)}
@@ -43,8 +54,9 @@ export default function LocationForm({ record, onChange }) {
       </div>
 
       <div className="cm-field">
-        <label>World</label>
+        <label className="cm-label">World</label>
         <input
+          className="cm-input"
           type="text"
           value={record.world || ""}
           onChange={(e) => update("world", e.target.value)}
@@ -52,31 +64,34 @@ export default function LocationForm({ record, onChange }) {
       </div>
 
       <div className="cm-field">
-        <label>Description</label>
+        <label className="cm-label">Description</label>
         <textarea
+          className="cm-textarea"
           value={record.description || ""}
           onChange={(e) => update("description", e.target.value)}
         />
       </div>
 
       <div className="cm-field">
-        <label>Notes</label>
+        <label className="cm-label">Notes</label>
         <textarea
+          className="cm-textarea"
           value={record.notes || ""}
           onChange={(e) => update("notes", e.target.value)}
         />
       </div>
 
       <div className="cm-field">
-        <label>Sensory</label>
+        <label className="cm-label">Sensory</label>
         <textarea
+          className="cm-textarea"
           value={record.sensory || ""}
           onChange={(e) => update("sensory", e.target.value)}
         />
       </div>
 
       <div className="cm-field">
-        <label>
+        <label className="cm-label">
           <input
             type="checkbox"
             checked={hasAddress}
@@ -99,8 +114,9 @@ export default function LocationForm({ record, onChange }) {
       {hasAddress && (
         <>
           <div className="cm-field">
-            <label>Street</label>
+            <label className="cm-label">Street</label>
             <input
+              className="cm-input"
               type="text"
               value={record.address_street || ""}
               onChange={(e) => update("address_street", e.target.value)}
@@ -108,8 +124,9 @@ export default function LocationForm({ record, onChange }) {
           </div>
 
           <div className="cm-field">
-            <label>City</label>
+            <label className="cm-label">City</label>
             <input
+              className="cm-input"
               type="text"
               value={record.address_city || ""}
               onChange={(e) => update("address_city", e.target.value)}
@@ -117,8 +134,9 @@ export default function LocationForm({ record, onChange }) {
           </div>
 
           <div className="cm-field">
-            <label>State</label>
+            <label className="cm-label">State</label>
             <input
+              className="cm-input"
               type="text"
               value={record.address_state || ""}
               onChange={(e) => update("address_state", e.target.value)}
@@ -126,8 +144,9 @@ export default function LocationForm({ record, onChange }) {
           </div>
 
           <div className="cm-field">
-            <label>Zip</label>
+            <label className="cm-label">Zip</label>
             <input
+              className="cm-input"
               type="text"
               value={record.address_zip || ""}
               onChange={(e) => update("address_zip", e.target.value)}
@@ -135,8 +154,9 @@ export default function LocationForm({ record, onChange }) {
           </div>
 
           <div className="cm-field">
-            <label>Country</label>
+            <label className="cm-label">Country</label>
             <input
+              className="cm-input"
               type="text"
               value={record.address_country || ""}
               onChange={(e) => update("address_country", e.target.value)}

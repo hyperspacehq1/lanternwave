@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 
 export default function NpcForm({ record, onChange }) {
   if (!record) return null;
@@ -8,20 +8,31 @@ export default function NpcForm({ record, onChange }) {
   const update = (field, value) =>
     onChange({ ...record, [field]: value });
 
+  /* ---------------------------------------------
+     Campaign change pulse
+  --------------------------------------------- */
+  const [pulse, setPulse] = useState(false);
+
+  useEffect(() => {
+    setPulse(true);
+    const t = setTimeout(() => setPulse(false), 1200);
+    return () => clearTimeout(t);
+  }, [record._campaignName]);
+
   return (
     <div className="cm-detail-form">
-      {/* Read-only Campaign Context */}
-      {record._campaignName && (
-        <div className="cm-context-badge">
-          <strong>Campaign:</strong> {record._campaignName}
-        </div>
-      )}
+
+      {/* 🔒 Locked campaign header */}
+      <div className={`cm-campaign-header ${pulse ? "pulse" : ""}`}>
+        Campaign: {record._campaignName || "Unnamed Campaign"}
+      </div>
 
       <div className="cm-field">
-        <label>
+        <label className="cm-label">
           Name <strong>(required)</strong>
         </label>
         <input
+          className="cm-input"
           type="text"
           value={record.name || ""}
           onChange={(e) => update("name", e.target.value)}
@@ -29,8 +40,9 @@ export default function NpcForm({ record, onChange }) {
       </div>
 
       <div className="cm-field">
-        <label>NPC Type</label>
+        <label className="cm-label">NPC Type</label>
         <input
+          className="cm-input"
           type="text"
           value={record.npc_type || ""}
           onChange={(e) => update("npc_type", e.target.value)}
@@ -38,40 +50,45 @@ export default function NpcForm({ record, onChange }) {
       </div>
 
       <div className="cm-field">
-        <label>Description</label>
+        <label className="cm-label">Description</label>
         <textarea
+          className="cm-textarea"
           value={record.description || ""}
           onChange={(e) => update("description", e.target.value)}
         />
       </div>
 
       <div className="cm-field">
-        <label>Goals</label>
+        <label className="cm-label">Goals</label>
         <textarea
+          className="cm-textarea"
           value={record.goals || ""}
           onChange={(e) => update("goals", e.target.value)}
         />
       </div>
 
       <div className="cm-field">
-        <label>Faction Alignment</label>
+        <label className="cm-label">Faction Alignment</label>
         <textarea
+          className="cm-textarea"
           value={record.faction_alignment || ""}
           onChange={(e) => update("faction_alignment", e.target.value)}
         />
       </div>
 
       <div className="cm-field">
-        <label>Secrets</label>
+        <label className="cm-label">Secrets</label>
         <textarea
+          className="cm-textarea"
           value={record.secrets || ""}
           onChange={(e) => update("secrets", e.target.value)}
         />
       </div>
 
       <div className="cm-field">
-        <label>Notes</label>
+        <label className="cm-label">Notes</label>
         <textarea
+          className="cm-textarea"
           value={record.notes || ""}
           onChange={(e) => update("notes", e.target.value)}
         />
