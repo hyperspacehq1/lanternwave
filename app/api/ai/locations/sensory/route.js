@@ -1,8 +1,4 @@
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
-import { loadLocationContext } from "@/lib/ai/loaders/loadLocationContext";
-import { buildLocationSensoryPrompt } from "@/lib/ai/prompts/locationSensory";
-import { runStructuredPrompt } from "@/lib/ai/runStructuredPrompt";
-import { locationSensorySchema } from "@/lib/ai/schemas/locationSensorySchema";
 
 export const dynamic = "force-dynamic";
 
@@ -18,38 +14,99 @@ function clampWords(s, maxWords) {
   return words.slice(0, maxWords).join(" ");
 }
 
-function badRequest(msg) {
-  return Response.json({ error: msg }, { status: 400 });
+function json(status, payload) {
+  return new Response(JSON.stringify(payload), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
 }
 
 /* -------------------------------------------------
    POST /api/ai/locations/sensory
-   body: { location_id: uuid, campaign_id?: uuid }
 -------------------------------------------------- */
 export async function POST(req) {
-  const { tenantId } = await getTenantContext(req);
-
-  if (!process.env.OPENAI_API_KEY) {
-    return Response.json(
-      { error: "OPENAI_API_KEY is not configured" },
-      { status: 500 }
-    );
-  }
-
-  let body;
+  // 0) Parse input early (so curl always gets JSON on errors)
+  let body = {};
   try {
     body = await req.json();
   } catch {
-    return badRequest("Invalid JSON body");
+    return json(400, { error: "Invalid JSON body" });
   }
 
   const locationId = body.location_id ?? body.locationId ?? null;
   const expectedCampaignId = body.campaign_id ?? body.campaignId ?? null;
 
-  if (!locationId) return badRequest("location_id is required");
+  if (!locationId) {
+    return json(400, { error: "location_id is required" });
+  }
+
+  // 1) Tenant context
+  let tenantId;
+  try {
+    const ctx = await getTenantContext(req);
+    tenantId = ctx?.tenantId;
+    if (!tenantId) throw new Error("Missing tenantId from getTenantContext");
+  } catch (e) {
+    return json(500, {
+      error: "Tenant context failed",
+      detail: String(e?.message || e),
+    });
+  }
+
+  // 2) Confirm OpenAI key
+  if (!process.env.OPENAI_API_KEY) {
+    return json(500, { error: "OPENAI_API_KEY is not configured" });
+  }
+
+  // 3) Dynamically import the new modular AI pieces so import-time errors become JSON
+  let loadLocationContext, buildLocationSensoryPrompt, runStructuredPrompt, locationSensorySchema;
 
   try {
-    // Load tenant-scoped campaign + location context (allowed columns only)
+    ({ loadLocationContext } = await import(
+      "@/lib/ai/loaders/loadLocationContext"
+    ));
+  } catch (e) {
+    return json(500, {
+      error: "Import failed: loadLocationContext",
+      detail: String(e?.message || e),
+    });
+  }
+
+  try {
+    ({ buildLocationSensoryPrompt } = await import(
+      "@/lib/ai/prompts/locationSensory"
+    ));
+  } catch (e) {
+    return json(500, {
+      error: "Import failed: buildLocationSensoryPrompt",
+      detail: String(e?.message || e),
+    });
+  }
+
+  try {
+    ({ runStructuredPrompt } = await import(
+      "@/lib/ai/runStructuredPrompt"
+    ));
+  } catch (e) {
+    return json(500, {
+      error: "Import failed: runStructuredPrompt",
+      detail: String(e?.message || e),
+    });
+  }
+
+  try {
+    ({ locationSensorySchema } = await import(
+      "@/lib/ai/schemas/locationSensorySchema"
+    ));
+  } catch (e) {
+    return json(500, {
+      error: "Import failed: locationSensorySchema",
+      detail: String(e?.message || e),
+    });
+  }
+
+  // 4) Main logic
+  try {
     const { campaign, location } = await loadLocationContext({
       tenantId,
       locationId,
@@ -58,7 +115,6 @@ export async function POST(req) {
 
     const prompt = buildLocationSensoryPrompt({ campaign, location });
 
-    // 2025 standard: Responses API with JSON Schema output
     const parsed = await runStructuredPrompt({
       model: "gpt-4.1-mini",
       prompt,
@@ -76,15 +132,11 @@ export async function POST(req) {
       updated_at: new Date().toISOString(),
     };
 
-    return Response.json({ sensory });
+    return json(200, { sensory });
   } catch (e) {
-    const status = e?.status || 502;
-    const msg = e?.message || "AI request failed";
-
-    // Keep details present but not overly verbose
-    return Response.json(
-      { error: msg, detail: e?.detail ? "see server logs" : undefined },
-      { status }
-    );
+    return json(e?.status || 502, {
+      error: e?.message || "AI request failed",
+      detail: String(e?.detail || e?.stack || e),
+    });
   }
 }
