@@ -352,3 +352,14 @@
   border-color: red;
   color: red;
 }
+/* Header spacing polish */
+.cm-main-header {
+  display: flex;
+  align-items: flex-start; /* allow vertical offset */
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.cm-main-title {
+  margin-top: 0.25rem; /* slight separation from buttons */
+}
