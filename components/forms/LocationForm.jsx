@@ -102,7 +102,7 @@ export default function LocationForm({ record, onChange }) {
       /* -----------------------------
          2) Auto-save immediately
       ------------------------------ */
-      const saveRes = await fetch(`/api/locations/${record.id}`, {
+     const saveRes = await fetch(`/api/locations?id=${record.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
