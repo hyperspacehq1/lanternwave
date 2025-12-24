@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useMemo, useRef } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { v4 as uuidv4 } from "uuid";
 
 import { cmApi } from "@/lib/cm/api";
@@ -60,8 +60,21 @@ export default function CampaignManagerPage() {
      Load campaigns
   ------------------------------------------------------------ */
   useEffect(() => {
-    cmApi.list("campaigns").then(setCampaigns).catch(() => setCampaigns([]));
+    cmApi
+      .list("campaigns")
+      .then(setCampaigns)
+      .catch(() => setCampaigns([]));
   }, []);
+
+  /* ------------------------------------------------------------
+     Auto-select first campaign if none selected
+  ------------------------------------------------------------ */
+  useEffect(() => {
+    if (!campaigns.length) return;
+    if (activeCampaignId) return;
+
+    setActiveCampaignId(campaigns[0].id);
+  }, [campaigns, activeCampaignId]);
 
   const rules = ENTITY_RULES[activeType] || {};
   const campaignRequired =
@@ -143,6 +156,7 @@ export default function CampaignManagerPage() {
 
   const handleDelete = async () => {
     if (!selectedRecord?.id) return;
+
     await cmApi.remove(activeType, selectedRecord.id);
 
     setRecords((p) => ({
@@ -179,7 +193,6 @@ export default function CampaignManagerPage() {
         </aside>
 
         <section className="cm-main">
-          {/* 🔑 RESTORED ACTION HEADER */}
           <div className="cm-main-header">
             <div className="cm-main-title">
               {activeType.replace("-", " ")}
@@ -216,6 +229,11 @@ export default function CampaignManagerPage() {
                     onClick={() => {
                       setSelectedId(r.id);
                       setSelectedRecord(r);
+
+                      // 🔑 CRITICAL FIX
+                      if (activeType === "campaigns") {
+                        setActiveCampaignId(r.id);
+                      }
                     }}
                   >
                     {r.name || "Unnamed"}
