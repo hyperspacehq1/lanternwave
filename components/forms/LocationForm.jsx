@@ -1,12 +1,11 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 
 export default function LocationForm({ record, onChange }) {
   if (!record) return null;
 
-  const update = (field, value) =>
-    onChange({ ...record, [field]: value });
+  const update = (field, value) => onChange({ ...record, [field]: value });
 
   /* ---------------------------------------------
      Campaign change pulse
@@ -33,9 +32,104 @@ export default function LocationForm({ record, onChange }) {
     );
   }, [record]);
 
+  /* ---------------------------------------------
+     Sensory AI helpers
+  --------------------------------------------- */
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState("");
+
+  const canUseAI = useMemo(() => {
+    return !!(record.id && record.campaign_id && record._campaignName);
+  }, [record.id, record.campaign_id, record._campaignName]);
+
+  function sensoryToTextareaValue(sensory) {
+    if (sensory == null || sensory === "") return "";
+
+    if (typeof sensory === "object") {
+      if (sensory.hear != null || sensory.smell != null) {
+        const hear = (sensory.hear || "").trim();
+        const smell = (sensory.smell || "").trim();
+        return `Hear:\n${hear}\n\nSmell:\n${smell}`.trim();
+      }
+
+      if (sensory.text != null) return String(sensory.text);
+
+      try {
+        return JSON.stringify(sensory, null, 2);
+      } catch {
+        return "";
+      }
+    }
+
+    return String(sensory);
+  }
+
+  async function generateSensory() {
+    setAiError("");
+
+    if (!canUseAI) {
+      setAiError("Select a campaign and location first.");
+      return;
+    }
+
+    setAiLoading(true);
+
+    try {
+      /* -----------------------------
+         1) Generate via AI
+      ------------------------------ */
+      const res = await fetch("/api/ai/locations/sensory", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          location_id: record.id,
+          campaign_id: record.campaign_id,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        setAiError(data?.error || "AI generation failed.");
+        return;
+      }
+
+      if (!data?.sensory) {
+        setAiError("AI returned no sensory content.");
+        return;
+      }
+
+      /* -----------------------------
+         2) Auto-save immediately
+      ------------------------------ */
+      const saveRes = await fetch(`/api/locations/${record.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sensory: data.sensory,
+        }),
+      });
+
+      const saved = await saveRes.json().catch(() => null);
+
+      if (!saveRes.ok || !saved) {
+        setAiError("Generated sensory, but failed to save.");
+        return;
+      }
+
+      /* -----------------------------
+         3) Update UI from DB state
+      ------------------------------ */
+      update("sensory", saved.sensory);
+    } catch (e) {
+      setAiError(String(e?.message || e));
+    } finally {
+      setAiLoading(false);
+    }
+  }
+
   return (
     <div className="cm-detail-form">
-
       {/* 🔒 Locked campaign header */}
       <div className={`cm-campaign-header ${pulse ? "pulse" : ""}`}>
         Campaign: {record._campaignName || "Unnamed Campaign"}
@@ -81,13 +175,72 @@ export default function LocationForm({ record, onChange }) {
         />
       </div>
 
+      {/* Sensory + AI button */}
       <div className="cm-field">
-        <label className="cm-label">Sensory</label>
+        <label
+          className="cm-label"
+          style={{ display: "flex", alignItems: "center", gap: 10 }}
+        >
+          <span>Sensory</span>
+
+          <button
+            type="button"
+            onClick={generateSensory}
+            disabled={!canUseAI || aiLoading}
+            title={
+              !canUseAI
+                ? "Select a campaign and location first"
+                : "Generate sensory details with AI"
+            }
+            style={{
+              marginLeft: "auto",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "6px 10px",
+              borderRadius: 10,
+              border: "1px solid #2d8cff",
+              background: "rgba(0,0,0,0.65)",
+              color: "#2d8cff",
+              cursor: !canUseAI || aiLoading ? "not-allowed" : "pointer",
+              opacity: !canUseAI || aiLoading ? 0.6 : 1,
+              fontSize: 12,
+              lineHeight: "12px",
+            }}
+          >
+            <span
+              aria-hidden="true"
+              style={{
+                width: 16,
+                height: 16,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                borderRadius: 999,
+                border: "1px solid #2d8cff",
+              }}
+            >
+              {aiLoading ? "…" : "AI"}
+            </span>
+            {aiLoading ? "Generating" : "Generate"}
+          </button>
+        </label>
+
         <textarea
           className="cm-textarea"
-          value={record.sensory || ""}
+          value={sensoryToTextareaValue(record.sensory)}
           onChange={(e) => update("sensory", e.target.value)}
+          style={{
+            borderColor: "#2d8cff",
+            outlineColor: "#2d8cff",
+          }}
         />
+
+        {!!aiError && (
+          <div style={{ marginTop: 8, color: "#2d8cff", fontSize: 12 }}>
+            {aiError}
+          </div>
+        )}
       </div>
 
       <div className="cm-field">
