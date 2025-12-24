@@ -224,3 +224,104 @@
   font-size: 14px;
   color: var(--lw-green-muted);
 }
+/* ------------------------------
+   SEARCH DROPDOWN
+------------------------------ */
+.lw-main .cm-search-results {
+  margin-top: 6px;
+  border: 1px solid var(--lw-border-muted);
+  background: #000;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.lw-main .cm-search-result {
+  padding: 0.5rem;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(163, 197, 159, 0.15);
+}
+
+.lw-main .cm-search-result:hover {
+  background: rgba(108, 196, 23, 0.12);
+}
+
+.lw-main .cm-search-meta {
+  font-size: 11px;
+  color: var(--lw-green-muted);
+}
+/* ------------------------------
+   SEARCH HIGHLIGHT + ICONS
+------------------------------ */
+
+.cm-search-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.cm-search-icon {
+  font-size: 18px;
+  line-height: 1;
+  margin-top: 2px;
+}
+
+.cm-search-text {
+  flex: 1;
+}
+
+.cm-search-label {
+  font-weight: 600;
+}
+
+.cm-search-snippet {
+  font-size: 12px;
+  color: var(--lw-green-muted);
+  margin-top: 2px;
+}
+
+/* Highlight */
+.cm-search-results mark {
+  background: rgba(108, 196, 23, 0.35);
+  color: #eaffd0;
+  padding: 0 2px;
+  border-radius: 2px;
+}
+/* Icon base */
+.cm-search-icon {
+  width: 18px;
+  height: 18px;
+  display: inline-block;
+  margin-top: 2px;
+}
+
+/* Color roles */
+.cm-icon-green {
+  color: var(--lw-green);
+}
+
+.cm-icon-blue {
+  color: var(--lw-blue);
+}
+
+/* Icon shapes (CSS mask or inline SVG later) */
+.cm-icon-book::before {
+  content: "📘";
+}
+.cm-icon-candle::before {
+  content: "🕯️";
+}
+.cm-icon-hourglass::before {
+  content: "⏳";
+}
+.cm-icon-map::before {
+  content: "🗺️";
+}
+.cm-icon-bag::before {
+  content: "🎒";
+}
+.cm-icon-swords::before {
+  content: "⚔️";
+}
+.cm-icon-wizard::before {
+  content: "🧙";
+}
