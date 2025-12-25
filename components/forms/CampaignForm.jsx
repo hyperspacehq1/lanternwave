@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import CampaignPackageSelect from "@/components/CampaignPackageSelect";
 
 export default function CampaignForm({ record, onChange }) {
   if (!record) return null;
@@ -18,6 +19,8 @@ export default function CampaignForm({ record, onChange }) {
     const t = setTimeout(() => setPulse(false), 1200);
     return () => clearTimeout(t);
   }, [record._campaignName]);
+
+  const isExistingCampaign = Boolean(record.id);
 
   return (
     <div className="cm-detail-form">
@@ -74,18 +77,26 @@ export default function CampaignForm({ record, onChange }) {
         />
       </div>
 
+      {/* ---------------------------------
+         Adventure Codex (Immutable)
+      ---------------------------------- */}
       <div className="cm-field">
-        <label className="cm-label">Adventure Codex</label>
-        <select
-          className="cm-input"
+        <CampaignPackageSelect
           value={record.campaignPackage || "standard"}
-          onChange={(e) => update("campaignPackage", e.target.value)}
-        >
-          <option value="standard">Standard</option>
-        </select>
+          onChange={(value) =>
+            update("campaignPackage", value)
+          }
+          disabled={isExistingCampaign}
+        />
+
+        {isExistingCampaign && (
+          <p className="cm-help-text">
+            Adventure Codex cannot be changed after campaign creation.
+          </p>
+        )}
       </div>
 
-      {/* ✅ NEW: RPG Game (optional) */}
+      {/* RPG Game (optional) */}
       <div className="cm-field">
         <label className="cm-label">RPG Game</label>
         <select

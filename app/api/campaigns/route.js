@@ -2,15 +2,9 @@ import { sanitizeRow, sanitizeRows } from "@/lib/api/sanitize";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { query } from "@/lib/db";
 import { fromDb } from "@/lib/campaignMapper";
+import { cloneAdventureCodexToTenant } from "@/lib/ai/cloneAdventureCodexToTenant";
 
 export const dynamic = "force-dynamic";
-
-const ALLOWED_CAMPAIGN_PACKAGES = new Set([
-  "standard",
-  "starter",
-  "advanced",
-  "premium",
-]);
 
 const ALLOWED_RPG_GAMES = new Set([
   "Avatar Legends: The Roleplaying Game",
@@ -87,7 +81,7 @@ export async function GET(req) {
       worldSetting: 10000,
       campaignDate: 50,
       campaignPackage: 50,
-      rpgGame: 120, // ✅ NEW
+      rpgGame: 120,
     })
   );
 }
@@ -97,8 +91,10 @@ export async function GET(req) {
 -------------------------------------------------- */
 export async function POST(req) {
   let tenantId;
+  let userId;
+
   try {
-    ({ tenantId } = await getTenantContext(req));
+    ({ tenantId, userId } = await getTenantContext(req));
   } catch {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -113,8 +109,27 @@ export async function POST(req) {
   const campaignPackage =
     pick(body, "campaignPackage", "campaign_package") ?? "standard";
 
-  if (!ALLOWED_CAMPAIGN_PACKAGES.has(campaignPackage)) {
-    return Response.json({ error: "Invalid campaign package" }, { status: 400 });
+  // ✅ Validate Adventure Codex dynamically
+  if (campaignPackage !== "standard") {
+    const exists = await query(
+      `
+      SELECT 1
+        FROM campaigns
+       WHERE campaign_package = $1
+         AND tenant_id IS NULL
+         AND template_campaign_id IS NULL
+         AND deleted_at IS NULL
+       LIMIT 1
+      `,
+      [campaignPackage]
+    );
+
+    if (!exists.rows.length) {
+      return Response.json(
+        { error: "Invalid Adventure Codex" },
+        { status: 400 }
+      );
+    }
   }
 
   const rpgGame = pick(body, "rpgGame", "rpg_game");
@@ -132,6 +147,9 @@ export async function POST(req) {
     pick(body, "campaignDate", "campaign_date")
   );
 
+  /* ---------------------------------------------
+     STEP 1: CREATE CAMPAIGN
+  --------------------------------------------- */
   const { rows } = await query(
     `
     INSERT INTO campaigns (
@@ -157,8 +175,35 @@ export async function POST(req) {
     ]
   );
 
+  const campaign = rows[0];
+
+  /* ---------------------------------------------
+     STEP 2: CLONE ADVENTURE CODEX (ONE-TIME)
+  --------------------------------------------- */
+  if (campaignPackage !== "standard") {
+    const template = await query(
+      `
+      SELECT id
+        FROM campaigns
+       WHERE campaign_package = $1
+         AND tenant_id IS NULL
+         AND template_campaign_id IS NULL
+         AND deleted_at IS NULL
+       LIMIT 1
+      `,
+      [campaignPackage]
+    );
+
+    await cloneAdventureCodexToTenant({
+      templateCampaignId: template.rows[0].id,
+      tenantCampaignId: campaign.id,
+      tenantId,
+      createdBy: userId,
+    });
+  }
+
   return Response.json(
-    sanitizeRow(fromDb(rows[0]), {
+    sanitizeRow(fromDb(campaign), {
       name: 120,
       description: 10000,
       worldSetting: 10000,
@@ -194,9 +239,12 @@ export async function PUT(req) {
     );
   }
 
-  const pkg = pick(body, "campaignPackage", "campaign_package");
-  if (pkg !== undefined && !ALLOWED_CAMPAIGN_PACKAGES.has(pkg)) {
-    return Response.json({ error: "Invalid campaign package" }, { status: 400 });
+  // ❌ campaign_package is immutable after creation
+  if (hasOwn(body, "campaignPackage") || hasOwn(body, "campaign_package")) {
+    return Response.json(
+      { error: "campaignPackage cannot be changed after creation" },
+      { status: 400 }
+    );
   }
 
   const rpgGame = pick(body, "rpgGame", "rpg_game");
@@ -233,11 +281,6 @@ export async function PUT(req) {
   if (dateRaw !== undefined) {
     sets.push(`campaign_date = $${i++}::date`);
     values.push(normalizeDateOnly(dateRaw));
-  }
-
-  if (pkg !== undefined) {
-    sets.push(`campaign_package = $${i++}`);
-    values.push(pkg);
   }
 
   if (rpgGame !== undefined) {
