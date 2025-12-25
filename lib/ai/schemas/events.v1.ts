@@ -1,43 +1,35 @@
-{
-  "name": "events",
-  "schema": {
-    "type": "array",
-    "items": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "name",
-        "description",
-        "event_type",
-        "priority"
-      ],
-      "properties": {
-        "name": {
-          "type": "string",
-          "description": "Event name"
+const eventsSchema = {
+  name: "events",
+  schema: {
+    type: "array",
+    description:
+      "Significant narrative events that occur or may occur during the campaign. Do not include combat encounters unless they are explicitly framed as story events.",
+    items: {
+      type: "object",
+      additionalProperties: false,
+      required: ["name"],
+      properties: {
+        name: {
+          type: "string",
+          description:
+            "The name or short label of the event as described in the module.",
+          maxLength: 200,
         },
-        "description": {
-          "type": "string",
-          "maxLength": 1800,
-          "description": "Event summary under 300 words"
+        description: {
+          type: "string",
+          description:
+            "Narrative description of the event, using only information present in the module text.",
+          maxLength: 10000,
         },
-        "event_type": {
-          "type": "string",
-          "enum": [
-            "Combat",
-            "Story",
-            "Exploration",
-            "Social",
-            "Downtime"
-          ]
+        timing: {
+          type: "string",
+          description:
+            "When or under what conditions the event occurs, if specified (e.g. after a clue is discovered, at a certain date, etc.).",
+          maxLength: 200,
         },
-        "priority": {
-          "type": "integer",
-          "minimum": 1,
-          "maximum": 1000,
-          "description": "Chronological order of events"
-        }
-      }
-    }
-  }
-}
+      },
+    },
+  },
+};
+
+export default eventsSchema;

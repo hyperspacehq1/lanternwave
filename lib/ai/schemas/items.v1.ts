@@ -1,28 +1,35 @@
-{
-  "name": "items",
-  "schema": {
-    "type": "array",
-    "items": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["name", "item_type", "description"],
-      "properties": {
-        "name": {
-          "type": "string"
+const itemsSchema = {
+  name: "items",
+  schema: {
+    type: "array",
+    description:
+      "Notable objects, artifacts, or equipment that are important to the story or investigation. Exclude mundane gear unless highlighted by the module.",
+    items: {
+      type: "object",
+      additionalProperties: false,
+      required: ["name"],
+      properties: {
+        name: {
+          type: "string",
+          description:
+            "The item's name exactly as written in the module.",
+          maxLength: 200,
         },
-        "item_type": {
-          "type": "string",
-          "description": "Weapon, artifact, document, tool, etc."
+        description: {
+          type: "string",
+          description:
+            "Narrative description of the item, including appearance and known properties from the module.",
+          maxLength: 10000,
         },
-        "description": {
-          "type": "string",
-          "maxLength": 600
+        significance: {
+          type: "string",
+          description:
+            "Why the item matters to the story (e.g. clue, weapon, ritual focus), if specified.",
+          maxLength: 500,
         },
-        "notes": {
-          "type": "string",
-          "maxLength": 2400
-        }
-      }
-    }
-  }
-}
+      },
+    },
+  },
+};
+
+export default itemsSchema;

@@ -1,48 +1,41 @@
-{
-  "name": "npcs",
-  "schema": {
-    "type": "array",
-    "items": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["name", "npc_type", "description"],
-      "properties": {
-        "name": {
-          "type": "string",
-          "description": "NPC name or descriptor"
+const npcsSchema = {
+  name: "npcs",
+  schema: {
+    type: "array",
+    description:
+      "Named non-player characters that appear in the module. Only include characters that are explicitly named and described.",
+    items: {
+      type: "object",
+      additionalProperties: false,
+      required: ["name"],
+      properties: {
+        name: {
+          type: "string",
+          description:
+            "The NPC's full name or most commonly used name in the module.",
+          maxLength: 200,
         },
-        "npc_type": {
-          "type": "string",
-          "enum": [
-            "Ally",
-            "Enemy",
-            "Neutral",
-            "Merchant",
-            "Authority",
-            "Mystic"
-          ]
+        role: {
+          type: "string",
+          description:
+            "The NPC's narrative or functional role (e.g. antagonist, ally, informant, cultist).",
+          maxLength: 200,
         },
-        "description": {
-          "type": "string",
-          "maxLength": 600
+        description: {
+          type: "string",
+          description:
+            "Physical appearance, personality, and background details drawn directly from the module text.",
+          maxLength: 10000,
         },
-        "goals": {
-          "type": "string",
-          "description": "NPC motivations or objectives"
+        motivations: {
+          type: "string",
+          description:
+            "The NPC's goals, desires, or driving motivations if explicitly stated.",
+          maxLength: 2000,
         },
-        "faction_alignment": {
-          "type": "string",
-          "description": "Group or faction affiliation"
-        },
-        "secrets": {
-          "type": "string",
-          "description": "Hidden knowledge or secrets"
-        },
-        "notes": {
-          "type": "string",
-          "maxLength": 2400
-        }
-      }
-    }
-  }
-}
+      },
+    },
+  },
+};
+
+export default npcsSchema;

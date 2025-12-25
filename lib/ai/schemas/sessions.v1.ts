@@ -1,27 +1,34 @@
-{
-  "name": "sessions",
-  "schema": {
-    "type": "array",
-    "items": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["name", "description"],
-      "properties": {
-        "name": {
-          "type": "string",
-          "description": "Chapter or session name"
+const sessionsSchema = {
+  name: "sessions",
+  schema: {
+    type: "array",
+    description:
+      "Major chapters, acts, or play sessions defined by the module. Only include sections that are clearly delineated as playable segments.",
+    items: {
+      type: "object",
+      additionalProperties: false,
+      required: ["name"],
+      properties: {
+        name: {
+          type: "string",
+          description:
+            "The session, chapter, or act title exactly as named in the module.",
+          maxLength: 200,
         },
-        "description": {
-          "type": "string",
-          "maxLength": 600,
-          "description": "Summary under 100 words"
+        summary: {
+          type: "string",
+          description:
+            "A concise summary of what happens during this session, derived directly from the module text.",
+          maxLength: 10000,
         },
-        "notes": {
-          "type": "string",
-          "maxLength": 2400,
-          "description": "Additional guidance, outcomes, or GM notes"
-        }
-      }
-    }
-  }
-}
+        session_order: {
+          type: "number",
+          description:
+            "The intended chronological order of this session within the campaign, if explicitly indicated.",
+        },
+      },
+    },
+  },
+};
+
+export default sessionsSchema;

@@ -1,29 +1,35 @@
-{
-  "name": "locations",
-  "schema": {
-    "type": "array",
-    "items": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["name", "description"],
-      "properties": {
-        "name": {
-          "type": "string"
+const locationsSchema = {
+  name: "locations",
+  schema: {
+    type: "array",
+    description:
+      "Distinct named places where scenes, investigations, or encounters occur. Do not include vague or unnamed areas.",
+    items: {
+      type: "object",
+      additionalProperties: false,
+      required: ["name"],
+      properties: {
+        name: {
+          type: "string",
+          description:
+            "The proper name of the location as written in the module.",
+          maxLength: 200,
         },
-        "world": {
-          "type": "string",
-          "description": "Region or broader location"
+        description: {
+          type: "string",
+          description:
+            "Sensory and narrative description of the location taken from the module text.",
+          maxLength: 10000,
         },
-        "description": {
-          "type": "string",
-          "maxLength": 1200
+        environment: {
+          type: "string",
+          description:
+            "The general environment or category of the location (e.g. urban, wilderness, underground, alien).",
+          maxLength: 500,
         },
-        "street": { "type": "string" },
-        "city": { "type": "string" },
-        "state": { "type": "string" },
-        "zip": { "type": "string" },
-        "country": { "type": "string" }
-      }
-    }
-  }
-}
+      },
+    },
+  },
+};
+
+export default locationsSchema;
