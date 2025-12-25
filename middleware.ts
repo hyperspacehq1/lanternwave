@@ -2,9 +2,10 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 export function middleware(request: NextRequest) {
-  const isLoggedIn = Boolean(request.cookies.get("session"));
+  const session = request.cookies.get("lw_session");
 
-  if (!isLoggedIn) {
+  // Not logged in → redirect
+  if (!session) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
