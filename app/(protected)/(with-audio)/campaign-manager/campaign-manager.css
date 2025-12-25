@@ -370,7 +370,7 @@
 
 /* Search wrapper (inline container above .cm-content) */
 .cm-main > div[style] {
-  margin-top: -29px;
+  margin-top: -14px;
 }
 
 /* Ensure content stays locked to search */
