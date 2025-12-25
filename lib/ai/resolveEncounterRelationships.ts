@@ -1,4 +1,4 @@
-import { sql } from "@/lib/db";
+import { query, ident, isSafeIdent } from "@/lib/db/db";
 
 /* =========================================================
    PUBLIC ENTRY POINT
@@ -63,11 +63,14 @@ export async function resolveEncounterRelationships({
    LOAD ENCOUNTERS
 ========================================================= */
 async function getEncounters(templateCampaignId: string) {
-  const result = await sql`
+  const result = await query(
+    `
     SELECT *
-    FROM encounters
-    WHERE template_campaign_id = ${templateCampaignId}
-  `;
+      FROM encounters
+     WHERE template_campaign_id = $1
+    `,
+    [templateCampaignId]
+  );
 
   return result.rows;
 }
@@ -79,11 +82,16 @@ async function buildLookup(
   table: string,
   templateCampaignId: string
 ): Promise<Map<string, string>> {
-  const result = await sql`
+  if (!isSafeIdent(table)) throw new Error(`Unsafe table: ${table}`);
+
+  const result = await query(
+    `
     SELECT id, name
-    FROM ${sql(table)}
-    WHERE template_campaign_id = ${templateCampaignId}
-  `;
+      FROM ${ident(table)}
+     WHERE template_campaign_id = $1
+    `,
+    [templateCampaignId]
+  );
 
   const map = new Map<string, string>();
 
@@ -119,6 +127,8 @@ async function linkEntities({
   joinColumn: string;
 }) {
   if (!names || !Array.isArray(names) || names.length === 0) return;
+  if (!isSafeIdent(joinTable)) throw new Error(`Unsafe join table: ${joinTable}`);
+  if (!isSafeIdent(joinColumn)) throw new Error(`Unsafe join column: ${joinColumn}`);
 
   for (const rawName of names) {
     const normalized = normalizeName(rawName);
@@ -130,13 +140,14 @@ async function linkEntities({
       );
     }
 
-    await sql`
-      INSERT INTO ${sql(joinTable)}
-        (encounter_id, ${sql(joinColumn)})
-      VALUES
-        (${encounterId}, ${entityId})
+    await query(
+      `
+      INSERT INTO ${ident(joinTable)} (encounter_id, ${ident(joinColumn)})
+      VALUES ($1, $2)
       ON CONFLICT DO NOTHING
-    `;
+      `,
+      [encounterId, entityId]
+    );
   }
 }
 
@@ -144,10 +155,10 @@ async function linkEntities({
    NAME NORMALIZATION
 ========================================================= */
 function normalizeName(name: string): string {
-  return name
+  return String(name)
     .toLowerCase()
-    .replace(/[’'"]/g, "")          // quotes
-    .replace(/[^\w\s]/g, "")        // punctuation
-    .replace(/\s+/g, " ")           // whitespace
+    .replace(/[’'"]/g, "") // quotes
+    .replace(/[^\w\s]/g, "") // punctuation
+    .replace(/\s+/g, " ") // whitespace
     .trim();
 }

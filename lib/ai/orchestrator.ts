@@ -1,5 +1,6 @@
-import OpenAI from "openai";
-import { sql } from "@/lib/db";
+import { query, buildInsert, ident } from "@/lib/db/db";
+import { runStructuredPrompt } from "@/lib/ai/runStructuredPrompt";
+import { resolveEncounterRelationships } from "@/lib/ai/resolveEncounterRelationships";
 
 /* ================================
    SCHEMA IMPORTS
@@ -25,12 +26,10 @@ const SCHEMA_PIPELINE = [
   encounters,
 ] as const;
 
-/* ================================
-   OPENAI CLIENT
-================================ */
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY!,
-});
+type SchemaDef = {
+  name: string;
+  schema: any;
+};
 
 /* ================================
    MAIN ORCHESTRATOR
@@ -45,7 +44,7 @@ export async function ingestAdventureCodex({
   const context: Record<string, any[]> = {};
   let templateCampaignId: string | null = null;
 
-  for (const schemaDef of SCHEMA_PIPELINE) {
+  for (const schemaDef of SCHEMA_PIPELINE as unknown as SchemaDef[]) {
     const tableName = schemaDef.name;
     const schema = schemaDef.schema;
 
@@ -71,19 +70,24 @@ export async function ingestAdventureCodex({
     const insertedRows: any[] = [];
 
     for (const row of rows) {
-      const result = await sql`
-        INSERT INTO ${sql(tableName)}
-        (${sql(Object.keys(row))},
-         template_campaign_id,
-         created_by)
-        VALUES (
-          ${sql(Object.values(row))},
-          ${templateCampaignId},
-          ${adminUserId}
-        )
-        RETURNING *
-      `;
+      if (!row || typeof row !== "object") continue;
 
+      // Attach template metadata
+      const insertData: Record<string, any> = {
+        ...row,
+        template_campaign_id: templateCampaignId, // null for the root campaign insert
+        created_by: adminUserId,
+      };
+
+      // (Optional) If your schema outputs camelCase but DB is snake_case,
+      // do mapping here. (Leaving as-is per your existing pipeline.)
+
+      const { sql, params } = buildInsert({
+        table: tableName,
+        data: insertData,
+      });
+
+      const result = await query(sql, params);
       insertedRows.push(result.rows[0]);
     }
 
@@ -98,6 +102,13 @@ export async function ingestAdventureCodex({
       }
       templateCampaignId = insertedRows[0].id;
     }
+  }
+
+  /* ----------------------------
+     RESOLVE ENCOUNTER RELATIONSHIPS
+  ----------------------------- */
+  if (templateCampaignId) {
+    await resolveEncounterRelationships({ templateCampaignId });
   }
 
   return {
@@ -135,26 +146,22 @@ Rules:
 PDF CONTENT:
 ${pdfText}
 
-EXISTING EXTRACTED DATA:
+EXISTING EXTRACTED DATA (already inserted):
 ${JSON.stringify(context, null, 2)}
 
 TASK:
 Extract "${tableName}" data from the PDF.
 `;
 
-  const response = await openai.responses.create({
+  // Uses your Responses API wrapper that already does:
+  // text.format.type = "json_schema"
+  return await runStructuredPrompt({
     model: "gpt-4.1",
-    input: [
+    prompt: [
       { role: "system", content: systemPrompt },
       { role: "user", content: userPrompt },
     ],
-    text: {
-      format: {
-        name: tableName,
-        schema,
-      },
-    },
+    jsonSchema: { name: tableName, schema },
+    temperature: 0.2,
   });
-
-  return response.output_parsed;
 }
