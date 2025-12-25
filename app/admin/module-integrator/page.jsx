@@ -1,8 +1,28 @@
+import { getServerSession } from "next-auth";
+import { redirect } from "next/navigation";
+import { authOptions } from "@/lib/auth";
+
+/**
+ * Server-side guard
+ */
+export default async function ModuleIntegratorPage() {
+  const session = await getServerSession(authOptions);
+
+  if (!session || !session.user || !session.user.isAdmin) {
+    redirect("/login");
+  }
+
+  return <ModuleIntegratorClient />;
+}
+
+/* -------------------------------------------------
+   Client Component
+-------------------------------------------------- */
 "use client";
 
 import { useState } from "react";
 
-export default function ModuleIntegratorPage() {
+function ModuleIntegratorClient() {
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState(null);
@@ -33,7 +53,7 @@ export default function ModuleIntegratorPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data?.error || "Ingestion failed");
+        throw new Error(data?.error || "Upload failed");
       }
 
       setStatus(data);
@@ -47,9 +67,8 @@ export default function ModuleIntegratorPage() {
   return (
     <div className="admin-page">
       <h1>Module Integrator</h1>
-      <p>
-        Upload an RPG module PDF to generate an Adventure Codex.
-      </p>
+
+      <p>Upload an RPG module PDF to generate an Adventure Codex.</p>
 
       <form onSubmit={handleSubmit}>
         <input
@@ -64,21 +83,13 @@ export default function ModuleIntegratorPage() {
         </button>
       </form>
 
-      {error && (
-        <p className="error">
-          ❌ {error}
-        </p>
-      )}
+      {error && <p className="error">❌ {error}</p>}
 
       {status && (
         <div className="success">
           <h3>✅ Adventure Codex Created</h3>
           <p><strong>Name:</strong> {status.name}</p>
           <p><strong>ID:</strong> {status.templateCampaignId}</p>
-          <p>
-            This codex is now available in the Campaign
-            creation dropdown.
-          </p>
         </div>
       )}
     </div>
