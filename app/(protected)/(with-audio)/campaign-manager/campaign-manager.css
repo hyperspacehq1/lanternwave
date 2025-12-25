@@ -363,3 +363,17 @@
 .cm-main-title {
   margin-top: 0.25rem; /* slight separation from buttons */
 }
+/* ------------------------------------------------------------
+   Vertical alignment adjustment
+   Move search + content up without touching section title
+------------------------------------------------------------ */
+
+/* Search wrapper (inline container above .cm-content) */
+.cm-main > div[style] {
+  margin-top: -29px;
+}
+
+/* Ensure content stays locked to search */
+.cm-content {
+  margin-top: 0;
+}
