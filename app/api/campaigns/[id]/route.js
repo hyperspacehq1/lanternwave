@@ -46,6 +46,7 @@ export async function GET(req, { params }) {
       worldSetting: 10000,
       campaignDate: 50,
       campaignPackage: 50,
+      rpgGame: 120, // ✅ NEW
     })
   );
 }

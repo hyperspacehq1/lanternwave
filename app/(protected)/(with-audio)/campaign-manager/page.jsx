@@ -83,7 +83,7 @@ export default function CampaignManagerPage() {
     activeType !== "campaigns" && rules.campaign && !activeCampaignId;
 
   /* ------------------------------------------------------------
-     Load records (with click-spam protection)
+     Load records
   ------------------------------------------------------------ */
   useEffect(() => {
     if (campaignRequired) return;
@@ -247,22 +247,16 @@ export default function CampaignManagerPage() {
             </div>
           </div>
 
-          {/* LOADING INDICATOR */}
+          {/* LOADING */}
           {loading && (
             <div className="cm-loading-indicator">
               Loading {activeType.replace("-", " ")}…
             </div>
           )}
 
-          {/* 🔍 SEARCH */}
+          {/* SEARCH */}
           {!campaignRequired && !loading && (
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "flex-end",
-                marginBottom: "0.75rem",
-              }}
-            >
+            <div style={{ display: "flex", justifyContent: "flex-end" }}>
               <input
                 className="cm-search"
                 placeholder={`Search ${activeType.replace("-", " ")}`}
@@ -287,10 +281,8 @@ export default function CampaignManagerPage() {
                     }`}
                     onClick={() => {
                       if (loading) return;
-
                       setSelectedId(r.id);
                       setSelectedRecord(r);
-
                       if (activeType === "campaigns") {
                         setActiveCampaignId(r.id);
                       }

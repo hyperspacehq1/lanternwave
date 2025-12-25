@@ -75,13 +75,47 @@ export default function CampaignForm({ record, onChange }) {
       </div>
 
       <div className="cm-field">
-        <label className="cm-label">Campaign Package</label>
+        <label className="cm-label">Adventure Codex</label>
         <select
           className="cm-input"
           value={record.campaignPackage || "standard"}
           onChange={(e) => update("campaignPackage", e.target.value)}
         >
           <option value="standard">Standard</option>
+        </select>
+      </div>
+
+      {/* ✅ NEW: RPG Game (optional) */}
+      <div className="cm-field">
+        <label className="cm-label">RPG Game</label>
+        <select
+          className="cm-input"
+          value={record.rpgGame || ""}
+          onChange={(e) =>
+            update("rpgGame", e.target.value || null)
+          }
+        >
+          <option value="">— Not specified —</option>
+          <option>Avatar Legends: The Roleplaying Game</option>
+          <option>Call of Cthulhu</option>
+          <option>Coriolis: The Great Dark</option>
+          <option>Cyberpunk TTRPG (Red / variants)</option>
+          <option>Cypher System / Daggerheart</option>
+          <option>Dungeon Crawl Classics (DCC)</option>
+          <option>Dungeons & Dragons 5th Edition</option>
+          <option>Fabula Ultima</option>
+          <option>Land of Eem</option>
+          <option>Marvel Multiverse RPG</option>
+          <option>Mörk Borg</option>
+          <option>Mythic Bastionland</option>
+          <option>Nimble 5e</option>
+          <option>Pathfinder 2nd Edition</option>
+          <option>Savage Worlds</option>
+          <option>Shadowrun (6th/updated editions)</option>
+          <option>Starfinder 2nd Edition</option>
+          <option>StartPlaying</option>
+          <option>Tales of the Valiant</option>
+          <option>Vampire: The Masquerade 5th Edition</option>
         </select>
       </div>
 

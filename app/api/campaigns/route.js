@@ -12,6 +12,29 @@ const ALLOWED_CAMPAIGN_PACKAGES = new Set([
   "premium",
 ]);
 
+const ALLOWED_RPG_GAMES = new Set([
+  "Avatar Legends: The Roleplaying Game",
+  "Call of Cthulhu",
+  "Coriolis: The Great Dark",
+  "Cyberpunk TTRPG (Red / variants)",
+  "Cypher System / Daggerheart",
+  "Dungeon Crawl Classics (DCC)",
+  "Dungeons & Dragons 5th Edition",
+  "Fabula Ultima",
+  "Land of Eem",
+  "Marvel Multiverse RPG",
+  "Mörk Borg",
+  "Mythic Bastionland",
+  "Nimble 5e",
+  "Pathfinder 2nd Edition",
+  "Savage Worlds",
+  "Shadowrun (6th/updated editions)",
+  "Starfinder 2nd Edition",
+  "StartPlaying",
+  "Tales of the Valiant",
+  "Vampire: The Masquerade 5th Edition",
+]);
+
 function hasOwn(obj, key) {
   return Object.prototype.hasOwnProperty.call(obj, key);
 }
@@ -64,6 +87,7 @@ export async function GET(req) {
       worldSetting: 10000,
       campaignDate: 50,
       campaignPackage: 50,
+      rpgGame: 120, // ✅ NEW
     })
   );
 }
@@ -93,6 +117,16 @@ export async function POST(req) {
     return Response.json({ error: "Invalid campaign package" }, { status: 400 });
   }
 
+  const rpgGame = pick(body, "rpgGame", "rpg_game");
+  if (
+    rpgGame !== undefined &&
+    rpgGame !== null &&
+    rpgGame !== "" &&
+    !ALLOWED_RPG_GAMES.has(rpgGame)
+  ) {
+    return Response.json({ error: "Invalid RPG game" }, { status: 400 });
+  }
+
   const worldSetting = pick(body, "worldSetting", "world_setting") ?? null;
   const campaignDate = normalizeDateOnly(
     pick(body, "campaignDate", "campaign_date")
@@ -106,9 +140,10 @@ export async function POST(req) {
       description,
       world_setting,
       campaign_date,
-      campaign_package
+      campaign_package,
+      rpg_game
     )
-    VALUES ($1, $2, $3, $4, $5::date, $6)
+    VALUES ($1, $2, $3, $4, $5::date, $6, $7)
     RETURNING *
     `,
     [
@@ -118,6 +153,7 @@ export async function POST(req) {
       worldSetting,
       campaignDate,
       campaignPackage,
+      rpgGame ?? null,
     ]
   );
 
@@ -128,6 +164,7 @@ export async function POST(req) {
       worldSetting: 10000,
       campaignDate: 50,
       campaignPackage: 50,
+      rpgGame: 120,
     }),
     { status: 201 }
   );
@@ -162,6 +199,16 @@ export async function PUT(req) {
     return Response.json({ error: "Invalid campaign package" }, { status: 400 });
   }
 
+  const rpgGame = pick(body, "rpgGame", "rpg_game");
+  if (
+    rpgGame !== undefined &&
+    rpgGame !== null &&
+    rpgGame !== "" &&
+    !ALLOWED_RPG_GAMES.has(rpgGame)
+  ) {
+    return Response.json({ error: "Invalid RPG game" }, { status: 400 });
+  }
+
   const sets = [];
   const values = [tenantId, id];
   let i = 3;
@@ -193,6 +240,11 @@ export async function PUT(req) {
     values.push(pkg);
   }
 
+  if (rpgGame !== undefined) {
+    sets.push(`rpg_game = $${i++}`);
+    values.push(rpgGame ?? null);
+  }
+
   if (!sets.length) {
     return Response.json({ error: "No valid fields provided" }, { status: 400 });
   }
@@ -221,6 +273,7 @@ export async function PUT(req) {
       worldSetting: 10000,
       campaignDate: 50,
       campaignPackage: 50,
+      rpgGame: 120,
     })
   );
 }
@@ -261,6 +314,7 @@ export async function DELETE(req) {
           worldSetting: 10000,
           campaignDate: 50,
           campaignPackage: 50,
+          rpgGame: 120,
         })
       : null
   );
