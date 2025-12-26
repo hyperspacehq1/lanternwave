@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { HeadObjectCommand } from "@aws-sdk/client-s3";
 import { getR2Client, R2_BUCKET_NAME } from "@/lib/r2/server";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
-import { guessContentType } from "@/lib/r2/contentType";
 import { query } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -11,30 +10,17 @@ export const runtime = "nodejs";
 export async function POST(req) {
   try {
     const body = await req.json();
-    const key = body?.key;
+    const { key } = body;
 
     if (!key) {
-      return NextResponse.json(
-        { ok: false, error: "missing key" },
-        { status: 400 }
-      );
+      return NextResponse.json({ ok: false, error: "missing key" }, { status: 400 });
     }
 
-    // ------------------------------------------------------------
-    // Resolve tenant from REQUEST (auth required)
-    // ------------------------------------------------------------
-    const { tenantId, user } = await getTenantContext(req);
-
-    if (!tenantId) {
-      return NextResponse.json(
-        { ok: false, error: "unauthorized" },
-        { status: 401 }
-      );
+    const { tenant, user } = await getTenantContext(req);
+    if (!tenant?.id) {
+      return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
     }
 
-    // ------------------------------------------------------------
-    // Verify object exists in R2
-    // ------------------------------------------------------------
     const client = getR2Client();
     const head = await client.send(
       new HeadObjectCommand({
@@ -43,46 +29,31 @@ export async function POST(req) {
       })
     );
 
-    const byteSize = head.ContentLength || null;
-    const filename = key.split("/").pop();
-    const mimeType = guessContentType(filename);
-
-    // ------------------------------------------------------------
-    // Commit clip to DB (DB = source of truth)
-    // ------------------------------------------------------------
     await query(
       `
-      insert into clips (
-        tenant_id,
-        user_id,
-        object_key,
-        title,
-        mime_type,
-        byte_size
-      )
-      values ($1, $2, $3, $4, $5, $6)
-      on conflict (object_key) do nothing
+      INSERT INTO clips (tenant_id, user_id, object_key, mime_type, byte_size)
+      VALUES ($1, $2, $3, $4, $5)
+      ON CONFLICT (object_key) DO NOTHING
       `,
       [
-        tenantId,
-        user?.id || null,
+        tenant.id,
+        user?.id ?? null,
         key,
-        filename,
-        mimeType,
-        byteSize,
+        head.ContentType,
+        head.ContentLength,
       ]
     );
 
     return NextResponse.json({
       ok: true,
       key,
-      mimeType,
-      byteSize,
+      size: head.ContentLength,
+      type: head.ContentType,
     });
   } catch (err) {
-    console.error("[r2 finalize] real error", err);
+    console.error("[finalize]", err);
     return NextResponse.json(
-      { ok: false, error: "finalize failed" },
+      { ok: false, error: "Finalize failed" },
       { status: 500 }
     );
   }

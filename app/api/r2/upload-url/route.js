@@ -3,80 +3,32 @@ import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { getR2Client } from "@/lib/r2/server";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
-import { guessContentType } from "@/lib/r2/contentType";
+import { validateUploadRequest } from "@/lib/r2/validateUploadRequest";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB
-
 export async function POST(req) {
   try {
-    const body = await req.json();
-    const { filename, size } = body;
-
-    if (!filename || !size) {
-      return NextResponse.json(
-        { ok: false, error: "missing filename or size" },
-        { status: 400 }
-      );
+    const validation = await validateUploadRequest(req);
+    if (!validation.ok) {
+      return NextResponse.json(validation, { status: validation.status });
     }
+
+    const { filename, size, mimeType } = validation;
 
     const { tenant } = await getTenantContext(req);
     if (!tenant?.id) {
-      return NextResponse.json(
-        { ok: false, error: "unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
     }
 
-    const { rows } = await tenant.db.query(
-      `SELECT COALESCE(SUM(byte_size), 0) AS used FROM clips WHERE tenant_id = $1`,
-      [tenant.id]
-    );
-
-    const usedBytes = Number(rows[0]?.used || 0);
-    const limitBytes = tenant.storage_limit_bytes ?? 10 * 1024 * 1024 * 1024;
-
-    if (usedBytes + size > limitBytes) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "storage quota exceeded",
-          used: usedBytes,
-          limit: limitBytes,
-        },
-        { status: 413 }
-      );
-    }
-
-    const safeName = filename.replace(/[^\w.\-]/g, "_");
-    const contentType = guessContentType(safeName);
-
-    const ALLOWED = [
-      "audio/mpeg",
-      "audio/wav",
-      "video/mp4",
-      "image/jpeg",
-      "image/png",
-      "image/webp",
-    ];
-
-    if (!ALLOWED.includes(contentType)) {
-      return NextResponse.json(
-        { ok: false, error: "unsupported file type" },
-        { status: 415 }
-      );
-    }
-
-    const key = `clips/${tenant.id}/${Date.now()}-${safeName}`;
+    const key = `clips/${tenant.id}/${Date.now()}-${filename}`;
 
     const client = getR2Client();
-
     const command = new PutObjectCommand({
       Bucket: process.env.R2_BUCKET_NAME,
       Key: key,
-      ContentType: contentType,
+      ContentType: mimeType,
     });
 
     const uploadUrl = await getSignedUrl(client, command, {
@@ -87,17 +39,13 @@ export async function POST(req) {
       ok: true,
       key,
       uploadUrl,
-      maxSize: MAX_FILE_SIZE,
-      usedBytes,
-      remainingBytes: limitBytes - usedBytes,
-      nearingLimit: usedBytes / limitBytes >= 0.8,
+      contentType: mimeType,
     });
   } catch (err) {
-    console.error("upload-url error:", err);
+    console.error("[upload-url]", err);
     return NextResponse.json(
       { ok: false, error: "Upload initialization failed" },
       { status: 500 }
     );
   }
 }
-
