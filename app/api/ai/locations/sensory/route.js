@@ -1,4 +1,5 @@
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
+import { sql } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -22,10 +23,35 @@ function json(status, payload) {
 }
 
 /* -------------------------------------------------
+   AI Usage Guard (50 / 24h per tenant)
+-------------------------------------------------- */
+async function checkAndConsumeUsage(tenantId) {
+  const LIMIT = 50;
+
+  const { rows } = await sql`
+    SELECT COUNT(*)::int AS count
+    FROM tenant_ai_usage
+    WHERE tenant_id = ${tenantId}
+      AND created_at > NOW() - INTERVAL '24 hours'
+  `;
+
+  if (rows[0].count >= LIMIT) {
+    return { allowed: false, remaining: 0 };
+  }
+
+  await sql`
+    INSERT INTO tenant_ai_usage (tenant_id, action)
+    VALUES (${tenantId}, 'sensory')
+  `;
+
+  return { allowed: true, remaining: LIMIT - (rows[0].count + 1) };
+}
+
+/* -------------------------------------------------
    POST /api/ai/locations/sensory
 -------------------------------------------------- */
 export async function POST(req) {
-  // 0) Parse input early (so curl always gets JSON on errors)
+  // 0) Parse body
   let body = {};
   try {
     body = await req.json();
@@ -45,7 +71,7 @@ export async function POST(req) {
   try {
     const ctx = await getTenantContext(req);
     tenantId = ctx?.tenantId;
-    if (!tenantId) throw new Error("Missing tenantId from getTenantContext");
+    if (!tenantId) throw new Error("Missing tenantId");
   } catch (e) {
     return json(500, {
       error: "Tenant context failed",
@@ -53,59 +79,44 @@ export async function POST(req) {
     });
   }
 
-  // 2) Confirm OpenAI key
+  // 2) Rate limit check
+  const usage = await checkAndConsumeUsage(tenantId);
+  if (!usage.allowed) {
+    return json(429, {
+      error: "AI usage limit reached",
+      detail: "You have reached the 50 requests per 24 hour limit.",
+    });
+  }
+
+  // 3) OpenAI key check
   if (!process.env.OPENAI_API_KEY) {
     return json(500, { error: "OPENAI_API_KEY is not configured" });
   }
 
-  // 3) Dynamically import the new modular AI pieces so import-time errors become JSON
+  // 4) Dynamic imports
   let loadLocationContext, buildLocationSensoryPrompt, runStructuredPrompt, locationSensorySchema;
 
   try {
     ({ loadLocationContext } = await import(
       "@/lib/ai/loaders/loadLocationContext"
     ));
-  } catch (e) {
-    return json(500, {
-      error: "Import failed: loadLocationContext",
-      detail: String(e?.message || e),
-    });
-  }
-
-  try {
     ({ buildLocationSensoryPrompt } = await import(
       "@/lib/ai/prompts/locationSensory"
     ));
-  } catch (e) {
-    return json(500, {
-      error: "Import failed: buildLocationSensoryPrompt",
-      detail: String(e?.message || e),
-    });
-  }
-
-  try {
     ({ runStructuredPrompt } = await import(
       "@/lib/ai/runStructuredPrompt"
     ));
-  } catch (e) {
-    return json(500, {
-      error: "Import failed: runStructuredPrompt",
-      detail: String(e?.message || e),
-    });
-  }
-
-  try {
     ({ locationSensorySchema } = await import(
       "@/lib/ai/schemas/locationSensorySchema"
     ));
   } catch (e) {
     return json(500, {
-      error: "Import failed: locationSensorySchema",
+      error: "AI module load failed",
       detail: String(e?.message || e),
     });
   }
 
-  // 4) Main logic
+  // 5) Generate
   try {
     const { campaign, location } = await loadLocationContext({
       tenantId,
@@ -122,21 +133,21 @@ export async function POST(req) {
       temperature: 0.7,
     });
 
-    const hear = clampWords(parsed?.hear, 20);
-    const smell = clampWords(parsed?.smell, 20);
-
     const sensory = {
-      hear,
-      smell,
+      hear: clampWords(parsed?.hear, 20),
+      smell: clampWords(parsed?.smell, 20),
       source: "ai",
       updated_at: new Date().toISOString(),
     };
 
-    return json(200, { sensory });
+    return json(200, {
+      sensory,
+      remaining: usage.remaining,
+    });
   } catch (e) {
     return json(e?.status || 502, {
-      error: e?.message || "AI request failed",
-      detail: String(e?.detail || e?.stack || e),
+      error: e?.message || "AI generation failed",
+      detail: String(e?.detail || e),
     });
   }
 }
