@@ -2,6 +2,9 @@ import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { ingestAdventureCodex } from "@/lib/ai/orchestrator";
 import { resolveEncounterRelationships } from "@/lib/ai/resolveEncounterRelationships";
 
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
 export async function POST(req) {
   try {
     // 1. Authenticate user
