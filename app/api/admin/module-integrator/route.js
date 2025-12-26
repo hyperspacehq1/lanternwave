@@ -1,4 +1,4 @@
-import { getTenantContext } from "@/lib/auth/getTenantContext";
+import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { ingestAdventureCodex } from "@/lib/ai/orchestrator";
 import { resolveEncounterRelationships } from "@/lib/ai/resolveEncounterRelationships";
 
@@ -20,15 +20,12 @@ export async function POST(req) {
 
   const result = await ingestAdventureCodex({
     buffer,
-    userId: ctx.userId,
+    tenantId: ctx.tenantId,
   });
 
   await resolveEncounterRelationships({
     templateCampaignId: result.templateCampaignId,
   });
 
-  return Response.json({
-    success: true,
-    templateCampaignId: result.templateCampaignId,
-  });
+  return Response.json({ success: true });
 }
