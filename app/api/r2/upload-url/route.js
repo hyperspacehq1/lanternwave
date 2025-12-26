@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { getR2Client } from "@/lib/r2/server";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { guessContentType } from "@/lib/r2/contentType";
@@ -8,7 +9,6 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB
-const SOFT_QUOTA_RATIO = 0.8;
 
 export async function POST(req) {
   try {
@@ -22,7 +22,6 @@ export async function POST(req) {
       );
     }
 
-    // 🔐 Resolve tenant (REQUIRED)
     const { tenant } = await getTenantContext(req);
     if (!tenant?.id) {
       return NextResponse.json(
@@ -31,15 +30,8 @@ export async function POST(req) {
       );
     }
 
-    // -------------------------------
-    // Storage quota check
-    // -------------------------------
     const { rows } = await tenant.db.query(
-      `
-      SELECT COALESCE(SUM(byte_size), 0) AS used
-      FROM clips
-      WHERE tenant_id = $1
-      `,
+      `SELECT COALESCE(SUM(byte_size), 0) AS used FROM clips WHERE tenant_id = $1`,
       [tenant.id]
     );
 
@@ -58,9 +50,6 @@ export async function POST(req) {
       );
     }
 
-    // ----------------------------------
-    // Validate + create upload
-    // ----------------------------------
     const safeName = filename.replace(/[^\w.\-]/g, "_");
     const contentType = guessContentType(safeName);
 
@@ -81,6 +70,7 @@ export async function POST(req) {
     }
 
     const key = `clips/${tenant.id}/${Date.now()}-${safeName}`;
+
     const client = getR2Client();
 
     const command = new PutObjectCommand({
@@ -103,10 +93,11 @@ export async function POST(req) {
       nearingLimit: usedBytes / limitBytes >= 0.8,
     });
   } catch (err) {
-    console.error("upload-url error", err);
+    console.error("upload-url error:", err);
     return NextResponse.json(
       { ok: false, error: "Upload initialization failed" },
       { status: 500 }
     );
   }
 }
+
