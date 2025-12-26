@@ -1,3 +1,5 @@
+export const runtime = "nodejs";
+
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { query } from "@/lib/db";
@@ -10,12 +12,13 @@ export default async function Page() {
     redirect("/login");
   }
 
-  // Validate session against DB
   const { rows } = await query(
-    `SELECT u.id, u.email, u.is_admin
-     FROM sessions s
-     JOIN users u ON u.id = s.user_id
-     WHERE s.token = $1`,
+    `
+    SELECT u.id, u.email, u.is_admin
+    FROM users u
+    JOIN sessions s ON s.user_id = u.id
+    WHERE s.token = $1
+    `,
     [session.value]
   );
 
@@ -25,7 +28,7 @@ export default async function Page() {
 
   return (
     <div>
-      <h1>Admin Area</h1>
+      <h1>Admin Module</h1>
       <p>Welcome, {rows[0].email}</p>
     </div>
   );
