@@ -1,16 +1,14 @@
 import { NextResponse } from "next/server";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { getR2Client, R2_BUCKET_NAME } from "@/lib/r2/server";
+import { getR2Client } from "@/lib/r2/server";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { guessContentType } from "@/lib/r2/contentType";
-import { sql } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB
-const SOFT_QUOTA_RATIO = 0.8; // 80%
+const SOFT_QUOTA_RATIO = 0.8;
 
 export async function POST(req) {
   try {
@@ -24,65 +22,49 @@ export async function POST(req) {
       );
     }
 
-    if (size > MAX_FILE_SIZE) {
-      return NextResponse.json(
-        { ok: false, error: "file exceeds 500MB limit" },
-        { status: 413 }
-      );
-    }
-
-    // ------------------------------------------------------------
-    // Resolve tenant
-    // ------------------------------------------------------------
-    const { tenantId } = await getTenantContext(req);
-    if (!tenantId) {
+    // 🔐 Resolve tenant (REQUIRED)
+    const { tenant } = await getTenantContext(req);
+    if (!tenant?.id) {
       return NextResponse.json(
         { ok: false, error: "unauthorized" },
         { status: 401 }
       );
     }
 
-    // ------------------------------------------------------------
-    // Get tenant storage limits
-    // ------------------------------------------------------------
-    const [tenant] = await sql`
-      SELECT storage_limit_bytes
-      FROM tenants
-      WHERE id = ${tenantId}
-    `;
-
-    const limitBytes = tenant?.storage_limit_bytes ?? 10 * 1024 * 1024 * 1024;
-
-    const [{ used_bytes }] = await sql`
-      SELECT COALESCE(SUM(byte_size), 0) AS used_bytes
+    // -------------------------------
+    // Storage quota check
+    // -------------------------------
+    const { rows } = await tenant.db.query(
+      `
+      SELECT COALESCE(SUM(byte_size), 0) AS used
       FROM clips
-      WHERE tenant_id = ${tenantId}
-        AND deleted_at IS NULL
-    `;
+      WHERE tenant_id = $1
+      `,
+      [tenant.id]
+    );
 
-    const projectedUsage = used_bytes + size;
-    const usageRatio = projectedUsage / limitBytes;
-    const nearingLimit = usageRatio >= SOFT_QUOTA_RATIO;
+    const usedBytes = Number(rows[0]?.used || 0);
+    const limitBytes = tenant.storage_limit_bytes ?? 10 * 1024 * 1024 * 1024;
 
-    if (projectedUsage > limitBytes) {
+    if (usedBytes + size > limitBytes) {
       return NextResponse.json(
         {
           ok: false,
           error: "storage quota exceeded",
-          used: used_bytes,
+          used: usedBytes,
           limit: limitBytes,
         },
         { status: 413 }
       );
     }
 
-    // ------------------------------------------------------------
-    // Validate filename + type
-    // ------------------------------------------------------------
-    const safe = filename.replace(/[^\w.\-]+/g, "_");
-    const contentType = guessContentType(safe);
+    // ----------------------------------
+    // Validate + create upload
+    // ----------------------------------
+    const safeName = filename.replace(/[^\w.\-]/g, "_");
+    const contentType = guessContentType(safeName);
 
-    const ALLOWED_TYPES = [
+    const ALLOWED = [
       "audio/mpeg",
       "audio/wav",
       "video/mp4",
@@ -91,26 +73,23 @@ export async function POST(req) {
       "image/webp",
     ];
 
-    if (!ALLOWED_TYPES.includes(contentType)) {
+    if (!ALLOWED.includes(contentType)) {
       return NextResponse.json(
         { ok: false, error: "unsupported file type" },
         { status: 415 }
       );
     }
 
-    // ------------------------------------------------------------
-    // Create R2 upload URL
-    // ------------------------------------------------------------
-    const key = `clips/${tenantId}/${Date.now()}-${safe}`;
+    const key = `clips/${tenant.id}/${Date.now()}-${safeName}`;
     const client = getR2Client();
 
-    const cmd = new PutObjectCommand({
-      Bucket: R2_BUCKET_NAME,
+    const command = new PutObjectCommand({
+      Bucket: process.env.R2_BUCKET_NAME,
       Key: key,
       ContentType: contentType,
     });
 
-    const uploadUrl = await getSignedUrl(client, cmd, {
+    const uploadUrl = await getSignedUrl(client, command, {
       expiresIn: 600,
     });
 
@@ -119,16 +98,14 @@ export async function POST(req) {
       key,
       uploadUrl,
       maxSize: MAX_FILE_SIZE,
-      usedBytes: used_bytes,
-      remainingBytes: limitBytes - used_bytes,
-      warning: nearingLimit
-        ? "You are approaching your storage limit."
-        : null,
+      usedBytes,
+      remainingBytes: limitBytes - usedBytes,
+      nearingLimit: usedBytes / limitBytes >= 0.8,
     });
   } catch (err) {
-    console.error("[upload-url]", err);
+    console.error("upload-url error", err);
     return NextResponse.json(
-      { ok: false, error: "upload-url failed" },
+      { ok: false, error: "Upload initialization failed" },
       { status: 500 }
     );
   }
