@@ -3,7 +3,7 @@ const eventsSchema = {
   schema: {
     type: "array",
     description:
-      "Significant narrative events that occur or may occur during the campaign. Do not include combat encounters unless they are explicitly framed as story events.",
+      "Significant narrative events that occur or may occur during the campaign. Do not include combat encounters unless they are explicitly framed as story events. Events may occur with or without the players present.",
     items: {
       type: "object",
       additionalProperties: false,
