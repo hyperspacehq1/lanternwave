@@ -4,56 +4,35 @@ import { useState } from "react";
 
 export default function ModuleIntegratorClient() {
   const [file, setFile] = useState(null);
-  const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
   async function handleSubmit(e) {
     e.preventDefault();
-    if (!file) return;
-
-    setLoading(true);
-    setMessage("");
 
     const formData = new FormData();
     formData.append("file", file);
 
-    try {
-      const res = await fetch("/api/admin/module-integrator", {
-        method: "POST",
-        body: formData,
-      });
+    const res = await fetch("/api/admin/module-integrator", {
+      method: "POST",
+      body: formData,
+    });
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "Upload failed");
-      }
-
-      setMessage("✅ Module processed successfully.");
-    } catch (err) {
-      setMessage(`❌ ${err.message}`);
-    } finally {
-      setLoading(false);
-    }
+    const data = await res.json();
+    setMessage(data.message || "Done");
   }
 
   return (
-    <div style={{ maxWidth: 600, margin: "2rem auto" }}>
+    <div>
       <h1>Module Integrator</h1>
-
       <form onSubmit={handleSubmit}>
         <input
           type="file"
-          accept=".pdf"
-          onChange={(e) => setFile(e.target.files?.[0])}
+          onChange={(e) => setFile(e.target.files[0])}
         />
-
-        <button type="submit" disabled={!file || loading}>
-          {loading ? "Processing…" : "Upload Module"}
-        </button>
+        <button type="submit">Upload</button>
       </form>
 
-      {message && <p style={{ marginTop: 16 }}>{message}</p>}
+      {message && <p>{message}</p>}
     </div>
   );
 }
