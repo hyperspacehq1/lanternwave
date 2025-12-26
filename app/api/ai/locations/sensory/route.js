@@ -1,5 +1,5 @@
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
-import { sql } from "@/lib/db";
+import db from "@/lib/db"; // ✅ correct import
 
 export const dynamic = "force-dynamic";
 
@@ -28,30 +28,32 @@ function json(status, payload) {
 async function checkAndConsumeUsage(tenantId) {
   const LIMIT = 50;
 
-  const { rows } = await sql`
+  const result = await db.query(
+    `
     SELECT COUNT(*)::int AS count
     FROM tenant_ai_usage
-    WHERE tenant_id = ${tenantId}
+    WHERE tenant_id = $1
       AND created_at > NOW() - INTERVAL '24 hours'
-  `;
+    `,
+    [tenantId]
+  );
 
-  if (rows[0].count >= LIMIT) {
+  if (result.rows[0].count >= LIMIT) {
     return { allowed: false, remaining: 0 };
   }
 
-  await sql`
-    INSERT INTO tenant_ai_usage (tenant_id, action)
-    VALUES (${tenantId}, 'sensory')
-  `;
+  await db.query(
+    `INSERT INTO tenant_ai_usage (tenant_id, action) VALUES ($1, 'sensory')`,
+    [tenantId]
+  );
 
-  return { allowed: true, remaining: LIMIT - (rows[0].count + 1) };
+  return { allowed: true, remaining: LIMIT - (result.rows[0].count + 1) };
 }
 
 /* -------------------------------------------------
    POST /api/ai/locations/sensory
 -------------------------------------------------- */
 export async function POST(req) {
-  // 0) Parse body
   let body = {};
   try {
     body = await req.json();
@@ -66,7 +68,7 @@ export async function POST(req) {
     return json(400, { error: "location_id is required" });
   }
 
-  // 1) Tenant context
+  // Tenant context
   let tenantId;
   try {
     const ctx = await getTenantContext(req);
@@ -79,7 +81,7 @@ export async function POST(req) {
     });
   }
 
-  // 2) Rate limit check
+  // Rate limit
   const usage = await checkAndConsumeUsage(tenantId);
   if (!usage.allowed) {
     return json(429, {
@@ -88,27 +90,19 @@ export async function POST(req) {
     });
   }
 
-  // 3) OpenAI key check
+  // OpenAI key
   if (!process.env.OPENAI_API_KEY) {
     return json(500, { error: "OPENAI_API_KEY is not configured" });
   }
 
-  // 4) Dynamic imports
+  // Dynamic imports
   let loadLocationContext, buildLocationSensoryPrompt, runStructuredPrompt, locationSensorySchema;
 
   try {
-    ({ loadLocationContext } = await import(
-      "@/lib/ai/loaders/loadLocationContext"
-    ));
-    ({ buildLocationSensoryPrompt } = await import(
-      "@/lib/ai/prompts/locationSensory"
-    ));
-    ({ runStructuredPrompt } = await import(
-      "@/lib/ai/runStructuredPrompt"
-    ));
-    ({ locationSensorySchema } = await import(
-      "@/lib/ai/schemas/locationSensorySchema"
-    ));
+    ({ loadLocationContext } = await import("@/lib/ai/loaders/loadLocationContext"));
+    ({ buildLocationSensoryPrompt } = await import("@/lib/ai/prompts/locationSensory"));
+    ({ runStructuredPrompt } = await import("@/lib/ai/runStructuredPrompt"));
+    ({ locationSensorySchema } = await import("@/lib/ai/schemas/locationSensorySchema"));
   } catch (e) {
     return json(500, {
       error: "AI module load failed",
@@ -116,7 +110,6 @@ export async function POST(req) {
     });
   }
 
-  // 5) Generate
   try {
     const { campaign, location } = await loadLocationContext({
       tenantId,
