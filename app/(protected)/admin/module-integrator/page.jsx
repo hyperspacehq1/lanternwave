@@ -1,6 +1,32 @@
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { query } from "@/lib/db";
 
-export default function Page() {
+export default async function Page() {
   const cookieStore = cookies();
-  return <div>Cookies OK</div>;
+  const session = cookieStore.get("lw_session");
+
+  if (!session) {
+    redirect("/login");
+  }
+
+  // Validate session against DB
+  const { rows } = await query(
+    `SELECT u.id, u.email, u.is_admin
+     FROM sessions s
+     JOIN users u ON u.id = s.user_id
+     WHERE s.token = $1`,
+    [session.value]
+  );
+
+  if (!rows.length || !rows[0].is_admin) {
+    redirect("/login");
+  }
+
+  return (
+    <div>
+      <h1>Admin Area</h1>
+      <p>Welcome, {rows[0].email}</p>
+    </div>
+  );
 }
