@@ -3,49 +3,75 @@ export const dynamic = "force-dynamic";
 
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { ingestAdventureCodex } from "@/lib/ai/orchestrator";
-import { resolveEncounterRelationships } from "@/lib/ai/resolveEncounterRelationships";
 
+/**
+ * GET — used by the frontend to verify route availability
+ * Prevents 405 errors when the page loads.
+ */
+export async function GET() {
+  return Response.json({
+    ok: true,
+    status: "ready",
+  });
+}
+
+/**
+ * POST — handles multipart file upload + ingestion
+ */
 export async function POST(req) {
   try {
-    console.log("🚀 Route invoked");
+    console.log("🚀 [account upload] Route invoked");
 
     const ctx = await getTenantContext(req);
-    console.log("CTX:", ctx);
-
-    const formData = await req.formData();
-    console.log("Form data keys:", [...formData.keys()]);
-
-    const file = formData.get("file");
-    if (!file) {
-      throw new Error("No file received in multipart form");
+    if (!ctx?.tenantId) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized or missing tenant context" }),
+        { status: 401 }
+      );
     }
 
-    console.log("File info:", {
+    const contentType = req.headers.get("content-type") || "";
+    if (!contentType.includes("multipart/form-data")) {
+      return new Response(
+        JSON.stringify({ error: "Expected multipart/form-data" }),
+        { status: 400 }
+      );
+    }
+
+    const formData = await req.formData();
+    const file = formData.get("file");
+
+    if (!file) {
+      return new Response(
+        JSON.stringify({ error: "No file received" }),
+        { status: 400 }
+      );
+    }
+
+    console.log("📄 Upload received:", {
       name: file.name,
       size: file.size,
       type: file.type,
     });
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    console.log("Buffer length:", buffer.length);
 
     const result = await ingestAdventureCodex({
       buffer,
       tenantId: ctx.tenantId,
     });
 
-    console.log("Ingest complete:", result);
-
-    return Response.json({ success: true, result });
-
+    return Response.json({
+      success: true,
+      result,
+    });
   } catch (err) {
-    console.error("🔥 FATAL ERROR:", err);
+    console.error("🔥 ACCOUNT ROUTE ERROR:", err);
 
-    // IMPORTANT: return the error string so it shows in browser
     return new Response(
       JSON.stringify({
-        error: err?.message || "Unknown error",
-        stack: err?.stack,
+        error: err?.message || "Internal server error",
+        stack: process.env.NODE_ENV === "development" ? err?.stack : undefined,
       }),
       { status: 500 }
     );
