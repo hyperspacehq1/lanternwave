@@ -1,35 +1,42 @@
 const itemsSchema = {
   name: "items",
+  description: "Physical or magical items that appear in the campaign",
   schema: {
     type: "array",
-    description:
-      "Notable objects, artifacts, or equipment that are important to the story or investigation. Exclude mundane gear unless highlighted by the module.",
     items: {
       type: "object",
       additionalProperties: false,
-      required: ["name"],
       properties: {
         name: {
           type: "string",
-          description:
-            "The item's name exactly as written in the module.",
-          maxLength: 200,
+          description: "Name of the item",
         },
         description: {
           type: "string",
-          description:
-            "Narrative description of the item, including appearance and known properties from the module.",
-          maxLength: 10000,
+          description: "Description of the item and its appearance",
         },
-        significance: {
+        rarity: {
           type: "string",
-          description:
-            "Why the item matters to the story (e.g. clue, weapon, ritual focus), if specified.",
-          maxLength: 500,
+          description: "Rarity classification of the item",
         },
+        effects: {
+          type: "string",
+          description: "Mechanical or narrative effects of the item",
+        },
+        location_found: {
+          type: "string",
+          description: "Where the item can be found or obtained",
+        }
       },
-    },
-  },
+      required: [
+        "name",
+        "description",
+        "rarity",
+        "effects",
+        "location_found"
+      ]
+    }
+  }
 };
 
 export default itemsSchema;

@@ -1,34 +1,48 @@
 const sessionsSchema = {
   name: "sessions",
+  description: "Individual play sessions that occur within a campaign",
   schema: {
     type: "array",
-    description:
-      "Major chapters, acts, or play sessions defined by the module. Only include sections that are clearly delineated as playable segments.",
     items: {
       type: "object",
       additionalProperties: false,
-      required: ["name"],
       properties: {
-        name: {
+        title: {
           type: "string",
-          description:
-            "The session, chapter, or act title exactly as named in the module.",
-          maxLength: 200,
+          description: "Title or name of the session",
         },
         summary: {
           type: "string",
-          description:
-            "A concise summary of what happens during this session, derived directly from the module text.",
-          maxLength: 10000,
+          description: "Summary of what occurred during the session",
         },
-        session_order: {
-          type: "number",
-          description:
-            "The intended chronological order of this session within the campaign, if explicitly indicated.",
+        location: {
+          type: "string",
+          description: "Primary location where the session takes place",
         },
+        involved_characters: {
+          type: "array",
+          items: {
+            type: "string"
+          },
+          description: "Names of characters involved in the session",
+        },
+        key_events: {
+          type: "array",
+          items: {
+            type: "string"
+          },
+          description: "Major events or turning points during the session",
+        }
       },
-    },
-  },
+      required: [
+        "title",
+        "summary",
+        "location",
+        "involved_characters",
+        "key_events"
+      ]
+    }
+  }
 };
 
 export default sessionsSchema;

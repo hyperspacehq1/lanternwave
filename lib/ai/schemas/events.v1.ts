@@ -1,35 +1,43 @@
 const eventsSchema = {
   name: "events",
+  description: "Discrete narrative or gameplay events that occur within a campaign",
   schema: {
     type: "array",
-    description:
-      "Significant narrative events that occur or may occur during the campaign. Do not include combat encounters unless they are explicitly framed as story events. Events may occur with or without the players present.",
     items: {
       type: "object",
       additionalProperties: false,
-      required: ["name"],
       properties: {
-        name: {
+        title: {
           type: "string",
-          description:
-            "The name or short label of the event as described in the module.",
-          maxLength: 200,
+          description: "Name of the event",
         },
         description: {
           type: "string",
-          description:
-            "Narrative description of the event, using only information present in the module text.",
-          maxLength: 10000,
+          description: "Narrative description of what happens during the event",
         },
-        timing: {
+        location: {
           type: "string",
-          description:
-            "When or under what conditions the event occurs, if specified (e.g. after a clue is discovered, at a certain date, etc.).",
-          maxLength: 200,
+          description: "Where the event takes place",
         },
+        involved_npcs: {
+          type: "array",
+          items: { type: "string" },
+          description: "NPCs involved in the event",
+        },
+        consequences: {
+          type: "string",
+          description: "Outcome or consequences of the event",
+        }
       },
-    },
-  },
+      required: [
+        "title",
+        "description",
+        "location",
+        "involved_npcs",
+        "consequences"
+      ]
+    }
+  }
 };
 
 export default eventsSchema;

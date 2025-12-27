@@ -1,33 +1,30 @@
 const locationsSchema = {
   name: "locations",
+  description: "Physical locations where events occur within the campaign",
   schema: {
     type: "array",
-    description:
-      "Distinct named places where scenes, investigations, or encounters occur. Do not include vague or unnamed areas.",
     items: {
       type: "object",
       additionalProperties: false,
-      required: ["name"],
       properties: {
         name: {
           type: "string",
-          description:
-            "The proper name of the location as written in the module.",
+          description: "The proper name of the location as written in the source material.",
           maxLength: 200,
         },
         description: {
           type: "string",
-          description:
-            "Sensory and narrative description of the location taken from the module text.",
+          description: "Detailed narrative description of the location.",
           maxLength: 10000,
         },
         environment: {
           type: "string",
           description:
-            "The general environment or category of the location (e.g. urban, wilderness, underground, alien).",
+            "The general environment or biome of the location (e.g. urban, wilderness, underground).",
           maxLength: 500,
         },
       },
+      required: ["name", "description", "environment"],
     },
   },
 };

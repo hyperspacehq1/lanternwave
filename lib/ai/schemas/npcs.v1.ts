@@ -1,41 +1,42 @@
 const npcsSchema = {
   name: "npcs",
+  description: "Non-player characters that appear within the campaign world",
   schema: {
     type: "array",
-    description:
-      "Named non-player characters that appear in the module. Only include characters that are explicitly named and described.",
     items: {
       type: "object",
       additionalProperties: false,
-      required: ["name"],
       properties: {
         name: {
           type: "string",
-          description:
-            "The NPC's full name or most commonly used name in the module.",
-          maxLength: 200,
+          description: "Full name of the non-player character",
         },
         role: {
           type: "string",
-          description:
-            "The NPC's narrative or functional role (e.g. antagonist, ally, informant, cultist).",
-          maxLength: 200,
+          description: "Narrative or functional role of the NPC in the story",
         },
         description: {
           type: "string",
-          description:
-            "Physical appearance, personality, and background details drawn directly from the module text.",
-          maxLength: 10000,
+          description: "Physical appearance, personality, and notable traits",
         },
-        motivations: {
+        affiliation: {
           type: "string",
-          description:
-            "The NPC's goals, desires, or driving motivations if explicitly stated.",
-          maxLength: 2000,
+          description: "Faction, organization, or group the NPC belongs to",
         },
+        motivation: {
+          type: "string",
+          description: "Primary goals or motivations of the character",
+        }
       },
-    },
-  },
+      required: [
+        "name",
+        "role",
+        "description",
+        "affiliation",
+        "motivation"
+      ]
+    }
+  }
 };
 
 export default npcsSchema;

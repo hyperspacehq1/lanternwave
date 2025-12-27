@@ -1,42 +1,33 @@
 const campaignsSchema = {
   name: "campaigns",
+  description: "Top-level campaign metadata extracted from an RPG module",
   schema: {
     type: "object",
     additionalProperties: false,
-    description:
-      "Top-level campaign metadata extracted from the module. This represents the overall adventure or book, not an individual playthrough.",
-    required: ["name"],
     properties: {
       name: {
         type: "string",
-        description:
-          "The official title of the campaign or module as written in the PDF.",
-        maxLength: 200,
+        description: "The official title of the campaign or module",
       },
       description: {
         type: "string",
-        description:
-          "High-level narrative summary of the campaign taken directly from the module introduction or overview section.",
-        maxLength: 10000,
+        description: "Summary of the campaign or adventure",
       },
-      world_setting: {
+      setting: {
         type: "string",
-        description:
-          "The primary setting, location, or world in which the campaign takes place (e.g. region, city, planet, era).",
-        maxLength: 500,
-      },
-      campaign_date: {
-        type: "string",
-        description:
-          "In-world time period or historical era if explicitly stated (not the publication date).",
+        description: "Primary setting or world where the campaign takes place",
       },
       rpg_game: {
         type: "string",
-        description:
-          "The tabletop roleplaying game system this module is written for.",
-        maxLength: 120,
+        description: "The tabletop roleplaying system used",
       },
     },
+    required: [
+      "name",
+      "description",
+      "setting",
+      "rpg_game"
+    ],
   },
 };
 
