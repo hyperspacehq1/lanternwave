@@ -232,13 +232,21 @@
   80% { opacity: 1; }
   100% { opacity: 0; }
 }
-/* Force loop button to remain blue */
+
+/* === FORCE LOOP BUTTON COLOR + ACTIVE STATE === */
 .lw-btn.loop-btn {
-  color: #6cc5f0;
-  border-color: #6cc5f0;
+  color: #6cc5f0 !important;
+  border-color: #6cc5f0 !important;
 }
 
 .lw-btn.loop-btn:hover {
   color: #6cc5f0;
   border-color: #6cc5f0;
+}
+
+/* Active / playing state */
+.lw-btn.loop-btn.active {
+  color: #6cc5f0;
+  border-color: #6cc5f0;
+  box-shadow: 0 0 6px rgba(108, 197, 240, 0.6);
 }
