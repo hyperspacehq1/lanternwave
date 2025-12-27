@@ -22,15 +22,19 @@ export default function Header({ variant = "app" }) {
   ];
 
   // ✅ PLAYER MODE — logo only
-  if (variant === "player") {
-    return (
-      <header className="lw-header">
-        <div className="lw-header-left">
+if (variant === "player") {
+  return (
+    <header className="lw-header">
+      <div className="lw-header-left">
+        <div className="lw-logo-wrap">
           <LogoMark />
         </div>
-      </header>
-    );
-  }
+        <div className="lw-header-title">LANTERNWAVE</div>
+      </div>
+      {/* no nav */}
+    </header>
+  );
+}
 
   // DEFAULT / APP HEADER
   const navItems = variant === "public" ? publicNavItems : appNavItems;
