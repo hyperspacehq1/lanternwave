@@ -46,7 +46,7 @@ async function deleteClip(key) {
 }
 
 async function uploadClip(file, onProgress) {
-  // 1) Get signed URL (MUST include filename + size for the new validation rules)
+  // 1) Get signed URL (MUST include filename + size)
   const urlRes = await fetch("/api/r2/upload-url", {
     method: "POST",
     credentials: "include",
@@ -72,21 +72,20 @@ async function uploadClip(file, onProgress) {
 
     xhr.upload.onprogress = (evt) => {
       if (evt.lengthComputable && onProgress) {
-        const pct = (evt.loaded / evt.total) * 100;
-        // ensure UI shows movement (some browsers can fire tiny first chunks)
-        onProgress(Math.max(1, pct));
+        const pct = Math.round((evt.loaded / evt.total) * 100);
+        onProgress(pct);
       }
     };
 
     xhr.onload = () => {
-      // Treat non-2xx as failure
+      // ✅ treat non-2xx as failure (prevents silent “uploaded” state)
       if (xhr.status >= 200 && xhr.status < 300) resolve();
       else reject(new Error(`Upload to storage failed (status ${xhr.status})`));
     };
 
     xhr.onerror = () => reject(new Error("Upload to storage failed"));
 
-    // IMPORTANT: keep this header aligned with what the presign expects
+    // IMPORTANT: align with what you sign (your route signs ContentType)
     xhr.setRequestHeader("Content-Type", file.type);
     xhr.send(file);
   });
@@ -101,8 +100,7 @@ async function uploadClip(file, onProgress) {
 
   const finData = await finRes.json().catch(() => null);
   if (!finRes.ok || finData?.ok === false) {
-    const msg =
-      finData?.error || `Finalize failed (status ${finRes.status})`;
+    const msg = finData?.error || `Finalize failed (status ${finRes.status})`;
     throw new Error(msg);
   }
 
@@ -141,6 +139,7 @@ export default function ControllerPage() {
   const [loading, setLoading] = useState(false);
   const [busyKey, setBusyKey] = useState(null); // 🔒 per-clip lock
   const [uploadProgress, setUploadProgress] = useState(null);
+  const [uploadError, setUploadError] = useState(null);
   const [nowPlaying, setNowPlayingState] = useState(null);
   const [loop, setLoop] = useState(false);
 
@@ -182,6 +181,7 @@ export default function ControllerPage() {
               if (!file || loading) return;
 
               setUploadProgress(0);
+              setUploadError(null);
               setLoading(true);
 
               try {
@@ -190,10 +190,9 @@ export default function ControllerPage() {
                 e.target.value = "";
                 await refresh();
               } catch (err) {
-                // keep your UI structure; simplest is console + stop spinner
                 console.error("[upload]", err);
+                setUploadError(err?.message || "Upload failed");
                 setUploadProgress(null);
-                alert(err?.message || "Upload failed");
               } finally {
                 setLoading(false);
               }
@@ -209,6 +208,8 @@ export default function ControllerPage() {
             />
           </div>
         )}
+
+        {uploadError && <div className="lw-upload-error">{uploadError}</div>}
       </section>
 
       {/* Library */}
