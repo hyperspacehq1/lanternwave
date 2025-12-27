@@ -1,26 +1,27 @@
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-import { unstable_parseMultipartFormData } from "next/server";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { ingestAdventureCodex } from "@/lib/ai/orchestrator";
 import { resolveEncounterRelationships } from "@/lib/ai/resolveEncounterRelationships";
 
 export async function POST(req) {
   try {
-    console.log("🚀 Route invoked");
+    console.log("🚀 Route hit");
 
     const ctx = await getTenantContext(req);
-    if (!ctx) throw new Error("Unauthorized");
+    if (!ctx) {
+      return new Response("Unauthorized", { status: 401 });
+    }
 
-    const formData = await unstable_parseMultipartFormData(req);
+    const formData = await req.formData(); // ✅ correct API
     const file = formData.get("file");
 
     if (!file) {
-      throw new Error("No file uploaded");
+      return new Response("No file uploaded", { status: 400 });
     }
 
-    console.log("📄 File:", file.name, file.size);
+    console.log("📄 File received:", file.name, file.size);
 
     const buffer = Buffer.from(await file.arrayBuffer());
 
@@ -35,12 +36,10 @@ export async function POST(req) {
 
     return Response.json({ success: true });
   } catch (err) {
-    console.error("🔥 UPLOAD ERROR:", err);
-
+    console.error("🔥 Upload failed:", err);
     return new Response(
       JSON.stringify({
         error: err.message,
-        stack: err.stack,
       }),
       { status: 500 }
     );
