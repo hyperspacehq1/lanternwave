@@ -1,74 +1,53 @@
-import { NextResponse } from "next/server";
-import { query } from "@/lib/db";
-
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-export async function GET(req) {
+import { getTenantContext } from "@/lib/tenant/getTenantContext";
+import { ingestAdventureCodex } from "@/lib/ai/orchestrator";
+import { resolveEncounterRelationships } from "@/lib/ai/resolveEncounterRelationships";
+
+export async function POST(req) {
   try {
-    /* -------------------------
-       Read session cookie
-       ------------------------- */
-    const sessionCookie = req.cookies.get("lw_session")?.value;
+    console.log("🚀 Route invoked");
 
-    if (!sessionCookie) {
-      return NextResponse.json(
-        { code: "NOT_AUTHENTICATED", message: "No active session." },
-        { status: 401 }
-      );
+    const ctx = await getTenantContext(req);
+    console.log("CTX:", ctx);
+
+    const formData = await req.formData();
+    console.log("Form data keys:", [...formData.keys()]);
+
+    const file = formData.get("file");
+    if (!file) {
+      throw new Error("No file received in multipart form");
     }
 
-    /* -------------------------
-       Load user
-       ------------------------- */
-    const userRes = await query(
-      `
-      SELECT
-        id,
-        email,
-        username,
-        created_at
-      FROM users
-      WHERE id = $1
-        AND deleted_at IS NULL
-      LIMIT 1
-      `,
-      [sessionCookie]
-    );
-
-    if (userRes.rowCount === 0) {
-      return NextResponse.json(
-        { code: "USER_NOT_FOUND", message: "Account not found." },
-        { status: 404 }
-      );
-    }
-
-    const user = userRes.rows[0];
-
-    /* -------------------------
-       Success
-       ------------------------- */
-    return NextResponse.json({
-      ok: true,
-      account: {
-        id: user.id,
-        email: user.email,
-        username: user.username,
-        createdAt: user.created_at,
-      },
+    console.log("File info:", {
+      name: file.name,
+      size: file.size,
+      type: file.type,
     });
 
-  } catch (err) {
-    console.error("ACCOUNT LOAD FAILED:", err);
+    const buffer = Buffer.from(await file.arrayBuffer());
+    console.log("Buffer length:", buffer.length);
 
-    return new NextResponse(
+    const result = await ingestAdventureCodex({
+      buffer,
+      tenantId: ctx.tenantId,
+    });
+
+    console.log("Ingest complete:", result);
+
+    return Response.json({ success: true, result });
+
+  } catch (err) {
+    console.error("🔥 FATAL ERROR:", err);
+
+    // IMPORTANT: return the error string so it shows in browser
+    return new Response(
       JSON.stringify({
-        code: "ACCOUNT_LOAD_FAILED",
-        message: err?.message || "Failed to load account",
+        error: err?.message || "Unknown error",
+        stack: err?.stack,
       }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
-      }
+      { status: 500 }
     );
   }
 }
