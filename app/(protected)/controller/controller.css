@@ -232,3 +232,13 @@
   80% { opacity: 1; }
   100% { opacity: 0; }
 }
+/* Force loop button to remain blue */
+.lw-btn.loop-btn {
+  color: #6cc5f0;
+  border-color: #6cc5f0;
+}
+
+.lw-btn.loop-btn:hover {
+  color: #6cc5f0;
+  border-color: #6cc5f0;
+}
