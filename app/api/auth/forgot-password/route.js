@@ -4,6 +4,9 @@ import { query } from "@/lib/db";
 import { rateLimit } from "@/lib/rateLimit";
 import { sendPasswordResetEmail } from "@/lib/email";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 /**
  * POST /api/auth/forgot-password
  *

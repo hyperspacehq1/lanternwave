@@ -4,6 +4,9 @@ import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
 import OpenAI from "openai";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 /* -----------------------------------------------------------
    INIT OPENAI
 ------------------------------------------------------------ */

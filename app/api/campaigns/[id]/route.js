@@ -3,6 +3,7 @@ import { query } from "@/lib/db";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { fromDb } from "@/lib/campaignMapper";
 
+export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /* -----------------------------------------------------------

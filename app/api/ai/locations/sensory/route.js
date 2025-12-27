@@ -1,5 +1,6 @@
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 
+export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /* -------------------------------------------------

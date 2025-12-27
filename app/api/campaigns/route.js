@@ -4,6 +4,7 @@ import { query } from "@/lib/db";
 import { fromDb } from "@/lib/campaignMapper";
 import { cloneAdventureCodexToTenant } from "@/lib/ai/cloneAdventureCodexToTenant";
 
+export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const ALLOWED_RPG_GAMES = new Set([

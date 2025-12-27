@@ -2,6 +2,7 @@ import { sanitizeRows } from "@/lib/api/sanitize";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { runSearch } from "@/lib/search/runSearch";
 
+export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(req) {

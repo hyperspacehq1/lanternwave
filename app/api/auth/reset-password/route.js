@@ -3,6 +3,9 @@ import bcrypt from "bcryptjs";
 import { query } from "@/lib/db";
 import { rateLimit } from "@/lib/rateLimit";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 /**
  * POST /api/auth/reset-password
  *

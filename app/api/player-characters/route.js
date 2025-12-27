@@ -3,6 +3,7 @@ import { query } from "@/lib/db";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { v4 as uuid } from "uuid";
 
+export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /* -----------------------------------------------------------

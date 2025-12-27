@@ -2,6 +2,7 @@ import { query } from "@/lib/db";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { sendPasswordResetEmail } from "@/lib/email";
 
+export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 // Alert cooldown in minutes
