@@ -15,39 +15,29 @@ export default function Header({ variant = "app" }) {
     { label: "My Account", href: "/account" },
   ];
 
-  const publicNavItems = [
-    { label: "Support", href: "/support" },
-    { label: "Create Account", href: "/signup" },
-    { label: "Sign In", href: "/" },
-  ];
-
-  // ✅ PLAYER MODE — logo only
-if (variant === "player") {
-  return (
-    <header className="lw-header">
-      <div className="lw-header-left">
-        <div className="lw-logo-wrap">
+  // ===== PLAYER MODE (logo only) =====
+  if (variant === "player") {
+    return (
+      <header className="lw-header">
+        <div className="lw-header-left">
           <LogoMark />
+          <span className="lw-header-title">LANTERNWAVE</span>
         </div>
-        <div className="lw-header-title">LANTERNWAVE</div>
-      </div>
-      {/* no nav */}
-    </header>
-  );
-}
+      </header>
+    );
+  }
 
-  // DEFAULT / APP HEADER
-  const navItems = variant === "public" ? publicNavItems : appNavItems;
-
+  // ===== NORMAL APP HEADER =====
   return (
     <header className="lw-header">
       <div className="lw-header-left">
         <LogoMark />
+        <span className="lw-header-title">LANTERNWAVE</span>
       </div>
 
       <nav className="lw-nav">
-        {navItems.map((item) => {
-          const active =
+        {appNavItems.map((item) => {
+          const isActive =
             pathname === item.href ||
             pathname.startsWith(item.href + "/");
 
@@ -55,7 +45,7 @@ if (variant === "player") {
             <Link
               key={item.href}
               href={item.href}
-              className={`lw-nav-link ${active ? "active" : ""}`}
+              className={`lw-nav-link ${isActive ? "active" : ""}`}
             >
               {item.label}
             </Link>
