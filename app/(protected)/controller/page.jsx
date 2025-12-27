@@ -201,13 +201,13 @@ export default function ControllerPage() {
         </label>
 
         {uploadProgress !== null && (
-          <div className="lw-progress-bar">
-            <div
-              className="lw-progress-bar-fill"
-              style={{ width: `${uploadProgress}%` }}
-            />
-          </div>
-        )}
+  <div className="lw-upload-progress">
+    <div
+      className="lw-upload-progress-fill"
+      style={{ width: `${uploadProgress}%` }}
+    />
+  </div>
+)}
 
         {uploadError && <div className="lw-upload-error">{uploadError}</div>}
       </section>

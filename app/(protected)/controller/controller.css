@@ -1,15 +1,11 @@
 /* ============================================================
    CONTROLLER PAGE STYLES (SCOPED)
    IMPORTANT:
-   - NO body / html / :root styles allowed
-   - NO header / nav styles allowed
-   - NO font-face declarations allowed
-   - Everything must live under .lw-main
-   ============================================================ */
+   - NO body / html / :root styles
+   - NO header / nav styles
+   - Everything scoped under .lw-main
+============================================================ */
 
-/* ------------------------------
-   CONTROLLER CONSOLE LAYOUT
------------------------------- */
 .lw-main .lw-console {
   width: 100%;
   display: grid;
@@ -67,40 +63,39 @@
 }
 
 /* ------------------------------
-   PROGRESS BAR
+   UPLOAD PROGRESS (FIXED)
 ------------------------------ */
-.lw-main .lw-progress-wrap {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.lw-main .lw-progress-bar {
-  flex: 1;
+.lw-upload-progress {
+  margin-top: 6px;
+  width: 100%;
   height: 6px;
+  background: #1a1a1a;
   border: 1px solid var(--lw-border-muted);
-  background: #000;
+  border-radius: 3px;
+  overflow: hidden;
 }
 
-.lw-main .lw-progress-bar-fill {
+.lw-upload-progress-fill {
   height: 100%;
   background: var(--lw-green-primary);
   transition: width 0.15s linear;
 }
 
-.lw-main .lw-progress-text {
-  font-family: var(--font-terminal);
-  font-size: 9px;
-  color: var(--lw-green-muted);
+/* ------------------------------
+   STATUS / ERROR TEXT
+------------------------------ */
+.lw-upload-error {
+  margin-top: 6px;
+  font-size: 11px;
+  color: #ff5a5a;
+  animation: pulseFade 4s ease-in-out;
 }
 
-/* ------------------------------
-   STATUS TEXT
------------------------------- */
-.lw-main .lw-status-line {
-  font-size: 10px;
-  color: var(--lw-green-muted);
-  opacity: 0.9;
+.lw-upload-warning {
+  margin-top: 6px;
+  font-size: 11px;
+  color: #f5c26b;
+  animation: pulseFade 4s ease-in-out;
 }
 
 /* ------------------------------
@@ -138,7 +133,6 @@
   font-family: var(--font-terminal);
   font-size: 9px;
   color: var(--lw-green-muted);
-  opacity: 0.7;
 }
 
 .lw-main .lw-clip-name {
@@ -149,7 +143,7 @@
 }
 
 /* ------------------------------
-   CLIP ACTION BUTTONS
+   CLIP ACTIONS
 ------------------------------ */
 .lw-main .lw-clip-actions {
   display: flex;
@@ -179,7 +173,7 @@
 }
 
 /* ------------------------------
-   PREVIEW PANEL
+   PREVIEW
 ------------------------------ */
 .lw-main .lw-preview-frame {
   width: 100%;
@@ -200,53 +194,9 @@
   opacity: 0.6;
 }
 
-.lw-main .lw-preview-media {
-  max-width: 100%;
-  max-height: 100%;
-}
-
 /* ------------------------------
-   AUDIO PLAYER
+   AUDIO VISUALIZER
 ------------------------------ */
-.lw-main audio {
-  width: 90%;
-}
-
-.loop-btn {
-  background: transparent;
-  border: 1px solid transparent;
-  color: #6cc5f0;
-  font-size: 18px;
-  padding: 6px 10px;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-}
-
-@keyframes loop-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.loop-btn.active {
-  border-color: #6cc5f0;
-  box-shadow: 0 0 0 2px rgba(108, 197, 240, 0.35);
-  animation: loop-spin 1.2s linear infinite;
-}
-
-.loop-btn:hover {
-  border-color: #6cc5f0;
-}
-
-.loop-btn.active {
-  border-color: #6cc5f0;
-  box-shadow: 0 0 0 2px rgba(108, 197, 240, 0.35);
-}
-
 .lw-audio-visual {
   display: flex;
   gap: 6px;
@@ -265,7 +215,7 @@
   animation: lwEqualize 1.15s infinite ease-in-out;
 }
 
-.lw-audio-bar:nth-child(2) { animation-delay: -1.0s; }
+.lw-audio-bar:nth-child(2) { animation-delay: -1s; }
 .lw-audio-bar:nth-child(3) { animation-delay: -0.85s; }
 .lw-audio-bar:nth-child(4) { animation-delay: -0.7s; }
 .lw-audio-bar:nth-child(5) { animation-delay: -0.55s; }
@@ -276,52 +226,9 @@
   100% { height: 12px; opacity: 0.45; }
 }
 
-/* Upload warnings */
-.lw-upload-error {
-  margin-top: 6px;
-  font-size: 11px;
-  color: #ff5a5a;
-  animation: pulseFade 4s ease-in-out;
-}
-
-.lw-upload-warning {
-  margin-top: 6px;
-  font-size: 11px;
-  color: #f5c26b;
-  animation: pulseFade 4s ease-in-out;
-}
-
 @keyframes pulseFade {
   0% { opacity: 0; }
   10% { opacity: 1; }
   80% { opacity: 1; }
   100% { opacity: 0; }
-}
-.lw-progress-wrapper {
-  margin-top: 8px;
-}
-
-.lw-progress-bar {
-  width: 100%;
-  height: 6px;
-  background: #2a2a2a;
-  border-radius: 3px;
-  overflow: hidden;
-}
-
-.lw-progress-fill {
-  height: 100%;
-  background: #5df5a4;
-  transition: width 0.15s ease;
-}
-
-.lw-progress-label {
-  margin-top: 4px;
-  font-size: 12px;
-  color: #9fd3c7;
-}
-
-.lw-file-button.disabled {
-  opacity: 0.5;
-  pointer-events: none;
 }
