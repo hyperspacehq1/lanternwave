@@ -37,21 +37,21 @@ export async function POST(req) {
     const size = Number(sizeRaw);
     if (!filenameRaw || !Number.isFinite(size)) {
       return NextResponse.json(
-        { ok: false, error: "missing filename or size" },
+        { ok: false, error: "No file detected. Please select a file to upload." },
         { status: 400 }
       );
     }
 
     if (size <= 0) {
       return NextResponse.json(
-        { ok: false, error: "invalid size" },
+        { ok: false, error: "The selected file has an invalid size or type. Please choose a valid file." },
         { status: 400 }
       );
     }
 
     if (size > MAX_FILE_SIZE) {
       return NextResponse.json(
-        { ok: false, error: "file too large", maxSize: MAX_FILE_SIZE },
+        { ok: false, error: "File is too large. The maximum allowed size is 500 MB.", maxSize: MAX_FILE_SIZE },
         { status: 413 }
       );
     }

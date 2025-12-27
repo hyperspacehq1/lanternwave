@@ -1,14 +1,16 @@
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { ingestAdventureCodex } from "@/lib/ai/orchestrator";
 import { resolveEncounterRelationships } from "@/lib/ai/resolveEncounterRelationships";
 
-export const dynamic = "force-dynamic";
-export const runtime = "nodejs";
-
 export async function POST(req) {
   try {
-    // 1. Authenticate user
+    console.log("🚀 Module Integrator invoked");
+
     const ctx = await getTenantContext(req);
+    console.log("CTX:", ctx);
 
     if (!ctx || !ctx.isAdmin) {
       return new Response(
@@ -17,7 +19,6 @@ export async function POST(req) {
       );
     }
 
-    // 2. Read uploaded file
     const formData = await req.formData();
     const file = formData.get("file");
 
@@ -28,34 +29,34 @@ export async function POST(req) {
       );
     }
 
-    // 3. Convert file to buffer
-    const buffer = Buffer.from(await file.arrayBuffer());
+    console.log("📄 File received:", file.name, file.type, file.size);
 
-    // 4. Run ingestion pipeline
+    const buffer = Buffer.from(await file.arrayBuffer());
+    console.log("📦 Buffer size:", buffer.length);
+
     const result = await ingestAdventureCodex({
       buffer,
       tenantId: ctx.tenantId,
     });
 
-    // 5. Resolve entity relationships
+    console.log("✅ Ingest complete", result);
+
     await resolveEncounterRelationships({
       templateCampaignId: result.templateCampaignId,
     });
 
-    // 6. Success
-    return new Response(
-      JSON.stringify({
-        success: true,
-        templateCampaignId: result.templateCampaignId,
-      }),
-      { status: 200 }
-    );
+    return Response.json({
+      success: true,
+      templateCampaignId: result.templateCampaignId,
+    });
+
   } catch (err) {
-    console.error("Module ingestion failed:", err);
+    console.error("🔥 MODULE INTEGRATOR ERROR:", err);
 
     return new Response(
       JSON.stringify({
-        error: err?.message || "Internal server error",
+        error: err?.message || "Unknown server error",
+        stack: err?.stack || null,
       }),
       { status: 500 }
     );

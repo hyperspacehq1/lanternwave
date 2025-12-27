@@ -1,63 +1,69 @@
-export const runtime = "nodejs";
+"use client";
 
-import { getTenantContext } from "@/lib/tenant/getTenantContext";
-import { ingestAdventureCodex } from "@/lib/ai/orchestrator";
-import { resolveEncounterRelationships } from "@/lib/ai/resolveEncounterRelationships";
+import { useState } from "react";
 
-export async function POST(req) {
-  try {
-    console.log("🚀 Module Integrator invoked");
+export default function ModuleIntegratorClient() {
+  const [file, setFile] = useState(null);
+  const [status, setStatus] = useState("");
+  const [error, setError] = useState(null);
 
-    const ctx = await getTenantContext(req);
-    console.log("CTX:", ctx);
-
-    if (!ctx || !ctx.isAdmin) {
-      return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
-        { status: 401 }
-      );
-    }
-
-    const formData = await req.formData();
-    const file = formData.get("file");
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setError(null);
+    setStatus("Uploading...");
 
     if (!file) {
-      return new Response(
-        JSON.stringify({ error: "No file uploaded" }),
-        { status: 400 }
-      );
+      setError("Please select a file.");
+      return;
     }
 
-    console.log("📄 File received:", file.name, file.type, file.size);
+    const formData = new FormData();
+    formData.append("file", file);
 
-    const buffer = Buffer.from(await file.arrayBuffer());
-    console.log("📦 Buffer size:", buffer.length);
+    try {
+      const res = await fetch("/api/admin/module-integrator", {
+        method: "POST",
+        body: formData,
+      });
 
-    const result = await ingestAdventureCodex({
-      buffer,
-      tenantId: ctx.tenantId,
-    });
+      const text = await res.text(); // <-- IMPORTANT
 
-    console.log("✅ Ingest complete", result);
+      if (!res.ok) {
+        // Show raw server error
+        throw new Error(text || "Server error");
+      }
 
-    await resolveEncounterRelationships({
-      templateCampaignId: result.templateCampaignId,
-    });
+      // Try parsing JSON safely
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = { message: text };
+      }
 
-    return Response.json({
-      success: true,
-      templateCampaignId: result.templateCampaignId,
-    });
-
-  } catch (err) {
-    console.error("🔥 MODULE INTEGRATOR ERROR:", err);
-
-    return new Response(
-      JSON.stringify({
-        error: err?.message || "Unknown server error",
-        stack: err?.stack || null,
-      }),
-      { status: 500 }
-    );
+      setStatus(data.message || "Upload successful!");
+    } catch (err) {
+      console.error("Upload failed:", err);
+      setError(err.message || "Unexpected error occurred.");
+    }
   }
+
+  return (
+    <div style={{ maxWidth: 600, margin: "2rem auto" }}>
+      <h1>Module Integrator</h1>
+
+      <form onSubmit={handleSubmit}>
+        <input
+          type="file"
+          accept=".pdf"
+          onChange={(e) => setFile(e.target.files[0])}
+        />
+
+        <button type="submit">Upload</button>
+      </form>
+
+      {status && <p style={{ color: "green" }}>{status}</p>}
+      {error && <pre style={{ color: "red" }}>{error}</pre>}
+    </div>
+  );
 }
