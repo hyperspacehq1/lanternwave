@@ -1,38 +1,41 @@
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+import { unstable_parseMultipartFormData } from "next/server";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { ingestAdventureCodex } from "@/lib/ai/orchestrator";
 import { resolveEncounterRelationships } from "@/lib/ai/resolveEncounterRelationships";
 
 export async function POST(req) {
   try {
-    console.log("🚀 Route hit");
+    console.log("🚀 Route invoked");
 
     const ctx = await getTenantContext(req);
-    console.log("CTX:", ctx);
+    if (!ctx) throw new Error("Unauthorized");
 
-    const formData = await req.formData();
-    console.log("FormData received");
-
+    const formData = await unstable_parseMultipartFormData(req);
     const file = formData.get("file");
-    if (!file) throw new Error("No file in form data");
 
-    console.log("File:", file.name, file.type, file.size);
+    if (!file) {
+      throw new Error("No file uploaded");
+    }
+
+    console.log("📄 File:", file.name, file.size);
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    console.log("Buffer length:", buffer.length);
 
     const result = await ingestAdventureCodex({
       buffer,
       tenantId: ctx.tenantId,
     });
 
-    console.log("Ingest result:", result);
+    await resolveEncounterRelationships({
+      templateCampaignId: result.templateCampaignId,
+    });
 
-    return Response.json({ success: true, result });
+    return Response.json({ success: true });
   } catch (err) {
-    console.error("🔥 FULL ERROR:", err);
+    console.error("🔥 UPLOAD ERROR:", err);
 
     return new Response(
       JSON.stringify({
