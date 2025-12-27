@@ -7,56 +7,37 @@ import { resolveEncounterRelationships } from "@/lib/ai/resolveEncounterRelation
 
 export async function POST(req) {
   try {
-    console.log("🚀 Module Integrator invoked");
+    console.log("🚀 Route hit");
 
     const ctx = await getTenantContext(req);
     console.log("CTX:", ctx);
 
-    if (!ctx || !ctx.isAdmin) {
-      return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
-        { status: 401 }
-      );
-    }
-
     const formData = await req.formData();
+    console.log("FormData received");
+
     const file = formData.get("file");
+    if (!file) throw new Error("No file in form data");
 
-    if (!file) {
-      return new Response(
-        JSON.stringify({ error: "No file uploaded" }),
-        { status: 400 }
-      );
-    }
-
-    console.log("📄 File received:", file.name, file.type, file.size);
+    console.log("File:", file.name, file.type, file.size);
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    console.log("📦 Buffer size:", buffer.length);
+    console.log("Buffer length:", buffer.length);
 
     const result = await ingestAdventureCodex({
       buffer,
       tenantId: ctx.tenantId,
     });
 
-    console.log("✅ Ingest complete", result);
+    console.log("Ingest result:", result);
 
-    await resolveEncounterRelationships({
-      templateCampaignId: result.templateCampaignId,
-    });
-
-    return Response.json({
-      success: true,
-      templateCampaignId: result.templateCampaignId,
-    });
-
+    return Response.json({ success: true, result });
   } catch (err) {
-    console.error("🔥 MODULE INTEGRATOR ERROR:", err);
+    console.error("🔥 FULL ERROR:", err);
 
     return new Response(
       JSON.stringify({
-        error: err?.message || "Unknown server error",
-        stack: err?.stack || null,
+        error: err.message,
+        stack: err.stack,
       }),
       { status: 500 }
     );
