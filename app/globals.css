@@ -54,9 +54,8 @@ body {
 }
 
 /* ------------------------------
-   ROOT APP SHELL
+   ROOT APP WRAPPER
 ------------------------------ */
-/* MUST EXIST ONLY ON <html> */
 .lw-root {
   width: 100%;
   min-height: 100%;
@@ -64,7 +63,7 @@ body {
 }
 
 /* ------------------------------
-   HEADER (GLOBAL, LOCKED)
+   HEADER (GLOBAL — LOCKED)
 ------------------------------ */
 .lw-header {
   width: 100%;
@@ -75,11 +74,15 @@ body {
   padding: 0 1.25rem;
   background: #000000;
   border-bottom: 1px solid var(--lw-border-muted);
+
+  /* HARD LOCK HEADER FONT */
   font-family: var(--font-terminal);
+  font-size: 11px;
+  letter-spacing: 0.12em;
   z-index: 100;
 }
 
-/* Left: logo + name */
+/* Left: logo + title */
 .lw-header-left {
   display: flex;
   align-items: center;
@@ -92,19 +95,18 @@ body {
   height: 24px;
   width: auto;
   transform: none !important;
-  rotate: 0deg !important;
 }
 
-/* Title text */
+/* Header title */
 .lw-header-title {
-  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.12em;
-  color: var(--lw-green-muted);
   text-transform: uppercase;
+  color: var(--lw-green-muted);
 }
 
-/* Right: nav */
+/* ------------------------------
+   HEADER NAV
+------------------------------ */
 .lw-nav {
   display: flex;
   align-items: center;
@@ -137,7 +139,7 @@ body {
 }
 
 /* ------------------------------
-   MAIN CONTENT WRAPPER
+   MAIN CONTENT
 ------------------------------ */
 .lw-main {
   width: 100%;
@@ -148,7 +150,7 @@ body {
 }
 
 /* ------------------------------
-   FOOTER (GLOBAL)
+   FOOTER
 ------------------------------ */
 .lw-footer {
   width: 100%;
@@ -164,7 +166,7 @@ body {
 }
 
 /* ------------------------------
-   CRT EFFECTS (GLOBAL, SAFE)
+   CRT EFFECTS (SAFE / GLOBAL)
 ------------------------------ */
 .crt {
   position: relative;
