@@ -250,3 +250,16 @@
   border-color: #6cc5f0;
   box-shadow: 0 0 6px rgba(108, 197, 240, 0.6);
 }
+
+/* Fallback: if someone forgets lw-btn again */
+.loop-btn {
+  background: transparent;
+  border: 1px solid var(--lw-border-muted);
+  border-radius: 4px;
+  padding: 0.2rem 0.45rem;
+  font-family: var(--font-terminal);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  color: var(--lw-green-muted);
+  cursor: pointer;
+}
