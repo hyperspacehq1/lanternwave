@@ -10,7 +10,7 @@ export default function ModuleIntegratorClient() {
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
-    setStatus("Uploading...");
+    setStatus("Uploading file…");
 
     if (!file) {
       setError("Please select a file.");
@@ -27,9 +27,10 @@ export default function ModuleIntegratorClient() {
       });
 
       const text = await res.text();
+      console.log("📨 Server response:", text);
 
       if (!res.ok) {
-        throw new Error(text || "Server returned an error");
+        throw new Error(text);
       }
 
       let parsed;
@@ -39,16 +40,18 @@ export default function ModuleIntegratorClient() {
         parsed = { message: text };
       }
 
-      setStatus(parsed.message || "Upload completed successfully.");
+      setStatus(
+        parsed?.status ||
+          "Upload accepted. Processing in background..."
+      );
     } catch (err) {
-      console.error("Upload error:", err);
-      setError(err.message || "Unexpected error occurred.");
+      console.error("❌ Upload error:", err);
+      setError(err.message || "Unexpected error");
     }
   }
 
   return (
     <>
-      {/* DEBUG BANNER */}
       <div
         style={{
           position: "fixed",
@@ -63,7 +66,7 @@ export default function ModuleIntegratorClient() {
           fontFamily: "monospace",
         }}
       >
-        DEBUG MODE — Module Integrator (Build Active)
+        DEBUG MODE — Module Integrator (Active)
       </div>
 
       <div style={{ maxWidth: 600, margin: "4rem auto" }}>
