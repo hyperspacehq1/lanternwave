@@ -6,54 +6,45 @@ import { ingestAdventureCodex } from "@/lib/ai/orchestrator";
 import { query } from "@/lib/db";
 
 export async function POST(req) {
-  console.log("🚀 Module Integrator hit");
-
   try {
     const ctx = await getTenantContext(req);
-    if (!ctx) {
-      return new Response("Unauthorized", { status: 401 });
-    }
+    if (!ctx) return new Response("Unauthorized", { status: 401 });
 
     const formData = await req.formData();
     const file = formData.get("file");
-
-    if (!file) {
-      return new Response("No file uploaded", { status: 400 });
-    }
-
-    console.log("📄 File received:", file.name);
+    if (!file) return new Response("No file uploaded", { status: 400 });
 
     const buffer = Buffer.from(await file.arrayBuffer());
 
-    // ✅ RUN INGESTION SYNCHRONOUSLY
     const result = await ingestAdventureCodex({
       buffer,
       tenantId: ctx.tenantId,
     });
 
-    console.log("🧠 Ingestion result:", result);
-
-    // ✅ INSERT INTO DATABASE
-    const dbResult = await query(
+    await query(
       `
-      INSERT INTO campaigns (title, description, source)
-      VALUES ($1, $2, $3)
-      RETURNING id
+      INSERT INTO campaigns (
+        tenant_id,
+        name,
+        description,
+        campaign_package,
+        rpg_game,
+        external_source
+      )
+      VALUES ($1, $2, $3, $4, $5, $6)
       `,
       [
+        ctx.tenantId,
         result.title ?? "Imported Module",
-        result.summary ?? "Generated from uploaded document",
+        result.summary ?? null,
+        "standard",
+        result.rpg_game ?? null,
         "upload",
       ]
     );
 
-    console.log("✅ Campaign inserted:", dbResult.rows[0]);
-
     return new Response(
-      JSON.stringify({
-        status: "complete",
-        campaignId: dbResult.rows[0].id,
-      }),
+      JSON.stringify({ status: "ok" }),
       { status: 200 }
     );
   } catch (err) {
