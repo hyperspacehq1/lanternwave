@@ -10,11 +10,12 @@ export const dynamic = "force-dynamic";
 -------------------------------------------------- */
 export async function GET(req) {
   // Auth required (same pattern as campaigns)
-  try {
-    await getTenantContext(req);
-  } catch {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  let tenantId = null;
+try {
+  ({ tenantId } = await getTenantContext(req));
+} catch {
+  // intentionally allow unauthenticated access
+}
 
   /* ---------------------------------------------
      Fetch Adventure Codex templates
