@@ -3,14 +3,6 @@
    This file MUST NOT affect global layout or header styles
    ============================================================ */
 
-/* Load MU/TH/UR only for Player */
-@font-face {
-  font-family: "MU-TH-UR";
-  src: url("/MU_TH_UR.otf") format("opentype");
-  font-weight: normal;
-  font-style: normal;
-}
-
 /* Root player wrapper — isolated from app shell */
 .lw-player {
   width: 100%;
