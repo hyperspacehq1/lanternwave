@@ -3,16 +3,14 @@ export const dynamic = "force-dynamic";
 
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { ingestAdventureCodex } from "@/lib/ai/orchestrator";
-import { db } from "@/lib/db";
-import { campaigns } from "@/lib/db/schema";
+import { query } from "@/lib/db";
 
 export async function POST(req) {
-  console.log("🚀 [ModuleIntegrator] Request received");
+  console.log("🚀 Module Integrator hit");
 
   try {
     const ctx = await getTenantContext(req);
     if (!ctx) {
-      console.error("❌ No tenant context");
       return new Response("Unauthorized", { status: 401 });
     }
 
@@ -20,39 +18,45 @@ export async function POST(req) {
     const file = formData.get("file");
 
     if (!file) {
-      console.error("❌ No file found in request");
       return new Response("No file uploaded", { status: 400 });
     }
 
     console.log("📄 File received:", file.name, file.size);
 
+    // Read file BEFORE responding
     const buffer = Buffer.from(await file.arrayBuffer());
 
-    // Respond immediately so request does not timeout
+    // Respond immediately to avoid timeout
     const response = new Response(
       JSON.stringify({ status: "processing" }),
       { status: 202 }
     );
 
-    // 🔥 Background processing (non-blocking)
+    // Background processing
     queueMicrotask(async () => {
       try {
-        console.log("🧠 Starting AI ingestion...");
+        console.log("🧠 Starting ingestion…");
 
         const result = await ingestAdventureCodex({
           buffer,
           tenantId: ctx.tenantId,
         });
 
-        console.log("🧠 AI RESULT:", result);
+        console.log("🧠 AI result:", result);
 
-        const insert = await db.insert(campaigns).values({
-          title: result.title ?? "Imported Module",
-          description: result.summary ?? "Generated from uploaded document",
-          source: "upload",
-        });
+        await query(
+          `
+          INSERT INTO campaigns (title, description, source)
+          VALUES ($1, $2, $3)
+          `,
+          [
+            result.title ?? "Imported Module",
+            result.summary ?? "Generated from uploaded document",
+            "upload",
+          ]
+        );
 
-        console.log("✅ Campaign saved:", insert);
+        console.log("✅ Campaign saved to database");
       } catch (err) {
         console.error("🔥 Background ingestion failed:", err);
       }
