@@ -46,7 +46,6 @@ async function deleteClip(key) {
 }
 
 async function uploadClip(file, onProgress) {
-  // 1) Get signed URL (MUST include filename + size)
   const urlRes = await fetch("/api/r2/upload-url", {
     method: "POST",
     credentials: "include",
@@ -65,7 +64,6 @@ async function uploadClip(file, onProgress) {
 
   const { uploadUrl, key } = urlData;
 
-  // 2) Upload to R2 with progress
   await new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("PUT", uploadUrl);
@@ -88,7 +86,6 @@ async function uploadClip(file, onProgress) {
     xhr.send(file);
   });
 
-  // 3) Finalize (writes DB row)
   const finRes = await fetch("/api/r2/finalize", {
     method: "POST",
     credentials: "include",
@@ -135,11 +132,10 @@ export default function ControllerPage() {
 
   const [clips, setClips] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [busyKey, setBusyKey] = useState(null); // 🔒 per-clip lock
+  const [busyKey, setBusyKey] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(null);
   const [uploadError, setUploadError] = useState(null);
   const [nowPlaying, setNowPlayingState] = useState(null);
-  const [loop, setLoop] = useState(false);
 
   async function refresh() {
     setLoading(true);
@@ -157,13 +153,11 @@ export default function ControllerPage() {
     refresh();
   }, []);
 
-  // Keep the audio engine in sync with loop state
-  useEffect(() => {
-    if (audio?.setLoop) audio.setLoop(loop);
-  }, [loop, audio]);
+  // ✅ Source of truth for "what is playing" (server OR local audio)
+  const playingKey = nowPlaying?.key || audio?.currentKey || null;
 
-  /* 🔑 PREVIEW SOURCE OF TRUTH */
-  const previewKey = nowPlaying?.key || audio?.currentKey || null;
+  // ✅ Preview source of truth
+  const previewKey = playingKey;
   const previewType = previewKey ? clipTypeFromKey(previewKey) : null;
   const previewUrl = previewKey ? streamUrlForKey(previewKey) : null;
 
@@ -225,7 +219,7 @@ export default function ControllerPage() {
           <div className="lw-clip-list">
             {clips.map((clip) => {
               const key = clip.object_key;
-              const isNow = audio?.currentKey === key;
+              const isNow = playingKey === key;
               const isBusy = busyKey === key || loading;
 
               return (
@@ -241,16 +235,15 @@ export default function ControllerPage() {
                   </div>
 
                   <div className="lw-clip-actions">
-                    {/* ✅ IMPORTANT: must include lw-btn for your CSS to match */}
                     <button
-                      className={`lw-btn loop-btn ${loop && isNow ? "active" : ""}`}
+                      // ✅ Animate/glow ONLY when loop is ON and THIS clip is playing
+                      className={`lw-btn loop-btn ${audio?.loop && isNow ? "active" : ""}`}
                       disabled={isBusy}
-                      title={loop ? "Loop enabled" : "Loop disabled"}
-                      aria-pressed={loop}
+                      title={audio?.loop ? "Loop enabled" : "Loop disabled"}
+                      aria-pressed={!!audio?.loop}
                       onClick={() => {
-                        const v = !loop;
-                        setLoop(v);
-                        if (audio?.setLoop) audio.setLoop(v);
+                        if (!audio?.setLoop) return;
+                        audio.setLoop(!audio.loop);
                       }}
                     >
                       ⟳
@@ -265,8 +258,8 @@ export default function ControllerPage() {
                           await setNowPlaying(key);
                           setNowPlayingState({ key });
 
-                          // ✅ ensure current loop mode applies when play starts
-                          if (audio?.setLoop) audio.setLoop(loop);
+                          // ✅ apply current loop mode BEFORE starting playback
+                          if (audio?.setLoop) audio.setLoop(!!audio.loop);
 
                           audio.play(streamUrlForKey(key), key);
                         } finally {
@@ -333,7 +326,7 @@ export default function ControllerPage() {
                 src={previewUrl}
                 muted
                 autoPlay
-                loop={loop}  // ✅ controlled by button state
+                loop={!!audio?.loop}
                 playsInline
               />
             )}
