@@ -3,14 +3,10 @@ export const dynamic = "force-dynamic";
 
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { ingestAdventureCodex } from "@/lib/ai/orchestrator";
-import { resolveEncounterRelationships } from "@/lib/ai/resolveEncounterRelationships";
-import crypto from "crypto";
-
-const jobs = global.__moduleJobs || new Map();
-global.__moduleJobs = jobs;
+import { query } from "@/lib/db";
 
 export async function POST(req) {
-  const jobId = crypto.randomUUID();
+  console.log("🚀 Module Integrator hit");
 
   try {
     const ctx = await getTenantContext(req);
@@ -25,56 +21,46 @@ export async function POST(req) {
       return new Response("No file uploaded", { status: 400 });
     }
 
-    // Initialize job
-    jobs.set(jobId, {
-      status: "received",
-      step: "Upload received",
-      startedAt: Date.now(),
-    });
+    console.log("📄 File received:", file.name);
 
     const buffer = Buffer.from(await file.arrayBuffer());
 
-    // Respond immediately
-    const response = new Response(JSON.stringify({ jobId }), {
-      status: 202,
+    // ✅ RUN INGESTION SYNCHRONOUSLY
+    const result = await ingestAdventureCodex({
+      buffer,
+      tenantId: ctx.tenantId,
     });
 
-    // Background processing
-    queueMicrotask(async () => {
-      try {
-        jobs.set(jobId, { status: "processing", step: "Parsing document…" });
+    console.log("🧠 Ingestion result:", result);
 
-        const result = await ingestAdventureCodex({
-          buffer,
-          tenantId: ctx.tenantId,
-        });
+    // ✅ INSERT INTO DATABASE
+    const dbResult = await query(
+      `
+      INSERT INTO campaigns (title, description, source)
+      VALUES ($1, $2, $3)
+      RETURNING id
+      `,
+      [
+        result.title ?? "Imported Module",
+        result.summary ?? "Generated from uploaded document",
+        "upload",
+      ]
+    );
 
-        jobs.set(jobId, {
-          status: "processing",
-          step: "Resolving encounters…",
-        });
+    console.log("✅ Campaign inserted:", dbResult.rows[0]);
 
-        await resolveEncounterRelationships({
-          templateCampaignId: result.templateCampaignId,
-        });
-
-        jobs.set(jobId, {
-          status: "complete",
-          step: "Done",
-          finishedAt: Date.now(),
-        });
-      } catch (err) {
-        jobs.set(jobId, {
-          status: "error",
-          error: err.message,
-        });
-      }
-    });
-
-    return response;
+    return new Response(
+      JSON.stringify({
+        status: "complete",
+        campaignId: dbResult.rows[0].id,
+      }),
+      { status: 200 }
+    );
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), {
-      status: 500,
-    });
+    console.error("🔥 Upload failed:", err);
+    return new Response(
+      JSON.stringify({ error: err.message }),
+      { status: 500 }
+    );
   }
 }
