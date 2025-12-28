@@ -20,12 +20,21 @@ export default function CampaignForm({ record, onChange }) {
     return () => clearTimeout(t);
   }, [record._campaignName]);
 
+  /* ---------------------------------------------
+     Ensure default campaign package exists
+  --------------------------------------------- */
+  useEffect(() => {
+    if (!record.campaignPackage) {
+      update("campaignPackage", "standard");
+    }
+  }, [record.campaignPackage]);
+
   const isExistingCampaign = Boolean(record.id);
 
   return (
     <div className="cm-detail-form">
 
-      {/* 🔒 Locked campaign header strip */}
+      {/* 🔒 Locked campaign header */}
       <div
         className={`cm-campaign-header ${
           pulse ? "pulse" : ""
@@ -83,9 +92,7 @@ export default function CampaignForm({ record, onChange }) {
       <div className="cm-field">
         <CampaignPackageSelect
           value={record.campaignPackage || "standard"}
-          onChange={(value) =>
-            update("campaignPackage", value)
-          }
+          onChange={(value) => update("campaignPackage", value)}
           disabled={isExistingCampaign}
         />
 
@@ -96,7 +103,7 @@ export default function CampaignForm({ record, onChange }) {
         )}
       </div>
 
-      {/* RPG Game (optional) */}
+      {/* RPG Game */}
       <div className="cm-field">
         <label className="cm-label">RPG Game</label>
         <select
@@ -112,6 +119,7 @@ export default function CampaignForm({ record, onChange }) {
           <option>Coriolis: The Great Dark</option>
           <option>Cyberpunk TTRPG (Red / variants)</option>
           <option>Cypher System / Daggerheart</option>
+<option>Delta Green</option>
           <option>Dungeon Crawl Classics (DCC)</option>
           <option>Dungeons & Dragons 5th Edition</option>
           <option>Fabula Ultima</option>

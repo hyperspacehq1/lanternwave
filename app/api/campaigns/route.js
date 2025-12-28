@@ -107,8 +107,8 @@ export async function POST(req) {
       ? body.name.trim()
       : "New Campaign";
 
-  const campaignPackage =
-    pick(body, "campaignPackage", "campaign_package") ?? "standard";
+const campaignPackage =
+  pick(body, "campaignPackage", "campaign_package") || "standard";
 
   // ✅ Validate Adventure Codex dynamically
   if (campaignPackage !== "standard") {
