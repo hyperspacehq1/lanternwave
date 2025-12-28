@@ -7,40 +7,53 @@ import { resolveEncounterRelationships } from "@/lib/ai/resolveEncounterRelation
 
 export async function POST(req) {
   try {
-    console.log("🚀 Route hit");
+    console.log("🚀 Module Integrator upload received");
 
     const ctx = await getTenantContext(req);
     if (!ctx) {
       return new Response("Unauthorized", { status: 401 });
     }
 
-    const formData = await req.formData(); // ✅ correct API
+    const formData = await req.formData();
     const file = formData.get("file");
 
     if (!file) {
       return new Response("No file uploaded", { status: 400 });
     }
 
-    console.log("📄 File received:", file.name, file.size);
-
+    // IMPORTANT:
+    // Read the buffer immediately, before returning
     const buffer = Buffer.from(await file.arrayBuffer());
 
-    const result = await ingestAdventureCodex({
-      buffer,
-      tenantId: ctx.tenantId,
+    // 🔥 RESPOND IMMEDIATELY — prevents Netlify / Vercel timeout
+    const response = new Response(
+      JSON.stringify({ status: "processing" }),
+      { status: 202 }
+    );
+
+    // Run heavy work asynchronously (non-blocking)
+    queueMicrotask(async () => {
+      try {
+        const result = await ingestAdventureCodex({
+          buffer,
+          tenantId: ctx.tenantId,
+        });
+
+        await resolveEncounterRelationships({
+          templateCampaignId: result.templateCampaignId,
+        });
+
+        console.log("✅ Module ingestion complete");
+      } catch (err) {
+        console.error("🔥 Background processing failed:", err);
+      }
     });
 
-    await resolveEncounterRelationships({
-      templateCampaignId: result.templateCampaignId,
-    });
-
-    return Response.json({ success: true });
+    return response;
   } catch (err) {
-    console.error("🔥 Upload failed:", err);
+    console.error("🔥 Upload route error:", err);
     return new Response(
-      JSON.stringify({
-        error: err.message,
-      }),
+      JSON.stringify({ error: err.message }),
       { status: 500 }
     );
   }
