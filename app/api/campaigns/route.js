@@ -8,26 +8,42 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const ALLOWED_RPG_GAMES = new Set([
+  "ALIEN: The Roleplaying Game",
   "Avatar Legends: The Roleplaying Game",
+  "Black Powder & Brimstone",
+  "Blade Runner: The Roleplaying Game",
   "Call of Cthulhu",
   "Coriolis: The Great Dark",
-  "Cyberpunk TTRPG (Red / variants)",
+  "Cyberpunk TTRPG",
   "Cypher System / Daggerheart",
-  "Dungeon Crawl Classics (DCC)",
+  "Delta Green",
+  "Dragonbane",
+  "Dungeon Crawl Classics",
   "Dungeons & Dragons 5th Edition",
   "Fabula Ultima",
+  "Forbidden Lands",
+  "Into the Odd",
+  "Invincible: The Roleplaying Game",
   "Land of Eem",
   "Marvel Multiverse RPG",
   "Mörk Borg",
+  "Mutant: Year Zero",
   "Mythic Bastionland",
   "Nimble 5e",
   "Pathfinder 2nd Edition",
+  "Pirate Borg",
+  "Ruins of Symbaroum",
   "Savage Worlds",
   "Shadowrun (6th/updated editions)",
   "Starfinder 2nd Edition",
   "StartPlaying",
+  "Symbaroum",
+  "Tales from the Loop",
   "Tales of the Valiant",
-  "Vampire: The Masquerade 5th Edition",
+  "The Electric State Roleplaying Game",
+  "The One Ring Roleplaying Game",
+  "Vaesen",
+  "Vampire: The Masquerade 5th Edition"
 ]);
 
 function hasOwn(obj, key) {
@@ -45,17 +61,13 @@ function normalizeDateOnly(value) {
   if (value === null || value === "") return null;
 
   const s = String(value).trim();
-  if (!s) return null;
-
-  const datePart = s.includes("T") ? s.split("T")[0] : s;
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(datePart)) return null;
-
-  return datePart;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
+  return s;
 }
 
-/* -------------------------------------------------
+/* -----------------------------
    GET /api/campaigns
--------------------------------------------------- */
+----------------------------- */
 export async function GET(req) {
   let tenantId;
   try {
@@ -87,9 +99,9 @@ export async function GET(req) {
   );
 }
 
-/* -------------------------------------------------
+/* -----------------------------
    POST /api/campaigns
--------------------------------------------------- */
+----------------------------- */
 export async function POST(req) {
   let tenantId;
   let userId;
@@ -107,10 +119,9 @@ export async function POST(req) {
       ? body.name.trim()
       : "New Campaign";
 
-const campaignPackage =
-  pick(body, "campaignPackage", "campaign_package") || "standard";
+  const campaignPackage =
+    body.campaignPackage || body.campaign_package || "standard";
 
-  // ✅ Validate Adventure Codex dynamically
   if (campaignPackage !== "standard") {
     const exists = await query(
       `
@@ -126,31 +137,20 @@ const campaignPackage =
     );
 
     if (!exists.rows.length) {
-      return Response.json(
-        { error: "Invalid Adventure Codex" },
-        { status: 400 }
-      );
+      return Response.json({ error: "Invalid Adventure Codex" }, { status: 400 });
     }
   }
 
   const rpgGame = pick(body, "rpgGame", "rpg_game");
-  if (
-    rpgGame !== undefined &&
-    rpgGame !== null &&
-    rpgGame !== "" &&
-    !ALLOWED_RPG_GAMES.has(rpgGame)
-  ) {
+  if (rpgGame && !ALLOWED_RPG_GAMES.has(rpgGame)) {
     return Response.json({ error: "Invalid RPG game" }, { status: 400 });
   }
 
-  const worldSetting = pick(body, "worldSetting", "world_setting") ?? null;
+  const worldSetting = pick(body, "worldSetting", "world_setting");
   const campaignDate = normalizeDateOnly(
     pick(body, "campaignDate", "campaign_date")
   );
 
-  /* ---------------------------------------------
-     STEP 1: CREATE CAMPAIGN
-  --------------------------------------------- */
   const { rows } = await query(
     `
     INSERT INTO campaigns (
@@ -162,13 +162,13 @@ const campaignPackage =
       campaign_package,
       rpg_game
     )
-    VALUES ($1, $2, $3, $4, $5::date, $6, $7)
+    VALUES ($1, $2, $3, $4, $5, $6, $7)
     RETURNING *
     `,
     [
       tenantId,
       name,
-      body?.description ?? null,
+      body.description ?? null,
       worldSetting,
       campaignDate,
       campaignPackage,
@@ -176,35 +176,8 @@ const campaignPackage =
     ]
   );
 
-  const campaign = rows[0];
-
-  /* ---------------------------------------------
-     STEP 2: CLONE ADVENTURE CODEX (ONE-TIME)
-  --------------------------------------------- */
-  if (campaignPackage !== "standard") {
-    const template = await query(
-      `
-      SELECT id
-        FROM campaigns
-       WHERE campaign_package = $1
-         AND tenant_id IS NULL
-         AND template_campaign_id IS NULL
-         AND deleted_at IS NULL
-       LIMIT 1
-      `,
-      [campaignPackage]
-    );
-
-    await cloneAdventureCodexToTenant({
-      templateCampaignId: template.rows[0].id,
-      tenantCampaignId: campaign.id,
-      tenantId,
-      createdBy: userId,
-    });
-  }
-
   return Response.json(
-    sanitizeRow(fromDb(campaign), {
+    sanitizeRow(fromDb(rows[0]), {
       name: 120,
       description: 10000,
       worldSetting: 10000,
@@ -216,9 +189,9 @@ const campaignPackage =
   );
 }
 
-/* -------------------------------------------------
-   PUT /api/campaigns?id=
--------------------------------------------------- */
+/* -----------------------------
+   PUT /api/campaigns
+----------------------------- */
 export async function PUT(req) {
   let tenantId;
   try {
@@ -234,14 +207,10 @@ export async function PUT(req) {
   const body = await req.json();
 
   if (hasOwn(body, "name") && !String(body.name).trim()) {
-    return Response.json(
-      { error: "Campaign name cannot be blank" },
-      { status: 400 }
-    );
+    return Response.json({ error: "Campaign name cannot be blank" }, { status: 400 });
   }
 
-  // ❌ campaign_package is immutable after creation
-  if (hasOwn(body, "campaignPackage") || hasOwn(body, "campaign_package")) {
+  if (hasOwn(body, "campaignPackage")) {
     return Response.json(
       { error: "campaignPackage cannot be changed after creation" },
       { status: 400 }
@@ -249,12 +218,7 @@ export async function PUT(req) {
   }
 
   const rpgGame = pick(body, "rpgGame", "rpg_game");
-  if (
-    rpgGame !== undefined &&
-    rpgGame !== null &&
-    rpgGame !== "" &&
-    !ALLOWED_RPG_GAMES.has(rpgGame)
-  ) {
+  if (rpgGame && !ALLOWED_RPG_GAMES.has(rpgGame)) {
     return Response.json({ error: "Invalid RPG game" }, { status: 400 });
   }
 
@@ -275,18 +239,18 @@ export async function PUT(req) {
   const worldSetting = pick(body, "worldSetting", "world_setting");
   if (worldSetting !== undefined) {
     sets.push(`world_setting = $${i++}`);
-    values.push(worldSetting ?? null);
+    values.push(worldSetting);
   }
 
-  const dateRaw = pick(body, "campaignDate", "campaign_date");
-  if (dateRaw !== undefined) {
-    sets.push(`campaign_date = $${i++}::date`);
-    values.push(normalizeDateOnly(dateRaw));
+  const dateVal = pick(body, "campaignDate", "campaign_date");
+  if (dateVal !== undefined) {
+    sets.push(`campaign_date = $${i++}`);
+    values.push(normalizeDateOnly(dateVal));
   }
 
   if (rpgGame !== undefined) {
     sets.push(`rpg_game = $${i++}`);
-    values.push(rpgGame ?? null);
+    values.push(rpgGame);
   }
 
   if (!sets.length) {
@@ -306,10 +270,6 @@ export async function PUT(req) {
     values
   );
 
-  if (!rows.length) {
-    return Response.json({ error: "Campaign not found" }, { status: 404 });
-  }
-
   return Response.json(
     sanitizeRow(fromDb(rows[0]), {
       name: 120,
@@ -319,47 +279,5 @@ export async function PUT(req) {
       campaignPackage: 50,
       rpgGame: 120,
     })
-  );
-}
-
-/* -------------------------------------------------
-   DELETE /api/campaigns?id=
--------------------------------------------------- */
-export async function DELETE(req) {
-  let tenantId;
-  try {
-    ({ tenantId } = await getTenantContext(req));
-  } catch {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const { searchParams } = new URL(req.url);
-  const id = searchParams.get("id");
-  if (!id) return Response.json({ error: "id required" }, { status: 400 });
-
-  const { rows } = await query(
-    `
-    UPDATE campaigns
-       SET deleted_at = NOW(),
-           updated_at = NOW()
-     WHERE tenant_id = $1
-       AND id = $2
-       AND deleted_at IS NULL
-     RETURNING *
-    `,
-    [tenantId, id]
-  );
-
-  return Response.json(
-    rows[0]
-      ? sanitizeRow(fromDb(rows[0]), {
-          name: 120,
-          description: 10000,
-          worldSetting: 10000,
-          campaignDate: 50,
-          campaignPackage: 50,
-          rpgGame: 120,
-        })
-      : null
   );
 }

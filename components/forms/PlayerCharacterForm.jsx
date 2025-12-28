@@ -51,6 +51,18 @@ export default function PlayerCharacterForm({ record, onChange }) {
         />
       </div>
 
+      {/* ✅ NEW: Character Name */}
+      <div className="cm-field">
+        <label className="cm-label">Character Name</label>
+        <input
+          className="cm-input"
+          type="text"
+          placeholder="Optional character name"
+          value={record.characterName || ""}
+          onChange={(e) => update("characterName", e.target.value)}
+        />
+      </div>
+
       <div className="cm-field">
         <label className="cm-label">Phone</label>
         <input

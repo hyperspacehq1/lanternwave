@@ -24,6 +24,7 @@ export async function GET(req) {
         campaign_id,
         first_name AS "firstName",
         last_name  AS "lastName",
+        character_name AS "characterName",
         phone,
         email,
         notes,
@@ -43,6 +44,7 @@ export async function GET(req) {
         ? sanitizeRow(rows[0], {
             firstName: 60,
             lastName: 60,
+            characterName: 100,
             phone: 40,
             email: 254,
             notes: 10000,
@@ -62,6 +64,7 @@ export async function GET(req) {
       campaign_id,
       first_name AS "firstName",
       last_name  AS "lastName",
+      character_name AS "characterName",
       phone,
       email,
       notes,
@@ -80,6 +83,7 @@ export async function GET(req) {
     sanitizeRows(rows, {
       firstName: 60,
       lastName: 60,
+      characterName: 100,
       phone: 40,
       email: 254,
       notes: 10000,
@@ -97,12 +101,10 @@ export async function POST(req) {
   const campaignId = body.campaign_id ?? body.campaignId ?? null;
   const firstName = body.firstName ?? body.first_name ?? null;
   const lastName = body.lastName ?? body.last_name ?? null;
+  const characterName = body.characterName ?? body.character_name ?? null;
 
   if (!campaignId) {
-    return Response.json(
-      { error: "campaign_id is required" },
-      { status: 400 }
-    );
+    return Response.json({ error: "campaign_id is required" }, { status: 400 });
   }
 
   if (!firstName?.trim() || !lastName?.trim()) {
@@ -120,11 +122,12 @@ export async function POST(req) {
       campaign_id,
       first_name,
       last_name,
+      character_name,
       phone,
       email,
       notes
     )
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
     RETURNING *
     `,
     [
@@ -133,6 +136,7 @@ export async function POST(req) {
       campaignId,
       firstName.trim(),
       lastName.trim(),
+      characterName ?? null,
       body.phone ?? null,
       body.email ?? null,
       body.notes ?? null,
@@ -143,6 +147,7 @@ export async function POST(req) {
     sanitizeRow(rows[0], {
       firstName: 60,
       lastName: 60,
+      characterName: 100,
       phone: 40,
       email: 254,
       notes: 10000,
@@ -188,6 +193,11 @@ export async function PUT(req) {
     values.push((body.lastName ?? body.last_name).trim());
   }
 
+  if (body.characterName !== undefined || body.character_name !== undefined) {
+    sets.push(`character_name = $${i++}`);
+    values.push(body.characterName ?? body.character_name);
+  }
+
   if (body.phone !== undefined) {
     sets.push(`phone = $${i++}`);
     values.push(body.phone);
@@ -228,6 +238,7 @@ export async function PUT(req) {
       ? sanitizeRow(rows[0], {
           firstName: 60,
           lastName: 60,
+          characterName: 100,
           phone: 40,
           email: 254,
           notes: 10000,
@@ -237,7 +248,7 @@ export async function PUT(req) {
 }
 
 /* -----------------------------------------------------------
-   DELETE /api/player-characters?id=   (SOFT DELETE)
+   DELETE /api/player-characters?id=
 ------------------------------------------------------------ */
 export async function DELETE(req) {
   const { tenantId } = await getTenantContext(req);
@@ -266,6 +277,7 @@ export async function DELETE(req) {
       ? sanitizeRow(rows[0], {
           firstName: 60,
           lastName: 60,
+          characterName: 100,
           phone: 40,
           email: 254,
           notes: 10000,

@@ -1,31 +1,60 @@
 const locationsSchema = {
   name: "locations",
-  description: "Physical locations where events occur within the campaign",
+  description:
+    "Represents a physical or fictional place within an RPG campaign. Locations may be real-world, fictional, or abstract settings used during the story.",
   schema: {
-    type: "array",
-    items: {
-      type: "object",
-      additionalProperties: false,
-      properties: {
-        name: {
-          type: "string",
-          description: "The proper name of the location as written in the source material.",
-          maxLength: 200,
-        },
-        description: {
-          type: "string",
-          description: "Detailed narrative description of the location.",
-          maxLength: 10000,
-        },
-        environment: {
-          type: "string",
-          description:
-            "The general environment or biome of the location (e.g. urban, wilderness, underground).",
-          maxLength: 500,
-        },
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      name: {
+        type: "string",
+        description:
+          "The name of the location. This may be a specific place, landmark, building, or general area. Less than 20 words.",
       },
-      required: ["name", "description", "environment"],
+
+      world: {
+        type: "string",
+        description:
+          "The broader region, realm, or world in which this location exists. Less than 20 words.",
+      },
+
+      description: {
+        type: "string",
+        description:
+          "A short narrative description of the location, including atmosphere, purpose, or significance. Maximum 200 words.",
+      },
+
+      street: {
+        type: "string",
+        description:
+          "Street name or address if the location corresponds to a real-world or structured address. Optional.",
+      },
+
+      city: {
+        type: "string",
+        description:
+          "City or municipality where the location is situated, if applicable.",
+      },
+
+      state: {
+        type: "string",
+        description:
+          "State, province, or region for the location, if applicable.",
+      },
+
+      zip: {
+        type: "string",
+        description:
+          "Postal or ZIP code associated with the location, if applicable.",
+      },
+
+      country: {
+        type: "string",
+        description:
+          "Country in which the location exists, if applicable.",
+      },
     },
+    required: ["name", "world", "description"],
   },
 };
 

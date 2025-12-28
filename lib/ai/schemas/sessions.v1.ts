@@ -1,48 +1,31 @@
 const sessionsSchema = {
   name: "sessions",
-  description: "Individual play sessions that occur within a campaign",
+  description:
+    "Represents an individual chapter or chapter-like segment within a larger RPG campaign. Sessions define the narrative structure and progression of the adventure.",
   schema: {
-    type: "array",
-    items: {
-      type: "object",
-      additionalProperties: false,
-      properties: {
-        title: {
-          type: "string",
-          description: "Title or name of the session",
-        },
-        summary: {
-          type: "string",
-          description: "Summary of what occurred during the session",
-        },
-        location: {
-          type: "string",
-          description: "Primary location where the session takes place",
-        },
-        involved_characters: {
-          type: "array",
-          items: {
-            type: "string"
-          },
-          description: "Names of characters involved in the session",
-        },
-        key_events: {
-          type: "array",
-          items: {
-            type: "string"
-          },
-          description: "Major events or turning points during the session",
-        }
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      name: {
+        type: "string",
+        description:
+          "The title of the chapter or session. This functions like a chapter name in a book and represents a distinct portion of the overall campaign narrative. Less than 20 words.",
       },
-      required: [
-        "title",
-        "summary",
-        "location",
-        "involved_characters",
-        "key_events"
-      ]
-    }
-  }
+
+      description: {
+        type: "string",
+        description:
+          "A concise summary of the session’s story events, themes, or objectives. This should describe what happens during this chapter in 100 words or fewer.",
+      },
+
+      notes: {
+        type: "string",
+        description:
+          "Additional notes, context, or guidance for running the session. This may include expected outcomes, optional story beats, pacing notes, or special considerations not covered in the main description. Maximum 400 words.",
+      },
+    },
+    required: ["name", "description", "notes"],
+  },
 };
 
 export default sessionsSchema;

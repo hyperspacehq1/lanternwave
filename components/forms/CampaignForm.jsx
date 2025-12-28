@@ -35,11 +35,7 @@ export default function CampaignForm({ record, onChange }) {
     <div className="cm-detail-form">
 
       {/* 🔒 Locked campaign header */}
-      <div
-        className={`cm-campaign-header ${
-          pulse ? "pulse" : ""
-        }`}
-      >
+      <div className={`cm-campaign-header ${pulse ? "pulse" : ""}`}>
         Campaign: {record._campaignName || "Unnamed Campaign"}
       </div>
 
@@ -109,31 +105,44 @@ export default function CampaignForm({ record, onChange }) {
         <select
           className="cm-input"
           value={record.rpgGame || ""}
-          onChange={(e) =>
-            update("rpgGame", e.target.value || null)
-          }
+          onChange={(e) => update("rpgGame", e.target.value || null)}
         >
           <option value="">— Not specified —</option>
+          <option>ALIEN: The Roleplaying Game</option>
           <option>Avatar Legends: The Roleplaying Game</option>
+          <option>Black Powder &amp; Brimstone</option>
+          <option>Blade Runner: The Roleplaying Game</option>
           <option>Call of Cthulhu</option>
           <option>Coriolis: The Great Dark</option>
-          <option>Cyberpunk TTRPG (Red / variants)</option>
+          <option>Cyberpunk TTRPG</option>
           <option>Cypher System / Daggerheart</option>
-<option>Delta Green</option>
-          <option>Dungeon Crawl Classics (DCC)</option>
-          <option>Dungeons & Dragons 5th Edition</option>
+          <option>Delta Green</option>
+          <option>Dragonbane</option>
+          <option>Dungeon Crawl Classics</option>
+          <option>Dungeons &amp; Dragons 5th Edition</option>
           <option>Fabula Ultima</option>
+          <option>Forbidden Lands</option>
+          <option>Into the Odd</option>
+          <option>Invincible: The Roleplaying Game</option>
           <option>Land of Eem</option>
           <option>Marvel Multiverse RPG</option>
           <option>Mörk Borg</option>
+          <option>Mutant: Year Zero</option>
           <option>Mythic Bastionland</option>
           <option>Nimble 5e</option>
           <option>Pathfinder 2nd Edition</option>
+          <option>Pirate Borg</option>
+          <option>Ruins of Symbaroum</option>
           <option>Savage Worlds</option>
           <option>Shadowrun (6th/updated editions)</option>
           <option>Starfinder 2nd Edition</option>
           <option>StartPlaying</option>
+          <option>Symbaroum</option>
+          <option>Tales from the Loop</option>
           <option>Tales of the Valiant</option>
+          <option>The Electric State Roleplaying Game</option>
+          <option>The One Ring Roleplaying Game</option>
+          <option>Vaesen</option>
           <option>Vampire: The Masquerade 5th Edition</option>
         </select>
       </div>

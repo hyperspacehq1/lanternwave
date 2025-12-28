@@ -1,43 +1,38 @@
 const eventsSchema = {
   name: "events",
-  description: "Discrete narrative or gameplay events that occur within a campaign",
+  description:
+    "Represents a discrete event that occurs within an RPG campaign. Events may happen with or without player involvement and define the unfolding of the narrative.",
   schema: {
-    type: "array",
-    items: {
-      type: "object",
-      additionalProperties: false,
-      properties: {
-        title: {
-          type: "string",
-          description: "Name of the event",
-        },
-        description: {
-          type: "string",
-          description: "Narrative description of what happens during the event",
-        },
-        location: {
-          type: "string",
-          description: "Where the event takes place",
-        },
-        involved_npcs: {
-          type: "array",
-          items: { type: "string" },
-          description: "NPCs involved in the event",
-        },
-        consequences: {
-          type: "string",
-          description: "Outcome or consequences of the event",
-        }
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      name: {
+        type: "string",
+        description:
+          "A short title describing the event. This should clearly identify the situation or occurrence. Less than 20 words.",
       },
-      required: [
-        "title",
-        "description",
-        "location",
-        "involved_npcs",
-        "consequences"
-      ]
-    }
-  }
+
+      description: {
+        type: "string",
+        description:
+          "A concise summary of what happens during the event. This may include story beats, consequences, or narrative developments. Maximum 300 words.",
+      },
+
+      event_type: {
+        type: "string",
+        enum: ["Combat", "Story", "Exploration", "Social", "Downtime"],
+        description:
+          "The category that best describes the nature of the event. Must be one of the predefined values.",
+      },
+
+      priority: {
+        type: "number",
+        description:
+          "A numeric value representing the order in which this event occurs within the overall campaign timeline. Lower numbers occur earlier; higher numbers occur later. Each event should have a unique value.",
+      },
+    },
+    required: ["name", "description", "event_type", "priority"],
+  },
 };
 
 export default eventsSchema;
