@@ -1,7 +1,7 @@
 const itemsSchema = {
   name: "items",
   description:
-    "Represents a physical or magical object that exists within an RPG campaign. Items may include weapons, artifacts, tools, or other notable objects.",
+    "Items, artifacts, weapons, or objects that appear within an RPG campaign.",
   schema: {
     type: "object",
     additionalProperties: false,
@@ -9,31 +9,31 @@ const itemsSchema = {
       name: {
         type: "string",
         description:
-          "The name of the item or artifact. This may be a proper name or a descriptive title. Less than 20 words.",
+          "Name of the item or artifact. Less than 20 words.",
       },
 
       item_type: {
         type: "string",
         description:
-          "A short description of the category or type of item, such as weapon, artifact, tool, or relic. Less than 20 words.",
+          "Category or type of the item, such as weapon, artifact, tool, or relic.",
       },
 
       description: {
         type: "string",
         description:
-          "A brief summary describing the item’s appearance, purpose, or lore. Maximum 100 words.",
+          "Short description of the item, its purpose, or its appearance. Under 100 words.",
       },
 
       notes: {
         type: "string",
         description:
-          "Additional contextual or narrative information about the item that does not fit into the main description. Maximum 400 words.",
+          "Additional details not covered elsewhere, such as history, quirks, or usage notes.",
       },
 
       properties: {
         type: "string",
         description:
-          "Special traits, magical effects, curses, or unique characteristics associated with the item.",
+          "Special traits, magical effects, or unique behaviors of the item.",
       },
     },
     required: ["name", "item_type", "description", "notes", "properties"],
