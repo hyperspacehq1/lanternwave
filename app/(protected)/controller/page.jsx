@@ -243,7 +243,7 @@ export default function ControllerPage() {
                   <div className="lw-clip-actions">
                     {/* ✅ IMPORTANT: must include lw-btn for your CSS to match */}
                     <button
-                      className={`lw-btn loop-btn ${loop ? "active" : ""}`}
+                      className={`lw-btn loop-btn ${loop && isNow ? "active" : ""}`}
                       disabled={isBusy}
                       title={loop ? "Loop enabled" : "Loop disabled"}
                       aria-pressed={loop}

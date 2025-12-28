@@ -263,3 +263,20 @@
   color: var(--lw-green-muted);
   cursor: pointer;
 }
+
+.lw-btn.loop-btn.active {
+  animation: loopPulse 1.4s ease-in-out infinite;
+}
+
+@keyframes loopPulse {
+  0%   { box-shadow: 0 0 4px rgba(108,197,240,0.4); }
+  50%  { box-shadow: 0 0 10px rgba(108,197,240,0.9); }
+  100% { box-shadow: 0 0 4px rgba(108,197,240,0.4); }
+}
+
+
+
+
+
+
+
