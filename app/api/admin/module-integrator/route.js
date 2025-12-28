@@ -3,10 +3,14 @@ export const dynamic = "force-dynamic";
 
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { ingestAdventureCodex } from "@/lib/ai/orchestrator";
-import { query } from "@/lib/db";
+import { resolveEncounterRelationships } from "@/lib/ai/resolveEncounterRelationships";
+import crypto from "crypto";
+
+const jobs = global.__moduleJobs || new Map();
+global.__moduleJobs = jobs;
 
 export async function POST(req) {
-  console.log("🚀 Module Integrator hit");
+  const jobId = crypto.randomUUID();
 
   try {
     const ctx = await getTenantContext(req);
@@ -21,53 +25,56 @@ export async function POST(req) {
       return new Response("No file uploaded", { status: 400 });
     }
 
-    console.log("📄 File received:", file.name, file.size);
+    // Initialize job
+    jobs.set(jobId, {
+      status: "received",
+      step: "Upload received",
+      startedAt: Date.now(),
+    });
 
-    // Read file BEFORE responding
     const buffer = Buffer.from(await file.arrayBuffer());
 
-    // Respond immediately to avoid timeout
-    const response = new Response(
-      JSON.stringify({ status: "processing" }),
-      { status: 202 }
-    );
+    // Respond immediately
+    const response = new Response(JSON.stringify({ jobId }), {
+      status: 202,
+    });
 
     // Background processing
     queueMicrotask(async () => {
       try {
-        console.log("🧠 Starting ingestion…");
+        jobs.set(jobId, { status: "processing", step: "Parsing document…" });
 
         const result = await ingestAdventureCodex({
           buffer,
           tenantId: ctx.tenantId,
         });
 
-        console.log("🧠 AI result:", result);
+        jobs.set(jobId, {
+          status: "processing",
+          step: "Resolving encounters…",
+        });
 
-        await query(
-          `
-          INSERT INTO campaigns (title, description, source)
-          VALUES ($1, $2, $3)
-          `,
-          [
-            result.title ?? "Imported Module",
-            result.summary ?? "Generated from uploaded document",
-            "upload",
-          ]
-        );
+        await resolveEncounterRelationships({
+          templateCampaignId: result.templateCampaignId,
+        });
 
-        console.log("✅ Campaign saved to database");
+        jobs.set(jobId, {
+          status: "complete",
+          step: "Done",
+          finishedAt: Date.now(),
+        });
       } catch (err) {
-        console.error("🔥 Background ingestion failed:", err);
+        jobs.set(jobId, {
+          status: "error",
+          error: err.message,
+        });
       }
     });
 
     return response;
   } catch (err) {
-    console.error("🔥 Route failure:", err);
-    return new Response(
-      JSON.stringify({ error: err.message }),
-      { status: 500 }
-    );
+    return new Response(JSON.stringify({ error: err.message }), {
+      status: 500,
+    });
   }
 }
