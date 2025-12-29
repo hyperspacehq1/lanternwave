@@ -65,7 +65,7 @@ useEffect(() => {
   Promise.all([
     fetch(`/api/events?campaign_id=${selectedCampaign.id}&session_id=${selectedSession.id}`)
     fetch(`/api/npcs?session_id=${selectedSession.id}`).then(r => r.json()),
-    fetch(`/api/encounters?session_id=${selectedSession.id}`).then(r => r.json()),
+    fetch(`/api/encounters?campaign_id=${selectedCampaign.id}`)
     fetch(`/api/locations?campaign_id=${selectedCampaign.id}`).then(r => r.json()),
     fetch(`/api/items?campaign_id=${selectedCampaign.id}`).then(r => r.json())
   ])
