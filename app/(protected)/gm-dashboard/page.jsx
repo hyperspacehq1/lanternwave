@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import "./gm-dashboard.css";
 
@@ -22,23 +22,41 @@ export default function GMDashboardPage() {
   const [expandAll, setExpandAll] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  /* ------------------ Load Campaigns ------------------ */
+  const LAST_CAMPAIGN_KEY = "gm:lastCampaign";
+  const LAST_SESSION_KEY = "gm:lastSession";
+
+  /* ---------------- Load Campaigns ---------------- */
+
   useEffect(() => {
     fetch("/api/campaigns")
       .then(r => r.json())
-      .then(setCampaigns);
+      .then(data => {
+        setCampaigns(data);
+        const saved = localStorage.getItem(LAST_CAMPAIGN_KEY);
+        const found = data.find(c => c.id === saved);
+        if (found) setSelectedCampaign(found);
+        else if (data.length) setSelectedCampaign(data[0]);
+      });
   }, []);
 
-  /* ------------------ Load Sessions ------------------ */
+  /* ---------------- Load Sessions ---------------- */
+
   useEffect(() => {
     if (!selectedCampaign) return;
 
     fetch(`/api/sessions?campaign_id=${selectedCampaign.id}`)
       .then(r => r.json())
-      .then(setSessions);
+      .then(data => {
+        setSessions(data);
+        const saved = localStorage.getItem(LAST_SESSION_KEY);
+        const found = data.find(s => s.id === saved);
+        if (found) setSelectedSession(found);
+        else if (data.length) setSelectedSession(data[0]);
+      });
   }, [selectedCampaign]);
 
-  /* ------------------ Load Session Data ------------------ */
+  /* ---------------- Load Content ---------------- */
+
   useEffect(() => {
     if (!selectedSession || !selectedCampaign) return;
 
@@ -49,7 +67,7 @@ export default function GMDashboardPage() {
       fetch(`/api/npcs?session_id=${selectedSession.id}`).then(r => r.json()),
       fetch(`/api/encounters?session_id=${selectedSession.id}`).then(r => r.json()),
       fetch(`/api/locations?campaign_id=${selectedCampaign.id}`).then(r => r.json()),
-      fetch(`/api/items?campaign_id=${selectedCampaign.id}`).then(r => r.json()),
+      fetch(`/api/items?campaign_id=${selectedCampaign.id}`).then(r => r.json())
     ])
       .then(([events, npcs, encounters, locations, items]) => {
         setEvents(events || []);
@@ -66,11 +84,11 @@ export default function GMDashboardPage() {
       <div className="gm-toolbar">
         <select
           value={selectedCampaign?.id || ""}
-          onChange={(e) =>
-            setSelectedCampaign(
-              campaigns.find(c => c.id === e.target.value)
-            )
-          }
+          onChange={(e) => {
+            const c = campaigns.find(c => c.id === e.target.value);
+            setSelectedCampaign(c);
+            localStorage.setItem(LAST_CAMPAIGN_KEY, c?.id ?? "");
+          }}
         >
           <option value="">Select Campaign</option>
           {campaigns.map(c => (
@@ -80,11 +98,11 @@ export default function GMDashboardPage() {
 
         <select
           value={selectedSession?.id || ""}
-          onChange={(e) =>
-            setSelectedSession(
-              sessions.find(s => s.id === e.target.value)
-            )
-          }
+          onChange={(e) => {
+            const s = sessions.find(s => s.id === e.target.value);
+            setSelectedSession(s);
+            localStorage.setItem(LAST_SESSION_KEY, s?.id ?? "");
+          }}
         >
           <option value="">Select Session</option>
           {sessions.map(s => (
@@ -148,18 +166,12 @@ function GMCard({ item, expandAll }) {
 
   return (
     <div className={`gm-card ${open ? "is-open" : ""}`}>
-      <div
-        className="gm-card-header"
-        onClick={() => setOpen(!open)}
-      >
+      <div className="gm-card-header" onClick={() => setOpen(!open)}>
         <span>{item.name || "Untitled"}</span>
         <span>{open ? "−" : "+"}</span>
       </div>
 
-      <div
-        className="gm-card-body-wrapper"
-        style={{ maxHeight: open ? "1000px" : "0px" }}
-      >
+      <div className="gm-card-body-wrapper" style={{ maxHeight: open ? "1000px" : "0px" }}>
         <div className="gm-card-body">
           <pre>{JSON.stringify(item, null, 2)}</pre>
         </div>
