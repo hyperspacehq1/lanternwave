@@ -25,8 +25,10 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url);
 
     const id = searchParams.get("id");
+    const campaignId = searchParams.get("campaign_id");
     const sessionId = searchParams.get("session_id");
 
+    // ---- SINGLE EVENT ----
     if (id) {
       const { rows } = await query(
         `
@@ -35,7 +37,6 @@ export async function GET(req) {
          WHERE tenant_id = $1
            AND id = $2
            AND deleted_at IS NULL
-         LIMIT 1
         `,
         [tenantId, id]
       );
@@ -52,17 +53,25 @@ export async function GET(req) {
       );
     }
 
-    if (sessionId) {
+    // ---- CAMPAIGN / SESSION LIST ----
+    if (campaignId) {
+      const params = [tenantId, campaignId];
+      let where = `tenant_id = $1 AND campaign_id = $2`;
+
+      if (sessionId) {
+        params.push(sessionId);
+        where += ` AND session_id = $3`;
+      }
+
       const { rows } = await query(
         `
         SELECT *
           FROM events
-         WHERE tenant_id = $1
-           AND session_id = $2
+         WHERE ${where}
            AND deleted_at IS NULL
          ORDER BY priority DESC, created_at ASC
         `,
-        [tenantId, sessionId]
+        params
       );
 
       return Response.json(
@@ -75,6 +84,7 @@ export async function GET(req) {
       );
     }
 
+    // Fallback (no filters)
     return Response.json([]);
   } catch (err) {
     console.error("GET /api/events failed", err);
@@ -136,7 +146,6 @@ export async function POST(req) {
        WHERE tenant_id = $1
          AND id = $2
          AND deleted_at IS NULL
-       LIMIT 1
       `,
       [tenantId, body.session_id]
     );
@@ -299,7 +308,7 @@ export async function PUT(req) {
 }
 
 /* -----------------------------------------------------------
-   DELETE /api/events?id=   (SOFT DELETE)
+   DELETE /api/events?id=
 ------------------------------------------------------------ */
 export async function DELETE(req) {
   try {
