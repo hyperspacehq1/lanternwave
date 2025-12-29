@@ -12,23 +12,6 @@ function pick(body, camel, snake) {
   return body[camel] ?? body[snake];
 }
 
-function normalizeProperties(input) {
-  if (input == null || input === "") return null;
-
-  if (typeof input === "object") return input;
-
-  try {
-    const parsed = JSON.parse(input);
-    if (typeof parsed === "object") return parsed;
-  } catch {}
-
-  return {
-    text: String(input).trim(),
-    source: "human",
-    updated_at: new Date().toISOString(),
-  };
-}
-
 /* -----------------------------------------------------------
    GET /api/items
 ------------------------------------------------------------ */
@@ -117,29 +100,29 @@ export async function POST(req) {
   }
 
   const { rows } = await query(
-    `
-    INSERT INTO items (
-      tenant_id,
-      campaign_id,
-      name,
-      item_type,
-      description,
-      notes,
-      properties
-    )
-    VALUES ($1,$2,$3,$4,$5,$6,$7)
-    RETURNING *
-    `,
-    [
-      tenantId,
-      campaignId,
-      name,
-      body.itemType ?? body.item_type ?? null,
-      body.description ?? null,
-      body.notes ?? null,
-      normalizeProperties(body.properties),
-    ]
-  );
+  `
+  INSERT INTO items (
+    tenant_id,
+    campaign_id,
+    name,
+    item_type,
+    description,
+    notes,
+    properties
+  )
+  VALUES ($1,$2,$3,$4,$5,$6,$7)
+  RETURNING *
+  `,
+  [
+    tenantId,
+    campaignId,
+    name,
+    body.itemType ?? body.item_type ?? null,
+    body.description ?? null,
+    body.notes ?? null,
+    body.properties ?? null, // ✅ FIX
+  ]
+);
 
   return Response.json(
     sanitizeRow(rows[0], {
@@ -197,10 +180,10 @@ export async function PUT(req) {
     values.push(body.notes);
   }
 
-  if (body.properties !== undefined) {
-    sets.push(`properties = $${i++}`);
-    values.push(normalizeProperties(body.properties));
-  }
+if (body.properties !== undefined) {
+  sets.push(`properties = $${i++}`);
+  values.push(body.properties ?? null); // ✅ FIX
+}
 
   if (!sets.length) {
     return Response.json(

@@ -22,7 +22,7 @@ export default function ItemForm({ record, onChange }) {
   return (
     <div className="cm-detail-form">
 
-      {/* 🔒 Locked campaign header */}
+      {/* Campaign header */}
       <div className={`cm-campaign-header ${pulse ? "pulse" : ""}`}>
         Campaign: {record._campaignName || "Unnamed Campaign"}
       </div>
@@ -67,25 +67,13 @@ export default function ItemForm({ record, onChange }) {
         />
       </div>
 
+      {/* ✅ FIXED: properties is now TEXT, not JSON */}
       <div className="cm-field">
-        <label className="cm-label">Properties (JSON)</label>
+        <label className="cm-label">Properties</label>
         <textarea
           className="cm-textarea"
-          value={
-            record.properties
-              ? JSON.stringify(record.properties, null, 2)
-              : ""
-          }
-          onChange={(e) => {
-            try {
-              update(
-                "properties",
-                e.target.value ? JSON.parse(e.target.value) : null
-              );
-            } catch {
-              /* allow user to correct JSON before save */
-            }
-          }}
+          value={record.properties || ""}
+          onChange={(e) => update("properties", e.target.value)}
         />
       </div>
     </div>
