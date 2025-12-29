@@ -18,6 +18,7 @@ export default function GMDashboardPage() {
   const [encounters, setEncounters] = useState([]);
   const [locations, setLocations] = useState([]);
   const [items, setItems] = useState([]);
+const [loading, setLoading] = useState(false);
 
   const [expandAll, setExpandAll] = useState(null);
 
@@ -37,8 +38,29 @@ export default function GMDashboardPage() {
       .then(setSessions);
   }, [selectedCampaign]);
 
-  useEffect(() => {
+useEffect(() => {
   if (!selectedSession || !selectedCampaign) return;
+
+  setLoading(true);
+
+  Promise.all([
+    fetch(`/api/events?session_id=${selectedSession.id}`).then(r => r.json()),
+    fetch(`/api/npcs?session_id=${selectedSession.id}`).then(r => r.json()),
+    fetch(`/api/encounters?session_id=${selectedSession.id}`).then(r => r.json()),
+    fetch(`/api/locations?campaign_id=${selectedCampaign.id}`).then(r => r.json()),
+    fetch(`/api/items?campaign_id=${selectedCampaign.id}`).then(r => r.json()),
+  ])
+    .then(([events, npcs, encounters, locations, items]) => {
+      setEvents(events || []);
+      setNpcs(npcs || []);
+      setEncounters(encounters || []);
+      setLocations(locations || []);
+      setItems(items || []);
+    })
+    .finally(() => {
+      setLoading(false);
+    });
+}, [selectedSession, selectedCampaign]);
 
   Promise.all([
     fetch(`/api/events?session_id=${selectedSession.id}`).then(r => r.json()),
