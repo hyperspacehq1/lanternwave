@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import "./gm-dashboard.css";
 
@@ -18,18 +18,18 @@ export default function GMDashboardPage() {
   const [encounters, setEncounters] = useState([]);
   const [locations, setLocations] = useState([]);
   const [items, setItems] = useState([]);
-const [loading, setLoading] = useState(false);
 
   const [expandAll, setExpandAll] = useState(null);
+  const [loading, setLoading] = useState(false);
 
-  /* ------------------ Data loading ------------------ */
-
+  /* ------------------ Load Campaigns ------------------ */
   useEffect(() => {
     fetch("/api/campaigns")
       .then(r => r.json())
       .then(setCampaigns);
   }, []);
 
+  /* ------------------ Load Sessions ------------------ */
   useEffect(() => {
     if (!selectedCampaign) return;
 
@@ -38,47 +38,29 @@ const [loading, setLoading] = useState(false);
       .then(setSessions);
   }, [selectedCampaign]);
 
-useEffect(() => {
-  if (!selectedSession || !selectedCampaign) return;
+  /* ------------------ Load Session Data ------------------ */
+  useEffect(() => {
+    if (!selectedSession || !selectedCampaign) return;
 
-  setLoading(true);
+    setLoading(true);
 
-  Promise.all([
-    fetch(`/api/events?session_id=${selectedSession.id}`).then(r => r.json()),
-    fetch(`/api/npcs?session_id=${selectedSession.id}`).then(r => r.json()),
-    fetch(`/api/encounters?session_id=${selectedSession.id}`).then(r => r.json()),
-    fetch(`/api/locations?campaign_id=${selectedCampaign.id}`).then(r => r.json()),
-    fetch(`/api/items?campaign_id=${selectedCampaign.id}`).then(r => r.json()),
-  ])
-    .then(([events, npcs, encounters, locations, items]) => {
-      setEvents(events || []);
-      setNpcs(npcs || []);
-      setEncounters(encounters || []);
-      setLocations(locations || []);
-      setItems(items || []);
-    })
-    .finally(() => {
-      setLoading(false);
-    });
-}, [selectedSession, selectedCampaign]);
+    Promise.all([
+      fetch(`/api/events?session_id=${selectedSession.id}`).then(r => r.json()),
+      fetch(`/api/npcs?session_id=${selectedSession.id}`).then(r => r.json()),
+      fetch(`/api/encounters?session_id=${selectedSession.id}`).then(r => r.json()),
+      fetch(`/api/locations?campaign_id=${selectedCampaign.id}`).then(r => r.json()),
+      fetch(`/api/items?campaign_id=${selectedCampaign.id}`).then(r => r.json()),
+    ])
+      .then(([events, npcs, encounters, locations, items]) => {
+        setEvents(events || []);
+        setNpcs(npcs || []);
+        setEncounters(encounters || []);
+        setLocations(locations || []);
+        setItems(items || []);
+      })
+      .finally(() => setLoading(false));
+  }, [selectedSession, selectedCampaign]);
 
-  Promise.all([
-    fetch(`/api/events?session_id=${selectedSession.id}`).then(r => r.json()),
-    fetch(`/api/npcs?session_id=${selectedSession.id}`).then(r => r.json()),
-    fetch(`/api/encounters?session_id=${selectedSession.id}`).then(r => r.json()),
-
-    // FIX: these are campaign-scoped
-    fetch(`/api/locations?campaign_id=${selectedCampaign.id}`).then(r => r.json()),
-    fetch(`/api/items?campaign_id=${selectedCampaign.id}`).then(r => r.json()),
-  ])
-    .then(([events, npcs, encounters, locations, items]) => {
-      setEvents(events || []);
-      setNpcs(npcs || []);
-      setEncounters(encounters || []);
-      setLocations(locations || []);
-      setItems(items || []);
-    });
-}, [selectedSession, selectedCampaign]);
   return (
     <div className="gm-page">
       <div className="gm-toolbar">
@@ -110,18 +92,18 @@ useEffect(() => {
           ))}
         </select>
 
-{loading && (
-  <div className="gm-loading-overlay">
-    <div className="gm-spinner" />
-    <div className="gm-loading-text">Loading session data…</div>
-  </div>
-)}
-
         <div className="gm-toolbar-actions">
           <button onClick={() => setExpandAll(true)}>Expand All</button>
           <button onClick={() => setExpandAll(false)}>Collapse All</button>
         </div>
       </div>
+
+      {loading && (
+        <div className="gm-loading-overlay">
+          <div className="gm-spinner" />
+          <div className="gm-loading-text">Loading session data…</div>
+        </div>
+      )}
 
       <div className="gm-grid">
         <GMColumn title="Events" color="red" items={events} expandAll={expandAll} />
@@ -136,58 +118,19 @@ useEffect(() => {
 
 /* ---------------- Column ---------------- */
 
-function GMColumn({ title, items, expandAll, color = "default" }) {
+function GMColumn({ title, items, expandAll, color }) {
   const [order, setOrder] = useState([]);
-  const dragIndex = useRef(null);
 
   useEffect(() => {
     setOrder(items);
   }, [items]);
 
-  const onDragStart = (e, index) => {
-    dragIndex.current = index;
-    e.dataTransfer.effectAllowed = "move";
-  };
-
-  const onDragOver = (e) => {
-    e.preventDefault();
-    e.currentTarget.classList.add("drag-over");
-  };
-
-  const onDragLeave = (e) => {
-    e.currentTarget.classList.remove("drag-over");
-  };
-
-  const onDrop = (e, index) => {
-    e.preventDefault();
-    e.currentTarget.classList.remove("drag-over");
-
-    const from = dragIndex.current;
-    if (from === null || from === index) return;
-
-    const updated = [...order];
-    const [moved] = updated.splice(from, 1);
-    updated.splice(index, 0, moved);
-    setOrder(updated);
-  };
-
   return (
     <div className={`gm-column gm-${color}`}>
       <div className="gm-column-header">{title}</div>
-
       <div className="gm-column-body">
-        {order.map((item, index) => (
-          <div
-            key={item.id}
-            className="gm-drag-wrapper"
-            draggable
-            onDragStart={(e) => onDragStart(e, index)}
-            onDragOver={onDragOver}
-            onDragLeave={onDragLeave}
-            onDrop={(e) => onDrop(e, index)}
-          >
-            <GMCard item={item} expandAll={expandAll} />
-          </div>
+        {order.map(item => (
+          <GMCard key={item.id} item={item} expandAll={expandAll} />
         ))}
       </div>
     </div>
@@ -198,7 +141,6 @@ function GMColumn({ title, items, expandAll, color = "default" }) {
 
 function GMCard({ item, expandAll }) {
   const [open, setOpen] = useState(false);
-  const ref = useRef(null);
 
   useEffect(() => {
     if (typeof expandAll === "boolean") setOpen(expandAll);
@@ -209,8 +151,6 @@ function GMCard({ item, expandAll }) {
       <div
         className="gm-card-header"
         onClick={() => setOpen(!open)}
-        role="button"
-        tabIndex={0}
       >
         <span>{item.name || "Untitled"}</span>
         <span>{open ? "−" : "+"}</span>
@@ -218,10 +158,7 @@ function GMCard({ item, expandAll }) {
 
       <div
         className="gm-card-body-wrapper"
-        style={{
-          maxHeight: open ? "1000px" : "0px",
-          opacity: open ? 1 : 0,
-        }}
+        style={{ maxHeight: open ? "1000px" : "0px" }}
       >
         <div className="gm-card-body">
           <pre>{JSON.stringify(item, null, 2)}</pre>
