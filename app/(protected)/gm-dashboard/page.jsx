@@ -63,20 +63,20 @@ useEffect(() => {
   setLoading(true);
 
   Promise.all([
-    fetch(`/api/events?campaign_id=${selectedCampaign.id}&session_id=${selectedSession.id}`)
-    fetch(`/api/npcs?session_id=${selectedSession.id}`).then(r => r.json()),
-    fetch(`/api/encounters?campaign_id=${selectedCampaign.id}`)
-    fetch(`/api/locations?campaign_id=${selectedCampaign.id}`).then(r => r.json()),
-    fetch(`/api/items?campaign_id=${selectedCampaign.id}`).then(r => r.json())
-  ])
-    .then(([events, npcs, encounters, locations, items]) => {
-      setEvents(events || []);
-      setNpcs(npcs || []);
-      setEncounters(encounters || []);
-      setLocations(locations || []);
-      setItems(items || []);
-    })
-    .finally(() => setLoading(false));
+  fetch(`/api/events?campaign_id=${selectedCampaign.id}&session_id=${selectedSession.id}`).then(r => r.json()),
+  fetch(`/api/npcs?session_id=${selectedSession.id}`).then(r => r.json()),
+  fetch(`/api/encounters?campaign_id=${selectedCampaign.id}`).then(r => r.json()),
+  fetch(`/api/locations?campaign_id=${selectedCampaign.id}`).then(r => r.json()),
+  fetch(`/api/items?campaign_id=${selectedCampaign.id}`).then(r => r.json())
+])
+  .then(([events, npcs, encounters, locations, items]) => {
+    setEvents(events || []);
+    setNpcs(npcs || []);
+    setEncounters(encounters || []);
+    setLocations(locations || []);
+    setItems(items || []);
+  })
+  .finally(() => setLoading(false));
 }, [selectedSession, selectedCampaign]);
 
   return (
