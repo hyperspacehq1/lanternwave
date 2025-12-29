@@ -221,4 +221,51 @@
 .gm-drag-wrapper:hover {
   outline: 1px dashed rgba(255, 255, 255, 0.15);
 }
+/* ---------------------------------------
+   GM Toolbar Buttons
+---------------------------------------- */
+.gm-toolbar button {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--lw-border-muted);
+  color: var(--lw-green-primary);
+  font-family: var(--font-terminal);
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.gm-toolbar button:hover {
+  background: rgba(108, 196, 23, 0.15);
+  border-color: var(--lw-green-primary);
+}
+
+.gm-toolbar button:active {
+  transform: translateY(1px);
+}
+
+.gm-toolbar button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.gm-search {
+  background: #000;
+  color: var(--lw-green-primary);
+  border: 1px solid var(--lw-border-muted);
+  padding: 6px 10px;
+  font-family: var(--font-terminal);
+  font-size: 12px;
+  width: 240px;
+}
+
+.gm-search::placeholder {
+  color: rgba(163, 197, 159, 0.6);
+}
+.gm-card {
+  user-select: none;
+}
+.gm-drag-wrapper.drag-over {
+  outline: 1px dashed rgba(108, 196, 23, 0.6);
+}
 
