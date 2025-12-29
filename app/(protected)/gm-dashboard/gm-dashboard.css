@@ -269,3 +269,8 @@
   outline: 1px dashed rgba(108, 196, 23, 0.6);
 }
 
+.gm-column.gm-red .gm-column-header { color: #c85c5c; }
+.gm-column.gm-blue .gm-column-header { color: #5aa0e6; }
+.gm-column.gm-green .gm-column-header { color: #5fd18a; }
+.gm-column.gm-purple .gm-column-header { color: #a983d4; }
+.gm-column.gm-orange .gm-column-header { color: #d9a85b; }

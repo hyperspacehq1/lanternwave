@@ -143,7 +143,7 @@ function GMColumn({ title, items, expandAll }) {
   };
 
   return (
-    <div className="gm-column">
+    <div className={`gm-column gm-${color}`}>
       <div className="gm-column-header">{title}</div>
 
       <div className="gm-column-body">
