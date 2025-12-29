@@ -1,27 +1,23 @@
-import { query, ident, isSafeIdent } from "@/lib/db/db";
+import { query, ident, isSafeIdent } from "@/lib/db";
 import { v4 as uuidv4 } from "uuid";
 
 /* =========================================================
-   PUBLIC ENTRY POINT
+   CLONE ADVENTURE CODEX → TENANT
 ========================================================= */
+
 export async function cloneAdventureCodexToTenant({
   templateCampaignId,
   tenantCampaignId,
   tenantId,
-  createdBy,
 }: {
   templateCampaignId: string;
   tenantCampaignId: string;
   tenantId: string;
-  createdBy: string;
 }) {
   if (!templateCampaignId || !tenantCampaignId || !tenantId) {
-    throw new Error("Missing required clone parameters");
+    throw new Error("Missing required parameters");
   }
 
-  /* -----------------------------------------------
-     STEP 1: CLONE CORE TABLES
-  ------------------------------------------------ */
   const idMaps = {
     campaigns: new Map<string, string>(),
     sessions: new Map<string, string>(),
@@ -38,31 +34,23 @@ export async function cloneAdventureCodexToTenant({
       templateCampaignId,
       tenantCampaignId,
       tenantId,
-      createdBy,
       idMap: idMaps[table],
     });
   }
 
-  /* -----------------------------------------------
-     STEP 2: CLONE JOIN TABLES (FILTERED)
-  ------------------------------------------------ */
   for (const join of JOIN_TABLES) {
-    await cloneJoinTable({
-      join,
-      idMaps,
-    });
+    await cloneJoinTable({ join, idMaps });
   }
 
-  return {
-    success: true,
-    tenantCampaignId,
-  };
+  return { success: true, tenantCampaignId };
 }
 
 /* =========================================================
-   CORE TABLE DEFINITIONS
+   TABLE DEFINITIONS
 ========================================================= */
+
 const CORE_TABLES = [
+  "campaigns",
   "sessions",
   "events",
   "npcs",
@@ -71,136 +59,178 @@ const CORE_TABLES = [
   "encounters",
 ] as const;
 
-/* =========================================================
-   JOIN TABLE DEFINITIONS
-========================================================= */
 const JOIN_TABLES = [
+  { table: "session_events", left: "session_id", right: "event_id", rightMap: "events" },
+  { table: "session_npcs", left: "session_id", right: "npc_id", rightMap: "npcs" },
+  { table: "session_locations", left: "session_id", right: "location_id", rightMap: "locations" },
+  { table: "session_items", left: "session_id", right: "item_id", rightMap: "items" },
+
+  { table: "event_npcs", left: "event_id", right: "npc_id", rightMap: "npcs" },
+  { table: "event_locations", left: "event_id", right: "location_id", rightMap: "locations" },
+  { table: "event_items", left: "event_id", right: "item_id", rightMap: "items" },
+
   { table: "encounter_npcs", left: "encounter_id", right: "npc_id", rightMap: "npcs" },
-  { table: "encounter_items", left: "encounter_id", right: "item_id", rightMap: "items" },
   { table: "encounter_locations", left: "encounter_id", right: "location_id", rightMap: "locations" },
-  { table: "encounter_events", left: "encounter_id", right: "event_id", rightMap: "events" },
+  { table: "encounter_items", left: "encounter_id", right: "item_id", rightMap: "items" },
 ] as const;
 
 /* =========================================================
-   CLONE A SINGLE TABLE
+   COLUMN INTROSPECTION
 ========================================================= */
+
+const columnCache = new Map<string, Set<string>>();
+
+async function getTableColumns(table: string): Promise<Set<string>> {
+  if (columnCache.has(table)) return columnCache.get(table)!;
+
+  const res = await query(
+    `
+    SELECT column_name
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = $1
+    `,
+    [table]
+  );
+
+  const cols = new Set(res.rows.map((r: any) => r.column_name));
+  columnCache.set(table, cols);
+  return cols;
+}
+
+/* =========================================================
+   CLONE CORE TABLES
+========================================================= */
+
 async function cloneTable({
   table,
   templateCampaignId,
   tenantCampaignId,
-  tenantId,
-  createdBy,
   idMap,
 }: {
   table: string;
   templateCampaignId: string;
   tenantCampaignId: string;
-  tenantId: string;
-  createdBy: string;
   idMap: Map<string, string>;
 }) {
   if (!isSafeIdent(table)) throw new Error(`Unsafe table: ${table}`);
 
-  const rowsRes = await query(
-    `
-    SELECT *
-      FROM ${ident(table)}
-     WHERE template_campaign_id = $1
-    `,
-    [templateCampaignId]
-  );
+  const tableCols = await getTableColumns(table);
 
-  for (const row of rowsRes.rows) {
-    const newId = uuidv4();
+  const sourceRows =
+    table === "campaigns"
+      ? await query(`SELECT * FROM ${ident(table)} WHERE id = $1`, [templateCampaignId])
+      : await query(
+          `SELECT * FROM ${ident(table)} WHERE template_campaign_id = $1`,
+          [templateCampaignId]
+        );
+
+  for (const row of sourceRows.rows) {
+    const newId = table === "campaigns" ? tenantCampaignId : uuidv4();
     idMap.set(row.id, newId);
 
-    // Strip template-only + system fields we don't want to copy verbatim
     const {
       id,
       template_campaign_id,
-      campaign_id,
-      tenant_id,
-      created_by,
       created_at,
       updated_at,
-      deleted_at,
+      search_tsv,
+      embedding,
       ...data
     } = row;
 
-    // Build dynamic insert
-    const dynamicCols = Object.keys(data).filter((k) => isSafeIdent(k));
+    const columns: string[] = ["id"];
+    const values: any[] = [newId];
 
-    const cols = ["id", "campaign_id", "tenant_id", "created_by", ...dynamicCols];
-    const params = [
-      newId,
-      tenantCampaignId,
-      tenantId,
-      createdBy,
-      ...dynamicCols.map((k) => data[k]),
-    ];
+    if (tableCols.has("tenant_id")) {
+      columns.push("tenant_id");
+      values.push(tenantCampaignId);
+    }
 
-    const valuesSql = params.map((_, i) => `$${i + 1}`).join(", ");
+    if (table === "campaigns") {
+      if (tableCols.has("is_template")) {
+        columns.push("is_template");
+        values.push(false);
+      }
+      if (tableCols.has("template_campaign_id")) {
+        columns.push("template_campaign_id");
+        values.push(templateCampaignId);
+      }
+    }
+
+    for (const key of Object.keys(data)) {
+      if (!tableCols.has(key)) continue;
+      columns.push(key);
+      values.push(data[key]);
+    }
 
     await query(
       `
-      INSERT INTO ${ident(table)} (${cols.map(ident).join(", ")})
-      VALUES (${valuesSql})
+      INSERT INTO ${ident(table)} (${columns.map(ident).join(", ")})
+      VALUES (${values.map((_, i) => `$${i + 1}`).join(", ")})
       `,
-      params
+      values
     );
   }
 }
 
 /* =========================================================
-   CLONE JOIN TABLES (FILTERED + ID-MAPPED)
+   CLONE JOIN TABLES
 ========================================================= */
+
 async function cloneJoinTable({
   join,
   idMaps,
 }: {
   join: {
     table: string;
-    left: string; // encounter_id
+    left: string;
     right: string;
     rightMap: keyof typeof idMaps;
   };
-  idMaps: Record<string, Map<string, string>>;
+  idMaps: {
+    campaigns: Map<string, string>;
+    sessions: Map<string, string>;
+    events: Map<string, string>;
+    npcs: Map<string, string>;
+    locations: Map<string, string>;
+    items: Map<string, string>;
+    encounters: Map<string, string>;
+  };
 }) {
-  if (!isSafeIdent(join.table)) throw new Error(`Unsafe join table: ${join.table}`);
-  if (!isSafeIdent(join.left)) throw new Error(`Unsafe join.left: ${join.left}`);
-  if (!isSafeIdent(join.right)) throw new Error(`Unsafe join.right: ${join.right}`);
+  const { table, left, right, rightMap } = join;
 
-  // Only clone joins that belong to encounters that were cloned
-  const oldEncounterIds = Array.from(idMaps.encounters.keys());
-  if (!oldEncounterIds.length) return;
+  if (!isSafeIdent(table)) throw new Error(`Unsafe table: ${table}`);
 
-  const rowsRes = await query(
-    `
-    SELECT *
-      FROM ${ident(join.table)}
-     WHERE ${ident(join.left)} = ANY($1::uuid[])
-    `,
-    [oldEncounterIds]
+  const rows = await query(
+    `SELECT ${ident(left)}, ${ident(right)} FROM ${ident(table)}`,
+    []
   );
 
-  for (const row of rowsRes.rows) {
-    const oldLeftId = row[join.left];
-    const oldRightId = row[join.right];
+  for (const row of rows.rows) {
+    const leftNew = idMaps[
+      left.includes("session")
+        ? "sessions"
+        : left.includes("event")
+        ? "events"
+        : left.includes("npc")
+        ? "npcs"
+        : left.includes("location")
+        ? "locations"
+        : "items"
+    ].get(row[left]);
 
-    const newLeftId = idMaps.encounters.get(oldLeftId);
-    const newRightId = idMaps[join.rightMap].get(oldRightId);
+    const rightNew = idMaps[rightMap].get(row[right]);
 
-    if (!newLeftId || !newRightId) {
-      continue; // Skip orphaned joins safely
-    }
+    if (!leftNew || !rightNew) continue;
 
     await query(
       `
-      INSERT INTO ${ident(join.table)} (${ident(join.left)}, ${ident(join.right)})
+      INSERT INTO ${ident(table)} (${ident(left)}, ${ident(right)})
       VALUES ($1, $2)
       ON CONFLICT DO NOTHING
       `,
-      [newLeftId, newRightId]
+      [leftNew, rightNew]
     );
   }
 }
