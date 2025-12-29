@@ -5,14 +5,39 @@ import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { ingestAdventureCodex } from "@/lib/ai/orchestrator";
 
 /**
- * GET — used by the frontend to verify route availability
- * Prevents 405 errors when the page loads.
+ * GET — return authenticated account info
  */
-export async function GET() {
-  return Response.json({
-    ok: true,
-    status: "ready",
-  });
+export async function GET(req) {
+  try {
+    const ctx = await getTenantContext(req);
+
+    if (!ctx?.user) {
+      return Response.json(
+        { ok: false, error: "Not authenticated" },
+        { status: 401 }
+      );
+    }
+
+    return Response.json({
+      ok: true,
+      account: {
+        id: ctx.user.id,
+        username: ctx.user.username,
+        username_normalized: ctx.user.username_normalized,
+        is_admin: ctx.user.is_admin,
+      },
+    });
+  } catch (err) {
+    console.error("🔥 ACCOUNT GET ERROR:", err);
+
+    return new Response(
+      JSON.stringify({
+        ok: false,
+        error: err?.message || "Internal server error",
+      }),
+      { status: 500 }
+    );
+  }
 }
 
 /**
