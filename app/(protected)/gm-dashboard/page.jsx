@@ -107,7 +107,7 @@ export default function GMDashboardPage() {
 
 /* ---------------- Column ---------------- */
 
-function GMColumn({ title, items, expandAll }) {
+function GMColumn({ title, items, expandAll, color = "default" }) {
   const [order, setOrder] = useState([]);
   const dragIndex = useRef(null);
 
