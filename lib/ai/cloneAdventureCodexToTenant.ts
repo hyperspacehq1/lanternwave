@@ -1,4 +1,4 @@
-import { query, ident, isSafeIdent } from "@/lib/db";
+import { query } from "@/lib/db";
 import { v4 as uuidv4 } from "uuid";
 
 /* =========================================================
@@ -33,7 +33,6 @@ export async function cloneAdventureCodexToTenant({
       table,
       templateCampaignId,
       tenantCampaignId,
-      tenantId,
       idMap: idMaps[table],
     });
   }
@@ -75,30 +74,6 @@ const JOIN_TABLES = [
 ] as const;
 
 /* =========================================================
-   COLUMN INTROSPECTION
-========================================================= */
-
-const columnCache = new Map<string, Set<string>>();
-
-async function getTableColumns(table: string): Promise<Set<string>> {
-  if (columnCache.has(table)) return columnCache.get(table)!;
-
-  const res = await query(
-    `
-    SELECT column_name
-    FROM information_schema.columns
-    WHERE table_schema = 'public'
-      AND table_name = $1
-    `,
-    [table]
-  );
-
-  const cols = new Set(res.rows.map((r: any) => r.column_name));
-  columnCache.set(table, cols);
-  return cols;
-}
-
-/* =========================================================
    CLONE CORE TABLES
 ========================================================= */
 
@@ -113,19 +88,12 @@ async function cloneTable({
   tenantCampaignId: string;
   idMap: Map<string, string>;
 }) {
-  if (!isSafeIdent(table)) throw new Error(`Unsafe table: ${table}`);
-
-  const tableCols = await getTableColumns(table);
-
-  const sourceRows =
+  const rows =
     table === "campaigns"
-      ? await query(`SELECT * FROM ${ident(table)} WHERE id = $1`, [templateCampaignId])
-      : await query(
-          `SELECT * FROM ${ident(table)} WHERE template_campaign_id = $1`,
-          [templateCampaignId]
-        );
+      ? await query(`SELECT * FROM ${table} WHERE id = $1`, [templateCampaignId])
+      : await query(`SELECT * FROM ${table} WHERE template_campaign_id = $1`, [templateCampaignId]);
 
-  for (const row of sourceRows.rows) {
+  for (const row of rows.rows) {
     const newId = table === "campaigns" ? tenantCampaignId : uuidv4();
     idMap.set(row.id, newId);
 
@@ -139,34 +107,35 @@ async function cloneTable({
       ...data
     } = row;
 
-    const columns: string[] = ["id"];
+    const columns = ["id"];
     const values: any[] = [newId];
 
-    if (tableCols.has("tenant_id")) {
+    if ("tenant_id" in row) {
       columns.push("tenant_id");
       values.push(tenantCampaignId);
     }
 
     if (table === "campaigns") {
-      if (tableCols.has("is_template")) {
+      if ("is_template" in row) {
         columns.push("is_template");
         values.push(false);
       }
-      if (tableCols.has("template_campaign_id")) {
+      if ("template_campaign_id" in row) {
         columns.push("template_campaign_id");
         values.push(templateCampaignId);
       }
     }
 
     for (const key of Object.keys(data)) {
-      if (!tableCols.has(key)) continue;
-      columns.push(key);
-      values.push(data[key]);
+      if (key in row) {
+        columns.push(key);
+        values.push(row[key]);
+      }
     }
 
     await query(
       `
-      INSERT INTO ${ident(table)} (${columns.map(ident).join(", ")})
+      INSERT INTO ${table} (${columns.join(", ")})
       VALUES (${values.map((_, i) => `$${i + 1}`).join(", ")})
       `,
       values
@@ -198,38 +167,30 @@ async function cloneJoinTable({
     encounters: Map<string, string>;
   };
 }) {
-  const { table, left, right, rightMap } = join;
-
-  if (!isSafeIdent(table)) throw new Error(`Unsafe table: ${table}`);
-
   const rows = await query(
-    `SELECT ${ident(left)}, ${ident(right)} FROM ${ident(table)}`,
+    `SELECT ${join.left}, ${join.right} FROM ${join.table}`,
     []
   );
 
   for (const row of rows.rows) {
     const leftNew = idMaps[
-      left.includes("session")
+      join.left.includes("session")
         ? "sessions"
-        : left.includes("event")
+        : join.left.includes("event")
         ? "events"
-        : left.includes("npc")
+        : join.left.includes("npc")
         ? "npcs"
-        : left.includes("location")
+        : join.left.includes("location")
         ? "locations"
         : "items"
-    ].get(row[left]);
+    ].get(row[join.left]);
 
-    const rightNew = idMaps[rightMap].get(row[right]);
+    const rightNew = idMaps[join.rightMap].get(row[join.right]);
 
     if (!leftNew || !rightNew) continue;
 
     await query(
-      `
-      INSERT INTO ${ident(table)} (${ident(left)}, ${ident(right)})
-      VALUES ($1, $2)
-      ON CONFLICT DO NOTHING
-      `,
+      `INSERT INTO ${join.table} (${join.left}, ${join.right}) VALUES ($1, $2)`,
       [leftNew, rightNew]
     );
   }
