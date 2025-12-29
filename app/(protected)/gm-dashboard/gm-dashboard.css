@@ -41,9 +41,11 @@
 ---------------------------------------- */
 .gm-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 1rem;
-  align-items: flex-start;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 /* ---------------------------------------
@@ -56,6 +58,7 @@
   display: flex;
   flex-direction: column;
   max-height: calc(100vh - 180px);
+min-width: 0;
 }
 
 .gm-column-header {
@@ -85,6 +88,7 @@
   padding: 0.4rem 0.5rem;
   cursor: pointer;
   transition: border-color 0.15s ease, background 0.15s ease;
+overflow-wrap: anywhere;
 }
 
 .gm-card:hover {
