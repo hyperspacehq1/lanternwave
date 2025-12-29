@@ -6,6 +6,15 @@ import JoinPanel from "@/components/JoinPanel";
 export default function EncounterForm({ record, onChange }) {
   if (!record) return null;
 
+  const [isPersisted, setIsPersisted] = useState(false);
+
+  // Mark as persisted once the encounter has a real ID
+  useEffect(() => {
+    if (record?.id) {
+      setIsPersisted(true);
+    }
+  }, [record?.id]);
+
   const update = (field, value) =>
     onChange({ ...record, [field]: value });
 
@@ -23,7 +32,7 @@ export default function EncounterForm({ record, onChange }) {
   return (
     <div className="cm-detail-form">
 
-      {/* 🔒 Locked campaign header */}
+      {/* Campaign Header */}
       <div className={`cm-campaign-header ${pulse ? "pulse" : ""}`}>
         Campaign: {record._campaignName || "Unnamed Campaign"}
       </div>
@@ -60,8 +69,8 @@ export default function EncounterForm({ record, onChange }) {
         />
       </div>
 
-      {/* ---------------- Join Panels ---------------- */}
-      {record.id && (
+      {/* ---------------- JOINED DATA ---------------- */}
+      {isPersisted ? (
         <>
           <JoinPanel
             title="NPCs in Encounter"
@@ -90,6 +99,10 @@ export default function EncounterForm({ record, onChange }) {
             labelField="name"
           />
         </>
+      ) : (
+        <div className="cm-muted-note">
+          Save the encounter to add NPCs, items, or locations.
+        </div>
       )}
     </div>
   );

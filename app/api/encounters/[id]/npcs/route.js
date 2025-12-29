@@ -3,11 +3,8 @@ import { query } from "@/lib/db";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 
 export const runtime = "nodejs";
-export const dynamic = "force-dynamic";;
+export const dynamic = "force-dynamic";
 
-/* -----------------------------------------------------------
-   GET /api/encounters/:id/npcs
------------------------------------------------------------- */
 export async function GET(req, { params }) {
   const { tenantId } = await getTenantContext(req);
   const encounterId = params.id;
@@ -15,25 +12,18 @@ export async function GET(req, { params }) {
   const { rows } = await query(
     `
     SELECT
-      en.id              AS encounter_npc_id,
+      en.id AS encounter_npc_id,
       en.role,
       en.initiative_order,
       en.is_hidden,
       en.notes,
       n.*
     FROM encounter_npcs en
-    JOIN npcs n
-      ON n.id = en.npc_id
-     AND n.deleted_at IS NULL
-     AND n.tenant_id = $2
-    JOIN encounters e
-      ON e.id = en.encounter_id
-     AND e.tenant_id = $2
-    WHERE en.encounter_id = $1
-      AND en.tenant_id = $2
-    ORDER BY
-      en.initiative_order NULLS LAST,
-      n.name ASC
+    JOIN npcs n ON n.id = en.npc_id
+    JOIN encounters e ON e.id = en.encounter_id
+    WHERE e.tenant_id = $2
+      AND en.encounter_id = $1
+    ORDER BY en.initiative_order NULLS LAST, n.name ASC
     `,
     [encounterId, tenantId]
   );
@@ -47,9 +37,6 @@ export async function GET(req, { params }) {
   );
 }
 
-/* -----------------------------------------------------------
-   POST /api/encounters/:id/npcs
------------------------------------------------------------- */
 export async function POST(req, { params }) {
   const { tenantId } = await getTenantContext(req);
   const encounterId = params.id;
@@ -57,6 +44,14 @@ export async function POST(req, { params }) {
 
   if (!body?.npc_id) {
     return Response.json({ error: "npc_id is required" }, { status: 400 });
+  }
+
+  const exists = await query(
+    `SELECT 1 FROM encounters WHERE id = $1 AND tenant_id = $2`,
+    [encounterId, tenantId]
+  );
+  if (!exists.rowCount) {
+    return Response.json({ error: "Encounter not found" }, { status: 404 });
   }
 
   const { rows } = await query(
@@ -94,9 +89,6 @@ export async function POST(req, { params }) {
   return Response.json(rows[0], { status: 201 });
 }
 
-/* -----------------------------------------------------------
-   DELETE /api/encounters/:id/npcs
------------------------------------------------------------- */
 export async function DELETE(req, { params }) {
   const { tenantId } = await getTenantContext(req);
   const encounterId = params.id;
@@ -116,5 +108,5 @@ export async function DELETE(req, { params }) {
     [tenantId, encounterId, body.npc_id]
   );
 
-  return Response.json({ ok: true }, { status: 200 });
+  return Response.json({ ok: true });
 }

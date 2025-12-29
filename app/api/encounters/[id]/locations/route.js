@@ -5,9 +5,6 @@ import { getTenantContext } from "@/lib/tenant/getTenantContext";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/* -----------------------------------------------------------
-   GET /api/encounters/:id/locations
------------------------------------------------------------- */
 export async function GET(req, { params }) {
   const { tenantId } = await getTenantContext(req);
   const encounterId = params.id;
@@ -15,44 +12,38 @@ export async function GET(req, { params }) {
   const { rows } = await query(
     `
     SELECT
-      el.id        AS join_id,
+      el.id AS join_id,
       el.location_id,
       l.name,
       el.notes,
       el.created_at
     FROM encounter_locations el
-    JOIN locations l
-      ON l.id = el.location_id
-     AND l.deleted_at IS NULL
-     AND l.tenant_id = $2
-    JOIN encounters e
-      ON e.id = el.encounter_id
-     AND e.tenant_id = $2
-    WHERE el.encounter_id = $1
-      AND el.tenant_id = $2
-    ORDER BY l.name ASC
+    JOIN locations l ON l.id = el.location_id
+    JOIN encounters e ON e.id = el.encounter_id
+    WHERE e.tenant_id = $2
+      AND el.encounter_id = $1
     `,
     [encounterId, tenantId]
   );
 
-  return Response.json(
-    sanitizeRows(rows, {
-      name: 120,
-      notes: 10000,
-    })
-  );
+  return Response.json(sanitizeRows(rows));
 }
 
-/* -----------------------------------------------------------
-   POST /api/encounters/:id/locations
------------------------------------------------------------- */
 export async function POST(req, { params }) {
   const { tenantId } = await getTenantContext(req);
   const encounterId = params.id;
   const body = await req.json();
 
-  if (!body.location_id) {
+  if (!body?.location_id) {
     return Response.json({ error: "location_id is required" }, { status: 400 });
+  }
+
+  const exists = await query(
+    `SELECT 1 FROM encounters WHERE id = $1 AND tenant_id = $2`,
+    [encounterId, tenantId]
+  );
+  if (!exists.rowCount) {
+    return Response.json({ error: "Encounter not found" }, { status: 404 });
   }
 
   const { rows } = await query(
@@ -65,9 +56,7 @@ export async function POST(req, { params }) {
     )
     VALUES ($1,$2,$3,$4)
     ON CONFLICT (tenant_id, encounter_id, location_id)
-    DO UPDATE SET
-      notes = EXCLUDED.notes,
-      updated_at = NOW()
+    DO UPDATE SET notes = EXCLUDED.notes, updated_at = NOW()
     RETURNING *
     `,
     [tenantId, encounterId, body.location_id, body.notes ?? null]
@@ -76,14 +65,10 @@ export async function POST(req, { params }) {
   return Response.json(rows[0], { status: 201 });
 }
 
-/* -----------------------------------------------------------
-   DELETE /api/encounters/:id/locations?location_id=
------------------------------------------------------------- */
 export async function DELETE(req, { params }) {
   const { tenantId } = await getTenantContext(req);
   const encounterId = params.id;
-  const { searchParams } = new URL(req.url);
-  const locationId = searchParams.get("location_id");
+  const locationId = new URL(req.url).searchParams.get("location_id");
 
   if (!locationId) {
     return Response.json({ error: "location_id is required" }, { status: 400 });
@@ -99,5 +84,5 @@ export async function DELETE(req, { params }) {
     [tenantId, encounterId, locationId]
   );
 
-  return Response.json({ ok: true }, { status: 200 });
+  return Response.json({ ok: true });
 }

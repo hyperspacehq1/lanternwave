@@ -15,7 +15,7 @@ export async function GET(req, { params }) {
   const { rows } = await query(
     `
     SELECT
-      ei.id        AS join_id,
+      ei.id AS join_id,
       ei.item_id,
       i.name,
       i.item_type,
@@ -25,24 +25,16 @@ export async function GET(req, { params }) {
     FROM encounter_items ei
     JOIN items i
       ON i.id = ei.item_id
-     AND i.deleted_at IS NULL
      AND i.tenant_id = $2
     JOIN encounters e
       ON e.id = ei.encounter_id
      AND e.tenant_id = $2
     WHERE ei.encounter_id = $1
-      AND ei.tenant_id = $2
-    ORDER BY i.name ASC
     `,
     [encounterId, tenantId]
   );
 
-  return Response.json(
-    sanitizeRows(rows, {
-      name: 120,
-      notes: 10000,
-    })
-  );
+  return Response.json(sanitizeRows(rows));
 }
 
 /* -----------------------------------------------------------
@@ -53,8 +45,17 @@ export async function POST(req, { params }) {
   const encounterId = params.id;
   const body = await req.json();
 
-  if (!body.item_id) {
+  if (!body?.item_id) {
     return Response.json({ error: "item_id is required" }, { status: 400 });
+  }
+
+  // Ensure encounter exists
+  const exists = await query(
+    `SELECT 1 FROM encounters WHERE id = $1 AND tenant_id = $2`,
+    [encounterId, tenantId]
+  );
+  if (!exists.rowCount) {
+    return Response.json({ error: "Encounter not found" }, { status: 404 });
   }
 
   const { rows } = await query(
@@ -70,30 +71,23 @@ export async function POST(req, { params }) {
     ON CONFLICT (tenant_id, encounter_id, item_id)
     DO UPDATE SET
       quantity = EXCLUDED.quantity,
-      notes    = EXCLUDED.notes,
+      notes = EXCLUDED.notes,
       updated_at = NOW()
     RETURNING *
     `,
-    [
-      tenantId,
-      encounterId,
-      body.item_id,
-      body.quantity ?? 1,
-      body.notes ?? null,
-    ]
+    [tenantId, encounterId, body.item_id, body.quantity ?? 1, body.notes ?? null]
   );
 
   return Response.json(rows[0], { status: 201 });
 }
 
 /* -----------------------------------------------------------
-   DELETE /api/encounters/:id/items?item_id=
+   DELETE /api/encounters/:id/items
 ------------------------------------------------------------ */
 export async function DELETE(req, { params }) {
   const { tenantId } = await getTenantContext(req);
   const encounterId = params.id;
-  const { searchParams } = new URL(req.url);
-  const itemId = searchParams.get("item_id");
+  const itemId = new URL(req.url).searchParams.get("item_id");
 
   if (!itemId) {
     return Response.json({ error: "item_id is required" }, { status: 400 });
@@ -109,5 +103,5 @@ export async function DELETE(req, { params }) {
     [tenantId, encounterId, itemId]
   );
 
-  return Response.json({ ok: true }, { status: 200 });
+  return Response.json({ ok: true });
 }

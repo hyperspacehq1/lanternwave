@@ -6,7 +6,7 @@ export default function JoinPanel({
   title,
   encounterId,
   campaignId,
-  joinPath,          // e.g. "npcs" | "items" | "locations"
+  joinPath,          // "npcs" | "items" | "locations"
   idField,           // npc_id | item_id | location_id
   labelField = "name"
 }) {
@@ -16,40 +16,55 @@ export default function JoinPanel({
   const [loading, setLoading] = useState(false);
 
   /* ----------------------------------------------------------
-     Load attached
+     Load attached records
   ---------------------------------------------------------- */
   useEffect(() => {
     if (!encounterId) return;
 
+    const controller = new AbortController();
+
     fetch(`/api/encounters/${encounterId}/${joinPath}`, {
       credentials: "include",
+      signal: controller.signal,
     })
       .then((r) => r.json())
-      .then(setAttached)
-      .catch(() => setAttached([]));
+      .then((data) => {
+        if (Array.isArray(data)) setAttached(data);
+      })
+      .catch(() => {});
+
+    return () => controller.abort();
   }, [encounterId, joinPath]);
 
   /* ----------------------------------------------------------
-     Load available (campaign scoped)
+     Load available records (campaign scoped)
   ---------------------------------------------------------- */
   useEffect(() => {
     if (!campaignId) return;
 
+    const controller = new AbortController();
+
     fetch(`/api/${joinPath}?campaign_id=${campaignId}`, {
       credentials: "include",
+      signal: controller.signal,
     })
       .then((r) => r.json())
-      .then(setAvailable)
-      .catch(() => setAvailable([]));
+      .then((data) => {
+        if (Array.isArray(data)) setAvailable(data);
+      })
+      .catch(() => {});
+
+    return () => controller.abort();
   }, [campaignId, joinPath]);
 
   /* ----------------------------------------------------------
      Attach
   ---------------------------------------------------------- */
   async function attach() {
-    if (!selectedId) return;
+    if (!selectedId || loading) return;
 
     setLoading(true);
+
     await fetch(`/api/encounters/${encounterId}/${joinPath}`, {
       method: "POST",
       credentials: "include",
@@ -62,7 +77,7 @@ export default function JoinPanel({
       { credentials: "include" }
     ).then((r) => r.json());
 
-    setAttached(refreshed);
+    setAttached(Array.isArray(refreshed) ? refreshed : []);
     setSelectedId("");
     setLoading(false);
   }
@@ -76,9 +91,7 @@ export default function JoinPanel({
       { method: "DELETE", credentials: "include" }
     );
 
-    setAttached((prev) =>
-      prev.filter((r) => r[idField] !== id)
-    );
+    setAttached((prev) => prev.filter((r) => r[idField] !== id));
   }
 
   return (
@@ -86,15 +99,14 @@ export default function JoinPanel({
       <h3>{title}</h3>
 
       <ul>
+        {attached.length === 0 && <li>None</li>}
+
         {attached.map((r) => (
           <li key={r[idField]}>
             {r[labelField]}
-            <button onClick={() => detach(r[idField])}>
-              Remove
-            </button>
+            <button onClick={() => detach(r[idField])}>Remove</button>
           </li>
         ))}
-        {attached.length === 0 && <li>None</li>}
       </ul>
 
       <div className="cm-join-add">
@@ -104,7 +116,11 @@ export default function JoinPanel({
         >
           <option value="">Add existing…</option>
           {available.map((r) => (
-            <option key={r.id} value={r.id}>
+            <option
+              key={r.id}
+              value={r.id}
+              disabled={attached.some(a => a[idField] === r.id)}
+            >
               {r[labelField]}
             </option>
           ))}
