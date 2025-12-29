@@ -38,23 +38,25 @@ export default function GMDashboardPage() {
   }, [selectedCampaign]);
 
   useEffect(() => {
-    if (!selectedSession) return;
+  if (!selectedSession || !selectedCampaign) return;
 
-    Promise.all([
-      fetch(`/api/events?session_id=${selectedSession.id}`).then(r => r.json()),
-      fetch(`/api/npcs?session_id=${selectedSession.id}`).then(r => r.json()),
-      fetch(`/api/encounters?session_id=${selectedSession.id}`).then(r => r.json()),
-      fetch(`/api/locations?session_id=${selectedSession.id}`).then(r => r.json()),
-      fetch(`/api/items?session_id=${selectedSession.id}`).then(r => r.json()),
-    ]).then(([events, npcs, encounters, locations, items]) => {
+  Promise.all([
+    fetch(`/api/events?session_id=${selectedSession.id}`).then(r => r.json()),
+    fetch(`/api/npcs?session_id=${selectedSession.id}`).then(r => r.json()),
+    fetch(`/api/encounters?session_id=${selectedSession.id}`).then(r => r.json()),
+
+    // FIX: these are campaign-scoped
+    fetch(`/api/locations?campaign_id=${selectedCampaign.id}`).then(r => r.json()),
+    fetch(`/api/items?campaign_id=${selectedCampaign.id}`).then(r => r.json()),
+  ])
+    .then(([events, npcs, encounters, locations, items]) => {
       setEvents(events || []);
       setNpcs(npcs || []);
       setEncounters(encounters || []);
       setLocations(locations || []);
       setItems(items || []);
     });
-  }, [selectedSession]);
-
+}, [selectedSession, selectedCampaign]);
   return (
     <div className="gm-page">
       <div className="gm-toolbar">
