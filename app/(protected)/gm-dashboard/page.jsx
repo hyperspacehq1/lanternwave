@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import "./gm-dashboard.css";
 
 /**
  * GM Dashboard
