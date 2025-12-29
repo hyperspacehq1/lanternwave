@@ -274,3 +274,68 @@
 .gm-column.gm-green .gm-column-header { color: #5fd18a; }
 .gm-column.gm-purple .gm-column-header { color: #a983d4; }
 .gm-column.gm-orange .gm-column-header { color: #d9a85b; }
+
+/* ---------------------------------------
+   Column Hover Glow
+---------------------------------------- */
+
+.gm-column {
+  transition: box-shadow 0.25s ease, border-color 0.25s ease;
+}
+
+.gm-column:hover {
+  box-shadow: 0 0 14px rgba(108, 196, 23, 0.18);
+}
+
+/* Color-specific glow refinement */
+.gm-column.gm-red:hover    { box-shadow: 0 0 16px rgba(180, 80, 80, 0.35); }
+.gm-column.gm-blue:hover   { box-shadow: 0 0 16px rgba(80, 120, 200, 0.35); }
+.gm-column.gm-green:hover  { box-shadow: 0 0 16px rgba(90, 190, 130, 0.35); }
+.gm-column.gm-purple:hover { box-shadow: 0 0 16px rgba(150, 110, 190, 0.35); }
+.gm-column.gm-orange:hover { box-shadow: 0 0 16px rgba(220, 160, 90, 0.35); }
+
+/* Card hover glow */
+.gm-card:hover {
+  box-shadow: 0 0 10px rgba(140, 220, 160, 0.25);
+}
+
+/* ---------------------------------------
+   Loading Overlay
+---------------------------------------- */
+
+.gm-loading-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(5, 10, 8, 0.65);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+  pointer-events: none;
+}
+
+.gm-loading-text {
+  margin-top: 12px;
+  font-size: 12px;
+  letter-spacing: 0.2em;
+  color: var(--lw-green-primary);
+  text-transform: uppercase;
+}
+
+/* Spinner */
+.gm-spinner {
+  width: 36px;
+  height: 36px;
+  border: 2px solid rgba(120, 200, 160, 0.25);
+  border-top-color: var(--lw-green-primary);
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+

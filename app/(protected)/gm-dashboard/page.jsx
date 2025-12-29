@@ -88,6 +88,13 @@ export default function GMDashboardPage() {
           ))}
         </select>
 
+{loading && (
+  <div className="gm-loading-overlay">
+    <div className="gm-spinner" />
+    <div className="gm-loading-text">Loading session data…</div>
+  </div>
+)}
+
         <div className="gm-toolbar-actions">
           <button onClick={() => setExpandAll(true)}>Expand All</button>
           <button onClick={() => setExpandAll(false)}>Collapse All</button>
