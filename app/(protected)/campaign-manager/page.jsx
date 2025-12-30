@@ -111,11 +111,12 @@ export default function CampaignManagerPage() {
       return;
     }
 
-    const base = {
-      id: uuidv4(),
-      _isNew: true,
-      campaign_id: activeCampaignId,
-    };
+const base = {
+  id: uuidv4(),
+  _isNew: true,
+  campaign_id: activeCampaignId,
+  name: `New ${activeType.slice(0, -1)}`
+};
 
     if (activeType === "events") {
       base.session_id = activeSessionId;
@@ -140,19 +141,21 @@ export default function CampaignManagerPage() {
     const { _isNew, id, ...payload } = selectedRecord;
 
     const saved = _isNew
-      ? await cmApi.create(activeType, payload)
-      : await cmApi.update(activeType, id, payload);
+  ? await cmApi.create(activeType, payload)
+  : await cmApi.update(activeType, id, payload);
 
-    setRecords((p) => ({
-      ...p,
-      [activeType]: p[activeType].map((r) =>
-        r.id === saved.id ? saved : r
-      ),
-    }));
+// Re-fetch authoritative version from server
+const refreshed = await cmApi.get(activeType, saved.id);
 
-    setSelectedRecord(saved);
-    setSaveStatus("saved");
-  };
+setRecords((p) => ({
+  ...p,
+  [activeType]: p[activeType].map((r) =>
+    r.id === refreshed.id ? refreshed : r
+  ),
+}));
+
+setSelectedRecord(refreshed);
+setSaveStatus("saved");
 
   /* ------------------ DELETE ------------------ */
   const handleDelete = async () => {
