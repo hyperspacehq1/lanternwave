@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
 
 import { cmApi } from "@/lib/cm/api";
@@ -45,14 +45,11 @@ export default function CampaignManagerPage() {
   const [activeCampaignId, setActiveCampaignId] = useState(null);
   const [activeSessionId, setActiveSessionId] = useState(null);
 
-  const [searchTerm, setSearchTerm] = useState("");
-
   /* ------------------ LOAD CAMPAIGNS ------------------ */
   useEffect(() => {
     cmApi.list("campaigns").then(setCampaigns);
   }, []);
 
-  /* Auto-select first campaign */
   useEffect(() => {
     if (!activeCampaignId && campaigns.length) {
       setActiveCampaignId(campaigns[0].id);
@@ -74,9 +71,7 @@ export default function CampaignManagerPage() {
 
       let list = [];
       if (rules.campaign) {
-        const res = await fetch(
-          `/api/${activeType}?campaign_id=${activeCampaignId}`
-        );
+        const res = await fetch(`/api/${activeType}?campaign_id=${activeCampaignId}`);
         list = await res.json();
       } else {
         list = await cmApi.list(activeType);
@@ -87,7 +82,6 @@ export default function CampaignManagerPage() {
         setSelectedId(list?.[0]?.id ?? null);
         setSelectedRecord(list?.[0] ?? null);
 
-        // AUTO-SELECT FIRST SESSION
         if (activeType === "sessions" && list.length) {
           setActiveSessionId(list[0].id);
         }
@@ -100,8 +94,6 @@ export default function CampaignManagerPage() {
     return () => (cancelled = true);
   }, [activeType, activeCampaignId]);
 
-  const activeList = records[activeType] || [];
-
   /* ------------------ CREATE ------------------ */
   const handleCreate = () => {
     if (loading) return;
@@ -111,16 +103,14 @@ export default function CampaignManagerPage() {
       return;
     }
 
-const base = {
-  id: uuidv4(),
-  _isNew: true,
-  campaign_id: activeCampaignId,
-  name: `New ${activeType.slice(0, -1)}`
-};
+    const base = {
+      id: uuidv4(),
+      _isNew: true,
+      campaign_id: activeCampaignId,
+      name: `New ${activeType.slice(0, -1)}`,
+    };
 
-    if (activeType === "events") {
-      base.session_id = activeSessionId;
-    }
+    if (activeType === "events") base.session_id = activeSessionId;
 
     setRecords((p) => ({
       ...p,
@@ -155,21 +145,17 @@ const base = {
 
     setSelectedRecord(refreshed);
     setSaveStatus("saved");
-  };  // ← THIS WAS MISSING
+  };
 
   /* ------------------ DELETE ------------------ */
   const handleDelete = async () => {
-    ...
-  };
     if (!selectedRecord?.id || loading) return;
 
     await cmApi.remove(activeType, selectedRecord.id);
 
     setRecords((p) => ({
       ...p,
-      [activeType]: p[activeType].filter(
-        (r) => r.id !== selectedRecord.id
-      ),
+      [activeType]: p[activeType].filter((r) => r.id !== selectedRecord.id),
     }));
 
     setSelectedRecord(null);
@@ -226,9 +212,6 @@ const base = {
                   onClick={() => {
                     setSelectedId(r.id);
                     setSelectedRecord(r);
-                    if (activeType === "sessions") {
-                      setActiveSessionId(r.id);
-                    }
                   }}
                 >
                   {r.name || "Unnamed"}
