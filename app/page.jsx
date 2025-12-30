@@ -1,8 +1,14 @@
-export default function Home() {
+export default function Page() {
   return (
-    <main style={{ padding: 40 }}>
-      <h1>LanternWave is Live</h1>
-      <p>If you see this, your deployment works.</p>
-    </main>
+    <html>
+      <head>
+        <title>Next.js Test</title>
+      </head>
+      <body style={{ fontFamily: "sans-serif", padding: "40px" }}>
+        <h1>✅ Next.js is Running</h1>
+        <p>If you can see this, the server and routing are working.</p>
+        <p>Time: {new Date().toISOString()}</p>
+      </body>
+    </html>
   );
 }
