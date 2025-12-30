@@ -1,0 +1,51 @@
+.gm-tools-root {
+  display: flex;
+  height: 100%;
+  color: #c8f7ff;
+  font-family: var(--font-muther, monospace);
+}
+
+.gm-tools-nav {
+  width: 180px;
+  border-right: 2px solid #2a84a6;
+  padding: 20px;
+}
+
+.gm-tools-title {
+  font-size: 18px;
+  margin-bottom: 16px;
+  color: #87e8ff;
+}
+
+.gm-tools-btn {
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 1px solid #2a84a6;
+  padding: 8px 10px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  color: #bdf4ff;
+}
+
+.gm-tools-btn:hover {
+  background: #063b49;
+}
+
+.gm-tools-btn.active {
+  background: #0b5165;
+  border-color: #5ccfed;
+}
+
+.gm-tools-panel {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.gm-tool-placeholder {
+  opacity: 0.65;
+  font-style: italic;
+  padding: 20px;
+  border-left: 2px dashed #3ea7c4;
+}
