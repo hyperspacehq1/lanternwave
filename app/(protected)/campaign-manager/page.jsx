@@ -141,24 +141,26 @@ const base = {
     const { _isNew, id, ...payload } = selectedRecord;
 
     const saved = _isNew
-  ? await cmApi.create(activeType, payload)
-  : await cmApi.update(activeType, id, payload);
+      ? await cmApi.create(activeType, payload)
+      : await cmApi.update(activeType, id, payload);
 
-// Re-fetch authoritative version from server
-const refreshed = await cmApi.get(activeType, saved.id);
+    const refreshed = await cmApi.get(activeType, saved.id);
 
-setRecords((p) => ({
-  ...p,
-  [activeType]: p[activeType].map((r) =>
-    r.id === refreshed.id ? refreshed : r
-  ),
-}));
+    setRecords((p) => ({
+      ...p,
+      [activeType]: p[activeType].map((r) =>
+        r.id === refreshed.id ? refreshed : r
+      ),
+    }));
 
-setSelectedRecord(refreshed);
-setSaveStatus("saved");
+    setSelectedRecord(refreshed);
+    setSaveStatus("saved");
+  };  // ← THIS WAS MISSING
 
   /* ------------------ DELETE ------------------ */
   const handleDelete = async () => {
+    ...
+  };
     if (!selectedRecord?.id || loading) return;
 
     await cmApi.remove(activeType, selectedRecord.id);
