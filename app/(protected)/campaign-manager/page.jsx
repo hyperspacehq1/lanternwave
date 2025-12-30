@@ -202,22 +202,22 @@ export default function CampaignManagerPage() {
           </div>
 
           <div className="cm-content">
-            <section className="cm-list">
-              {activeList.map((r) => (
-                <div
-                  key={r.id}
-                  className={`cm-list-item ${
-                    r.id === selectedId ? "selected" : ""
-                  }`}
-                  onClick={() => {
-                    setSelectedId(r.id);
-                    setSelectedRecord(r);
-                  }}
-                >
-                  {r.name || "Unnamed"}
-                </div>
-              ))}
-            </section>
+            const activeList = records[activeType] || [];
+
+<section className="cm-list">
+  {activeList.map((r) => (
+    <div
+      key={r.id}
+      className={`cm-list-item ${r.id === selectedId ? "selected" : ""}`}
+      onClick={() => {
+        setSelectedId(r.id);
+        setSelectedRecord(r);
+      }}
+    >
+      {r.name || "Unnamed"}
+    </div>
+  ))}
+</section>
 
             <section className="cm-detail">
               {selectedRecord ? (
