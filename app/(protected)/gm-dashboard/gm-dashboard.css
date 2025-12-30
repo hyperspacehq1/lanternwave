@@ -1,0 +1,224 @@
+/* =========================================================
+   GM DASHBOARD
+   Extends global LanternWave styles (no overrides)
+========================================================= */
+
+.gm-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 1rem;
+  gap: 1rem;
+  color: var(--lw-text-main);
+}
+
+/* ---------------------------------------
+   Toolbar
+---------------------------------------- */
+.gm-toolbar {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.gm-toolbar select {
+  background: #000;
+  color: var(--lw-green-muted);
+  border: 1px solid var(--lw-border-muted);
+  padding: 0.4rem 0.6rem;
+  font-family: var(--font-terminal);
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.gm-toolbar select:focus {
+  outline: none;
+  border-color: var(--lw-green-primary);
+}
+
+/* ---------------------------------------
+   Grid Layout
+---------------------------------------- */
+.gm-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+/* ---------------------------------------
+   Column
+---------------------------------------- */
+.gm-column {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--lw-border-muted);
+  padding: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 180px);
+}
+
+.gm-column-header {
+  font-family: var(--font-terminal);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.25rem;
+  border-bottom: 1px solid var(--lw-border-muted);
+}
+
+/* Column color accents */
+.gm-red { border-color: #7a1f1f; }
+.gm-blue { border-color: #1f4a7a; }
+.gm-green { border-color: #1f7a3d; }
+.gm-purple { border-color: #5b2a7a; }
+.gm-orange { border-color: #7a4a1f; }
+
+/* ---------------------------------------
+   Cards
+---------------------------------------- */
+.gm-card {
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom: 0.5rem;
+  padding: 0.4rem 0.5rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.gm-card:hover {
+  border-color: var(--lw-green-primary);
+}
+
+.gm-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.gm-card-body {
+  margin-top: 0.5rem;
+  font-size: 11px;
+  color: var(--lw-green-muted);
+  white-space: pre-wrap;
+  line-height: 1.35;
+}
+
+/* ---------------------------------------
+   Utility
+---------------------------------------- */
+.gm-loading {
+  margin-top: 1rem;
+  font-family: var(--font-terminal);
+  opacity: 0.6;
+}
+
+/* ---------------------------------------
+   Expand / Collapse Animation
+---------------------------------------- */
+
+.gm-card {
+  overflow: hidden;
+  transition: border-color 0.2s ease;
+}
+
+.gm-card-header {
+  cursor: pointer;
+  user-select: none;
+}
+
+.gm-card-toggle {
+  font-weight: bold;
+  opacity: 0.8;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.gm-card.is-open .gm-card-toggle {
+  transform: rotate(180deg);
+  opacity: 1;
+}
+
+/* Wrapper animates height */
+.gm-card-body-wrapper {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.35s ease, opacity 0.25s ease;
+  opacity: 0;
+}
+
+.gm-card.is-open .gm-card-body-wrapper {
+  max-height: 800px; /* large enough for content */
+  opacity: 1;
+}
+
+/* Inner content */
+.gm-card-body {
+  padding-top: 0.5rem;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--lw-green-muted);
+}
+/* Smooth animated expand/collapse */
+.gm-card {
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(0, 0, 0, 0.55);
+  margin-bottom: 0.5rem;
+  transition: border-color 0.2s ease;
+}
+
+.gm-card:hover {
+  border-color: var(--lw-green-primary);
+}
+
+.gm-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  padding: 0.4rem 0.6rem;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.gm-card-toggle {
+  transition: transform 0.25s ease, opacity 0.2s ease;
+}
+
+.gm-card.is-open .gm-card-toggle {
+  transform: rotate(180deg);
+}
+
+.gm-card-body-wrapper {
+  overflow: hidden;
+  transition: max-height 0.35s ease, opacity 0.25s ease;
+}
+
+.gm-card-body {
+  padding: 0.5rem;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--lw-green-muted);
+}
+
+/* Drag interaction */
+.gm-drag-wrapper {
+  cursor: grab;
+}
+
+.gm-drag-wrapper:active {
+  cursor: grabbing;
+}
+
+.gm-drag-wrapper.dragging {
+  opacity: 0.5;
+}
+
+/* Optional hover cue */
+.gm-drag-wrapper:hover {
+  outline: 1px dashed rgba(255, 255, 255, 0.15);
+}
+

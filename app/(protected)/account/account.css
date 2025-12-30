@@ -1,0 +1,86 @@
+.account-page {
+  width: 100%;
+  min-height: 100%;
+  background: transparent;
+}
+
+.account-content {
+  padding: 2rem 1.5rem;
+  max-width: 720px;
+}
+
+.account-title {
+  font-family: var(--font-terminal);
+  font-size: 13px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--lw-green-muted);
+  margin-bottom: 1.5rem;
+}
+
+.account-status {
+  color: var(--lw-green-muted);
+  font-size: 12px;
+}
+
+.account-error {
+  color: #ff6b6b;
+  font-size: 12px;
+  margin-top: 0.75rem;
+}
+
+.account-panel {
+  border: 1px solid var(--lw-border-muted);
+  border-radius: 10px;
+  padding: 1.25rem;
+  background: transparent;
+}
+
+.account-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--lw-border-muted);
+}
+
+.account-row:last-child {
+  border-bottom: none;
+}
+
+.account-label {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--lw-green-muted);
+  font-family: var(--font-terminal);
+}
+
+.account-value {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--lw-text-main);
+}
+.account-skeleton .skeleton-box {
+  display: inline-block;
+  height: 1em;
+  background: linear-gradient(
+    90deg,
+    #2a2a2a 25%,
+    #3a3a3a 37%,
+    #2a2a2a 63%
+  );
+  background-size: 400% 100%;
+  animation: skeleton 1.4s ease infinite;
+  border-radius: 4px;
+}
+
+.account-skeleton .skeleton-box.wide {
+  width: 160px;
+}
+
+@keyframes skeleton {
+  0% { background-position: 100% 0; }
+  100% { background-position: 0 0; }
+}
+

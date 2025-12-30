@@ -1,0 +1,294 @@
+/* ============================================================
+   CONTROLLER PAGE STYLES (SCOPED)
+   IMPORTANT:
+   - NO body / html / :root styles
+   - NO header / nav styles
+   - Everything scoped under .lw-main
+============================================================ */
+
+.lw-main .lw-console {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1.1fr 1.4fr 1.1fr;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  align-items: start;
+}
+
+/* ------------------------------
+   PANELS
+------------------------------ */
+.lw-main .lw-panel {
+  background: rgba(0, 0, 0, 0.85);
+  border: 1px solid var(--lw-border-muted);
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.lw-main .lw-panel-title {
+  font-family: var(--font-terminal);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: var(--lw-green-muted);
+  border-bottom: 1px solid var(--lw-border-muted);
+  padding-bottom: 0.35rem;
+  margin-bottom: 0.25rem;
+}
+
+/* ------------------------------
+   FILE UPLOAD
+------------------------------ */
+.lw-main .lw-file-button {
+  position: relative;
+  display: inline-block;
+  border: 1px dashed var(--lw-border-muted);
+  border-radius: 6px;
+  padding: 0.6rem 0.8rem;
+  font-family: var(--font-terminal);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: var(--lw-green-muted);
+  cursor: pointer;
+}
+
+.lw-main .lw-file-button:hover {
+  border-color: var(--lw-green-primary);
+  color: var(--lw-green-primary);
+}
+
+.lw-main .lw-file-button input {
+  display: none;
+}
+
+/* ------------------------------
+   UPLOAD PROGRESS (FIXED)
+------------------------------ */
+.lw-upload-progress {
+  margin-top: 6px;
+  width: 100%;
+  height: 6px;
+  background: #1a1a1a;
+  border: 1px solid var(--lw-border-muted);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.lw-upload-progress-fill {
+  height: 100%;
+  background: var(--lw-green-primary);
+  transition: width 0.15s linear;
+}
+
+/* ------------------------------
+   STATUS / ERROR TEXT
+------------------------------ */
+.lw-upload-error {
+  margin-top: 6px;
+  font-size: 11px;
+  color: #ff5a5a;
+  animation: pulseFade 4s ease-in-out;
+}
+
+.lw-upload-warning {
+  margin-top: 6px;
+  font-size: 11px;
+  color: #f5c26b;
+  animation: pulseFade 4s ease-in-out;
+}
+
+/* ------------------------------
+   CLIP LIST
+------------------------------ */
+.lw-main .lw-clip-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.lw-main .lw-clip-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.45rem;
+  border: 1px solid var(--lw-border-muted);
+  background: rgba(0, 0, 0, 0.75);
+}
+
+.lw-main .lw-clip-row-active {
+  border-color: var(--lw-green-primary);
+  box-shadow: 0 0 0 1px var(--lw-green-primary) inset;
+}
+
+.lw-main .lw-clip-main {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  overflow: hidden;
+}
+
+.lw-main .lw-clip-type {
+  font-family: var(--font-terminal);
+  font-size: 9px;
+  color: var(--lw-green-muted);
+}
+
+.lw-main .lw-clip-name {
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ------------------------------
+   CLIP ACTIONS
+------------------------------ */
+.lw-main .lw-clip-actions {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.lw-main .lw-btn {
+  background: transparent;
+  border: 1px solid var(--lw-border-muted);
+  border-radius: 4px;
+  padding: 0.2rem 0.45rem;
+  font-family: var(--font-terminal);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  color: var(--lw-green-muted);
+  cursor: pointer;
+}
+
+.lw-main .lw-btn:hover {
+  border-color: var(--lw-green-primary);
+  color: var(--lw-green-primary);
+}
+
+.lw-main .lw-btn-danger:hover {
+  border-color: red;
+  color: red;
+}
+
+/* ------------------------------
+   PREVIEW
+------------------------------ */
+.lw-main .lw-preview-frame {
+  width: 100%;
+  height: 100%;
+  min-height: 180px;
+  border: 1px solid var(--lw-border-muted);
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lw-main .lw-preview-placeholder {
+  font-family: var(--font-terminal);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: var(--lw-green-muted);
+  opacity: 0.6;
+}
+
+/* ------------------------------
+   AUDIO VISUALIZER
+------------------------------ */
+.lw-audio-visual {
+  display: flex;
+  gap: 6px;
+  align-items: flex-end;
+  justify-content: center;
+  height: 80px;
+  width: 100%;
+}
+
+.lw-audio-bar {
+  width: 6px;
+  height: 16px;
+  border: 1px solid rgba(108, 197, 240, 0.6);
+  background: rgba(108, 197, 240, 0.15);
+  box-shadow: 0 0 12px rgba(108, 197, 240, 0.25);
+  animation: lwEqualize 1.15s infinite ease-in-out;
+}
+
+.lw-audio-bar:nth-child(2) { animation-delay: -1s; }
+.lw-audio-bar:nth-child(3) { animation-delay: -0.85s; }
+.lw-audio-bar:nth-child(4) { animation-delay: -0.7s; }
+.lw-audio-bar:nth-child(5) { animation-delay: -0.55s; }
+
+@keyframes lwEqualize {
+  0% { height: 12px; opacity: 0.45; }
+  50% { height: 72px; opacity: 1; }
+  100% { height: 12px; opacity: 0.45; }
+}
+
+@keyframes pulseFade {
+  0% { opacity: 0; }
+  10% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* === FORCE LOOP BUTTON COLOR + ACTIVE STATE === */
+.lw-btn.loop-btn {
+  color: #6cc5f0 !important;
+  border-color: #6cc5f0 !important;
+}
+
+.lw-btn.loop-btn:hover {
+  color: #6cc5f0;
+  border-color: #6cc5f0;
+}
+
+/* Active / playing state */
+.lw-btn.loop-btn.active {
+  color: #6cc5f0;
+  border-color: #6cc5f0;
+  box-shadow: 0 0 6px rgba(108, 197, 240, 0.6);
+}
+
+/* Fallback: if someone forgets lw-btn again */
+.loop-btn {
+  background: transparent;
+  border: 1px solid var(--lw-border-muted);
+  border-radius: 4px;
+  padding: 0.2rem 0.45rem;
+  font-family: var(--font-terminal);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  color: var(--lw-green-muted);
+  cursor: pointer;
+}
+
+.lw-btn.loop-btn.active {
+  animation: loopPulse 1.4s ease-in-out infinite;
+}
+
+@keyframes loopPulse {
+  0%   { box-shadow: 0 0 4px rgba(108,197,240,0.4); }
+  50%  { box-shadow: 0 0 10px rgba(108,197,240,0.9); }
+  100% { box-shadow: 0 0 4px rgba(108,197,240,0.4); }
+}
+
+/* Active / playing state (animate + glow) */
+.lw-btn.loop-btn.active {
+  color: #6cc5f0;
+  border-color: #6cc5f0;
+  box-shadow: 0 0 10px rgba(108, 197, 240, 0.8);
+  animation: loopPulse 1.4s ease-in-out infinite, loopSpin 1.2s linear infinite;
+  will-change: box-shadow, transform;
+}
+
+@keyframes loopSpin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+
+
+
+
