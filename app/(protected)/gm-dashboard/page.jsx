@@ -280,7 +280,7 @@ export default function GMDashboardPage() {
         <div className="gm-controls" style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
           <button
             type="button"
-className="gm-card-action-btn"
+            className="gm-card-action-btn"
             onClick={() => setExpandAll(true)}
             disabled={!canUseSession}
             aria-label="Expand all cards"
@@ -291,7 +291,7 @@ className="gm-card-action-btn"
 
           <button
             type="button"
-className="gm-card-action-btn"
+            className="gm-card-action-btn"
             onClick={() => setExpandAll(false)}
             disabled={!canUseSession}
             aria-label="Collapse all cards"
@@ -302,7 +302,7 @@ className="gm-card-action-btn"
 
           <button
             type="button"
-className="gm-card-action-btn"
+            className="gm-card-action-btn"
             onClick={resetToDefault}
             aria-label="Reset dashboard view to default"
             title="Reset to default"
