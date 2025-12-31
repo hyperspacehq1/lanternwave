@@ -5,8 +5,20 @@ import React, { useEffect, useState } from "react";
 export default function PlayerCharacterForm({ record, onChange }) {
   if (!record) return null;
 
-  const update = (field, value) =>
-    onChange({ ...record, [field]: value });
+  // Always preserve campaign_id no matter what
+  const campaignId =
+    record.campaign_id ||
+    record.campaignId ||
+    record._campaignId ||
+    null;
+
+  const update = (field, value) => {
+    onChange({
+      ...record,
+      campaign_id: campaignId, // 🔒 ALWAYS INCLUDE
+      [field]: value,
+    });
+  };
 
   /* ---------------------------------------------
      Campaign change pulse
@@ -21,12 +33,12 @@ export default function PlayerCharacterForm({ record, onChange }) {
 
   return (
     <div className="cm-detail-form">
-
-      {/* 🔒 Locked campaign header */}
+      {/* Campaign display */}
       <div className={`cm-campaign-header ${pulse ? "pulse" : ""}`}>
         Campaign: {record._campaignName || "Unnamed Campaign"}
       </div>
 
+      {/* FIRST NAME */}
       <div className="cm-field">
         <label className="cm-label">
           First Name <strong>(required)</strong>
@@ -39,6 +51,7 @@ export default function PlayerCharacterForm({ record, onChange }) {
         />
       </div>
 
+      {/* LAST NAME */}
       <div className="cm-field">
         <label className="cm-label">
           Last Name <strong>(required)</strong>
@@ -51,7 +64,7 @@ export default function PlayerCharacterForm({ record, onChange }) {
         />
       </div>
 
-      {/* ✅ NEW: Character Name */}
+      {/* CHARACTER NAME (OPTIONAL) */}
       <div className="cm-field">
         <label className="cm-label">Character Name</label>
         <input
@@ -63,6 +76,7 @@ export default function PlayerCharacterForm({ record, onChange }) {
         />
       </div>
 
+      {/* PHONE */}
       <div className="cm-field">
         <label className="cm-label">Phone</label>
         <input
@@ -73,6 +87,7 @@ export default function PlayerCharacterForm({ record, onChange }) {
         />
       </div>
 
+      {/* EMAIL */}
       <div className="cm-field">
         <label className="cm-label">Email</label>
         <input
@@ -83,6 +98,7 @@ export default function PlayerCharacterForm({ record, onChange }) {
         />
       </div>
 
+      {/* NOTES */}
       <div className="cm-field">
         <label className="cm-label">Notes</label>
         <textarea
