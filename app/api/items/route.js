@@ -1,4 +1,4 @@
-import { sanitizeRow } from "@/lib/api/sanitize";
+import { sanitizeRow, sanitizeRows } from "@/lib/api/sanitize";
 import { query } from "@/lib/db";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 
@@ -8,21 +8,8 @@ export const dynamic = "force-dynamic";
 /* -------------------------------------------------
    Helpers
 -------------------------------------------------- */
-function normalizeProperties(input) {
-  if (input == null || input === "") return null;
-
-  if (typeof input === "object") return input;
-
-  try {
-    const parsed = JSON.parse(input);
-    if (typeof parsed === "object") return parsed;
-  } catch {}
-
-  return {
-    text: String(input).trim(),
-    source: "human",
-    updated_at: new Date().toISOString(),
-  };
+function pick(body, camel, snake) {
+  return body[camel] ?? body[snake];
 }
 
 /* -----------------------------------------------------------
@@ -34,18 +21,17 @@ export async function GET(req) {
 
   const id = searchParams.get("id");
   const sessionId = searchParams.get("session_id");
-  let campaignId = searchParams.get("campaign_id");
+let campaignId = searchParams.get("campaign_id");
 
-  // Resolve campaign from session if needed
-  if (!campaignId && sessionId) {
-    const { rows } = await query(
-      `SELECT campaign_id FROM sessions WHERE id = $1`,
-      [sessionId]
-    );
-    campaignId = rows[0]?.campaign_id;
-  }
+if (!campaignId && sessionId) {
+  const { rows } = await query(
+    `SELECT campaign_id FROM sessions WHERE id = $1`,
+    [sessionId]
+  );
+  campaignId = rows[0]?.campaign_id;
+}
 
-  // Fetch single item
+
   if (id) {
     const { rows } = await query(
       `
@@ -54,6 +40,7 @@ export async function GET(req) {
        WHERE tenant_id = $1
          AND id = $2
          AND deleted_at IS NULL
+       LIMIT 1
       `,
       [tenantId, id]
     );
@@ -62,6 +49,7 @@ export async function GET(req) {
       rows[0]
         ? sanitizeRow(rows[0], {
             name: 120,
+            itemType: 50,
             description: 10000,
             notes: 10000,
             properties: 20000,
@@ -70,7 +58,6 @@ export async function GET(req) {
     );
   }
 
-  // If we still don't have a campaign, return empty list
   if (!campaignId) {
     return Response.json([]);
   }
@@ -88,8 +75,9 @@ export async function GET(req) {
   );
 
   return Response.json(
-    sanitizeRow(rows, {
+    sanitizeRows(rows, {
       name: 120,
+      itemType: 50,
       description: 10000,
       notes: 10000,
       properties: 20000,
@@ -104,44 +92,52 @@ export async function POST(req) {
   const { tenantId } = await getTenantContext(req);
   const body = await req.json();
 
-  const campaignId = body.campaign_id ?? body.campaignId;
+  const campaignId = body.campaign_id ?? body.campaignId ?? null;
+  const name = body.name?.trim();
+
   if (!campaignId) {
-    return Response.json({ error: "campaign_id is required" }, { status: 400 });
+    return Response.json(
+      { error: "campaign_id is required" },
+      { status: 400 }
+    );
   }
 
-  const name = body.name?.trim();
   if (!name) {
-    return Response.json({ error: "name is required" }, { status: 400 });
+    return Response.json(
+      { error: "name is required" },
+      { status: 400 }
+    );
   }
 
   const { rows } = await query(
-    `
-    INSERT INTO items (
-      tenant_id,
-      campaign_id,
-      name,
-      item_type,
-      description,
-      notes,
-      properties
-    )
-    VALUES ($1,$2,$3,$4,$5,$6,$7)
-    RETURNING *
-    `,
-    [
-      tenantId,
-      campaignId,
-      name,
-      body.itemType ?? body.item_type ?? null,
-      body.description ?? null,
-      body.notes ?? null,
-      normalizeProperties(body.properties),
-    ]
-  );
+  `
+  INSERT INTO items (
+    tenant_id,
+    campaign_id,
+    name,
+    item_type,
+    description,
+    notes,
+    properties
+  )
+  VALUES ($1,$2,$3,$4,$5,$6,$7)
+  RETURNING *
+  `,
+  [
+    tenantId,
+    campaignId,
+    name,
+    body.itemType ?? body.item_type ?? null,
+    body.description ?? null,
+    body.notes ?? null,
+    body.properties ?? null, // ✅ FIX
+  ]
+);
 
   return Response.json(
     sanitizeRow(rows[0], {
       name: 120,
+      itemType: 50,
       description: 10000,
       notes: 10000,
       properties: 20000,
@@ -163,18 +159,25 @@ export async function PUT(req) {
     return Response.json({ error: "id required" }, { status: 400 });
   }
 
+  if ("name" in body && (!body.name || !body.name.trim())) {
+    return Response.json(
+      { error: "name cannot be blank" },
+      { status: 400 }
+    );
+  }
+
   const sets = [];
   const values = [tenantId, id];
   let i = 3;
 
   if (body.name !== undefined) {
     sets.push(`name = $${i++}`);
-    values.push(body.name);
+    values.push(body.name.trim());
   }
 
-  if (body.itemType !== undefined) {
+  if (body.itemType !== undefined || body.item_type !== undefined) {
     sets.push(`item_type = $${i++}`);
-    values.push(body.itemType);
+    values.push(body.itemType ?? body.item_type);
   }
 
   if (body.description !== undefined) {
@@ -187,13 +190,16 @@ export async function PUT(req) {
     values.push(body.notes);
   }
 
-  if (body.properties !== undefined) {
-    sets.push(`properties = $${i++}`);
-    values.push(normalizeProperties(body.properties));
-  }
+if (body.properties !== undefined) {
+  sets.push(`properties = $${i++}`);
+  values.push(body.properties ?? null); // ✅ FIX
+}
 
   if (!sets.length) {
-    return Response.json({ error: "No valid fields provided" }, { status: 400 });
+    return Response.json(
+      { error: "No valid fields provided" },
+      { status: 400 }
+    );
   }
 
   const { rows } = await query(
@@ -213,6 +219,7 @@ export async function PUT(req) {
     rows[0]
       ? sanitizeRow(rows[0], {
           name: 120,
+          itemType: 50,
           description: 10000,
           notes: 10000,
           properties: 20000,
@@ -222,7 +229,7 @@ export async function PUT(req) {
 }
 
 /* -----------------------------------------------------------
-   DELETE /api/items?id=
+   DELETE /api/items?id=   (SOFT DELETE)
 ------------------------------------------------------------ */
 export async function DELETE(req) {
   const { tenantId } = await getTenantContext(req);
@@ -250,6 +257,7 @@ export async function DELETE(req) {
     rows[0]
       ? sanitizeRow(rows[0], {
           name: 120,
+          itemType: 50,
           description: 10000,
           notes: 10000,
           properties: 20000,
