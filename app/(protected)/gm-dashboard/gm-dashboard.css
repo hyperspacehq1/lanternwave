@@ -89,19 +89,12 @@
   padding: 0.4rem 0.5rem;
   cursor: pointer;
   transition: border-color 0.15s ease, background 0.15s ease;
+  overflow: hidden;
+  transition: border-color 0.2s ease;
 }
 
 .gm-card:hover {
   border-color: var(--lw-green-primary);
-}
-
-.gm-card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
 }
 
 .gm-card-body {
@@ -124,16 +117,6 @@
 /* ---------------------------------------
    Expand / Collapse Animation
 ---------------------------------------- */
-
-.gm-card {
-  overflow: hidden;
-  transition: border-color 0.2s ease;
-}
-
-.gm-card-header {
-  cursor: pointer;
-  user-select: none;
-}
 
 .gm-card-toggle {
   font-weight: bold;
@@ -186,6 +169,8 @@
   padding: 0.4rem 0.6rem;
   font-size: 12px;
   font-weight: 600;
+  cursor: pointer;
+  user-select: none;
 }
 
 .gm-card-toggle {
@@ -194,18 +179,6 @@
 
 .gm-card.is-open .gm-card-toggle {
   transform: rotate(180deg);
-}
-
-.gm-card-body-wrapper {
-  overflow: hidden;
-  transition: max-height 0.35s ease, opacity 0.25s ease;
-}
-
-.gm-card-body {
-  padding: 0.5rem;
-  font-size: 11px;
-  line-height: 1.4;
-  color: var(--lw-green-muted);
 }
 
 /* Drag interaction */
