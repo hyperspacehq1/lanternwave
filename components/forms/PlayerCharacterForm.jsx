@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { withContext } from "@/lib/forms/withContext";
 
-export default function PlayerCharacterForm({ record, onChange }) {
+export default function PlayerCharacterForm({ record, campaignName }) {
   if (!record) return null;
 
   // Always preserve campaign_id (and session_id if ever added)

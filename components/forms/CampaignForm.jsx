@@ -47,11 +47,11 @@ export default function CampaignForm({ record, onChange }) {
   return (
     <div className="cm-detail-form">
 
-     {/* 🔒 Locked campaign + session header */}
-<div className={`cm-campaign-header ${pulse ? "pulse" : ""}`}>
+    <div className={`cm-campaign-header ${pulse ? "pulse" : ""}`}>
   <div className="cm-context-line">
     Campaign: {record._campaignName || "Unnamed Campaign"}
   </div>
+</div>
 
   <div className="cm-context-line">
     Session: {record.name || "Unnamed Session"}

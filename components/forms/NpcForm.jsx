@@ -13,7 +13,7 @@ const NPC_TYPES = [
   { value: "mystic", label: "Mystic" },
 ];
 
-export default function NpcForm({ record, onChange }) {
+export default function NpcForm({ record, campaignName }) {
   if (!record) return null;
 
   const update = (field, value) => {

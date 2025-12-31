@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { withContext } from "@/lib/forms/withContext";
 
-export default function LocationForm({ record, onChange }) {
+export default function LocationForm({ record, campaignName }) {
   if (!record) return null;
 
 const update = (field, value) => {

@@ -12,7 +12,7 @@ const EVENT_TYPES = [
   { value: "downtime", label: "Downtime" },
 ];
 
-export default function EventForm({ record, onChange }) {
+export default function EventForm({ record, campaignName }) {
   if (!record) return null;
 
   const update = (field, value) => {

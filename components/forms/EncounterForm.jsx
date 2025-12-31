@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import JoinPanel from "@/components/JoinPanel";
 import { withContext } from "@/lib/forms/withContext";
 
-export default function EncounterForm({ record, onChange }) {
+export default function EncounterForm({ record, campaignName }) {
   if (!record) return null;
 
   const update = (field, value) => {
@@ -39,11 +39,11 @@ export default function EncounterForm({ record, onChange }) {
       {/* 🔒 Locked campaign + session header */}
 <div className={`cm-campaign-header ${pulse ? "pulse" : ""}`}>
   <div className="cm-context-line">
-    Campaign: {record._campaignName || "Unnamed Campaign"}
+    Campaign: {campaignName || "New Campaign"}
   </div>
 
   <div className="cm-context-line">
-    Session: {record.name || "Unnamed Session"}
+    Session: {record.name || "New Session"}
   </div>
 </div>
 
