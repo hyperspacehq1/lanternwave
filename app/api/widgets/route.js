@@ -11,7 +11,9 @@ export async function GET(req) {
   );
 
   const result = {};
-  for (const r of rows) result[r.widget_key] = r.enabled;
+  for (const row of rows) {
+    result[row.widget_key] = row.enabled;
+  }
 
   return Response.json(result);
 }
@@ -23,7 +25,7 @@ export async function POST(req) {
   await query(
     `
     INSERT INTO user_widgets (user_id, widget_key, enabled)
-    VALUES ($1,$2,$3)
+    VALUES ($1, $2, $3)
     ON CONFLICT (user_id, widget_key)
     DO UPDATE SET enabled = EXCLUDED.enabled
     `,
