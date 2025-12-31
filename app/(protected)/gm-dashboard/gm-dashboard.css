@@ -41,9 +41,13 @@
 ---------------------------------------- */
 .gm-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(280px, 1fr);
   gap: 1rem;
-  align-items: flex-start;
+
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 0.5rem;
 }
 
 /* ---------------------------------------
@@ -221,4 +225,57 @@
 .gm-drag-wrapper:hover {
   outline: 1px dashed rgba(255, 255, 255, 0.15);
 }
+
+/* =========================================================
+   Card Action Buttons ( + / ↗ )
+========================================================= */
+
+.gm-card-action-btn {
+  background: transparent;
+  border: 1px solid currentColor;
+  color: inherit;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 3px;
+  font-size: 13px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0.85;
+  transition: 
+    background 0.15s ease,
+    box-shadow 0.15s ease,
+    opacity 0.15s ease,
+    transform 0.1s ease;
+}
+
+.gm-card-action-btn:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 0 6px currentColor;
+}
+
+.gm-card-action-btn:active {
+  transform: scale(0.92);
+}
+
+/* ---------------------------------------------------------
+   Column color inheritance
+--------------------------------------------------------- */
+
+.gm-red    .gm-card-action-btn { color: #b33939; }
+.gm-blue   .gm-card-action-btn { color: #3a7bd5; }
+.gm-green  .gm-card-action-btn { color: #3fa96b; }
+.gm-purple .gm-card-action-btn { color: #8b5cf6; }
+.gm-orange .gm-card-action-btn { color: #e38b29; }
+
+/* Optional: subtle glow on hover */
+.gm-red    .gm-card-action-btn:hover { box-shadow: 0 0 6px rgba(179,57,57,0.6); }
+.gm-blue   .gm-card-action-btn:hover { box-shadow: 0 0 6px rgba(58,123,213,0.6); }
+.gm-green  .gm-card-action-btn:hover { box-shadow: 0 0 6px rgba(63,169,107,0.6); }
+.gm-purple .gm-card-action-btn:hover { box-shadow: 0 0 6px rgba(139,92,246,0.6); }
+.gm-orange .gm-card-action-btn:hover { box-shadow: 0 0 6px rgba(227,139,41,0.6); }
 
