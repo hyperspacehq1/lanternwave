@@ -13,21 +13,25 @@
 }
 
 .gm-controls {
-  margin-left: auto;            /* push right */
-  display: flex;
+  position: static !important;
+  display: flex !important;
+  flex-wrap: wrap;
   gap: 0.5rem;
-  flex-wrap: wrap;              /* ✅ allow buttons to wrap instead of overlap */
+  align-items: center;
   justify-content: flex-end;
+  margin-left: auto;
 }
 
 /* ---------------------------------------
    Toolbar
 ---------------------------------------- */
 .gm-toolbar {
-  display: flex;
-  gap: 1rem;
+ position: relative !important;
+  display: flex !important;
   align-items: center;
-  flex-wrap: wrap;              /* ✅ allow wrapping */
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
 }
 
 .gm-toolbar select {
@@ -239,6 +243,12 @@
   opacity: 1;
   background: rgba(255, 255, 255, 0.06);
   box-shadow: 0 0 6px currentColor;
+}
+
+.gm-controls > button {
+  position: static !important;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .gm-card-action-btn:active {
