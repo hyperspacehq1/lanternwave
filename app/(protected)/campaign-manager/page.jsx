@@ -9,15 +9,6 @@ import { getFormComponent } from "@/components/forms";
 import "./campaign-manager.css";
 
 /* ------------------------------------------------------------
-   Helpers – persist session per campaign
------------------------------------------------------------- */
-const getStoredSession = (campaignId) =>
-  localStorage.getItem(`cm:lastSession:${campaignId}`);
-
-const setStoredSession = (campaignId, sessionId) =>
-  localStorage.setItem(`cm:lastSession:${campaignId}`, sessionId);
-
-/* ------------------------------------------------------------
    Entity rules
 ------------------------------------------------------------ */
 const ENTITY_RULES = {
@@ -53,6 +44,7 @@ export default function CampaignManagerPage() {
   const [campaigns, setCampaigns] = useState([]);
   const [activeCampaignId, setActiveCampaignId] = useState("");
 
+  /* 🔍 SEARCH STATE */
   const [searchTerm, setSearchTerm] = useState("");
 
   const saveLabel = useMemo(
@@ -71,19 +63,24 @@ export default function CampaignManagerPage() {
      Load campaigns
   ------------------------------------------------------------ */
   useEffect(() => {
-    cmApi.list("campaigns").then(setCampaigns).catch(() => setCampaigns([]));
+    cmApi
+      .list("campaigns")
+      .then(setCampaigns)
+      .catch(() => setCampaigns([]));
   }, []);
 
   /* ------------------------------------------------------------
      Auto-select first campaign
   ------------------------------------------------------------ */
   useEffect(() => {
-    if (!campaigns.length || activeCampaignId) return;
+    if (!campaigns.length) return;
+    if (activeCampaignId) return;
     setActiveCampaignId(campaigns[0].id);
   }, [campaigns, activeCampaignId]);
 
+  const rules = ENTITY_RULES[activeType] || {};
   const campaignRequired =
-    activeType !== "campaigns" && !activeCampaignId;
+    activeType !== "campaigns" && rules.campaign && !activeCampaignId;
 
   /* ------------------------------------------------------------
      Load records
@@ -95,29 +92,23 @@ export default function CampaignManagerPage() {
 
     async function load() {
       setLoading(true);
-
       let list = [];
+
       try {
-        if (activeType === "campaigns") {
-          list = await cmApi.list("campaigns");
-        } else {
+        if (rules.campaign) {
           const res = await fetch(
             `/api/${activeType}?campaign_id=${activeCampaignId}`
           );
           list = await res.json();
+        } else {
+          list = await cmApi.list(activeType);
         }
 
         if (!cancelled) {
           setRecords((p) => ({ ...p, [activeType]: list || [] }));
-
-          let selected =
-            activeType === "sessions"
-              ? list.find((r) => r.id === getStoredSession(activeCampaignId)) ||
-                list[0]
-              : list[0];
-
-          setSelectedId(selected?.id || null);
-          setSelectedRecord(selected || null);
+          setSelectedId(list?.[0]?.id ?? null);
+          setSelectedRecord(list?.[0] ?? null);
+          setSearchTerm("");
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -130,22 +121,27 @@ export default function CampaignManagerPage() {
     };
   }, [activeType, activeCampaignId]);
 
+  const activeList = records[activeType] || [];
+
+  /* ------------------------------------------------------------
+     SEARCH FILTER
+  ------------------------------------------------------------ */
+  const filteredList = useMemo(() => {
+    if (!searchTerm) return activeList;
+    const q = searchTerm.toLowerCase();
+    return activeList.filter((r) =>
+      (r.name || "Unnamed").toLowerCase().includes(q)
+    );
+  }, [activeList, searchTerm]);
+
+  /* ------------------------------------------------------------
+     Actions
+  ------------------------------------------------------------ */
   const handleCreate = () => {
     if (loading) return;
 
-    if (activeType !== "campaigns" && !activeCampaignId) {
-      alert("Create a campaign first.");
-      return;
-    }
-
     const id = uuidv4();
-
-    const base = {
-      id,
-      _isNew: true,
-      campaign_id: activeCampaignId,
-      session_id: activeType === "sessions" ? null : undefined,
-    };
+    const base = { id, _isNew: true, campaign_id: activeCampaignId };
 
     setRecords((p) => ({
       ...p,
@@ -154,6 +150,7 @@ export default function CampaignManagerPage() {
 
     setSelectedId(id);
     setSelectedRecord(base);
+    setSaveStatus("unsaved");
   };
 
   const handleSave = async () => {
@@ -173,10 +170,6 @@ export default function CampaignManagerPage() {
       ),
     }));
 
-    if (activeType === "sessions") {
-      setStoredSession(activeCampaignId, saved.id);
-    }
-
     setSelectedRecord(saved);
     setSaveStatus("saved");
   };
@@ -194,6 +187,7 @@ export default function CampaignManagerPage() {
     }));
 
     setSelectedRecord(null);
+    setSelectedId(null);
     setSaveStatus("idle");
   };
 
@@ -209,8 +203,11 @@ export default function CampaignManagerPage() {
               disabled={loading}
               className={`cm-container-btn ${
                 c.id === activeType ? "active" : ""
-              }`}
-              onClick={() => setActiveType(c.id)}
+              } ${loading ? "disabled" : ""}`}
+              onClick={() => {
+                if (loading) return;
+                setActiveType(c.id);
+              }}
             >
               {c.label}
             </button>
@@ -223,45 +220,71 @@ export default function CampaignManagerPage() {
           {/* HEADER */}
           <div className="cm-main-header">
             <div className="cm-main-title">
-              Campaign:{" "}
-              {campaigns.find((c) => c.id === activeCampaignId)?.name ||
-                "—"}
-              {selectedRecord?.name && (
-                <> | Session: {selectedRecord.name}</>
-              )}
+              {activeType.replace("-", " ")}
             </div>
-
             <div className="cm-main-actions">
-              <button className="cm-button" onClick={handleCreate}>
+              <button
+                className="cm-button"
+                onClick={handleCreate}
+                disabled={loading}
+              >
                 + New
               </button>
-              <button className="cm-button" onClick={handleSave}>
+              <button
+                className="cm-button"
+                onClick={handleSave}
+                disabled={loading}
+              >
                 Save
               </button>
-              <button className="cm-button danger" onClick={handleDelete}>
+              <button
+                className="cm-button danger"
+                onClick={handleDelete}
+                disabled={loading}
+              >
                 Delete
               </button>
             </div>
           </div>
 
+          {/* LOADING */}
           {loading && (
-            <div className="cm-loading-indicator">Loading…</div>
+            <div className="cm-loading-indicator">
+              Loading {activeType.replace("-", " ")}…
+            </div>
           )}
 
-          {!campaignRequired && (
-            <div className="cm-content">
+          {/* SEARCH */}
+          {!campaignRequired && !loading && (
+            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+              <input
+                className="cm-search"
+                placeholder={`Search ${activeType.replace("-", " ")}`}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+          )}
+
+          {campaignRequired ? (
+            <div className="cm-detail-empty">
+              Select a campaign to continue.
+            </div>
+          ) : (
+            <div className="cm-content" hidden={loading}>
               <section className="cm-list">
-                {records[activeType]?.map((r) => (
+                {filteredList.map((r) => (
                   <div
                     key={r.id}
                     className={`cm-list-item ${
                       r.id === selectedId ? "selected" : ""
                     }`}
                     onClick={() => {
+                      if (loading) return;
                       setSelectedId(r.id);
                       setSelectedRecord(r);
-                      if (activeType === "sessions") {
-                        setStoredSession(activeCampaignId, r.id);
+                      if (activeType === "campaigns") {
+                        setActiveCampaignId(r.id);
                       }
                     }}
                   >
@@ -291,9 +314,7 @@ export default function CampaignManagerPage() {
                     );
                   })()
                 ) : (
-                  <div className="cm-empty-state">
-                    Select or create an item.
-                  </div>
+                  <div>Select a record.</div>
                 )}
               </section>
             </div>
