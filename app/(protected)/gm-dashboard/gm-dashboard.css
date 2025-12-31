@@ -220,8 +220,6 @@
   background: transparent;
   border: 1px solid currentColor;
   color: inherit;
-  width: 22px;
-  height: 22px;
   padding: 0;
   border-radius: 3px;
   font-size: 13px;
@@ -229,6 +227,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  width: auto;
+  min-height: 28px;
+  padding: 4px 10px;
+  white-space: nowrap;
   flex-shrink: 0;
   cursor: pointer;
   opacity: 0.85;
