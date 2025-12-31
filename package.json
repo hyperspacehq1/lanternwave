@@ -34,3 +34,9 @@
     "globals": "^16.5.0"
   }
 }
+{
+  "scripts": {
+    "build": "next build",
+    "postbuild": "mkdir -p .next/standalone/public && cp -r public/* .next/standalone/public/"
+  }
+}

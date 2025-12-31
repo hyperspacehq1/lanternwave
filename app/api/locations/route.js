@@ -37,7 +37,16 @@ export async function GET(req) {
   const { searchParams } = new URL(req.url);
 
   const id = searchParams.get("id");
-  const campaignId = searchParams.get("campaign_id");
+ const sessionId = searchParams.get("session_id");
+let campaignId = searchParams.get("campaign_id");
+
+if (!campaignId && sessionId) {
+  const { rows } = await query(
+    `SELECT campaign_id FROM sessions WHERE id = $1`,
+    [sessionId]
+  );
+  campaignId = rows[0]?.campaign_id;
+}
 
   if (id) {
     const { rows } = await query(
