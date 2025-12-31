@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { withContext } from "@/lib/forms/withContext";
 
 const NPC_TYPES = [
   { value: "", label: "— Select type —" },
@@ -15,8 +16,20 @@ const NPC_TYPES = [
 export default function NpcForm({ record, onChange }) {
   if (!record) return null;
 
-  const update = (field, value) =>
-    onChange({ ...record, [field]: value });
+  const update = (field, value) => {
+  onChange(
+    withContext(
+      {
+        ...record,
+        [field]: value,
+      },
+      {
+        campaign_id: record.campaign_id,
+        session_id: record.session_id,
+      }
+    )
+  );
+};
 
   /* ---------------------------------------------
      Campaign change pulse

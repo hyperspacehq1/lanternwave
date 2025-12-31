@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { withContext } from "@/lib/forms/withContext";
 
 export default function PlayerCharacterForm({ record, onChange }) {
   if (!record) return null;
@@ -19,13 +20,19 @@ export default function PlayerCharacterForm({ record, onChange }) {
     null;
 
   const update = (field, value) => {
-    onChange({
-      ...record,
-      campaign_id: campaignId,
-      session_id: sessionId,
-      [field]: value,
-    });
-  };
+  onChange(
+    withContext(
+      {
+        ...record,
+        [field]: value,
+      },
+      {
+        campaign_id: record.campaign_id,
+        session_id: record.session_id,
+      }
+    )
+  );
+};
 
   /* ---------------------------------------------
      Campaign change pulse

@@ -75,19 +75,18 @@ export default function CampaignManagerPage() {
   }, []);
 
   /* ------------------------------------------------------------
-     Auto-select campaign
+     Auto-select first campaign
   ------------------------------------------------------------ */
   useEffect(() => {
     if (!campaigns.length || activeCampaignId) return;
     setActiveCampaignId(campaigns[0].id);
   }, [campaigns, activeCampaignId]);
 
-  const rules = ENTITY_RULES[activeType] || {};
   const campaignRequired =
-    activeType !== "campaigns" && rules.campaign && !activeCampaignId;
+    activeType !== "campaigns" && !activeCampaignId;
 
   /* ------------------------------------------------------------
-     Load records (with session restore)
+     Load records
   ------------------------------------------------------------ */
   useEffect(() => {
     if (campaignRequired) return;
@@ -99,34 +98,26 @@ export default function CampaignManagerPage() {
 
       let list = [];
       try {
-        if (rules.campaign) {
+        if (activeType === "campaigns") {
+          list = await cmApi.list("campaigns");
+        } else {
           const res = await fetch(
             `/api/${activeType}?campaign_id=${activeCampaignId}`
           );
           list = await res.json();
-        } else {
-          list = await cmApi.list(activeType);
         }
 
         if (!cancelled) {
           setRecords((p) => ({ ...p, [activeType]: list || [] }));
 
-          let selected = null;
-
-          if (activeType === "sessions") {
-            const saved = getStoredSession(activeCampaignId);
-            selected =
-              list.find((r) => r.id === saved) ||
-              [...list].sort(
-                (a, b) => new Date(b.created_at) - new Date(a.created_at)
-              )[0];
-          } else {
-            selected = list[0] || null;
-          }
+          let selected =
+            activeType === "sessions"
+              ? list.find((r) => r.id === getStoredSession(activeCampaignId)) ||
+                list[0]
+              : list[0];
 
           setSelectedId(selected?.id || null);
           setSelectedRecord(selected || null);
-          setSearchTerm("");
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -139,32 +130,22 @@ export default function CampaignManagerPage() {
     };
   }, [activeType, activeCampaignId]);
 
-  const activeList = records[activeType] || [];
-
-  /* ------------------------------------------------------------
-     SEARCH
-  ------------------------------------------------------------ */
-  const filteredList = useMemo(() => {
-    if (!searchTerm) return activeList;
-    const q = searchTerm.toLowerCase();
-    return activeList.filter((r) =>
-      (r.name || "Unnamed").toLowerCase().includes(q)
-    );
-  }, [activeList, searchTerm]);
-
-  /* ------------------------------------------------------------
-     Actions
-  ------------------------------------------------------------ */
   const handleCreate = () => {
     if (loading) return;
 
+    if (activeType !== "campaigns" && !activeCampaignId) {
+      alert("Create a campaign first.");
+      return;
+    }
+
     const id = uuidv4();
-   const base = {
-  id,
-  _isNew: true,
-  campaign_id: activeCampaignId,
-  session_id: selectedId, // 👈 THIS FIX
-};
+
+    const base = {
+      id,
+      _isNew: true,
+      campaign_id: activeCampaignId,
+      session_id: activeType === "sessions" ? null : undefined,
+    };
 
     setRecords((p) => ({
       ...p,
@@ -173,7 +154,6 @@ export default function CampaignManagerPage() {
 
     setSelectedId(id);
     setSelectedRecord(base);
-    setSaveStatus("unsaved");
   };
 
   const handleSave = async () => {
@@ -214,7 +194,6 @@ export default function CampaignManagerPage() {
     }));
 
     setSelectedRecord(null);
-    setSelectedId(null);
     setSaveStatus("idle");
   };
 
@@ -245,7 +224,8 @@ export default function CampaignManagerPage() {
           <div className="cm-main-header">
             <div className="cm-main-title">
               Campaign:{" "}
-              {campaigns.find((c) => c.id === activeCampaignId)?.name || "—"}
+              {campaigns.find((c) => c.id === activeCampaignId)?.name ||
+                "—"}
               {selectedRecord?.name && (
                 <> | Session: {selectedRecord.name}</>
               )}
@@ -271,7 +251,7 @@ export default function CampaignManagerPage() {
           {!campaignRequired && (
             <div className="cm-content">
               <section className="cm-list">
-                {filteredList.map((r) => (
+                {records[activeType]?.map((r) => (
                   <div
                     key={r.id}
                     className={`cm-list-item ${
@@ -311,7 +291,9 @@ export default function CampaignManagerPage() {
                     );
                   })()
                 ) : (
-                  <div>Select a record.</div>
+                  <div className="cm-empty-state">
+                    Select or create an item.
+                  </div>
                 )}
               </section>
             </div>

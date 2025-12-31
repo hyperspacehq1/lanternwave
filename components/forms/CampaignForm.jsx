@@ -2,12 +2,25 @@
 
 import React, { useEffect, useState } from "react";
 import CampaignPackageSelect from "@/components/CampaignPackageSelect";
+import { withContext } from "@/lib/forms/withContext";
 
 export default function CampaignForm({ record, onChange }) {
   if (!record) return null;
 
-  const update = (field, value) =>
-    onChange({ ...record, [field]: value });
+ const update = (field, value) => {
+  onChange(
+    withContext(
+      {
+        ...record,
+        [field]: value,
+      },
+      {
+        campaign_id: record.campaign_id,
+        session_id: record.session_id,
+      }
+    )
+  );
+};
 
   /* ---------------------------------------------
      Campaign change pulse
