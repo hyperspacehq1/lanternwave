@@ -12,6 +12,14 @@
   color: var(--lw-text-main);
 }
 
+.gm-controls {
+  margin-left: auto;            /* push right */
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;              /* ✅ allow buttons to wrap instead of overlap */
+  justify-content: flex-end;
+}
+
 /* ---------------------------------------
    Toolbar
 ---------------------------------------- */
@@ -19,6 +27,7 @@
   display: flex;
   gap: 1rem;
   align-items: center;
+  flex-wrap: wrap;              /* ✅ allow wrapping */
 }
 
 .gm-toolbar select {
@@ -216,6 +225,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
   cursor: pointer;
   opacity: 0.85;
   transition: 

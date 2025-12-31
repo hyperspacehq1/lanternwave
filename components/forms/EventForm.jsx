@@ -15,7 +15,13 @@ export default function EventForm({ record, onChange }) {
   if (!record) return null;
 
   const update = (field, value) =>
-    onChange({ ...record, [field]: value });
+    onChange({
+      ...record,
+      // 🔑 ensure these are ALWAYS preserved
+      campaign_id: record.campaign_id,
+      session_id: record.session_id,
+      [field]: value,
+    });
 
   /* ---------------------------------------------
      Campaign change pulse
@@ -30,7 +36,6 @@ export default function EventForm({ record, onChange }) {
 
   return (
     <div className="cm-detail-form">
-
       {/* 🔒 Locked campaign header */}
       <div className={`cm-campaign-header ${pulse ? "pulse" : ""}`}>
         Campaign: {record._campaignName || "Unnamed Campaign"}
@@ -62,9 +67,7 @@ export default function EventForm({ record, onChange }) {
         <select
           className="cm-input"
           value={record.event_type || ""}
-          onChange={(e) =>
-            update("event_type", e.target.value || null)
-          }
+          onChange={(e) => update("event_type", e.target.value)}
         >
           {EVENT_TYPES.map((t) => (
             <option key={t.value} value={t.value}>

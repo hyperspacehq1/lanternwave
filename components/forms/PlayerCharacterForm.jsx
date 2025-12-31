@@ -5,17 +5,24 @@ import React, { useEffect, useState } from "react";
 export default function PlayerCharacterForm({ record, onChange }) {
   if (!record) return null;
 
-  // Always preserve campaign_id no matter what
+  // Always preserve campaign_id (and session_id if ever added)
   const campaignId =
     record.campaign_id ||
-    record.campaignId ||
+    record._campaign_id ||
     record._campaignId ||
+    null;
+
+  const sessionId =
+    record.session_id ||
+    record._session_id ||
+    record._sessionId ||
     null;
 
   const update = (field, value) => {
     onChange({
       ...record,
-      campaign_id: campaignId, // 🔒 ALWAYS INCLUDE
+      campaign_id: campaignId,
+      session_id: sessionId,
       [field]: value,
     });
   };
@@ -33,7 +40,7 @@ export default function PlayerCharacterForm({ record, onChange }) {
 
   return (
     <div className="cm-detail-form">
-      {/* Campaign display */}
+      {/* Campaign Header */}
       <div className={`cm-campaign-header ${pulse ? "pulse" : ""}`}>
         Campaign: {record._campaignName || "Unnamed Campaign"}
       </div>
@@ -64,13 +71,12 @@ export default function PlayerCharacterForm({ record, onChange }) {
         />
       </div>
 
-      {/* CHARACTER NAME (OPTIONAL) */}
+      {/* CHARACTER NAME */}
       <div className="cm-field">
         <label className="cm-label">Character Name</label>
         <input
           className="cm-input"
           type="text"
-          placeholder="Optional character name"
           value={record.characterName || ""}
           onChange={(e) => update("characterName", e.target.value)}
         />
