@@ -145,10 +145,15 @@ const update = (field, value) => {
 
   return (
     <div className="cm-detail-form">
-      {/* 🔒 Locked campaign header */}
+
       <div className={`cm-campaign-header ${pulse ? "pulse" : ""}`}>
-        Campaign: {record._campaignName || "Unnamed Campaign"}
-      </div>
+  <div className="cm-context-line">
+    Campaign: {record._campaignName || "Unnamed Campaign"}
+  </div>
+  <div className="cm-context-line">
+    Session: {record.name || "Unnamed Session"}
+  </div>
+</div>
 
       <div className="cm-field">
         <label className="cm-label">
