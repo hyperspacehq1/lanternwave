@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import "./gm-dashboard.css";
+import PlayerCharactersWidget from "@/components/widgets/PlayerCharactersWidget";
 
 /**
  * GM Dashboard
@@ -57,6 +58,17 @@ export default function GMDashboardPage() {
 
   // Expand all / collapse all broadcast
   const [expandAll, setExpandAll] = useState(null);
+
+  // ✅ Widgets enabled/disabled (loaded from /api/widgets)
+  const [widgets, setWidgets] = useState({});
+
+  // ✅ Load widget preferences
+  useEffect(() => {
+    fetch("/api/widgets")
+      .then((r) => r.json())
+      .then((data) => setWidgets(data || {}))
+      .catch(() => setWidgets({}));
+  }, []);
 
   /* -------------------------------------------
      Reset to Default
@@ -381,6 +393,11 @@ export default function GMDashboardPage() {
       </div>
 
       {loading && <div className="gm-loading">Loading…</div>}
+
+      {/* ✅ Render widget ONCE at page root */}
+      {widgets?.player_characters && (
+        <PlayerCharactersWidget campaignId={selectedCampaign?.id || null} />
+      )}
     </div>
   );
 }

@@ -9,57 +9,63 @@ export default function AccountPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [username, setUsername] = useState(null);
+  const [widgets, setWidgets] = useState({});
 
-  const loadingRef = useRef(false); // 🔒 prevents double-loads
+  const loadingRef = useRef(false);
 
+  // Load account
   useEffect(() => {
     if (loadingRef.current) return;
     loadingRef.current = true;
 
     async function loadAccount() {
       try {
-        setLoading(true);
-
         const res = await fetch("/api/account", {
           credentials: "include",
           cache: "no-store",
         });
 
-        if (!res.ok) {
-          throw new Error(`Request failed with status ${res.status}`);
-        }
+        if (!res.ok) throw new Error("Failed to load account");
 
         const data = await res.json();
-
-        if (!data?.ok || !data?.account?.username) {
-          throw new Error("Invalid account response");
-        }
+        if (!data?.account?.username) throw new Error("Invalid account");
 
         setUsername(data.account.username);
       } catch (err) {
-        console.error("ACCOUNT PAGE LOAD ERROR:", err);
+        console.error("ACCOUNT LOAD ERROR:", err);
         setError("Unable to load account details.");
       } finally {
         setLoading(false);
-        loadingRef.current = false;
       }
     }
 
     loadAccount();
   }, []);
 
+  // Load widget preferences
+  useEffect(() => {
+    fetch("/api/widgets")
+      .then((r) => r.json())
+      .then((data) => setWidgets(data || {}))
+      .catch(() => setWidgets({}));
+  }, []);
+
+  const updateWidget = async (key, enabled) => {
+    setWidgets((prev) => ({ ...prev, [key]: enabled }));
+    await fetch("/api/widgets", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key, enabled }),
+    });
+  };
+
   return (
     <div className="account-page">
       <main className="account-content">
         <h1 className="account-title">My Account</h1>
 
-        {/* Loading Skeleton */}
-        {loading && !error && (
+        {loading && (
           <div className="account-panel account-skeleton">
-            <div className="account-row">
-              <span className="account-label skeleton-box" />
-              <span className="account-value skeleton-box wide" />
-            </div>
             <div className="account-row">
               <span className="account-label skeleton-box" />
               <span className="account-value skeleton-box" />
@@ -67,28 +73,36 @@ export default function AccountPage() {
           </div>
         )}
 
-        {/* Error */}
-        {error && (
-          <div className="account-error">
-            {error}
-          </div>
-        )}
-
-        {/* Loaded */}
         {!loading && !error && (
-          <div className="account-panel">
-            <div className="account-row">
-              <span className="account-label">Username</span>
-              <span className="account-value">{username}</span>
+          <>
+            <div className="account-panel">
+              <div className="account-row">
+                <span className="account-label">Username</span>
+                <span className="account-value">{username}</span>
+              </div>
             </div>
 
-            <div className="account-row">
-              <span className="account-label">Plan</span>
-              <span className="account-value">Observer</span>
+            {/* Widget Controls */}
+            <div className="account-panel">
+              <h2 className="account-section-title">Widgets</h2>
+
+              <div className="account-row">
+                <label className="account-label">
+                  <input
+                    type="checkbox"
+                    checked={!!widgets.player_characters}
+                    onChange={(e) =>
+                      updateWidget("player_characters", e.target.checked)
+                    }
+                  />
+                  Player Characters
+                </label>
+              </div>
             </div>
-          </div>
+          </>
         )}
       </main>
     </div>
   );
 }
+
