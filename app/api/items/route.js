@@ -1,4 +1,4 @@
-import { sanitizeRow, sanitizeRows } from "@/lib/api/sanitize";
+import { sanitizeRow } from "@/lib/api/sanitize";
 import { query } from "@/lib/db";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 
@@ -8,10 +8,6 @@ export const dynamic = "force-dynamic";
 /* -------------------------------------------------
    Helpers
 -------------------------------------------------- */
-function pick(body, camel, snake) {
-  return body[camel] ?? body[snake];
-}
-
 function normalizeProperties(input) {
   if (input == null || input === "") return null;
 
@@ -38,16 +34,18 @@ export async function GET(req) {
 
   const id = searchParams.get("id");
   const sessionId = searchParams.get("session_id");
-let campaignId = searchParams.get("campaign_id");
+  let campaignId = searchParams.get("campaign_id");
 
-if (!campaignId && sessionId) {
-  const { rows } = await query(
-    `SELECT campaign_id FROM sessions WHERE id = $1`,
-    [sessionId]
-  );
-  campaignId = rows[0]?.campaign_id;
-}
+  // Resolve campaign from session if needed
+  if (!campaignId && sessionId) {
+    const { rows } = await query(
+      `SELECT campaign_id FROM sessions WHERE id = $1`,
+      [sessionId]
+    );
+    campaignId = rows[0]?.campaign_id;
+  }
 
+  // Fetch single item
   if (id) {
     const { rows } = await query(
       `
@@ -56,7 +54,6 @@ if (!campaignId && sessionId) {
        WHERE tenant_id = $1
          AND id = $2
          AND deleted_at IS NULL
-       LIMIT 1
       `,
       [tenantId, id]
     );
@@ -65,7 +62,6 @@ if (!campaignId && sessionId) {
       rows[0]
         ? sanitizeRow(rows[0], {
             name: 120,
-            itemType: 50,
             description: 10000,
             notes: 10000,
             properties: 20000,
@@ -74,6 +70,7 @@ if (!campaignId && sessionId) {
     );
   }
 
+  // If we still don't have a campaign, return empty list
   if (!campaignId) {
     return Response.json([]);
   }
@@ -91,9 +88,8 @@ if (!campaignId && sessionId) {
   );
 
   return Response.json(
-    sanitizeRows(rows, {
+    sanitizeRow(rows, {
       name: 120,
-      itemType: 50,
       description: 10000,
       notes: 10000,
       properties: 20000,
@@ -108,21 +104,14 @@ export async function POST(req) {
   const { tenantId } = await getTenantContext(req);
   const body = await req.json();
 
-  const campaignId = body.campaign_id ?? body.campaignId ?? null;
-  const name = body.name?.trim();
-
+  const campaignId = body.campaign_id ?? body.campaignId;
   if (!campaignId) {
-    return Response.json(
-      { error: "campaign_id is required" },
-      { status: 400 }
-    );
+    return Response.json({ error: "campaign_id is required" }, { status: 400 });
   }
 
+  const name = body.name?.trim();
   if (!name) {
-    return Response.json(
-      { error: "name is required" },
-      { status: 400 }
-    );
+    return Response.json({ error: "name is required" }, { status: 400 });
   }
 
   const { rows } = await query(
@@ -153,7 +142,6 @@ export async function POST(req) {
   return Response.json(
     sanitizeRow(rows[0], {
       name: 120,
-      itemType: 50,
       description: 10000,
       notes: 10000,
       properties: 20000,
@@ -175,25 +163,18 @@ export async function PUT(req) {
     return Response.json({ error: "id required" }, { status: 400 });
   }
 
-  if ("name" in body && (!body.name || !body.name.trim())) {
-    return Response.json(
-      { error: "name cannot be blank" },
-      { status: 400 }
-    );
-  }
-
   const sets = [];
   const values = [tenantId, id];
   let i = 3;
 
   if (body.name !== undefined) {
     sets.push(`name = $${i++}`);
-    values.push(body.name.trim());
+    values.push(body.name);
   }
 
-  if (body.itemType !== undefined || body.item_type !== undefined) {
+  if (body.itemType !== undefined) {
     sets.push(`item_type = $${i++}`);
-    values.push(body.itemType ?? body.item_type);
+    values.push(body.itemType);
   }
 
   if (body.description !== undefined) {
@@ -212,10 +193,7 @@ export async function PUT(req) {
   }
 
   if (!sets.length) {
-    return Response.json(
-      { error: "No valid fields provided" },
-      { status: 400 }
-    );
+    return Response.json({ error: "No valid fields provided" }, { status: 400 });
   }
 
   const { rows } = await query(
@@ -235,7 +213,6 @@ export async function PUT(req) {
     rows[0]
       ? sanitizeRow(rows[0], {
           name: 120,
-          itemType: 50,
           description: 10000,
           notes: 10000,
           properties: 20000,
@@ -245,7 +222,7 @@ export async function PUT(req) {
 }
 
 /* -----------------------------------------------------------
-   DELETE /api/items?id=   (SOFT DELETE)
+   DELETE /api/items?id=
 ------------------------------------------------------------ */
 export async function DELETE(req) {
   const { tenantId } = await getTenantContext(req);
@@ -273,7 +250,6 @@ export async function DELETE(req) {
     rows[0]
       ? sanitizeRow(rows[0], {
           name: 120,
-          itemType: 50,
           description: 10000,
           notes: 10000,
           properties: 20000,
