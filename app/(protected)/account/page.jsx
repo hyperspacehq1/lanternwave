@@ -9,11 +9,15 @@ export default function AccountPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [username, setUsername] = useState(null);
+
+  // Widget state (local only)
   const [widgets, setWidgets] = useState({});
 
   const loadingRef = useRef(false);
 
-  // Load account
+  // ------------------------------
+  // Load account info
+  // ------------------------------
   useEffect(() => {
     if (loadingRef.current) return;
     loadingRef.current = true;
@@ -42,20 +46,26 @@ export default function AccountPage() {
     loadAccount();
   }, []);
 
-  // Load widget preferences
+  // ------------------------------
+  // Load widget preferences (local only)
+  // ------------------------------
   useEffect(() => {
-    fetch("/api/widgets")
-      .then((r) => r.json())
-      .then((data) => setWidgets(data || {}))
-      .catch(() => setWidgets({}));
+    try {
+      const stored = localStorage.getItem("widgets");
+      if (stored) setWidgets(JSON.parse(stored));
+    } catch {
+      setWidgets({});
+    }
   }, []);
 
-  const updateWidget = async (key, enabled) => {
-    setWidgets((prev) => ({ ...prev, [key]: enabled }));
-    await fetch("/api/widgets", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ key, enabled }),
+  // ------------------------------
+  // Update widget preferences
+  // ------------------------------
+  const updateWidget = (key, enabled) => {
+    setWidgets((prev) => {
+      const next = { ...prev, [key]: enabled };
+      localStorage.setItem("widgets", JSON.stringify(next));
+      return next;
     });
   };
 
@@ -82,7 +92,7 @@ export default function AccountPage() {
               </div>
             </div>
 
-            {/* Widget Controls */}
+            {/* Widget Preferences */}
             <div className="account-panel">
               <h2 className="account-section-title">Widgets</h2>
 
@@ -105,4 +115,3 @@ export default function AccountPage() {
     </div>
   );
 }
-
