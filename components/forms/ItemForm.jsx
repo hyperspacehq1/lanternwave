@@ -3,12 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { withContext } from "@/lib/forms/withContext";
 
-export default function ItemForm({
-  record,
-  onChange,
-  campaignName,
-  sessionName,
-}) {
+export default function ItemForm({ record, onChange, campaignName, sessionName }) {
   if (!record) return null;
 
   const update = (field, value) => {
@@ -26,8 +21,8 @@ export default function ItemForm({
     );
   };
 
-  // Visual pulse when switching records
   const [pulse, setPulse] = useState(false);
+
   useEffect(() => {
     setPulse(true);
     const t = setTimeout(() => setPulse(false), 1200);
@@ -42,7 +37,7 @@ export default function ItemForm({
           Campaign: {campaignName || "Unnamed Campaign"}
         </div>
         <div className="cm-context-line">
-          Session: {sessionName || "New Session"}
+          Session: {sessionName || "Unnamed Session"}
         </div>
       </div>
 
