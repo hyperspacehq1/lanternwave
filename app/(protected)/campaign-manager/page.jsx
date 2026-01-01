@@ -236,10 +236,15 @@ export default function CampaignManagerPage() {
                     className={`cm-list-item ${
                       r.id === selectedId ? "selected" : ""
                     }`}
-                    onClick={() => {
-                      setSelectedId(r.id);
-                      setSelectedRecord(r);
-                    }}
+                   onClick={() => {
+  setSelectedId(r.id);
+  setSelectedRecord(r);
+
+  setCampaignContext({
+    campaign,
+    session: r,
+  });
+}}
                   >
                     {r.name || "Unnamed"}
                   </div>

@@ -1,4 +1,0 @@
-[00:00:02.499] Server  LOG      ✓ Ready in 1306ms
-[00:00:14.650] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
-[00:00:35.860] Server  ERROR   [DB ERROR] {}
-[00:00:35.895] Server  ERROR   LOGIN ERROR: AggregateError
