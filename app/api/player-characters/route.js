@@ -9,18 +9,12 @@ export const dynamic = "force-dynamic";
    GET
 ----------------------------------------------------- */
 export async function GET(req) {
-  console.log("🔍 [GET] /api/player-characters");
-
   const { tenantId } = await getTenantContext(req);
   const { searchParams } = new URL(req.url);
 
-  const qp = Object.fromEntries(searchParams.entries());
-  console.log("➡️ Query params:", qp);
-
   const id = searchParams.get("id");
 
-  // Accept BOTH campaign_id and campaignId
-  const campaignIdParam =
+  const campaignId =
     searchParams.get("campaign_id") ??
     searchParams.get("campaignId") ??
     null;
@@ -30,7 +24,7 @@ export async function GET(req) {
     searchParams.get("sessionId") ??
     null;
 
-  // ---------- SINGLE RECORD ----------
+  // Single record
   if (id) {
     const { rows } = await query(
       `
@@ -53,82 +47,60 @@ export async function GET(req) {
       [tenantId, id]
     );
 
-    console.log("📦 Single DB rows:", rows.length);
-
-    if (!rows.length) return Response.json(null);
-
-    const r = rows[0];
-    return Response.json({
-      id: r.id,
-      campaignId: r.campaign_id,
-      firstName: r.first_name,
-      lastName: r.last_name,
-      characterName: r.character_name,
-      phone: r.phone,
-      email: r.email,
-      notes: r.notes,
-      createdAt: r.created_at,
-      updatedAt: r.updated_at,
-    });
+    return Response.json(rows[0] ?? null);
   }
 
-  // ---------- RESOLVE CAMPAIGN (optional) ----------
-  let campaignIdFinal = campaignIdParam;
-
-  if (!campaignIdFinal && sessionId) {
-    console.log("🔍 Resolving campaign from session:", sessionId);
+  // Resolve campaign from session if needed
+  let resolvedCampaignId = campaignId;
+  if (!resolvedCampaignId && sessionId) {
     const { rows } = await query(
       `SELECT campaign_id FROM sessions WHERE id = $1`,
       [sessionId]
     );
-    campaignIdFinal = rows[0]?.campaign_id ?? null;
+    resolvedCampaignId = rows[0]?.campaign_id ?? null;
   }
 
-  console.log("🎯 Final campaignId:", campaignIdFinal);
-
-  // ---------- LIST ----------
-  // If campaignIdFinal is missing, return ALL tenant characters (no campaign filter)
-  const sql = campaignIdFinal
+  // Build query
+  const sql = resolvedCampaignId
     ? `
-      SELECT
-        id,
-        campaign_id,
-        first_name,
-        last_name,
-        character_name,
-        phone,
-        email,
-        notes,
-        created_at
-      FROM player_characters
-      WHERE tenant_id = $1
-        AND campaign_id = $2
-        AND deleted_at IS NULL
-      ORDER BY created_at ASC
-    `
+        SELECT
+          id,
+          campaign_id,
+          first_name,
+          last_name,
+          character_name,
+          phone,
+          email,
+          notes,
+          created_at
+        FROM player_characters
+        WHERE tenant_id = $1
+          AND campaign_id = $2
+          AND deleted_at IS NULL
+        ORDER BY created_at ASC
+      `
     : `
-      SELECT
-        id,
-        campaign_id,
-        first_name,
-        last_name,
-        character_name,
-        phone,
-        email,
-        notes,
-        created_at
-      FROM player_characters
-      WHERE tenant_id = $1
-        AND deleted_at IS NULL
-      ORDER BY created_at ASC
-    `;
+        SELECT
+          id,
+          campaign_id,
+          first_name,
+          last_name,
+          character_name,
+          phone,
+          email,
+          notes,
+          created_at
+        FROM player_characters
+        WHERE tenant_id = $1
+          AND deleted_at IS NULL
+        ORDER BY created_at ASC
+      `;
 
-  const params = campaignIdFinal ? [tenantId, campaignIdFinal] : [tenantId];
+  const params = resolvedCampaignId
+    ? [tenantId, resolvedCampaignId]
+    : [tenantId];
 
   const { rows } = await query(sql, params);
-
-  console.log("📦 Player characters found:", rows.length);
-  if (rows.length) console.table(rows.slice(0, 20));
 
   return Response.json(
     rows.map((r) => ({
@@ -150,8 +122,6 @@ export async function GET(req) {
 export async function POST(req) {
   const { tenantId } = await getTenantContext(req);
   const body = await req.json();
-
-  console.log("🟢 CREATE player_character", body);
 
   const campaignId = body.campaign_id ?? body.campaignId ?? null;
 
@@ -217,14 +187,11 @@ export async function PUT(req) {
   const id = searchParams.get("id");
   const body = await req.json();
 
-  console.log("✏️ UPDATE player_character:", id, body);
-
   const fields = [];
   const values = [tenantId, id];
   let i = 3;
 
   const map = {
-    // allow both camel + snake inputs safely
     firstName: "first_name",
     lastName: "last_name",
     characterName: "character_name",
@@ -234,15 +201,13 @@ export async function PUT(req) {
   };
 
   for (const [key, column] of Object.entries(map)) {
-    const val = body[key] ?? body[column] ?? undefined;
-    if (val !== undefined) {
+    if (body[key] !== undefined) {
       fields.push(`${column} = $${i++}`);
-      values.push(val);
+      values.push(body[key]);
     }
   }
 
-  // allow updating campaign_id too if you need it
-  const campaignId = body.campaign_id ?? body.campaignId ?? undefined;
+  const campaignId = body.campaign_id ?? body.campaignId;
   if (campaignId !== undefined) {
     fields.push(`campaign_id = $${i++}`);
     values.push(campaignId);
@@ -255,8 +220,10 @@ export async function PUT(req) {
   const { rows } = await query(
     `
     UPDATE player_characters
-    SET ${fields.join(", ")}, updated_at = NOW()
-    WHERE tenant_id = $1 AND id = $2
+    SET ${fields.join(", ")},
+        updated_at = NOW()
+    WHERE tenant_id = $1
+      AND id = $2
     RETURNING *
     `,
     values
