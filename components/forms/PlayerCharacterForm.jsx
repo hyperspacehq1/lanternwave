@@ -4,12 +4,12 @@ import React, { useEffect, useState } from "react";
 import { withContext } from "@/lib/forms/withContext";
 import { useCampaignContext } from "@/lib/campaign/campaignContext";
 
-export default function PlayerCharacterForm({ record }) {
+export default function PlayerCharacterForm({ record, onChange }) {
   const { campaign, session } = useCampaignContext();
 
-  /* --------------------------------------------------
+  /* ---------------------------------------------
      Guards
-  -------------------------------------------------- */
+  --------------------------------------------- */
   if (!campaign) {
     return (
       <div className="cm-detail-empty">
@@ -96,7 +96,6 @@ export default function PlayerCharacterForm({ record }) {
         <label className="cm-label">Email</label>
         <input
           className="cm-input"
-          type="email"
           value={record.email || ""}
           onChange={(e) => update("email", e.target.value)}
         />
