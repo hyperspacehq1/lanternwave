@@ -63,9 +63,20 @@ export default function CampaignManagerPage() {
             : await cmApi.list(activeType, { campaign_id: activeCampaignId });
 
         if (!cancelled) {
-          setRecords((p) => ({ ...p, [activeType]: list }));
-          setSelectedId(list?.[0]?.id ?? null);
-          setSelectedRecord(list?.[0] ?? null);
+  setRecords((p) => ({ ...p, [activeType]: list }));
+
+  const first = list?.[0] ?? null;
+  setSelectedId(first?.id ?? null);
+  setSelectedRecord(first);
+
+  if (activeType === "campaigns" && first) {
+    setCampaignContext({ campaign: first, session: null });
+  }
+
+  if (activeType === "sessions" && first) {
+    setCampaignContext({ campaign, session: first });
+  }
+}
 
           // Auto-set context on initial load
           if (activeType === "campaigns" && list?.length) {
@@ -145,6 +156,32 @@ export default function CampaignManagerPage() {
           <div className="cm-main-header">
             <div className="cm-main-title">{activeType}</div>
           </div>
+
+<div className="cm-main-actions">
+  <button
+    className="cm-btn"
+    onClick={handleCreate}
+    disabled={loading}
+  >
+    + New
+  </button>
+
+  <button
+    className="cm-btn"
+    onClick={handleSave}
+    disabled={!selectedRecord || loading}
+  >
+    Save
+  </button>
+
+  <button
+    className="cm-btn danger"
+    onClick={handleDelete}
+    disabled={!selectedRecord || loading}
+  >
+    Delete
+  </button>
+</div>
 
           <div className="cm-content">
             <section className="cm-list">
