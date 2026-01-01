@@ -240,10 +240,19 @@ export default function CampaignManagerPage() {
   setSelectedId(r.id);
   setSelectedRecord(r);
 
-  setCampaignContext({
-    campaign,
-    session: r,
-  });
+  if (activeType === "campaigns") {
+    setCampaignContext({
+      campaign: r,
+      session: null,
+    });
+  }
+
+  if (activeType === "sessions") {
+    setCampaignContext({
+      campaign,
+      session: r,
+    });
+  }
 }}
                   >
                     {r.name || "Unnamed"}
