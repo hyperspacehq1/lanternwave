@@ -13,7 +13,7 @@ const EVENT_TYPES = [
   { value: "downtime", label: "Downtime" },
 ];
 
-export default function EventForm({ record }) {
+export default function EventForm({ record, onChange }) {
   const { campaign, session } = useCampaignContext();
 
   /* ------------------------------------------------------------

@@ -5,7 +5,7 @@ import { withContext } from "@/lib/forms/withContext";
 import { useCampaignContext } from "@/lib/campaign/campaignContext";
 import JoinPanel from "@/components/JoinPanel";
 
-export default function EncounterForm({ record }) {
+export default function EncounterForm({ record, onChange }) {
   const { campaign, session } = useCampaignContext();
 
   /* -----------------------------
