@@ -40,7 +40,7 @@ export default function ItemForm({ record, onChange, campaignName }) {
           Campaign: {campaignName || "Unnamed Campaign"}
         </div>
         <div className="cm-context-line">
-          Session: {record.name || "Unnamed Session"}
+          Session: {record.name || "New Item"}
         </div>
       </div>
 
@@ -89,21 +89,8 @@ export default function ItemForm({ record, onChange, campaignName }) {
         <label className="cm-label">Properties</label>
         <textarea
           className="cm-textarea"
-          value={
-            record.properties
-              ? JSON.stringify(record.properties, null, 2)
-              : ""
-          }
-          onChange={(e) => {
-            try {
-              update(
-                "properties",
-                e.target.value ? JSON.parse(e.target.value) : null
-              );
-            } catch {
-              // allow invalid JSON during typing
-            }
-          }}
+          value={record.properties || ""}
+          onChange={(e) => update("properties", e.target.value)}
         />
       </div>
     </div>
