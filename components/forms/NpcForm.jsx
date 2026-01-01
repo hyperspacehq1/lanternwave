@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { withContext } from "@/lib/forms/withContext";
+import { useCampaignContext } from "@/lib/campaign/campaignContext";
 
 const NPC_TYPES = [
   { value: "", label: "— Select type —" },
@@ -13,8 +14,29 @@ const NPC_TYPES = [
   { value: "mystic", label: "Mystic" },
 ];
 
-export default function NpcForm({ record, onChange, campaignName }) {
-  if (!record) return null;
+export default function NpcForm({ record }) {
+  const { campaign, session } = useCampaignContext();
+
+  /* ------------------------------------------------------------
+     Guards
+  ------------------------------------------------------------ */
+  if (!campaign) {
+    return (
+      <div className="cm-detail-empty">
+        <h3>No Campaign Selected</h3>
+        <p>Please select or create a campaign.</p>
+      </div>
+    );
+  }
+
+  if (!session) {
+    return (
+      <div className="cm-detail-empty">
+        <h3>No Session Selected</h3>
+        <p>Please select a session.</p>
+      </div>
+    );
+  }
 
   const update = (field, value) => {
     onChange(
@@ -24,42 +46,40 @@ export default function NpcForm({ record, onChange, campaignName }) {
           [field]: value,
         },
         {
-          campaign_id: record.campaign_id,
-          session_id: record.session_id,
+          campaign_id: campaign.id,
+          session_id: session.id,
         }
       )
     );
   };
 
+  /* ---------------------------------------------
+     Visual pulse when record changes
+  --------------------------------------------- */
   const [pulse, setPulse] = useState(false);
 
   useEffect(() => {
     setPulse(true);
-    const t = setTimeout(() => setPulse(false), 1200);
+    const t = setTimeout(() => setPulse(false), 800);
     return () => clearTimeout(t);
-  }, [record._campaignName]);
+  }, [record?.id]);
 
   return (
     <div className="cm-detail-form">
-
-<div className={`cm-campaign-header ${pulse ? "pulse" : ""}`}>
-  <div className="cm-context-line">
-    Campaign: {campaignName || "Unnamed Campaign"}
-  </div>
-
-  <div className="cm-context-line">
-    Session: {record.name || "Unnamed Session"}
-  </div>
-</div>
+      <div className={`cm-campaign-header ${pulse ? "pulse" : ""}`}>
+        <div className="cm-context-line">
+          <strong>Campaign:</strong> {campaign.name}
+        </div>
+        <div className="cm-context-line">
+          <strong>Session:</strong> {session.name}
+        </div>
+      </div>
 
       <div className="cm-field">
-        <label className="cm-label">
-          Name <strong>(required)</strong>
-        </label>
+        <label className="cm-label">Name</label>
         <input
           className="cm-input"
-          type="text"
-          value={record.name || ""}
+          value={record?.name || ""}
           onChange={(e) => update("name", e.target.value)}
         />
       </div>
@@ -68,10 +88,8 @@ export default function NpcForm({ record, onChange, campaignName }) {
         <label className="cm-label">NPC Type</label>
         <select
           className="cm-input"
-          value={record.npc_type || ""}
-          onChange={(e) =>
-            update("npc_type", e.target.value || null)
-          }
+          value={record?.npc_type || ""}
+          onChange={(e) => update("npc_type", e.target.value)}
         >
           {NPC_TYPES.map((t) => (
             <option key={t.value} value={t.value}>
@@ -85,7 +103,7 @@ export default function NpcForm({ record, onChange, campaignName }) {
         <label className="cm-label">Description</label>
         <textarea
           className="cm-textarea"
-          value={record.description || ""}
+          value={record?.description || ""}
           onChange={(e) => update("description", e.target.value)}
         />
       </div>
@@ -94,19 +112,8 @@ export default function NpcForm({ record, onChange, campaignName }) {
         <label className="cm-label">Goals</label>
         <textarea
           className="cm-textarea"
-          value={record.goals || ""}
+          value={record?.goals || ""}
           onChange={(e) => update("goals", e.target.value)}
-        />
-      </div>
-
-      <div className="cm-field">
-        <label className="cm-label">Faction Alignment</label>
-        <textarea
-          className="cm-textarea"
-          value={record.faction_alignment || ""}
-          onChange={(e) =>
-            update("faction_alignment", e.target.value)
-          }
         />
       </div>
 
@@ -114,17 +121,8 @@ export default function NpcForm({ record, onChange, campaignName }) {
         <label className="cm-label">Secrets</label>
         <textarea
           className="cm-textarea"
-          value={record.secrets || ""}
+          value={record?.secrets || ""}
           onChange={(e) => update("secrets", e.target.value)}
-        />
-      </div>
-
-      <div className="cm-field">
-        <label className="cm-label">Notes</label>
-        <textarea
-          className="cm-textarea"
-          value={record.notes || ""}
-          onChange={(e) => update("notes", e.target.value)}
         />
       </div>
     </div>
