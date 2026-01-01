@@ -5,39 +5,31 @@ import { v4 as uuid } from "uuid";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function requireTenant(tenantId) {
-  if (!tenantId) {
-    return Response.json(
-      { error: "Missing tenant context" },
-      { status: 401 }
-    );
-  }
-  return null;
-}
-
 /* -----------------------------------------------------
    GET /api/player-characters
 ----------------------------------------------------- */
 export async function GET(req) {
   const { tenantId } = await getTenantContext(req);
-  const tenantErr = requireTenant(tenantId);
-  if (tenantErr) return tenantErr;
-
   const { searchParams } = new URL(req.url);
 
   const id = searchParams.get("id");
-  const sessionId =
-    searchParams.get("session_id") ?? searchParams.get("sessionId");
-  let campaignId =
-    searchParams.get("campaign_id") ?? searchParams.get("campaignId");
+  const campaignId = searchParams.get("campaign_id");
 
-  // Optional session fallback -> campaign_id (same pattern as encounters route)
-  if (!campaignId && sessionId) {
-    const { rows } = await query(
-      `SELECT campaign_id FROM sessions WHERE id = $1`,
-      [sessionId]
-    );
-    campaignId = rows[0]?.campaign_id ?? null;
+  // Resolve campaign → tenant relationship
+  let resolvedCampaignId = campaignId;
+
+  if (!resolvedCampaignId) {
+    return Response.json([], { status: 200 });
+  }
+
+  // Validate campaign belongs to tenant
+  const campaignCheck = await query(
+    `SELECT id FROM campaigns WHERE id = $1 AND tenant_id = $2`,
+    [resolvedCampaignId, tenantId]
+  );
+
+  if (!campaignCheck.rows.length) {
+    return Response.json([], { status: 200 });
   }
 
   // Single record
@@ -46,31 +38,25 @@ export async function GET(req) {
       `
       SELECT *
       FROM player_characters
-      WHERE tenant_id = $1
-        AND id = $2
+      WHERE id = $1
+        AND campaign_id = $2
         AND deleted_at IS NULL
       `,
-      [tenantId, id]
+      [id, resolvedCampaignId]
     );
-
     return Response.json(rows[0] ?? null);
   }
 
-  // Campaign-scoped list (same as encounters)
-  if (!campaignId) {
-    return Response.json([]);
-  }
-
+  // List
   const { rows } = await query(
     `
     SELECT *
     FROM player_characters
-    WHERE tenant_id = $1
-      AND campaign_id = $2
+    WHERE campaign_id = $1
       AND deleted_at IS NULL
     ORDER BY created_at ASC
     `,
-    [tenantId, campaignId]
+    [resolvedCampaignId]
   );
 
   return Response.json(rows);
@@ -81,12 +67,9 @@ export async function GET(req) {
 ----------------------------------------------------- */
 export async function POST(req) {
   const { tenantId } = await getTenantContext(req);
-  const tenantErr = requireTenant(tenantId);
-  if (tenantErr) return tenantErr;
-
   const body = await req.json();
 
-  const campaignId = body.campaign_id ?? body.campaignId ?? null;
+  const campaignId = body.campaign_id;
   if (!campaignId) {
     return Response.json(
       { error: "campaign_id is required" },
@@ -94,13 +77,27 @@ export async function POST(req) {
     );
   }
 
-  // Accept both snake_case and camelCase inputs
-  const firstName = body.firstName ?? body.first_name ?? null;
-  const lastName = body.lastName ?? body.last_name ?? null;
-  const characterName = body.characterName ?? body.character_name ?? null;
-  const phone = body.phone ?? null;
-  const email = body.email ?? null;
-  const notes = body.notes ?? null;
+  // Verify campaign belongs to tenant
+  const { rows: campaigns } = await query(
+    `SELECT id FROM campaigns WHERE id = $1 AND tenant_id = $2`,
+    [campaignId, tenantId]
+  );
+
+  if (!campaigns.length) {
+    return Response.json(
+      { error: "Invalid campaign" },
+      { status: 403 }
+    );
+  }
+
+  const {
+    firstName,
+    lastName,
+    characterName,
+    phone,
+    email,
+    notes,
+  } = body;
 
   const { rows } = await query(
     `
@@ -113,37 +110,32 @@ export async function POST(req) {
       character_name,
       phone,
       email,
-      notes,
-      created_at,
-      updated_at
+      notes
     )
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW(),NOW())
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
     RETURNING *
     `,
     [
       uuid(),
       tenantId,
       campaignId,
-      firstName,
-      lastName,
-      characterName,
-      phone,
-      email,
-      notes,
+      firstName ?? null,
+      lastName ?? null,
+      characterName ?? null,
+      phone ?? null,
+      email ?? null,
+      notes ?? null,
     ]
   );
 
-  return Response.json(rows[0], { status: 201 });
+  return Response.json(rows[0]);
 }
 
 /* -----------------------------------------------------
-   PUT /api/player-characters?id=
+   PUT /api/player-characters
 ----------------------------------------------------- */
 export async function PUT(req) {
   const { tenantId } = await getTenantContext(req);
-  const tenantErr = requireTenant(tenantId);
-  if (tenantErr) return tenantErr;
-
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
   const body = await req.json();
@@ -152,32 +144,34 @@ export async function PUT(req) {
     return Response.json({ error: "id required" }, { status: 400 });
   }
 
-  const fields = [];
-  const values = [tenantId, id];
-  let i = 3;
+  // Verify ownership
+  const check = await query(
+    `SELECT id FROM player_characters WHERE id = $1 AND tenant_id = $2`,
+    [id, tenantId]
+  );
 
-  // Accept both camel + snake
-  const map = [
-    ["firstName", "first_name"],
-    ["lastName", "last_name"],
-    ["characterName", "character_name"],
-    ["phone", "phone"],
-    ["email", "email"],
-    ["notes", "notes"],
-  ];
-
-  for (const [camel, col] of map) {
-    const val = body[camel] ?? body[col];
-    if (val !== undefined) {
-      fields.push(`${col} = $${i++}`);
-      values.push(val);
-    }
+  if (!check.rows.length) {
+    return Response.json({ error: "Not found" }, { status: 404 });
   }
 
-  const campaignId = body.campaign_id ?? body.campaignId;
-  if (campaignId !== undefined) {
-    fields.push(`campaign_id = $${i++}`);
-    values.push(campaignId);
+  const fields = [];
+  const values = [];
+  let i = 1;
+
+  const map = {
+    firstName: "first_name",
+    lastName: "last_name",
+    characterName: "character_name",
+    phone: "phone",
+    email: "email",
+    notes: "notes",
+  };
+
+  for (const [key, col] of Object.entries(map)) {
+    if (body[key] !== undefined) {
+      fields.push(`${col} = $${i++}`);
+      values.push(body[key]);
+    }
   }
 
   if (!fields.length) {
@@ -189,44 +183,11 @@ export async function PUT(req) {
     UPDATE player_characters
     SET ${fields.join(", ")},
         updated_at = NOW()
-    WHERE tenant_id = $1
-      AND id = $2
-      AND deleted_at IS NULL
+    WHERE id = $${i} AND tenant_id = $${i + 1}
     RETURNING *
     `,
-    values
+    [...values, id, tenantId]
   );
 
-  return Response.json(rows[0] ?? null);
-}
-
-/* -----------------------------------------------------
-   DELETE /api/player-characters?id=   (SOFT DELETE)
------------------------------------------------------ */
-export async function DELETE(req) {
-  const { tenantId } = await getTenantContext(req);
-  const tenantErr = requireTenant(tenantId);
-  if (tenantErr) return tenantErr;
-
-  const { searchParams } = new URL(req.url);
-  const id = searchParams.get("id");
-
-  if (!id) {
-    return Response.json({ error: "id required" }, { status: 400 });
-  }
-
-  const { rows } = await query(
-    `
-    UPDATE player_characters
-       SET deleted_at = NOW(),
-           updated_at = NOW()
-     WHERE tenant_id = $1
-       AND id = $2
-       AND deleted_at IS NULL
-     RETURNING *
-    `,
-    [tenantId, id]
-  );
-
-  return Response.json(rows[0] ?? null);
+  return Response.json(rows[0]);
 }
