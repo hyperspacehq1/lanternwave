@@ -3,36 +3,23 @@
 import React, { useEffect, useState } from "react";
 import { withContext } from "@/lib/forms/withContext";
 
-export default function PlayerCharacterForm({ record, campaignName }) {
+export default function PlayerCharacterForm({ record, onChange, campaignName }) {
   if (!record) return null;
 
-  // Always preserve campaign_id (and session_id if ever added)
-  const campaignId =
-    record.campaign_id ||
-    record._campaign_id ||
-    record._campaignId ||
-    null;
-
-  const sessionId =
-    record.session_id ||
-    record._session_id ||
-    record._sessionId ||
-    null;
-
   const update = (field, value) => {
-  onChange(
-    withContext(
-      {
-        ...record,
-        [field]: value,
-      },
-      {
-        campaign_id: record.campaign_id,
-        session_id: record.session_id,
-      }
-    )
-  );
-};
+    onChange(
+      withContext(
+        {
+          ...record,
+          [field]: value,
+        },
+        {
+          campaign_id: record.campaign_id,
+          session_id: record.session_id,
+        }
+      )
+    );
+  };
 
   /* ---------------------------------------------
      Campaign change pulse
@@ -47,16 +34,16 @@ export default function PlayerCharacterForm({ record, campaignName }) {
 
   return (
     <div className="cm-detail-form">
-      
-<<div className={`cm-campaign-header ${pulse ? "pulse" : ""}`}>
-  <div className="cm-context-line">
-    Campaign: {campaignName || "Unnamed Campaign"}
-  </div>
+      {/* Campaign / Session Header */}
+      <div className={`cm-campaign-header ${pulse ? "pulse" : ""}`}>
+        <div className="cm-context-line">
+          Campaign: {campaignName || "Unnamed Campaign"}
+        </div>
 
-  <div className="cm-context-line">
-    Session: {record.name || "Unnamed Session"}
-  </div>
-</div>
+        <div className="cm-context-line">
+          Session: {record.name || "Unnamed Session"}
+        </div>
+      </div>
 
       {/* FIRST NAME */}
       <div className="cm-field">

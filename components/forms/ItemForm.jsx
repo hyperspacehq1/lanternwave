@@ -3,23 +3,23 @@
 import React, { useEffect, useState } from "react";
 import { withContext } from "@/lib/forms/withContext";
 
-export default function ItemForm({ record, campaignName }) {
+export default function ItemForm({ record, onChange, campaignName }) {
   if (!record) return null;
 
   const update = (field, value) => {
-  onChange(
-    withContext(
-      {
-        ...record,
-        [field]: value,
-      },
-      {
-        campaign_id: record.campaign_id,
-        session_id: record.session_id,
-      }
-    )
-  );
-};
+    onChange(
+      withContext(
+        {
+          ...record,
+          [field]: value,
+        },
+        {
+          campaign_id: record.campaign_id,
+          session_id: record.session_id,
+        }
+      )
+    );
+  };
 
   /* ---------------------------------------------
      Campaign change pulse
@@ -34,24 +34,20 @@ export default function ItemForm({ record, campaignName }) {
 
   return (
     <div className="cm-detail-form">
+      <div className={`cm-campaign-header ${pulse ? "pulse" : ""}`}>
+        <div className="cm-context-line">
+          Campaign: {campaignName || "Unnamed Campaign"}
+        </div>
 
-<div className={`cm-campaign-header ${pulse ? "pulse" : ""}`}>
-  <div className="cm-context-line">
-    Campaign: {campaignName || "Unnamed Campaign"}
-  </div>
-
-  <div className="cm-context-line">
-    Session: {record.name || "Unnamed Session"}
-  </div>
-</div>
+        <div className="cm-context-line">
+          Session: {record.name || "Unnamed Session"}
+        </div>
+      </div>
 
       <div className="cm-field">
-        <label className="cm-label">
-          Name <strong>(required)</strong>
-        </label>
+        <label className="cm-label">Name</label>
         <input
           className="cm-input"
-          type="text"
           value={record.name || ""}
           onChange={(e) => update("name", e.target.value)}
         />
@@ -61,7 +57,6 @@ export default function ItemForm({ record, campaignName }) {
         <label className="cm-label">Item Type</label>
         <input
           className="cm-input"
-          type="text"
           value={record.item_type || ""}
           onChange={(e) => update("item_type", e.target.value)}
         />
@@ -101,7 +96,7 @@ export default function ItemForm({ record, campaignName }) {
                 e.target.value ? JSON.parse(e.target.value) : null
               );
             } catch {
-              /* allow user to correct JSON before save */
+              // allow user to type invalid JSON temporarily
             }
           }}
         />

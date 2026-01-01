@@ -4,23 +4,23 @@ import React, { useEffect, useState } from "react";
 import CampaignPackageSelect from "@/components/CampaignPackageSelect";
 import { withContext } from "@/lib/forms/withContext";
 
-export default function CampaignForm({ record, onChange }) {
+export default function CampaignForm({ record, onChange, campaignName }) {
   if (!record) return null;
 
- const update = (field, value) => {
-  onChange(
-    withContext(
-      {
-        ...record,
-        [field]: value,
-      },
-      {
-        campaign_id: record.campaign_id,
-        session_id: record.session_id,
-      }
-    )
-  );
-};
+  const update = (field, value) => {
+    onChange(
+      withContext(
+        {
+          ...record,
+          [field]: value,
+        },
+        {
+          campaign_id: record.campaign_id,
+          session_id: record.session_id,
+        }
+      )
+    );
+  };
 
   /* ---------------------------------------------
      Campaign change pulse

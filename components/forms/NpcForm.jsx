@@ -13,27 +13,24 @@ const NPC_TYPES = [
   { value: "mystic", label: "Mystic" },
 ];
 
-export default function NpcForm({ record, campaignName }) {
+export default function NpcForm({ record, onChange, campaignName }) {
   if (!record) return null;
 
   const update = (field, value) => {
-  onChange(
-    withContext(
-      {
-        ...record,
-        [field]: value,
-      },
-      {
-        campaign_id: record.campaign_id,
-        session_id: record.session_id,
-      }
-    )
-  );
-};
+    onChange(
+      withContext(
+        {
+          ...record,
+          [field]: value,
+        },
+        {
+          campaign_id: record.campaign_id,
+          session_id: record.session_id,
+        }
+      )
+    );
+  };
 
-  /* ---------------------------------------------
-     Campaign change pulse
-  --------------------------------------------- */
   const [pulse, setPulse] = useState(false);
 
   useEffect(() => {

@@ -3,27 +3,24 @@
 import React, { useEffect, useState } from "react";
 import { withContext } from "@/lib/forms/withContext";
 
-export default function SessionForm({ record, campaignName }) {
+eexport default function LocationForm({ record, onChange, campaignName }) {
   if (!record) return null;
 
- const update = (field, value) => {
-  onChange(
-    withContext(
-      {
-        ...record,
-        [field]: value,
-      },
-      {
-        campaign_id: record.campaign_id,
-        session_id: record.session_id,
-      }
-    )
-  );
-};
+  const update = (field, value) => {
+    onChange(
+      withContext(
+        {
+          ...record,
+          [field]: value,
+        },
+        {
+          campaign_id: record.campaign_id,
+          session_id: record.session_id,
+        }
+      )
+    );
+  };
 
-  /* ---------------------------------------------
-     Campaign change pulse
-  --------------------------------------------- */
   const [pulse, setPulse] = useState(false);
 
   useEffect(() => {

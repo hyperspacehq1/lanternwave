@@ -12,26 +12,24 @@ const EVENT_TYPES = [
   { value: "downtime", label: "Downtime" },
 ];
 
-export default function EventForm({ record, campaignName }) {
+export default function EventForm({ record, onChange, campaignName }) {
   if (!record) return null;
 
   const update = (field, value) => {
-  onChange(
-    withContext(
-      {
-        ...record,
-        [field]: value,
-      },
-      {
-        campaign_id: record.campaign_id,
-        session_id: record.session_id,
-      }
-    )
-  );
-};
-  /* ---------------------------------------------
-     Campaign change pulse
-  --------------------------------------------- */
+    onChange(
+      withContext(
+        {
+          ...record,
+          [field]: value,
+        },
+        {
+          campaign_id: record.campaign_id,
+          session_id: record.session_id,
+        }
+      )
+    );
+  };
+
   const [pulse, setPulse] = useState(false);
 
   useEffect(() => {
