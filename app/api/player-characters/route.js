@@ -16,15 +16,18 @@ export async function GET(req) {
   const id = searchParams.get("id");
   const campaignId = searchParams.get("campaign_id");
 
+  // ─────────────────────────────
+  // Fetch single character
+  // ─────────────────────────────
   if (id) {
     const { rows } = await query(
       `
       SELECT
         id,
         campaign_id,
-        first_name AS "firstName",
-        last_name  AS "lastName",
-        character_name AS "characterName",
+        first_name,
+        last_name,
+        character_name,
         phone,
         email,
         notes,
@@ -34,47 +37,53 @@ export async function GET(req) {
       WHERE tenant_id = $1
         AND id = $2
         AND deleted_at IS NULL
-      LIMIT 1
       `,
       [tenantId, id]
     );
 
-    return Response.json(
-      rows[0]
-        ? sanitizeRow(rows[0], {
-            firstName: 60,
-            lastName: 60,
-            characterName: 100,
-            phone: 40,
-            email: 254,
-            notes: 10000,
-          })
-        : null
-    );
+    if (!rows.length) return Response.json(null);
+
+    const r = rows[0];
+    return Response.json({
+      id: r.id,
+      campaignId: r.campaign_id,
+      firstName: r.first_name,
+      lastName: r.last_name,
+      characterName: r.character_name,
+      phone: r.phone,
+      email: r.email,
+      notes: r.notes,
+      createdAt: r.created_at,
+      updatedAt: r.updated_at,
+    });
   }
 
-let campaignIdFinal = campaignId;
+  // -------------------------------------------------
+  // Resolve campaign if only session_id is provided
+  // -------------------------------------------------
+  let campaignIdFinal = campaignId;
 
-if (!campaignIdFinal && searchParams.get("session_id")) {
-  const { rows } = await query(
-    `SELECT campaign_id FROM sessions WHERE id = $1`,
-    [searchParams.get("session_id")]
-  );
-  campaignIdFinal = rows[0]?.campaign_id;
-}
+  if (!campaignIdFinal && searchParams.get("session_id")) {
+    const { rows } = await query(
+      `SELECT campaign_id FROM sessions WHERE id = $1`,
+      [searchParams.get("session_id")]
+    );
+    campaignIdFinal = rows[0]?.campaign_id;
+  }
 
-if (!campaignIdFinal) {
-  return Response.json([]);
-}
+  if (!campaignIdFinal) return Response.json([]);
 
+  // -------------------------------------------------
+  // Fetch all characters for campaign
+  // -------------------------------------------------
   const { rows } = await query(
     `
     SELECT
       id,
       campaign_id,
-      first_name AS "firstName",
-      last_name  AS "lastName",
-      character_name AS "characterName",
+      first_name,
+      last_name,
+      character_name,
       phone,
       email,
       notes,
@@ -86,18 +95,20 @@ if (!campaignIdFinal) {
       AND deleted_at IS NULL
     ORDER BY created_at ASC
     `,
-    [tenantId, campaignId]
+    [tenantId, campaignIdFinal]
   );
 
   return Response.json(
-    sanitizeRows(rows, {
-      firstName: 60,
-      lastName: 60,
-      characterName: 100,
-      phone: 40,
-      email: 254,
-      notes: 10000,
-    })
+    rows.map((r) => ({
+      id: r.id,
+      campaignId: r.campaign_id,
+      firstName: r.first_name,
+      lastName: r.last_name,
+      characterName: r.character_name,
+      phone: r.phone,
+      email: r.email,
+      notes: r.notes,
+    }))
   );
 }
 
@@ -108,16 +119,14 @@ export async function POST(req) {
   const { tenantId } = await getTenantContext(req);
   const body = await req.json();
 
-  const campaignId = body.campaign_id ?? body.campaignId ?? null;
-  const firstName = body.firstName ?? body.first_name ?? null;
-  const lastName = body.lastName ?? body.last_name ?? null;
-  const characterName = body.characterName ?? body.character_name ?? null;
-
+  const campaignId = body.campaign_id ?? body.campaignId;
   if (!campaignId) {
     return Response.json({ error: "campaign_id is required" }, { status: 400 });
   }
 
-  if (!firstName?.trim() || !lastName?.trim()) {
+  const { firstName, lastName, characterName, phone, email, notes } = body;
+
+  if (!firstName || !lastName) {
     return Response.json(
       { error: "firstName and lastName are required" },
       { status: 400 }
@@ -144,30 +153,31 @@ export async function POST(req) {
       uuid(),
       tenantId,
       campaignId,
-      firstName.trim(),
-      lastName.trim(),
+      firstName,
+      lastName,
       characterName ?? null,
-      body.phone ?? null,
-      body.email ?? null,
-      body.notes ?? null,
+      phone ?? null,
+      email ?? null,
+      notes ?? null,
     ]
   );
 
-  return Response.json(
-    sanitizeRow(rows[0], {
-      firstName: 60,
-      lastName: 60,
-      characterName: 100,
-      phone: 40,
-      email: 254,
-      notes: 10000,
-    }),
-    { status: 201 }
-  );
+  const r = rows[0];
+
+  return Response.json({
+    id: r.id,
+    campaignId: r.campaign_id,
+    firstName: r.first_name,
+    lastName: r.last_name,
+    characterName: r.character_name,
+    phone: r.phone,
+    email: r.email,
+    notes: r.notes,
+  });
 }
 
 /* -----------------------------------------------------------
-   PUT /api/player-characters?id=
+   PUT /api/player-characters
 ------------------------------------------------------------ */
 export async function PUT(req) {
   const { tenantId } = await getTenantContext(req);
@@ -179,86 +189,56 @@ export async function PUT(req) {
     return Response.json({ error: "id required" }, { status: 400 });
   }
 
-  if (
-    ("firstName" in body && !body.firstName?.trim()) ||
-    ("lastName" in body && !body.lastName?.trim())
-  ) {
-    return Response.json(
-      { error: "firstName and lastName cannot be blank" },
-      { status: 400 }
-    );
-  }
-
-  const sets = [];
+  const fields = [];
   const values = [tenantId, id];
-  let i = 3;
+  let idx = 3;
 
-  if (body.firstName !== undefined || body.first_name !== undefined) {
-    sets.push(`first_name = $${i++}`);
-    values.push((body.firstName ?? body.first_name).trim());
+  const map = {
+    firstName: "first_name",
+    lastName: "last_name",
+    characterName: "character_name",
+    phone: "phone",
+    email: "email",
+    notes: "notes",
+  };
+
+  for (const [key, dbKey] of Object.entries(map)) {
+    if (body[key] !== undefined) {
+      fields.push(`${dbKey} = $${idx++}`);
+      values.push(body[key]);
+    }
   }
 
-  if (body.lastName !== undefined || body.last_name !== undefined) {
-    sets.push(`last_name = $${i++}`);
-    values.push((body.lastName ?? body.last_name).trim());
-  }
-
-  if (body.characterName !== undefined || body.character_name !== undefined) {
-    sets.push(`character_name = $${i++}`);
-    values.push(body.characterName ?? body.character_name);
-  }
-
-  if (body.phone !== undefined) {
-    sets.push(`phone = $${i++}`);
-    values.push(body.phone);
-  }
-
-  if (body.email !== undefined) {
-    sets.push(`email = $${i++}`);
-    values.push(body.email);
-  }
-
-  if (body.notes !== undefined) {
-    sets.push(`notes = $${i++}`);
-    values.push(body.notes);
-  }
-
-  if (!sets.length) {
-    return Response.json(
-      { error: "No valid fields provided" },
-      { status: 400 }
-    );
+  if (!fields.length) {
+    return Response.json({ error: "No fields to update" }, { status: 400 });
   }
 
   const { rows } = await query(
     `
     UPDATE player_characters
-       SET ${sets.join(", ")},
-           updated_at = NOW()
-     WHERE tenant_id = $1
-       AND id = $2
-       AND deleted_at IS NULL
-     RETURNING *
+    SET ${fields.join(", ")},
+        updated_at = NOW()
+    WHERE tenant_id = $1 AND id = $2
+    RETURNING *
     `,
     values
   );
 
-  return Response.json(
-    rows[0]
-      ? sanitizeRow(rows[0], {
-          firstName: 60,
-          lastName: 60,
-          characterName: 100,
-          phone: 40,
-          email: 254,
-          notes: 10000,
-        })
-      : null
-  );
+  const r = rows[0];
+  return Response.json({
+    id: r.id,
+    campaignId: r.campaign_id,
+    firstName: r.first_name,
+    lastName: r.last_name,
+    characterName: r.character_name,
+    phone: r.phone,
+    email: r.email,
+    notes: r.notes,
+  });
 }
 
 /* -----------------------------------------------------------
-   DELETE /api/player-characters?id=
+   DELETE /api/player-characters
 ------------------------------------------------------------ */
 export async function DELETE(req) {
   const { tenantId } = await getTenantContext(req);
@@ -272,26 +252,26 @@ export async function DELETE(req) {
   const { rows } = await query(
     `
     UPDATE player_characters
-       SET deleted_at = NOW(),
-           updated_at = NOW()
-     WHERE tenant_id = $1
-       AND id = $2
-       AND deleted_at IS NULL
-     RETURNING *
+    SET deleted_at = NOW()
+    WHERE tenant_id = $1
+      AND id = $2
+    RETURNING *
     `,
     [tenantId, id]
   );
 
   return Response.json(
     rows[0]
-      ? sanitizeRow(rows[0], {
-          firstName: 60,
-          lastName: 60,
-          characterName: 100,
-          phone: 40,
-          email: 254,
-          notes: 10000,
-        })
+      ? {
+          id: rows[0].id,
+          campaignId: rows[0].campaign_id,
+          firstName: rows[0].first_name,
+          lastName: rows[0].last_name,
+          characterName: rows[0].character_name,
+          phone: rows[0].phone,
+          email: rows[0].email,
+          notes: rows[0].notes,
+        }
       : null
   );
 }
