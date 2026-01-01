@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { useCampaignContext } from "@/lib/campaign/campaignContext";
 
 export default function PlayerCharacterForm({ record, onChange }) {
@@ -28,12 +28,14 @@ export default function PlayerCharacterForm({ record, onChange }) {
   }
 
   /* --------------------------------------------------
-     Update helper
+     Update helper (FIXED)
   -------------------------------------------------- */
   const update = (field, value) => {
     onChange({
       ...record,
       [field]: value,
+      campaign_id: campaign.id,
+      session_id: session.id,
     });
   };
 
