@@ -53,9 +53,19 @@ export async function GET(req) {
     );
   }
 
-  if (!campaignId) {
-    return Response.json([]);
-  }
+let campaignIdFinal = campaignId;
+
+if (!campaignIdFinal && searchParams.get("session_id")) {
+  const { rows } = await query(
+    `SELECT campaign_id FROM sessions WHERE id = $1`,
+    [searchParams.get("session_id")]
+  );
+  campaignIdFinal = rows[0]?.campaign_id;
+}
+
+if (!campaignIdFinal) {
+  return Response.json([]);
+}
 
   const { rows } = await query(
     `
