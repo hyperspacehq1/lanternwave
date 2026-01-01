@@ -69,15 +69,17 @@ export default function CampaignManagerPage() {
   setSelectedId(first?.id ?? null);
   setSelectedRecord(first);
 
-  if (activeType === "campaigns" && first) {
-    setCampaignContext({ campaign: first, session: null });
-  }
-
-  if (activeType === "sessions" && first) {
-    setCampaignContext({ campaign, session: first });
-  }
+if (activeType === "campaigns" && first) {
+  setCampaignContext({
+    campaign: first,
+    session: null,
+  });
+} else if (activeType === "sessions" && first) {
+  setCampaignContext({
+    campaign,
+    session: first,
+  });
 }
-
           // Auto-set context on initial load
           if (activeType === "campaigns" && list?.length) {
             setCampaignContext({ campaign: list[0], session: null });
