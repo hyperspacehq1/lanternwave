@@ -34,16 +34,17 @@ export default function ItemForm({ record, onChange, campaignName }) {
 
   return (
     <div className="cm-detail-form">
+      {/* HEADER */}
       <div className={`cm-campaign-header ${pulse ? "pulse" : ""}`}>
         <div className="cm-context-line">
           Campaign: {campaignName || "Unnamed Campaign"}
         </div>
-
         <div className="cm-context-line">
           Session: {record.name || "Unnamed Session"}
         </div>
       </div>
 
+      {/* NAME */}
       <div className="cm-field">
         <label className="cm-label">Name</label>
         <input
@@ -53,6 +54,7 @@ export default function ItemForm({ record, onChange, campaignName }) {
         />
       </div>
 
+      {/* ITEM TYPE */}
       <div className="cm-field">
         <label className="cm-label">Item Type</label>
         <input
@@ -62,6 +64,7 @@ export default function ItemForm({ record, onChange, campaignName }) {
         />
       </div>
 
+      {/* DESCRIPTION */}
       <div className="cm-field">
         <label className="cm-label">Description</label>
         <textarea
@@ -71,6 +74,7 @@ export default function ItemForm({ record, onChange, campaignName }) {
         />
       </div>
 
+      {/* NOTES */}
       <div className="cm-field">
         <label className="cm-label">Notes</label>
         <textarea
@@ -80,8 +84,9 @@ export default function ItemForm({ record, onChange, campaignName }) {
         />
       </div>
 
+      {/* PROPERTIES */}
       <div className="cm-field">
-        <label className="cm-label">Properties (JSON)</label>
+        <label className="cm-label">Properties</label>
         <textarea
           className="cm-textarea"
           value={
@@ -96,7 +101,7 @@ export default function ItemForm({ record, onChange, campaignName }) {
                 e.target.value ? JSON.parse(e.target.value) : null
               );
             } catch {
-              // allow user to type invalid JSON temporarily
+              // allow invalid JSON during typing
             }
           }}
         />

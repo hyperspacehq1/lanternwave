@@ -289,9 +289,10 @@ export default function CampaignManagerPage() {
                   (() => {
                     const Form = getFormComponent(activeType);
                     return (
-                      <Form
+  <Form
   record={selectedRecord}
   campaignName={activeCampaign?.name}
+  sessionName={activeSession?.name}
   onChange={(next) => {
     setSelectedRecord(next);
     setSaveStatus("unsaved");
