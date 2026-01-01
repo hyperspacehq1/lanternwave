@@ -14,7 +14,7 @@ const NPC_TYPES = [
   { value: "mystic", label: "Mystic" },
 ];
 
-export default function NpcForm({ record }) {
+export default function NpcForm({ record, onChange }) {
   const { campaign, session } = useCampaignContext();
 
   /* ------------------------------------------------------------

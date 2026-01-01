@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { withContext } from "@/lib/forms/withContext";
 import { useCampaignContext } from "@/lib/campaign/campaignContext";
 
-export default function LocationForm({ record }) {
+export default function LocationForm({ record, onChange }) {
   const { campaign, session } = useCampaignContext();
 
   // --- Guards ---
