@@ -45,10 +45,9 @@ export default function NpcForm({ record, campaignName }) {
   return (
     <div className="cm-detail-form">
 
-     {/* 🔒 Locked campaign + session header */}
 <div className={`cm-campaign-header ${pulse ? "pulse" : ""}`}>
   <div className="cm-context-line">
-    Campaign: {record._campaignName || "Unnamed Campaign"}
+    Campaign: {campaignName || "Unnamed Campaign"}
   </div>
 
   <div className="cm-context-line">

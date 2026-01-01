@@ -35,14 +35,13 @@ export default function ItemForm({ record, campaignName }) {
   return (
     <div className="cm-detail-form">
 
-      {/* 🔒 Locked campaign + session header */}
 <div className={`cm-campaign-header ${pulse ? "pulse" : ""}`}>
   <div className="cm-context-line">
-    Campaign: {campaignName || "New Campaign"}
+    Campaign: {campaignName || "Unnamed Campaign"}
   </div>
 
   <div className="cm-context-line">
-    Session: {record.name || "New Session"}
+    Session: {record.name || "Unnamed Session"}
   </div>
 </div>
 

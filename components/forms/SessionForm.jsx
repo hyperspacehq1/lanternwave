@@ -35,10 +35,9 @@ export default function SessionForm({ record, campaignName }) {
   return (
     <div className="cm-detail-form">
 
-  {/* 🔒 Locked campaign + session header */}
-<div className={`cm-campaign-header ${pulse ? "pulse" : ""}`}>
+  <div className={`cm-campaign-header ${pulse ? "pulse" : ""}`}>
   <div className="cm-context-line">
-    Campaign: {campaignName || "New Campaign"}
+    Campaign: {campaignName || "Unnamed Campaign"}
   </div>
 
   <div className="cm-context-line">
