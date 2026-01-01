@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { withContext } from "@/lib/forms/withContext";
 
-export default function ItemForm({ record, onChange, campaignName }) {
+export default function ItemForm({ record, onChange, campaignName, sessionName }) {
   if (!record) return null;
 
   const update = (field, value) => {
@@ -21,9 +21,6 @@ export default function ItemForm({ record, onChange, campaignName }) {
     );
   };
 
-  /* ---------------------------------------------
-     Campaign change pulse
-  --------------------------------------------- */
   const [pulse, setPulse] = useState(false);
 
   useEffect(() => {
@@ -40,7 +37,7 @@ export default function ItemForm({ record, onChange, campaignName }) {
           Campaign: {campaignName || "Unnamed Campaign"}
         </div>
         <div className="cm-context-line">
-          Session: {record.name || "New Item"}
+          Session: {sessionName || "New Item"}
         </div>
       </div>
 
