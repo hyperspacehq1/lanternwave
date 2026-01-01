@@ -9,6 +9,7 @@ export const dynamic = "force-dynamic";
    GET
 ============================================================ */
 export async function GET(req) {
+  console.log("🧠 PlayerCharacter record:", record);
   const { tenantId } = await getTenantContext(req);
   const { searchParams } = new URL(req.url);
 
