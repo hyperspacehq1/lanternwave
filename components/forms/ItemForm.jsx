@@ -42,7 +42,7 @@ export default function ItemForm({
           Campaign: {campaignName || "Unnamed Campaign"}
         </div>
         <div className="cm-context-line">
-          Session: {sessionName || "Unnamed Session"}
+          Session: {sessionName || "New Session"}
         </div>
       </div>
 
