@@ -43,6 +43,7 @@ export default function CampaignManagerPage() {
       setRecords((p) => ({ ...p, campaigns: res }));
       if (!activeCampaignId && res.length) setActiveCampaignId(res[0].id);
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /* ---------- LOAD LIST BY TYPE ---------- */
@@ -80,6 +81,9 @@ export default function CampaignManagerPage() {
       : selectedRecord?.session_id
       ? records.sessions?.find((s) => s.id === selectedRecord.session_id)
       : null;
+
+  /* ✅ FIX: DEFINE FORM COMPONENT */
+  const Form = getFormComponent(activeType);
 
   /* ---------- CREATE ---------- */
   const handleCreate = () => {
@@ -179,13 +183,12 @@ export default function CampaignManagerPage() {
             </aside>
 
             <section className="cm-form">
-              {selectedRecord && (
+              {selectedRecord && Form && (
                 <Form
                   record={selectedRecord}
                   campaignName={
-                    records.campaigns?.find(
-                      (c) => c.id === activeCampaignId
-                    )?.name
+                    records.campaigns?.find((c) => c.id === activeCampaignId)
+                      ?.name
                   }
                   sessionName={activeSession?.name}
                   onChange={(updated) => {
@@ -200,3 +203,4 @@ export default function CampaignManagerPage() {
     </div>
   );
 }
+
