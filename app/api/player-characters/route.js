@@ -1,4 +1,3 @@
-import { sanitizeRow, sanitizeRows } from "@/lib/api/sanitize";
 import { query } from "@/lib/db";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { v4 as uuid } from "uuid";
@@ -6,44 +5,40 @@ import { v4 as uuid } from "uuid";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/* -----------------------------------------------------------
-   GET /api/player-characters
------------------------------------------------------------- */
+/* -----------------------------------------------------
+   GET
+----------------------------------------------------- */
 export async function GET(req) {
+  console.log("🔍 [GET] /api/player-characters");
+
   const { tenantId } = await getTenantContext(req);
   const { searchParams } = new URL(req.url);
 
+  console.log("➡️ Query params:", Object.fromEntries(searchParams.entries()));
+
   const id = searchParams.get("id");
   const campaignId = searchParams.get("campaign_id");
+  const sessionId = searchParams.get("session_id");
 
-  // ─────────────────────────────
-  // Fetch single character
-  // ─────────────────────────────
+  // ---------- SINGLE RECORD ----------
   if (id) {
+    console.log("🔎 Fetching single player_character", id);
+
     const { rows } = await query(
       `
-      SELECT
-        id,
-        campaign_id,
-        first_name,
-        last_name,
-        character_name,
-        phone,
-        email,
-        notes,
-        created_at,
-        updated_at
+      SELECT *
       FROM player_characters
-      WHERE tenant_id = $1
-        AND id = $2
-        AND deleted_at IS NULL
+      WHERE id = $1 AND tenant_id = $2
       `,
-      [tenantId, id]
+      [id, tenantId]
     );
+
+    console.log("📦 DB result:", rows);
 
     if (!rows.length) return Response.json(null);
 
     const r = rows[0];
+
     return Response.json({
       id: r.id,
       campaignId: r.campaign_id,
@@ -53,29 +48,31 @@ export async function GET(req) {
       phone: r.phone,
       email: r.email,
       notes: r.notes,
-      createdAt: r.created_at,
-      updatedAt: r.updated_at,
     });
   }
 
-  // -------------------------------------------------
-  // Resolve campaign if only session_id is provided
-  // -------------------------------------------------
+  // ---------- RESOLVE CAMPAIGN ----------
   let campaignIdFinal = campaignId;
 
-  if (!campaignIdFinal && searchParams.get("session_id")) {
+  if (!campaignIdFinal && sessionId) {
+    console.log("🔍 Resolving campaign from session:", sessionId);
+
     const { rows } = await query(
       `SELECT campaign_id FROM sessions WHERE id = $1`,
-      [searchParams.get("session_id")]
+      [sessionId]
     );
+
     campaignIdFinal = rows[0]?.campaign_id;
   }
 
-  if (!campaignIdFinal) return Response.json([]);
+  console.log("🎯 Final campaignId:", campaignIdFinal);
 
-  // -------------------------------------------------
-  // Fetch all characters for campaign
-  // -------------------------------------------------
+  if (!campaignIdFinal) {
+    console.log("❌ No campaignId — returning empty list");
+    return Response.json([]);
+  }
+
+  // ---------- FETCH ALL CHARACTERS ----------
   const { rows } = await query(
     `
     SELECT
@@ -86,9 +83,7 @@ export async function GET(req) {
       character_name,
       phone,
       email,
-      notes,
-      created_at,
-      updated_at
+      notes
     FROM player_characters
     WHERE tenant_id = $1
       AND campaign_id = $2
@@ -97,6 +92,9 @@ export async function GET(req) {
     `,
     [tenantId, campaignIdFinal]
   );
+
+  console.log("📦 Player characters found:", rows.length);
+  console.table(rows);
 
   return Response.json(
     rows.map((r) => ({
@@ -112,26 +110,24 @@ export async function GET(req) {
   );
 }
 
-/* -----------------------------------------------------------
-   POST /api/player-characters
------------------------------------------------------------- */
+/* -----------------------------------------------------
+   POST
+----------------------------------------------------- */
 export async function POST(req) {
   const { tenantId } = await getTenantContext(req);
   const body = await req.json();
 
-  const campaignId = body.campaign_id ?? body.campaignId;
-  if (!campaignId) {
-    return Response.json({ error: "campaign_id is required" }, { status: 400 });
-  }
+  console.log("🟢 CREATE player_character", body);
 
-  const { firstName, lastName, characterName, phone, email, notes } = body;
-
-  if (!firstName || !lastName) {
-    return Response.json(
-      { error: "firstName and lastName are required" },
-      { status: 400 }
-    );
-  }
+  const {
+    campaignId,
+    firstName,
+    lastName,
+    characterName,
+    phone,
+    email,
+    notes,
+  } = body;
 
   const { rows } = await query(
     `
@@ -155,10 +151,10 @@ export async function POST(req) {
       campaignId,
       firstName,
       lastName,
-      characterName ?? null,
-      phone ?? null,
-      email ?? null,
-      notes ?? null,
+      characterName,
+      phone,
+      email,
+      notes,
     ]
   );
 
@@ -176,22 +172,20 @@ export async function POST(req) {
   });
 }
 
-/* -----------------------------------------------------------
-   PUT /api/player-characters
------------------------------------------------------------- */
+/* -----------------------------------------------------
+   PUT
+----------------------------------------------------- */
 export async function PUT(req) {
   const { tenantId } = await getTenantContext(req);
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
   const body = await req.json();
 
-  if (!id) {
-    return Response.json({ error: "id required" }, { status: 400 });
-  }
+  console.log("✏️ UPDATE player_character:", id, body);
 
   const fields = [];
   const values = [tenantId, id];
-  let idx = 3;
+  let i = 3;
 
   const map = {
     firstName: "first_name",
@@ -202,22 +196,21 @@ export async function PUT(req) {
     notes: "notes",
   };
 
-  for (const [key, dbKey] of Object.entries(map)) {
+  for (const [key, column] of Object.entries(map)) {
     if (body[key] !== undefined) {
-      fields.push(`${dbKey} = $${idx++}`);
+      fields.push(`${column} = $${i++}`);
       values.push(body[key]);
     }
   }
 
   if (!fields.length) {
-    return Response.json({ error: "No fields to update" }, { status: 400 });
+    return Response.json({ error: "Nothing to update" });
   }
 
   const { rows } = await query(
     `
     UPDATE player_characters
-    SET ${fields.join(", ")},
-        updated_at = NOW()
+    SET ${fields.join(", ")}, updated_at = NOW()
     WHERE tenant_id = $1 AND id = $2
     RETURNING *
     `,
@@ -225,6 +218,7 @@ export async function PUT(req) {
   );
 
   const r = rows[0];
+
   return Response.json({
     id: r.id,
     campaignId: r.campaign_id,
@@ -235,43 +229,4 @@ export async function PUT(req) {
     email: r.email,
     notes: r.notes,
   });
-}
-
-/* -----------------------------------------------------------
-   DELETE /api/player-characters
------------------------------------------------------------- */
-export async function DELETE(req) {
-  const { tenantId } = await getTenantContext(req);
-  const { searchParams } = new URL(req.url);
-  const id = searchParams.get("id");
-
-  if (!id) {
-    return Response.json({ error: "id required" }, { status: 400 });
-  }
-
-  const { rows } = await query(
-    `
-    UPDATE player_characters
-    SET deleted_at = NOW()
-    WHERE tenant_id = $1
-      AND id = $2
-    RETURNING *
-    `,
-    [tenantId, id]
-  );
-
-  return Response.json(
-    rows[0]
-      ? {
-          id: rows[0].id,
-          campaignId: rows[0].campaign_id,
-          firstName: rows[0].first_name,
-          lastName: rows[0].last_name,
-          characterName: rows[0].character_name,
-          phone: rows[0].phone,
-          email: rows[0].email,
-          notes: rows[0].notes,
-        }
-      : null
-  );
 }
