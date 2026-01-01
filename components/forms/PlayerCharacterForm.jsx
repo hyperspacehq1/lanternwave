@@ -2,9 +2,31 @@
 
 import React, { useEffect, useState } from "react";
 import { withContext } from "@/lib/forms/withContext";
+import { useCampaignContext } from "@/lib/campaign/campaignContext";
 
-export default function PlayerCharacterForm({ record, onChange, campaignName }) {
-  if (!record) return null;
+export default function PlayerCharacterForm({ record }) {
+  const { campaign, session } = useCampaignContext();
+
+  /* --------------------------------------------------
+     Guards
+  -------------------------------------------------- */
+  if (!campaign) {
+    return (
+      <div className="cm-detail-empty">
+        <h3>No Campaign Selected</h3>
+        <p>Please select a campaign.</p>
+      </div>
+    );
+  }
+
+  if (!session) {
+    return (
+      <div className="cm-detail-empty">
+        <h3>No Session Selected</h3>
+        <p>Please select a session.</p>
+      </div>
+    );
+  }
 
   const update = (field, value) => {
     onChange(
@@ -14,86 +36,62 @@ export default function PlayerCharacterForm({ record, onChange, campaignName }) 
           [field]: value,
         },
         {
-          campaign_id: record.campaign_id,
-          session_id: record.session_id,
+          campaign_id: campaign.id,
+          session_id: session.id,
         }
       )
     );
   };
 
   /* ---------------------------------------------
-     Campaign change pulse
+     Visual pulse on record change
   --------------------------------------------- */
   const [pulse, setPulse] = useState(false);
 
   useEffect(() => {
     setPulse(true);
-    const t = setTimeout(() => setPulse(false), 1200);
+    const t = setTimeout(() => setPulse(false), 800);
     return () => clearTimeout(t);
-  }, [record._campaignName]);
+  }, [record?.id]);
 
   return (
     <div className="cm-detail-form">
-      {/* Campaign / Session Header */}
       <div className={`cm-campaign-header ${pulse ? "pulse" : ""}`}>
         <div className="cm-context-line">
-          Campaign: {campaignName || "Unnamed Campaign"}
+          <strong>Campaign:</strong> {campaign.name}
         </div>
-
         <div className="cm-context-line">
-          Session: {record.name || "Unnamed Session"}
+          <strong>Session:</strong> {session.name}
         </div>
       </div>
 
-      {/* FIRST NAME */}
       <div className="cm-field">
-        <label className="cm-label">
-          First Name <strong>(required)</strong>
-        </label>
+        <label className="cm-label">First Name</label>
         <input
           className="cm-input"
-          type="text"
           value={record.firstName || ""}
           onChange={(e) => update("firstName", e.target.value)}
         />
       </div>
 
-      {/* LAST NAME */}
       <div className="cm-field">
-        <label className="cm-label">
-          Last Name <strong>(required)</strong>
-        </label>
+        <label className="cm-label">Last Name</label>
         <input
           className="cm-input"
-          type="text"
           value={record.lastName || ""}
           onChange={(e) => update("lastName", e.target.value)}
         />
       </div>
 
-      {/* CHARACTER NAME */}
       <div className="cm-field">
         <label className="cm-label">Character Name</label>
         <input
           className="cm-input"
-          type="text"
           value={record.characterName || ""}
           onChange={(e) => update("characterName", e.target.value)}
         />
       </div>
 
-      {/* PHONE */}
-      <div className="cm-field">
-        <label className="cm-label">Phone</label>
-        <input
-          className="cm-input"
-          type="text"
-          value={record.phone || ""}
-          onChange={(e) => update("phone", e.target.value)}
-        />
-      </div>
-
-      {/* EMAIL */}
       <div className="cm-field">
         <label className="cm-label">Email</label>
         <input
@@ -104,7 +102,6 @@ export default function PlayerCharacterForm({ record, onChange, campaignName }) 
         />
       </div>
 
-      {/* NOTES */}
       <div className="cm-field">
         <label className="cm-label">Notes</label>
         <textarea
