@@ -31,7 +31,7 @@ const CONTAINER_TYPES = [
   { id: "locations", label: "Locations" },
   { id: "npcs", label: "NPCs" },
   { id: "items", label: "Items" },
-  { id: "players", label: "Items" },
+  { id: "players", label: "Players" },
 ];
 
 export default function CampaignManagerPage() {
