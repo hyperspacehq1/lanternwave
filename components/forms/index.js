@@ -5,9 +5,9 @@ import SessionForm from "./SessionForm";
 import EventForm from "./EventForm";
 import EncounterForm from "./EncounterForm";
 import NpcForm from "./NpcForm";
-import PlayerCharacterForm from "./PlayerCharacterForm";
 import ItemForm from "./ItemForm";
 import LocationForm from "./LocationForm";
+import PlayerForm from "./PlayerForm"; // ✅ ADDED
 
 // Specialized registry
 export const FORM_REGISTRY = {
@@ -16,10 +16,7 @@ export const FORM_REGISTRY = {
   events: EventForm,
   encounters: EncounterForm,
   npcs: NpcForm,
-
-  // FIX: must match API + page entity key exactly
-  "player-characters": PlayerCharacterForm,
-
+  players: PlayerForm, // ✅ WIRED
   items: ItemForm,
   locations: LocationForm,
 };
@@ -56,3 +53,4 @@ function GenericFallbackForm({ record, onChange }) {
 export function getFormComponent(type) {
   return FORM_REGISTRY[type] || GenericFallbackForm;
 }
+
