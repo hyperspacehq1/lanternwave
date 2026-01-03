@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
-import { getTenantContext } from "@/lib/auth/getTenantContext";
+import { getTenantContext } from "@/lib/tenant/getTenantContext";
 
 /* -------------------------------------------------
    GET /api/players
