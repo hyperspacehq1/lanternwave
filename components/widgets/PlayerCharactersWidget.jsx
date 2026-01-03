@@ -18,7 +18,9 @@ export default function PlayerCharactersWidget({ campaignId }) {
   const [players, setPlayers] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // --- per-user storage key (best-effort) ---
+  /* -------------------------------------------------
+     Per-user storage key (best effort)
+  -------------------------------------------------- */
   const [userScope, setUserScope] = useState("anon");
   useEffect(() => {
     let cancelled = false;
@@ -49,11 +51,14 @@ export default function PlayerCharactersWidget({ campaignId }) {
     };
   }, []);
 
-  const storageKey = useMemo(() => {
-    return `lw:widgetpos:${userScope}:players`;
-  }, [userScope]);
+  const storageKey = useMemo(
+    () => `lw:widgetpos:${userScope}:players`,
+    [userScope]
+  );
 
-  // --- position state ---
+  /* -------------------------------------------------
+     Position state
+  -------------------------------------------------- */
   const MARGIN = 16;
 
   const [pos, setPos] = useState(() => ({
@@ -108,7 +113,9 @@ export default function PlayerCharactersWidget({ campaignId }) {
     } catch {}
   }
 
-  // --- restore saved position ---
+  /* -------------------------------------------------
+     Restore saved position
+  -------------------------------------------------- */
   useEffect(() => {
     const t = setTimeout(() => {
       let saved = null;
@@ -136,7 +143,9 @@ export default function PlayerCharactersWidget({ campaignId }) {
     return () => clearTimeout(t);
   }, [storageKey]);
 
-  // --- drag handlers ---
+  /* -------------------------------------------------
+     Drag handlers
+  -------------------------------------------------- */
   function onPointerDown(e) {
     if (e.button != null && e.button !== 0) return;
     const el = widgetRef.current;
@@ -180,11 +189,14 @@ export default function PlayerCharactersWidget({ campaignId }) {
     });
   }
 
-  // --- load players ---
+  /* -------------------------------------------------
+     Load players (GUARDED by campaignId)
+  -------------------------------------------------- */
   useEffect(() => {
     if (!campaignId) return;
 
     setLoading(true);
+
     fetch(`/api/players?campaign_id=${campaignId}`)
       .then((r) => r.json())
       .then((data) => setPlayers(Array.isArray(data) ? data : []))
@@ -218,11 +230,15 @@ export default function PlayerCharactersWidget({ campaignId }) {
         style={{ cursor: "grab", userSelect: "none", touchAction: "none" }}
       >
         Players
-        <span style={{ marginLeft: 8, opacity: 0.65, fontSize: 12 }}>(drag)</span>
+        <span style={{ marginLeft: 8, opacity: 0.65, fontSize: 12 }}>
+          (drag)
+        </span>
       </div>
 
       {!campaignId ? (
-        <div className="widget-empty">Select a campaign from the GM Dashboard</div>
+        <div className="widget-empty">
+          Select a campaign from the GM Dashboard
+        </div>
       ) : loading ? (
         <div className="widget-loading">Loading…</div>
       ) : (
