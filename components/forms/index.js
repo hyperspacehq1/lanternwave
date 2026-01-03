@@ -1,67 +1,134 @@
-// /components/forms/index.js
+import {
+  normalizeRow,
+  normalizeRows,
+  denormalizeRecord,
+} from "@/lib/cm/model";
 
-import CampaignForm from "./CampaignForm";
-import SessionForm from "./SessionForm";
-import EventForm from "./EventForm";
-import EncounterForm from "./EncounterForm";
-import NpcForm from "./NpcForm";
-import ItemForm from "./ItemForm";
-import LocationForm from "./LocationForm";
-import PlayerForm from "./PlayerForm";
-
-// Specialized registry
-export const FORM_REGISTRY = {
-  campaigns: CampaignForm,
-  sessions: SessionForm,
-  events: EventForm,
-  encounters: EncounterForm,
-  npcs: NpcForm,
-  players: PlayerForm,
-  items: ItemForm,
-  locations: LocationForm,
+/* -------------------------------------------------
+   UI entity → API route mapping
+-------------------------------------------------- */
+const API_MAP = {
+  campaigns: "campaigns",
+  sessions: "sessions",
+  events: "events",
+  encounters: "encounters",
+  locations: "locations",
+  items: "items",
+  npcs: "npcs",
+  players: "players",
 };
 
-// Fallback generic renderer
-function GenericFallbackForm({ record, onChange }) {
-  console.warn(
-    `[CampaignManager] No specialized form found for "${record?._type}". Using generic fallback form.`
-  );
-
-  return (
-    <div className="cm-detail-form">
-      {Object.entries(record)
-        .filter(
-          ([key]) =>
-            ![
-              "_isNew",
-              "_type",
-              "id",
-              "createdAt",
-              "updatedAt",
-              "created_at",   // ✅ FIX
-              "updated_at",   // ✅ FIX
-              "deleted_at",   // ✅ FIX
-              "deleted_by",   // ✅ SAFE
-            ].includes(key)
-        )
-        .map(([key, value]) => (
-          <div className="cm-field" key={key}>
-            <label>{key.replace(/_/g, " ")}</label>
-            <textarea
-              className="cm-textarea"
-              value={value ?? ""}
-              onChange={(e) =>
-                onChange({ ...record, [key]: e.target.value })
-              }
-            />
-          </div>
-        ))}
-    </div>
-  );
+function apiPath(type) {
+  const mapped = API_MAP[type];
+  if (!mapped) throw new Error(`cmApi: unknown type "${type}"`);
+  return `/api/${mapped}`;
 }
 
-// Resolver
-export function getFormComponent(type) {
-  return FORM_REGISTRY[type] || GenericFallbackForm;
+/* -------------------------------------------------
+   Helpers
+-------------------------------------------------- */
+async function readErrorText(res) {
+  try {
+    return await res.text();
+  } catch {
+    return "";
+  }
 }
 
+async function fetchWithFallback(primaryUrl, fallbackUrl, options) {
+  let res = await fetch(primaryUrl, options);
+
+  if (!res.ok && fallbackUrl && (res.status === 404 || res.status === 405)) {
+    res = await fetch(fallbackUrl, options);
+  }
+
+  if (!res.ok) {
+    const msg = await readErrorText(res);
+    throw new Error(msg || `HTTP ${res.status}`);
+  }
+
+  return res;
+}
+
+/* -------------------------------------------------
+   Campaign Manager API client
+-------------------------------------------------- */
+export const cmApi = {
+  async list(type, params = {}) {
+    const qs = new URLSearchParams(params).toString();
+    const url = `${apiPath(type)}${qs ? `?${qs}` : ""}`;
+
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) {
+      const msg = await readErrorText(res);
+      throw new Error(`Failed to list ${type}: ${msg || `HTTP ${res.status}`}`);
+    }
+
+    // ✅ OPTION A: bypass normalization for list payloads
+    const data = await res.json();
+    return Array.isArray(data) ? data : normalizeRows(data);
+  },
+
+  async get(type, id) {
+    const base = apiPath(type);
+
+    const primary = `${base}?id=${encodeURIComponent(id)}`;
+    const fallback = `${base}/${encodeURIComponent(id)}`;
+
+    const res = await fetchWithFallback(primary, fallback, {
+      cache: "no-store",
+    });
+
+    return normalizeRow(await res.json());
+  },
+
+  async create(type, record) {
+    const payload = denormalizeRecord(record);
+
+    const res = await fetch(apiPath(type), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const msg = await readErrorText(res);
+      throw new Error(`Failed to create ${type}: ${msg || `HTTP ${res.status}`}`);
+    }
+
+    return normalizeRow(await res.json());
+  },
+
+  async update(type, id, record) {
+    const payload = denormalizeRecord(record);
+    const base = apiPath(type);
+
+    const primary = `${base}?id=${encodeURIComponent(id)}`;
+    const fallback = `${base}/${encodeURIComponent(id)}`;
+
+    const res = await fetchWithFallback(primary, fallback, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    return await res.json();
+  },
+
+  async remove(type, id) {
+    const base = apiPath(type);
+
+    const primary = `${base}?id=${encodeURIComponent(id)}`;
+    const fallback = `${base}/${encodeURIComponent(id)}`;
+
+    const res = await fetchWithFallback(primary, fallback, {
+      method: "DELETE",
+    });
+
+    return res.json();
+  },
+
+  async delete(type, id) {
+    return this.remove(type, id);
+  },
+};
