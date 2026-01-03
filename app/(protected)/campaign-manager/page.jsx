@@ -1,74 +1,231 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { withContext } from "@/lib/forms/withContext";
+import React, { useEffect, useMemo, useState } from "react";
+import { v4 as uuidv4 } from "uuid";
+
+import { cmApi } from "@/lib/cm/api";
+import { getFormComponent } from "@/components/forms";
 import { useCampaignContext } from "@/lib/campaign/campaignContext";
 
-export default function PlayerForm({ record, onChange }) {
-  const { campaign } = useCampaignContext();
+import "./campaign-manager.css";
 
-  /* ------------------------------------------------------------
-     Guard: No campaign selected
-  ------------------------------------------------------------ */
-  if (!campaign) {
-    return (
-      <div className="cm-detail-empty">
-        <h3>No Campaign Selected</h3>
-        <p>Please select or create a campaign to manage players.</p>
-      </div>
-    );
-  }
+/* ------------------------------------------------------------
+   Entity rules
+------------------------------------------------------------ */
+const ENTITY_RULES = {
+  campaigns: {},
+  sessions: { campaign: true },
+  npcs: { campaign: true },
+  locations: { campaign: true },
+  items: { campaign: true },
+  events: { campaign: true, session: true },
+  encounters: { campaign: true },
+};
 
-  const update = (field, value) => {
-    onChange(
-      withContext(
-        {
-          ...record,
-          [field]: value,
-        },
-        {
-          campaign_id: campaign.id,
-        }
-      )
-    );
-  };
+const CONTAINER_TYPES = [
+  { id: "campaigns", label: "Campaigns" },
+  { id: "sessions", label: "Sessions" },
+  { id: "events", label: "Events" },
+  { id: "npcs", label: "NPCs" },
+  { id: "encounters", label: "Encounters" },
+  { id: "locations", label: "Locations" },
+  { id: "items", label: "Items" },
+];
+
+export default function CampaignManagerPage() {
+  const { campaign, session, setCampaignContext } = useCampaignContext();
+
+  const [activeType, setActiveType] = useState("campaigns");
+  const [records, setRecords] = useState({});
+  const [selectedId, setSelectedId] = useState(null);
+  const [selectedRecord, setSelectedRecord] = useState(null);
+  const [saveStatus, setSaveStatus] = useState("idle");
+  const [loading, setLoading] = useState(false);
+
+  const activeCampaignId = campaign?.id;
 
   /* ---------------------------------------------
-     Visual pulse when record changes
+     Load data
   --------------------------------------------- */
-  const [pulse, setPulse] = useState(false);
   useEffect(() => {
-    setPulse(true);
-    const t = setTimeout(() => setPulse(false), 800);
-    return () => clearTimeout(t);
-  }, [record?.id]);
+    if (activeType !== "campaigns" && !activeCampaignId) return;
 
+    let cancelled = false;
+
+    (async () => {
+      setLoading(true);
+      try {
+        const list =
+          activeType === "campaigns"
+            ? await cmApi.list("campaigns")
+            : await cmApi.list(activeType, { campaign_id: activeCampaignId });
+
+        if (!cancelled) {
+  setRecords((p) => ({ ...p, [activeType]: list }));
+
+  const first = list?.[0] ?? null;
+  setSelectedId(first?.id ?? null);
+  setSelectedRecord(first);
+
+if (activeType === "campaigns" && first) {
+  setCampaignContext({
+    campaign: first,
+    session: null,
+  });
+} else if (activeType === "sessions" && first) {
+  setCampaignContext({
+    campaign,
+    session: first,
+  });
+}
+          // Auto-set context on initial load
+          if (activeType === "campaigns" && list?.length) {
+            setCampaignContext({ campaign: list[0], session: null });
+          }
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeType]);
+
+  /* ---------------------------------------------
+     CRUD Actions
+  --------------------------------------------- */
+  const handleCreate = () => {
+    const id = uuidv4();
+    const base = { id, _isNew: true, campaign_id: campaign?.id };
+
+    setSelectedId(id);
+    setSelectedRecord(base);
+    setRecords((p) => ({ ...p, [activeType]: [base, ...(p[activeType] || [])] }));
+  };
+
+  const handleSave = async () => {
+    if (!selectedRecord) return;
+
+    const { _isNew, id, ...payload } = selectedRecord;
+    const saved = _isNew
+      ? await cmApi.create(activeType, payload)
+      : await cmApi.update(activeType, id, payload);
+
+    setRecords((p) => ({
+      ...p,
+      [activeType]: p[activeType].map((r) => (r.id === saved.id ? saved : r)),
+    }));
+    setSelectedRecord(saved);
+  };
+
+  const handleDelete = async () => {
+    if (!selectedRecord) return;
+    await cmApi.remove(activeType, selectedRecord.id);
+    setRecords((p) => ({
+      ...p,
+      [activeType]: p[activeType].filter((r) => r.id !== selectedRecord.id),
+    }));
+    setSelectedRecord(null);
+  };
+
+  /* ------------------------------------------------------------
+     RENDER
+  ------------------------------------------------------------ */
   return (
-    <div className="cm-detail-form">
-      {/* Header */}
-      <div className={`cm-campaign-header ${pulse ? "pulse" : ""}`}>
-        <div className="cm-context-line">
-          <strong>Campaign:</strong> {campaign.name}
-        </div>
-      </div>
+    <div className="cm-root">
+      <div className="cm-layout">
+        <aside className="cm-sidebar">
+          <h1 className="cm-title">Campaign Manager</h1>
 
-      {/* Fields */}
-      <div className="cm-field">
-        <label className="cm-label">First Name</label>
-        <input
-          className="cm-input"
-          value={record?.first_name || ""}
-          onChange={(e) => update("first_name", e.target.value)}
-        />
-      </div>
+          {CONTAINER_TYPES.map((c) => (
+            <button
+              key={c.id}
+              className={`cm-container-btn ${
+                c.id === activeType ? "active" : ""
+              }`}
+              onClick={() => setActiveType(c.id)}
+            >
+              {c.label}
+            </button>
+          ))}
+        </aside>
 
-      <div className="cm-field">
-        <label className="cm-label">Last Name</label>
-        <input
-          className="cm-input"
-          value={record?.last_name || ""}
-          onChange={(e) => update("last_name", e.target.value)}
-        />
+        <section className="cm-main">
+          <div className="cm-main-header">
+            <div className="cm-main-title">{activeType}</div>
+          </div>
+
+<div className="cm-main-actions">
+  <button
+    className="cm-btn"
+    onClick={handleCreate}
+    disabled={loading}
+  >
+    + New
+  </button>
+
+  <button
+    className="cm-btn"
+    onClick={handleSave}
+    disabled={!selectedRecord || loading}
+  >
+    Save
+  </button>
+
+  <button
+    className="cm-btn danger"
+    onClick={handleDelete}
+    disabled={!selectedRecord || loading}
+  >
+    Delete
+  </button>
+</div>
+
+          <div className="cm-content">
+            <section className="cm-list">
+              {(records[activeType] || []).map((r) => (
+                <div
+                  key={r.id}
+                  className={`cm-list-item ${
+                    r.id === selectedId ? "selected" : ""
+                  }`}
+                  onClick={() => {
+                    setSelectedId(r.id);
+                    setSelectedRecord(r);
+
+                    if (activeType === "campaigns") {
+                      setCampaignContext({ campaign: r, session: null });
+                    }
+
+                    if (activeType === "sessions") {
+                      setCampaignContext({ campaign, session: r });
+                    }
+                  }}
+                >
+                  {r.name}
+                </div>
+              ))}
+            </section>
+
+            <section className="cm-detail">
+              {selectedRecord ? (
+                (() => {
+                  const Form = getFormComponent(activeType);
+                  return (
+                    <Form
+                      record={selectedRecord}
+                      onChange={(next) => setSelectedRecord(next)}
+                    />
+                  );
+                })()
+              ) : (
+                <div>Select a record.</div>
+              )}
+            </section>
+          </div>
+        </section>
       </div>
     </div>
   );
