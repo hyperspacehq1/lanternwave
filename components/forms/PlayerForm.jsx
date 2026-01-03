@@ -119,9 +119,16 @@ export default function PlayerForm({ record, onChange }) {
         <input
           type="number"
           className="cm-input"
-          value={record?.initiative_score ?? 0}
+          value={
+            Number.isInteger(record?.initiative_score)
+              ? record.initiative_score
+              : ""
+          }
           onChange={(e) =>
-            update("initiative_score", parseInt(e.target.value, 10) || 0)
+            update(
+              "initiative_score",
+              e.target.value === "" ? null : Number(e.target.value)
+            )
           }
         />
       </div>
@@ -132,9 +139,16 @@ export default function PlayerForm({ record, onChange }) {
         <input
           type="number"
           className="cm-input"
-          value={record?.initiative_bonus ?? 0}
+          value={
+            Number.isInteger(record?.initiative_bonus)
+              ? record.initiative_bonus
+              : ""
+          }
           onChange={(e) =>
-            update("initiative_bonus", parseInt(e.target.value, 10) || 0)
+            update(
+              "initiative_bonus",
+              e.target.value === "" ? null : Number(e.target.value)
+            )
           }
         />
       </div>
