@@ -7,7 +7,7 @@ import EncounterForm from "./EncounterForm";
 import NpcForm from "./NpcForm";
 import ItemForm from "./ItemForm";
 import LocationForm from "./LocationForm";
-import PlayerForm from "./PlayerForm"; // ✅ ADDED
+import PlayerForm from "./PlayerForm";
 
 // Specialized registry
 export const FORM_REGISTRY = {
@@ -16,7 +16,7 @@ export const FORM_REGISTRY = {
   events: EventForm,
   encounters: EncounterForm,
   npcs: NpcForm,
-  players: PlayerForm, // ✅ WIRED
+  players: PlayerForm,
   items: ItemForm,
   locations: LocationForm,
 };
@@ -32,13 +32,24 @@ function GenericFallbackForm({ record, onChange }) {
       {Object.entries(record)
         .filter(
           ([key]) =>
-            !["_isNew", "_type", "id", "createdAt", "updatedAt"].includes(key)
+            ![
+              "_isNew",
+              "_type",
+              "id",
+              "createdAt",
+              "updatedAt",
+              "created_at",   // ✅ FIX
+              "updated_at",   // ✅ FIX
+              "deleted_at",   // ✅ FIX
+              "deleted_by",   // ✅ SAFE
+            ].includes(key)
         )
         .map(([key, value]) => (
           <div className="cm-field" key={key}>
-            <label>{key.replace(/([A-Z])/g, " $1")}</label>
+            <label>{key.replace(/_/g, " ")}</label>
             <textarea
-              value={value || ""}
+              className="cm-textarea"
+              value={value ?? ""}
               onChange={(e) =>
                 onChange({ ...record, [key]: e.target.value })
               }
