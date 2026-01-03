@@ -4,35 +4,29 @@ import React, { useEffect, useState } from "react";
 import { withContext } from "@/lib/forms/withContext";
 import { useCampaignContext } from "@/lib/campaign/campaignContext";
 
-const EVENT_TYPES = [
-  { value: "", label: "— Select type —" },
-  { value: "combat", label: "Combat" },
-  { value: "story", label: "Story" },
-  { value: "exploration", label: "Exploration" },
-  { value: "social", label: "Social" },
-  { value: "downtime", label: "Downtime" },
-];
-
 export default function EventForm({ record, onChange }) {
   const { campaign, session } = useCampaignContext();
 
   /* ------------------------------------------------------------
-     Guards
+     Guard: No campaign selected
   ------------------------------------------------------------ */
   if (!campaign) {
     return (
       <div className="cm-detail-empty">
         <h3>No Campaign Selected</h3>
-        <p>Please select a campaign.</p>
+        <p>Please select or create a campaign to manage events.</p>
       </div>
     );
   }
 
+  /* ------------------------------------------------------------
+     Guard: No session selected
+  ------------------------------------------------------------ */
   if (!session) {
     return (
       <div className="cm-detail-empty">
         <h3>No Session Selected</h3>
-        <p>Please select a session.</p>
+        <p>Please select or create a session to manage events.</p>
       </div>
     );
   }
@@ -53,10 +47,9 @@ export default function EventForm({ record, onChange }) {
   };
 
   /* ---------------------------------------------
-     Pulse animation
+     Visual pulse when record changes
   --------------------------------------------- */
   const [pulse, setPulse] = useState(false);
-
   useEffect(() => {
     setPulse(true);
     const t = setTimeout(() => setPulse(false), 800);
@@ -65,6 +58,7 @@ export default function EventForm({ record, onChange }) {
 
   return (
     <div className="cm-detail-form">
+      {/* Header */}
       <div className={`cm-campaign-header ${pulse ? "pulse" : ""}`}>
         <div className="cm-context-line">
           <strong>Campaign:</strong> {campaign.name}
@@ -74,6 +68,7 @@ export default function EventForm({ record, onChange }) {
         </div>
       </div>
 
+      {/* Name */}
       <div className="cm-field">
         <label className="cm-label">Name</label>
         <input
@@ -83,21 +78,7 @@ export default function EventForm({ record, onChange }) {
         />
       </div>
 
-      <div className="cm-field">
-        <label className="cm-label">Event Type</label>
-        <select
-          className="cm-input"
-          value={record?.event_type || ""}
-          onChange={(e) => update("event_type", e.target.value)}
-        >
-          {EVENT_TYPES.map((t) => (
-            <option key={t.value} value={t.value}>
-              {t.label}
-            </option>
-          ))}
-        </select>
-      </div>
-
+      {/* Description */}
       <div className="cm-field">
         <label className="cm-label">Description</label>
         <textarea
@@ -107,13 +88,26 @@ export default function EventForm({ record, onChange }) {
         />
       </div>
 
+      {/* Event Type */}
+      <div className="cm-field">
+        <label className="cm-label">Event Type</label>
+        <input
+          className="cm-input"
+          value={record?.event_type || ""}
+          onChange={(e) => update("event_type", e.target.value)}
+        />
+      </div>
+
+      {/* Priority */}
       <div className="cm-field">
         <label className="cm-label">Priority</label>
         <input
-          className="cm-input"
           type="number"
+          className="cm-input"
           value={record?.priority ?? 0}
-          onChange={(e) => update("priority", Number(e.target.value))}
+          onChange={(e) =>
+            update("priority", parseInt(e.target.value, 10) || 0)
+          }
         />
       </div>
     </div>

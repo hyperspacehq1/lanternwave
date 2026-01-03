@@ -52,7 +52,7 @@ export default function PlayerForm({ record, onChange }) {
         </div>
       </div>
 
-      {/* Fields */}
+      {/* First Name */}
       <div className="cm-field">
         <label className="cm-label">First Name</label>
         <input
@@ -62,12 +62,80 @@ export default function PlayerForm({ record, onChange }) {
         />
       </div>
 
+      {/* Last Name */}
       <div className="cm-field">
         <label className="cm-label">Last Name</label>
         <input
           className="cm-input"
           value={record?.last_name || ""}
           onChange={(e) => update("last_name", e.target.value)}
+        />
+      </div>
+
+      {/* Character Name */}
+      <div className="cm-field">
+        <label className="cm-label">Character Name</label>
+        <input
+          className="cm-input"
+          value={record?.character_name || ""}
+          onChange={(e) => update("character_name", e.target.value)}
+        />
+      </div>
+
+      {/* Notes */}
+      <div className="cm-field">
+        <label className="cm-label">Notes</label>
+        <textarea
+          className="cm-textarea"
+          value={record?.notes || ""}
+          onChange={(e) => update("notes", e.target.value)}
+        />
+      </div>
+
+      {/* Phone */}
+      <div className="cm-field">
+        <label className="cm-label">Phone</label>
+        <input
+          className="cm-input"
+          value={record?.phone || ""}
+          onChange={(e) => update("phone", e.target.value)}
+        />
+      </div>
+
+      {/* Email */}
+      <div className="cm-field">
+        <label className="cm-label">Email</label>
+        <input
+          type="email"
+          className="cm-input"
+          value={record?.email || ""}
+          onChange={(e) => update("email", e.target.value)}
+        />
+      </div>
+
+      {/* Initiative Score */}
+      <div className="cm-field">
+        <label className="cm-label">Initiative Score</label>
+        <input
+          type="number"
+          className="cm-input"
+          value={record?.initiative_score ?? 0}
+          onChange={(e) =>
+            update("initiative_score", parseInt(e.target.value, 10) || 0)
+          }
+        />
+      </div>
+
+      {/* Initiative Bonus */}
+      <div className="cm-field">
+        <label className="cm-label">Initiative Bonus</label>
+        <input
+          type="number"
+          className="cm-input"
+          value={record?.initiative_bonus ?? 0}
+          onChange={(e) =>
+            update("initiative_bonus", parseInt(e.target.value, 10) || 0)
+          }
         />
       </div>
     </div>

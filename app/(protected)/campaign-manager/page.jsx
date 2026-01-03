@@ -15,21 +15,23 @@ import "./campaign-manager.css";
 const ENTITY_RULES = {
   campaigns: {},
   sessions: { campaign: true },
-  npcs: { campaign: true },
-  locations: { campaign: true },
-  items: { campaign: true },
-  events: { campaign: true, session: true },
+  events: { campaign: true },
   encounters: { campaign: true },
+  locations: { campaign: true },
+  npcs: { campaign: true },
+  items: { campaign: true },
+  players: { campaign: true },
 };
 
 const CONTAINER_TYPES = [
   { id: "campaigns", label: "Campaigns" },
   { id: "sessions", label: "Sessions" },
   { id: "events", label: "Events" },
-  { id: "npcs", label: "NPCs" },
   { id: "encounters", label: "Encounters" },
   { id: "locations", label: "Locations" },
+  { id: "npcs", label: "NPCs" },
   { id: "items", label: "Items" },
+  { id: "players", label: "Items" },
 ];
 
 export default function CampaignManagerPage() {
