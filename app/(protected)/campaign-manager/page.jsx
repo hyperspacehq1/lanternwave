@@ -63,24 +63,24 @@ export default function CampaignManagerPage() {
             : await cmApi.list(activeType, { campaign_id: activeCampaignId });
 
         if (!cancelled) {
-  setRecords((p) => ({ ...p, [activeType]: list }));
+          setRecords((p) => ({ ...p, [activeType]: list }));
 
-  const first = list?.[0] ?? null;
-  setSelectedId(first?.id ?? null);
-  setSelectedRecord(first);
+          const first = list?.[0] ?? null;
+          setSelectedId(first?.id ?? null);
+          setSelectedRecord(first);
 
-if (activeType === "campaigns" && first) {
-  setCampaignContext({
-    campaign: first,
-    session: null,
-  });
-} else if (activeType === "sessions" && first) {
-  setCampaignContext({
-    campaign,
-    session: first,
-  });
-}
-          // Auto-set context on initial load
+          if (activeType === "campaigns" && first) {
+            setCampaignContext({
+              campaign: first,
+              session: null,
+            });
+          } else if (activeType === "sessions" && first) {
+            setCampaignContext({
+              campaign,
+              session: first,
+            });
+          }
+
           if (activeType === "campaigns" && list?.length) {
             setCampaignContext({ campaign: list[0], session: null });
           }
@@ -104,7 +104,10 @@ if (activeType === "campaigns" && first) {
 
     setSelectedId(id);
     setSelectedRecord(base);
-    setRecords((p) => ({ ...p, [activeType]: [base, ...(p[activeType] || [])] }));
+    setRecords((p) => ({
+      ...p,
+      [activeType]: [base, ...(p[activeType] || [])],
+    }));
   };
 
   const handleSave = async () => {
@@ -117,7 +120,9 @@ if (activeType === "campaigns" && first) {
 
     setRecords((p) => ({
       ...p,
-      [activeType]: p[activeType].map((r) => (r.id === saved.id ? saved : r)),
+      [activeType]: p[activeType].map((r) =>
+        r.id === saved.id ? saved : r
+      ),
     }));
     setSelectedRecord(saved);
   };
@@ -127,7 +132,9 @@ if (activeType === "campaigns" && first) {
     await cmApi.remove(activeType, selectedRecord.id);
     setRecords((p) => ({
       ...p,
-      [activeType]: p[activeType].filter((r) => r.id !== selectedRecord.id),
+      [activeType]: p[activeType].filter(
+        (r) => r.id !== selectedRecord.id
+      ),
     }));
     setSelectedRecord(null);
   };
@@ -159,31 +166,31 @@ if (activeType === "campaigns" && first) {
             <div className="cm-main-title">{activeType}</div>
           </div>
 
-<div className="cm-main-actions">
-  <button
-    className="cm-btn"
-    onClick={handleCreate}
-    disabled={loading}
-  >
-    + New
-  </button>
+          <div className="cm-main-actions">
+            <button
+              className="cm-btn"
+              onClick={handleCreate}
+              disabled={loading}
+            >
+              + New
+            </button>
 
-  <button
-    className="cm-btn"
-    onClick={handleSave}
-    disabled={!selectedRecord || loading}
-  >
-    Save
-  </button>
+            <button
+              className="cm-btn"
+              onClick={handleSave}
+              disabled={!selectedRecord || loading}
+            >
+              Save
+            </button>
 
-  <button
-    className="cm-btn danger"
-    onClick={handleDelete}
-    disabled={!selectedRecord || loading}
-  >
-    Delete
-  </button>
-</div>
+            <button
+              className="cm-btn danger"
+              onClick={handleDelete}
+              disabled={!selectedRecord || loading}
+            >
+              Delete
+            </button>
+          </div>
 
           <div className="cm-content">
             <section className="cm-list">
@@ -198,15 +205,23 @@ if (activeType === "campaigns" && first) {
                     setSelectedRecord(r);
 
                     if (activeType === "campaigns") {
-                      setCampaignContext({ campaign: r, session: null });
+                      setCampaignContext({
+                        campaign: r,
+                        session: null,
+                      });
                     }
 
                     if (activeType === "sessions") {
-                      setCampaignContext({ campaign, session: r });
+                      setCampaignContext({
+                        campaign,
+                        session: r,
+                      });
                     }
                   }}
                 >
-                  {r.name}
+                  {activeType === "players"
+                    ? `${r.first_name ?? ""} ${r.last_name ?? ""}`.trim()
+                    : r.name}
                 </div>
               ))}
             </section>
@@ -218,7 +233,9 @@ if (activeType === "campaigns" && first) {
                   return (
                     <Form
                       record={selectedRecord}
-                      onChange={(next) => setSelectedRecord(next)}
+                      onChange={(next) =>
+                        setSelectedRecord(next)
+                      }
                     />
                   );
                 })()
