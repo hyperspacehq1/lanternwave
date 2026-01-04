@@ -274,4 +274,42 @@
 .gm-purple .gm-card-action-btn:hover { box-shadow: 0 0 6px rgba(139,92,246,0.6); }
 .gm-orange .gm-card-action-btn:hover { box-shadow: 0 0 6px rgba(227,139,41,0.6); }
 
+/* ===============================
+   Floating Players Widget
+=============================== */
+
+.floating-widget {
+  background: rgba(0, 0, 0, 0.75);
+  border: 1px solid var(--lw-border-muted);
+  color: var(--lw-text-main);
+  font-family: var(--font-terminal);
+  font-size: 12px;
+  border-radius: 6px;
+  box-shadow: 0 0 12px rgba(0, 0, 0, 0.6);
+}
+
+.widget-header {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--lw-border-muted);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  cursor: grab;
+}
+
+.widget-list {
+  list-style: none;
+  margin: 0;
+  padding: 6px 8px;
+}
+
+.widget-list li {
+  margin-bottom: 4px;
+}
+
+.widget-list .sub {
+  display: block;
+  opacity: 0.6;
+  font-size: 10px;
+}
 

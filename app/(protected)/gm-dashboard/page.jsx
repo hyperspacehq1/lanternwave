@@ -395,7 +395,7 @@ export default function GMDashboardPage() {
       {loading && <div className="gm-loading">Loading…</div>}
 
       {/* ✅ Render widget ONCE at page root */}
-    {widgets?.player_characters && selectedCampaign?.id && (
+{selectedCampaign?.id && (
   <PlayerCharactersWidget campaignId={selectedCampaign.id} />
 )}
     </div>
