@@ -11,7 +11,7 @@ export default function PlayerCharactersWidget({ campaignId }) {
 
   /* UI state */
   const [collapsed, setCollapsed] = useState(false);
-  const [layout, setLayout] = useState("vertical"); // vertical | horizontal
+  const [layout, setLayout] = useState("vertical");
   const [inactive, setInactive] = useState({});
 
   /* Storage scope */
@@ -60,7 +60,7 @@ export default function PlayerCharactersWidget({ campaignId }) {
     return Math.max(min, Math.min(max, v));
   }
 
-  function onPointerDown(e) {
+  function onDragStart(e) {
     dragging.current = true;
     const r = widgetRef.current.getBoundingClientRect();
     dragOffset.current = {
@@ -116,11 +116,12 @@ export default function PlayerCharactersWidget({ campaignId }) {
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
     >
-      <div
-        className="player-widget__header"
-        onPointerDown={onPointerDown}
-      >
-        <div className="player-widget__title">
+      <div className="player-widget__header">
+        {/* DRAG HANDLE ONLY */}
+        <div
+          className="player-widget__title"
+          onPointerDown={onDragStart}
+        >
           Players — Drag → Corner → Drop
         </div>
 
@@ -128,8 +129,7 @@ export default function PlayerCharactersWidget({ campaignId }) {
           <span
             className="player-widget__icon"
             title="Collapse"
-            onClick={(e) => {
-              e.stopPropagation();
+            onClick={() => {
               const v = !collapsed;
               setCollapsed(v);
               persistUI({ collapsed: v });
@@ -141,8 +141,7 @@ export default function PlayerCharactersWidget({ campaignId }) {
           <span
             className="player-widget__icon"
             title="Layout"
-            onClick={(e) => {
-              e.stopPropagation();
+            onClick={() => {
               const v =
                 layout === "vertical" ? "horizontal" : "vertical";
               setLayout(v);
@@ -168,7 +167,6 @@ export default function PlayerCharactersWidget({ campaignId }) {
                     className={`player-widget__player ${
                       off ? "inactive" : ""
                     }`}
-                    title="Toggle active / inactive"
                     onClick={() => {
                       const n = { ...inactive, [p.id]: !off };
                       setInactive(n);
@@ -184,10 +182,6 @@ export default function PlayerCharactersWidget({ campaignId }) {
                   </li>
                 );
               })}
-
-              {players.length === 0 && (
-                <li style={{ opacity: 0.6 }}>No players found.</li>
-              )}
             </ul>
           </div>
         )
