@@ -6,7 +6,9 @@
 .gm-page {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  height: 100vh;
+  overflow-x: hidden;
+  overflow-y: auto;
   padding: 1rem;
   gap: 1rem;
   color: var(--lw-text-main);
@@ -312,4 +314,3 @@
   opacity: 0.6;
   font-size: 10px;
 }
-
