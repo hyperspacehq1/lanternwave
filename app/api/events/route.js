@@ -1,9 +1,15 @@
+// /api/events/route.js  (FULL, FIXED)
+
 import { sanitizeRow, sanitizeRows } from "@/lib/api/sanitize";
-import { query } from "@/lib/db";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
+import { query } from "@/lib/db";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+function hasOwn(obj, key) {
+  return Object.prototype.hasOwnProperty.call(obj, key);
+}
 
 /* -----------------------------------------------------------
    GET /api/events
@@ -12,17 +18,8 @@ export async function GET(req) {
   const { tenantId } = await getTenantContext(req);
   const { searchParams } = new URL(req.url);
 
+  const campaignId = searchParams.get("campaign_id");
   const id = searchParams.get("id");
-  const sessionId = searchParams.get("session_id");
-  let campaignId = searchParams.get("campaign_id");
-
-  if (!campaignId && sessionId) {
-    const { rows } = await query(
-      `SELECT campaign_id FROM sessions WHERE id = $1`,
-      [sessionId]
-    );
-    campaignId = rows[0]?.campaign_id;
-  }
 
   if (id) {
     const { rows } = await query(
@@ -48,9 +45,7 @@ export async function GET(req) {
     );
   }
 
-  if (!campaignId) {
-    return Response.json([]);
-  }
+  if (!campaignId) return Response.json([]);
 
   const { rows } = await query(
     `
@@ -82,19 +77,42 @@ export async function POST(req) {
 
   const campaignId = body.campaign_id ?? body.campaignId ?? null;
   const name = body.name?.trim();
+  const description = body.description ?? null;
+  const searchBody = body.search_body ?? body.searchBody ?? null;
+  const priority = body.priority ?? 0;
 
   if (!campaignId) {
-    return Response.json(
-      { error: "campaign_id is required" },
-      { status: 400 }
-    );
+    return Response.json({ error: "campaign_id is required" }, { status: 400 });
   }
 
   if (!name) {
-    return Response.json(
-      { error: "name is required" },
-      { status: 400 }
-    );
+    return Response.json({ error: "name is required" }, { status: 400 });
+  }
+
+  if (name.length > 200) {
+    return Response.json({ error: "name max 200 chars" }, { status: 400 });
+  }
+
+  if (hasOwn(body, "description")) {
+    if (typeof description !== "string" && description !== null) {
+      return Response.json({ error: "description must be a string" }, { status: 400 });
+    }
+    if (description && description.length > 20000) {
+      return Response.json({ error: "description too long" }, { status: 400 });
+    }
+  }
+
+  if (hasOwn(body, "search_body") || hasOwn(body, "searchBody")) {
+    if (typeof searchBody !== "string" && searchBody !== null) {
+      return Response.json({ error: "search_body must be a string" }, { status: 400 });
+    }
+    if (searchBody && searchBody.length > 20000) {
+      return Response.json({ error: "search_body too long" }, { status: 400 });
+    }
+  }
+
+  if (!Number.isInteger(priority)) {
+    return Response.json({ error: "priority must be an integer" }, { status: 400 });
   }
 
   const { rows } = await query(
@@ -108,12 +126,9 @@ export async function POST(req) {
       description,
       event_type,
       priority,
-      search_body,
-      external_source,
-      external_id,
-      external_payload
+      search_body
     )
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
     RETURNING *
     `,
     [
@@ -122,13 +137,10 @@ export async function POST(req) {
       body.session_id ?? body.sessionId ?? null,
       body.encounter_id ?? body.encounterId ?? null,
       name,
-      body.description ?? null,
+      description,
       body.event_type ?? body.eventType ?? null,
-      body.priority ?? 0,
-      body.search_body ?? body.searchBody ?? null,
-      body.external_source ?? body.externalSource ?? null,
-      body.external_id ?? body.externalId ?? null,
-      body.external_payload ?? body.externalPayload ?? null,
+      priority,
+      searchBody,
     ]
   );
 
@@ -155,11 +167,36 @@ export async function PUT(req) {
     return Response.json({ error: "id required" }, { status: 400 });
   }
 
-  if ("name" in body && (!body.name || !body.name.trim())) {
-    return Response.json(
-      { error: "name cannot be blank" },
-      { status: 400 }
-    );
+  if (hasOwn(body, "name")) {
+    if (!body.name || !String(body.name).trim()) {
+      return Response.json({ error: "name cannot be blank" }, { status: 400 });
+    }
+    if (String(body.name).length > 200) {
+      return Response.json({ error: "name max 200 chars" }, { status: 400 });
+    }
+  }
+
+  if (hasOwn(body, "description")) {
+    if (typeof body.description !== "string" && body.description !== null) {
+      return Response.json({ error: "description must be a string" }, { status: 400 });
+    }
+    if (body.description && body.description.length > 20000) {
+      return Response.json({ error: "description too long" }, { status: 400 });
+    }
+  }
+
+  if (hasOwn(body, "search_body") || hasOwn(body, "searchBody")) {
+    const sb = body.search_body ?? body.searchBody;
+    if (typeof sb !== "string" && sb !== null) {
+      return Response.json({ error: "search_body must be a string" }, { status: 400 });
+    }
+    if (sb && sb.length > 20000) {
+      return Response.json({ error: "search_body too long" }, { status: 400 });
+    }
+  }
+
+  if (hasOwn(body, "priority") && !Number.isInteger(body.priority)) {
+    return Response.json({ error: "priority must be an integer" }, { status: 400 });
   }
 
   const sets = [];
@@ -174,26 +211,17 @@ export async function PUT(req) {
     priority: "priority",
     search_body: "search_body",
     searchBody: "search_body",
-    external_source: "external_source",
-    externalSource: "external_source",
-    external_id: "external_id",
-    externalId: "external_id",
-    external_payload: "external_payload",
-    externalPayload: "external_payload",
   };
 
   for (const key in map) {
-    if (body[key] !== undefined) {
+    if (hasOwn(body, key)) {
       sets.push(`${map[key]} = $${i++}`);
-      values.push(body[key]);
+      values.push(body[key] ?? null);
     }
   }
 
   if (!sets.length) {
-    return Response.json(
-      { error: "No valid fields provided" },
-      { status: 400 }
-    );
+    return Response.json({ error: "No fields to update" }, { status: 400 });
   }
 
   const { rows } = await query(

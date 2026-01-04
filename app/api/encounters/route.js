@@ -6,26 +6,28 @@ import { v4 as uuid } from "uuid";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+function hasOwn(obj, key) {
+  return Object.prototype.hasOwnProperty.call(obj, key);
+}
+
 /* -----------------------------------------------------------
    GET /api/encounters
-   - ?id=... (single)
-   - ?campaign_id=... (list by campaign)
 ------------------------------------------------------------ */
 export async function GET(req) {
   const { tenantId } = await getTenantContext(req);
   const { searchParams } = new URL(req.url);
 
   const id = searchParams.get("id");
- const sessionId = searchParams.get("session_id");
-let campaignId = searchParams.get("campaign_id");
+  const sessionId = searchParams.get("session_id");
+  let campaignId = searchParams.get("campaign_id");
 
-if (!campaignId && sessionId) {
-  const { rows } = await query(
-    `SELECT campaign_id FROM sessions WHERE id = $1`,
-    [sessionId]
-  );
-  campaignId = rows[0]?.campaign_id;
-}
+  if (!campaignId && sessionId) {
+    const { rows } = await query(
+      `SELECT campaign_id FROM sessions WHERE id = $1`,
+      [sessionId]
+    );
+    campaignId = rows[0]?.campaign_id;
+  }
 
   if (id) {
     const { rows } = await query(
@@ -83,19 +85,33 @@ export async function POST(req) {
 
   const campaignId = body.campaign_id ?? body.campaignId ?? null;
   const name = body.name?.trim();
+  const description = body.description ?? null;
 
   if (!campaignId) {
-    return Response.json(
-      { error: "campaign_id is required" },
-      { status: 400 }
-    );
+    return Response.json({ error: "campaign_id is required" }, { status: 400 });
   }
 
   if (!name) {
-    return Response.json(
-      { error: "name is required" },
-      { status: 400 }
-    );
+    return Response.json({ error: "name is required" }, { status: 400 });
+  }
+
+  if (name.length > 120) {
+    return Response.json({ error: "name max 120 chars" }, { status: 400 });
+  }
+
+  if (hasOwn(body, "description")) {
+    if (typeof description !== "string" && description !== null) {
+      return Response.json(
+        { error: "description must be a string" },
+        { status: 400 }
+      );
+    }
+    if (description && description.length > 10000) {
+      return Response.json(
+        { error: "description too long" },
+        { status: 400 }
+      );
+    }
   }
 
   const { rows } = await query(
@@ -112,13 +128,7 @@ export async function POST(req) {
     VALUES ($1,$2,$3,$4,$5,NOW(),NOW())
     RETURNING *
     `,
-    [
-      uuid(),
-      tenantId,
-      campaignId,
-      name,
-      body.description ?? null,
-    ]
+    [uuid(), tenantId, campaignId, name, description]
   );
 
   return Response.json(
@@ -143,25 +153,42 @@ export async function PUT(req) {
     return Response.json({ error: "id required" }, { status: 400 });
   }
 
-  if ("name" in body && (!body.name || !body.name.trim())) {
-    return Response.json(
-      { error: "name cannot be blank" },
-      { status: 400 }
-    );
+  if (hasOwn(body, "name")) {
+    if (!body.name || !String(body.name).trim()) {
+      return Response.json({ error: "name cannot be blank" }, { status: 400 });
+    }
+    if (String(body.name).length > 120) {
+      return Response.json({ error: "name max 120 chars" }, { status: 400 });
+    }
+  }
+
+  if (hasOwn(body, "description")) {
+    if (typeof body.description !== "string" && body.description !== null) {
+      return Response.json(
+        { error: "description must be a string" },
+        { status: 400 }
+      );
+    }
+    if (body.description && body.description.length > 10000) {
+      return Response.json(
+        { error: "description too long" },
+        { status: 400 }
+      );
+    }
   }
 
   const sets = [];
   const values = [tenantId, id];
   let i = 3;
 
-  if (body.name !== undefined) {
+  if (hasOwn(body, "name")) {
     sets.push(`name = $${i++}`);
     values.push(body.name.trim());
   }
 
-  if (body.description !== undefined) {
+  if (hasOwn(body, "description")) {
     sets.push(`description = $${i++}`);
-    values.push(body.description);
+    values.push(body.description ?? null);
   }
 
   if (!sets.length) {

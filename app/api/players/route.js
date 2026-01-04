@@ -1,9 +1,33 @@
+// ==============================
+// /api/players/route.js  (FULL, FIXED)
+// ==============================
+
 import { sanitizeRow, sanitizeRows } from "@/lib/api/sanitize";
 import { query } from "@/lib/db";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
+import { v4 as uuid } from "uuid";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+function hasOwn(obj, key) {
+  return Object.prototype.hasOwnProperty.call(obj, key);
+}
+
+function validateString(val, max, field) {
+  if (typeof val !== "string") {
+    throw new Error(`${field} must be a string`);
+  }
+  if (val.length > max) {
+    throw new Error(`${field} max ${max} chars`);
+  }
+  return val.trim();
+}
+
+function validateOptionalString(val, max, field) {
+  if (val === null || val === undefined) return null;
+  return validateString(val, max, field);
+}
 
 /* -----------------------------------------------------------
    GET /api/players
@@ -11,36 +35,9 @@ export const dynamic = "force-dynamic";
 export async function GET(req) {
   const { tenantId } = await getTenantContext(req);
   const { searchParams } = new URL(req.url);
-
-  const id = searchParams.get("id");
   const campaignId = searchParams.get("campaign_id");
 
-  if (id) {
-    const { rows } = await query(
-      `
-      SELECT *
-        FROM players
-       WHERE tenant_id = $1
-         AND id = $2
-         AND deleted_at IS NULL
-       LIMIT 1
-      `,
-      [tenantId, id]
-    );
-
-    return Response.json(
-      rows[0]
-        ? sanitizeRow(rows[0], {
-            first_name: 120,
-            last_name: 120,
-          })
-        : null
-    );
-  }
-
-  if (!campaignId) {
-    return Response.json([]);
-  }
+  if (!campaignId) return Response.json([]);
 
   const { rows } = await query(
     `
@@ -49,15 +46,19 @@ export async function GET(req) {
      WHERE tenant_id = $1
        AND campaign_id = $2
        AND deleted_at IS NULL
-     ORDER BY first_name ASC, last_name ASC
+     ORDER BY created_at ASC
     `,
     [tenantId, campaignId]
   );
 
   return Response.json(
     sanitizeRows(rows, {
-      first_name: 120,
-      last_name: 120,
+      firstName: 100,
+      lastName: 100,
+      characterName: 100,
+      notes: 2000,
+      phone: 50,
+      email: 120,
     })
   );
 }
@@ -70,116 +71,168 @@ export async function POST(req) {
   const body = await req.json();
 
   const campaignId = body.campaign_id ?? body.campaignId ?? null;
-  const firstName = body.first_name ?? body.firstName;
-  const lastName = body.last_name ?? body.lastName ?? null;
-
   if (!campaignId) {
-    return Response.json(
-      { error: "campaign_id is required" },
-      { status: 400 }
-    );
+    return Response.json({ error: "campaign_id is required" }, { status: 400 });
   }
 
-  if (!firstName || !firstName.trim()) {
-    return Response.json(
-      { error: "first_name is required" },
-      { status: 400 }
+  try {
+    if (!body.first_name && !body.firstName) {
+      throw new Error("first_name is required");
+    }
+
+    const firstName = validateString(
+      body.first_name ?? body.firstName,
+      100,
+      "first_name"
     );
+
+    const lastName = validateOptionalString(
+      body.last_name ?? body.lastName,
+      100,
+      "last_name"
+    );
+
+    const characterName = validateOptionalString(
+      body.character_name ?? body.characterName,
+      100,
+      "character_name"
+    );
+
+    const notes = validateOptionalString(
+      body.notes,
+      2000,
+      "notes"
+    );
+
+    const phone = validateOptionalString(
+      body.phone,
+      50,
+      "phone"
+    );
+
+    const email = validateOptionalString(
+      body.email,
+      120,
+      "email"
+    );
+
+    const { rows } = await query(
+      `
+      INSERT INTO players (
+        id,
+        tenant_id,
+        campaign_id,
+        first_name,
+        last_name,
+        character_name,
+        notes,
+        phone,
+        email
+      )
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+      RETURNING *
+      `,
+      [
+        uuid(),
+        tenantId,
+        campaignId,
+        firstName,
+        lastName,
+        characterName,
+        notes,
+        phone,
+        email,
+      ]
+    );
+
+    return Response.json(
+      sanitizeRow(rows[0], {
+        firstName: 100,
+        lastName: 100,
+        characterName: 100,
+        notes: 2000,
+        phone: 50,
+        email: 120,
+      }),
+      { status: 201 }
+    );
+  } catch (e) {
+    return Response.json({ error: e.message }, { status: 400 });
   }
-
-  const { rows } = await query(
-    `
-    INSERT INTO players (
-      tenant_id,
-      campaign_id,
-      first_name,
-      last_name
-    )
-    VALUES ($1,$2,$3,$4)
-    RETURNING *
-    `,
-    [
-      tenantId,
-      campaignId,
-      firstName.trim(),
-      lastName?.trim() ?? null,
-    ]
-  );
-
-  return Response.json(
-    sanitizeRow(rows[0], {
-      first_name: 120,
-      last_name: 120,
-    }),
-    { status: 201 }
-  );
 }
 
 /* -----------------------------------------------------------
    PUT /api/players?id=
 ------------------------------------------------------------ */
 export async function PUT(req) {
+  const { tenantId } = await getTenantContext(req);
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
+  const body = await req.json();
+
   if (!id) {
     return Response.json({ error: "id required" }, { status: 400 });
   }
 
-  const body = await req.json();
-  const { tenantId } = await getTenantContext(req);
+  try {
+    const sets = [];
+    const values = [tenantId, id];
+    let i = 3;
 
-  const sets = [];
-  const values = [];
-  let i = 1;
+    const fieldMap = {
+      first_name: ["firstName", 100],
+      last_name: ["lastName", 100],
+      character_name: ["characterName", 100],
+      notes: ["notes", 2000],
+      phone: ["phone", 50],
+      email: ["email", 120],
+    };
 
-  if (body.first_name !== undefined) {
-    sets.push(`first_name = $${i++}`);
-    values.push(body.first_name || null);
+    for (const col in fieldMap) {
+      const [camel, max] = fieldMap[col];
+      if (hasOwn(body, col) || hasOwn(body, camel)) {
+        const raw = body[col] ?? body[camel];
+        const val = validateOptionalString(raw, max, col);
+        sets.push(`${col} = $${i++}`);
+        values.push(val);
+      }
+    }
+
+    if (!sets.length) {
+      return Response.json(
+        { error: "No valid fields provided" },
+        { status: 400 }
+      );
+    }
+
+    const { rows } = await query(
+      `
+      UPDATE players
+         SET ${sets.join(", ")},
+             updated_at = NOW()
+       WHERE tenant_id = $1
+         AND id = $2
+         AND deleted_at IS NULL
+       RETURNING *
+      `,
+      values
+    );
+
+    return Response.json(
+      rows[0]
+        ? sanitizeRow(rows[0], {
+            firstName: 100,
+            lastName: 100,
+            characterName: 100,
+            notes: 2000,
+            phone: 50,
+            email: 120,
+          })
+        : null
+    );
+  } catch (e) {
+    return Response.json({ error: e.message }, { status: 400 });
   }
-
-  if (body.last_name !== undefined) {
-    sets.push(`last_name = $${i++}`);
-    values.push(body.last_name || null);
-  }
-
-  // ✅ FIX: only update if explicitly sent
-  if (body.character_name !== undefined) {
-    sets.push(`character_name = $${i++}`);
-    values.push(body.character_name || null);
-  }
-
-  if (body.notes !== undefined) {
-    sets.push(`notes = $${i++}`);
-    values.push(body.notes || null);
-  }
-
-  if (!sets.length) {
-    return Response.json({ error: "No fields to update" }, { status: 400 });
-  }
-
-  const sql = `
-    UPDATE players
-       SET ${sets.join(", ")},
-           updated_at = NOW()
-     WHERE id = $${i++}
-       AND tenant_id = $${i}
-     RETURNING *
-  `;
-
-  values.push(id, tenantId);
-
-  const { rows } = await query(sql, values);
-
-  return Response.json(
-    sanitizeRow(rows[0], {
-      first_name: 120,
-      last_name: 120,
-      character_name: 120,
-      notes: 500,
-      phone: 50,
-      email: 120,
-    })
-  );
 }
 
 /* -----------------------------------------------------------
@@ -210,8 +263,12 @@ export async function DELETE(req) {
   return Response.json(
     rows[0]
       ? sanitizeRow(rows[0], {
-          first_name: 120,
-          last_name: 120,
+          firstName: 100,
+          lastName: 100,
+          characterName: 100,
+          notes: 2000,
+          phone: 50,
+          email: 120,
         })
       : null
   );

@@ -1,3 +1,7 @@
+// ==============================
+// /api/players/[id]/route.js  (FULL, FIXED)
+// ==============================
+
 import { sanitizeRow } from "@/lib/api/sanitize";
 import { query } from "@/lib/db";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
@@ -5,16 +9,33 @@ import { getTenantContext } from "@/lib/tenant/getTenantContext";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+function hasOwn(obj, key) {
+  return Object.prototype.hasOwnProperty.call(obj, key);
+}
+
+function validateString(val, max, field) {
+  if (typeof val !== "string") {
+    throw new Error(`${field} must be a string`);
+  }
+  if (val.length > max) {
+    throw new Error(`${field} max ${max} chars`);
+  }
+  return val.trim();
+}
+
+function validateOptionalString(val, max, field) {
+  if (val === null || val === undefined) return null;
+  return validateString(val, max, field);
+}
+
 /* -----------------------------------------------------------
-   GET /api/players/:id
+   GET /api/players/[id]
 ------------------------------------------------------------ */
 export async function GET(req, { params }) {
   const { tenantId } = await getTenantContext(req);
   const id = params?.id;
 
-  if (!id) {
-    return Response.json({ error: "id required" }, { status: 400 });
-  }
+  if (!id) return Response.json({ error: "id required" }, { status: 400 });
 
   const { rows } = await query(
     `
@@ -31,10 +52,10 @@ export async function GET(req, { params }) {
   return Response.json(
     rows[0]
       ? sanitizeRow(rows[0], {
-          first_name: 120,
-          last_name: 120,
-          character_name: 120,
-          notes: 500,
+          firstName: 100,
+          lastName: 100,
+          characterName: 100,
+          notes: 2000,
           phone: 50,
           email: 120,
         })
@@ -43,93 +64,84 @@ export async function GET(req, { params }) {
 }
 
 /* -----------------------------------------------------------
-   PUT /api/players/:id
+   PUT /api/players/[id]
 ------------------------------------------------------------ */
 export async function PUT(req, { params }) {
   const { tenantId } = await getTenantContext(req);
   const id = params?.id;
   const body = await req.json();
 
-  if (!id) {
-    return Response.json({ error: "id required" }, { status: 400 });
-  }
+  if (!id) return Response.json({ error: "id required" }, { status: 400 });
 
-  const sets = [];
-  const values = [];
-  let i = 1;
+  try {
+    const sets = [];
+    const values = [tenantId, id];
+    let i = 3;
 
-  if (body.first_name !== undefined) {
-    sets.push(`first_name = $${i++}`);
-    values.push(body.first_name || null);
-  }
+    const fieldMap = {
+      first_name: ["firstName", 100],
+      last_name: ["lastName", 100],
+      character_name: ["characterName", 100],
+      notes: ["notes", 2000],
+      phone: ["phone", 50],
+      email: ["email", 120],
+    };
 
-  if (body.last_name !== undefined) {
-    sets.push(`last_name = $${i++}`);
-    values.push(body.last_name || null);
-  }
+    for (const col in fieldMap) {
+      const [camel, max] = fieldMap[col];
+      if (hasOwn(body, col) || hasOwn(body, camel)) {
+        const raw = body[col] ?? body[camel];
+        const val = validateOptionalString(raw, max, col);
+        sets.push(`${col} = $${i++}`);
+        values.push(val);
+      }
+    }
 
-  if (body.character_name !== undefined) {
-    sets.push(`character_name = $${i++}`);
-    values.push(body.character_name || null);
-  }
+    if (!sets.length) {
+      return Response.json(
+        { error: "No valid fields provided" },
+        { status: 400 }
+      );
+    }
 
-  if (body.notes !== undefined) {
-    sets.push(`notes = $${i++}`);
-    values.push(body.notes || null);
-  }
-
-  if (body.phone !== undefined) {
-    sets.push(`phone = $${i++}`);
-    values.push(body.phone || null);
-  }
-
-  if (body.email !== undefined) {
-    sets.push(`email = $${i++}`);
-    values.push(body.email || null);
-  }
-
-  if (!sets.length) {
-    return Response.json({ error: "No fields to update" }, { status: 400 });
-  }
-
-  const sql = `
-    UPDATE players
-       SET ${sets.join(", ")},
-           updated_at = NOW()
-     WHERE tenant_id = $${i++}
-       AND id = $${i}
-       AND deleted_at IS NULL
+    const { rows } = await query(
+      `
+      UPDATE players
+         SET ${sets.join(", ")},
+             updated_at = NOW()
+       WHERE tenant_id = $1
+         AND id = $2
+         AND deleted_at IS NULL
      RETURNING *
-  `;
+      `,
+      values
+    );
 
-  values.push(tenantId, id);
-
-  const { rows } = await query(sql, values);
-
-  return Response.json(
-    rows[0]
-      ? sanitizeRow(rows[0], {
-          first_name: 120,
-          last_name: 120,
-          character_name: 120,
-          notes: 500,
-          phone: 50,
-          email: 120,
-        })
-      : null
-  );
+    return Response.json(
+      rows[0]
+        ? sanitizeRow(rows[0], {
+            firstName: 100,
+            lastName: 100,
+            characterName: 100,
+            notes: 2000,
+            phone: 50,
+            email: 120,
+          })
+        : null
+    );
+  } catch (e) {
+    return Response.json({ error: e.message }, { status: 400 });
+  }
 }
 
 /* -----------------------------------------------------------
-   DELETE /api/players/:id   (SOFT DELETE)
+   DELETE /api/players/[id]   (SOFT DELETE)
 ------------------------------------------------------------ */
 export async function DELETE(req, { params }) {
   const { tenantId } = await getTenantContext(req);
   const id = params?.id;
 
-  if (!id) {
-    return Response.json({ error: "id required" }, { status: 400 });
-  }
+  if (!id) return Response.json({ error: "id required" }, { status: 400 });
 
   const { rows } = await query(
     `
@@ -147,9 +159,12 @@ export async function DELETE(req, { params }) {
   return Response.json(
     rows[0]
       ? sanitizeRow(rows[0], {
-          first_name: 120,
-          last_name: 120,
-          character_name: 120,
+          firstName: 100,
+          lastName: 100,
+          characterName: 100,
+          notes: 2000,
+          phone: 50,
+          email: 120,
         })
       : null
   );

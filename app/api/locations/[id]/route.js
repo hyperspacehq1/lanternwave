@@ -1,79 +1,175 @@
+import { sanitizeRow } from "@/lib/api/sanitize";
 import { query } from "@/lib/db";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
-import { sanitizeRow, sanitizeRows } from "@/lib/api/sanitize";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/* -------------------------------------------------
-   Helpers
--------------------------------------------------- */
-function pick(body, camel, snake) {
-  return body[camel] ?? body[snake] ?? null;
+function hasOwn(obj, key) {
+  return Object.prototype.hasOwnProperty.call(obj, key);
 }
 
-function normalizeSensory(input) {
-  if (input == null || input === "") return null;
-
-  // Already structured (AI or future UI)
-  if (typeof input === "object") return input;
-
-  // Attempt JSON parse (power users / future editor)
-  try {
-    const parsed = JSON.parse(input);
-    if (typeof parsed === "object") return parsed;
-  } catch {}
-
-  // Human free-text fallback
-  return {
-    text: String(input).trim(),
-    source: "human",
-    updated_at: new Date().toISOString(),
-  };
+function validateString(value, max, field) {
+  if (typeof value !== "string") {
+    throw new Error(`${field} must be a string`);
+  }
+  if (value.length > max) {
+    throw new Error(`${field} max ${max} chars`);
+  }
 }
 
-/* -------------------------------------------------
-   PUT /api/locations/:id
--------------------------------------------------- */
+function validateSensory(input) {
+  if (input === null || input === undefined) return null;
+  if (typeof input !== "object") {
+    throw new Error("sensory must be an object");
+  }
+  if (JSON.stringify(input).length > 20000) {
+    throw new Error("sensory payload too large");
+  }
+  return input;
+}
+
+/* -----------------------------------------------------------
+   GET /api/locations/[id]
+------------------------------------------------------------ */
+export async function GET(req, { params }) {
+  const { tenantId } = await getTenantContext(req);
+  const id = params?.id;
+
+  if (!id) {
+    return Response.json({ error: "id required" }, { status: 400 });
+  }
+
+  const { rows } = await query(
+    `
+    SELECT *
+      FROM locations
+     WHERE tenant_id = $1
+       AND id = $2
+       AND deleted_at IS NULL
+     LIMIT 1
+    `,
+    [tenantId, id]
+  );
+
+  return Response.json(
+    rows[0]
+      ? sanitizeRow(rows[0], {
+          name: 120,
+          description: 10000,
+          notes: 500,
+          world: 120,
+        })
+      : null
+  );
+}
+
+/* -----------------------------------------------------------
+   PUT /api/locations/[id]
+------------------------------------------------------------ */
 export async function PUT(req, { params }) {
   const { tenantId } = await getTenantContext(req);
-  const id = params.id;
+  const id = params?.id;
   const body = await req.json();
 
-  const result = await query(
+  if (!id) {
+    return Response.json({ error: "id required" }, { status: 400 });
+  }
+
+  try {
+    const sets = [];
+    const values = [tenantId, id];
+    let i = 3;
+
+    const fields = {
+      name: 120,
+      description: 10000,
+      notes: 500,
+      world: 120,
+    };
+
+    for (const key in fields) {
+      if (hasOwn(body, key)) {
+        if (body[key] !== null) {
+          validateString(body[key], fields[key], key);
+        }
+        sets.push(`${key} = $${i++}`);
+        values.push(body[key] ?? null);
+      }
+    }
+
+    if (hasOwn(body, "sensory")) {
+      sets.push(`sensory = $${i++}`);
+      values.push(validateSensory(body.sensory));
+    }
+
+    if (!sets.length) {
+      return Response.json(
+        { error: "No valid fields provided" },
+        { status: 400 }
+      );
+    }
+
+    const { rows } = await query(
+      `
+      UPDATE locations
+         SET ${sets.join(", ")},
+             updated_at = NOW()
+       WHERE tenant_id = $1
+         AND id = $2
+         AND deleted_at IS NULL
+       RETURNING *
+      `,
+      values
+    );
+
+    return Response.json(
+      rows[0]
+        ? sanitizeRow(rows[0], {
+            name: 120,
+            description: 10000,
+            notes: 500,
+            world: 120,
+          })
+        : null
+    );
+  } catch (e) {
+    return Response.json({ error: e.message }, { status: 400 });
+  }
+}
+
+/* -----------------------------------------------------------
+   DELETE /api/locations/[id]   (SOFT DELETE)
+------------------------------------------------------------ */
+export async function DELETE(req, { params }) {
+  const { tenantId } = await getTenantContext(req);
+  const id = params?.id;
+
+  if (!id) {
+    return Response.json({ error: "id required" }, { status: 400 });
+  }
+
+  const { rows } = await query(
     `
     UPDATE locations
-       SET name            = COALESCE($3, name),
-           description     = COALESCE($4, description),
-           notes           = COALESCE($5, notes),
-           sensory         = COALESCE($6, sensory),
-           world           = COALESCE($7, world),
-           address_street  = COALESCE($8, address_street),
-           address_city    = COALESCE($9, address_city),
-           address_state   = COALESCE($10, address_state),
-           address_zip     = COALESCE($11, address_zip),
-           address_country = COALESCE($12, address_country),
-           updated_at      = NOW()
+       SET deleted_at = NOW(),
+           updated_at = NOW()
      WHERE tenant_id = $1
        AND id = $2
        AND deleted_at IS NULL
      RETURNING *
     `,
-    [
-      tenantId,
-      id,
-      pick(body, "name", "name"),
-      pick(body, "description", "description"),
-      pick(body, "notes", "notes"),
-      normalizeSensory(pick(body, "sensory", "sensory")),
-      pick(body, "world", "world"),
-      pick(body, "addressStreet", "address_street"),
-      pick(body, "addressCity", "address_city"),
-      pick(body, "addressState", "address_state"),
-      pick(body, "addressZip", "address_zip"),
-      pick(body, "addressCountry", "address_country"),
-    ]
+    [tenantId, id]
   );
 
-  return Response.json(result.rows[0] || null);
+  return Response.json(
+    rows[0]
+      ? sanitizeRow(rows[0], {
+          name: 120,
+          description: 10000,
+          notes: 500,
+          world: 120,
+        })
+      : null
+  );
 }
