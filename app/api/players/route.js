@@ -119,63 +119,66 @@ export async function POST(req) {
    PUT /api/players?id=
 ------------------------------------------------------------ */
 export async function PUT(req) {
-  const { tenantId } = await getTenantContext(req);
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
-  const body = await req.json();
-
   if (!id) {
     return Response.json({ error: "id required" }, { status: 400 });
   }
 
-  const sets = [];
-  const values = [tenantId, id];
-  let i = 3;
+  const body = await req.json();
+  const { tenantId } = await getTenantContext(req);
 
-  if (body.first_name !== undefined || body.firstName !== undefined) {
-    const value = body.first_name ?? body.firstName;
-    if (!value || !value.trim()) {
-      return Response.json(
-        { error: "first_name cannot be blank" },
-        { status: 400 }
-      );
-    }
+  const sets = [];
+  const values = [];
+  let i = 1;
+
+  if (body.first_name !== undefined) {
     sets.push(`first_name = $${i++}`);
-    values.push(value.trim());
+    values.push(body.first_name || null);
   }
 
-  if (body.last_name !== undefined || body.lastName !== undefined) {
+  if (body.last_name !== undefined) {
     sets.push(`last_name = $${i++}`);
-    values.push(body.last_name ?? body.lastName ?? null);
+    values.push(body.last_name || null);
+  }
+
+  // ✅ FIX: only update if explicitly sent
+  if (body.character_name !== undefined) {
+    sets.push(`character_name = $${i++}`);
+    values.push(body.character_name || null);
+  }
+
+  if (body.notes !== undefined) {
+    sets.push(`notes = $${i++}`);
+    values.push(body.notes || null);
   }
 
   if (!sets.length) {
-    return Response.json(
-      { error: "No valid fields provided" },
-      { status: 400 }
-    );
+    return Response.json({ error: "No fields to update" }, { status: 400 });
   }
 
-  const { rows } = await query(
-    `
+  const sql = `
     UPDATE players
        SET ${sets.join(", ")},
            updated_at = NOW()
-     WHERE tenant_id = $1
-       AND id = $2
-       AND deleted_at IS NULL
+     WHERE id = $${i++}
+       AND tenant_id = $${i}
      RETURNING *
-    `,
-    values
-  );
+  `;
+
+  values.push(id, tenantId);
+
+  const { rows } = await query(sql, values);
 
   return Response.json(
-    rows[0]
-      ? sanitizeRow(rows[0], {
-          first_name: 120,
-          last_name: 120,
-        })
-      : null
+    sanitizeRow(rows[0], {
+      first_name: 120,
+      last_name: 120,
+      character_name: 120,
+      notes: 500,
+      phone: 50,
+      email: 120,
+    })
   );
 }
 
