@@ -1,0 +1,88 @@
+/* =========================================================
+   Player Characters Widget (Scoped)
+   Yellow-on-black, isolated from GM dashboard
+========================================================= */
+
+.player-widget {
+  background: #000;
+  color: #fff;
+  border: 1px solid #f5c542;
+  border-radius: 6px;
+  box-shadow: 0 0 14px rgba(0, 0, 0, 0.8);
+  font-family: var(--font-terminal);
+}
+
+/* ---------- Header ---------- */
+
+.player-widget__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  border-bottom: 1px solid rgba(245, 197, 66, 0.6);
+  cursor: grab;
+  user-select: none;
+}
+
+.player-widget__title {
+  color: #f5c542;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.player-widget__controls {
+  display: flex;
+  gap: 10px;
+}
+
+.player-widget__icon {
+  color: #f5c542;
+  cursor: pointer;
+  opacity: 0.85;
+}
+
+.player-widget__icon:hover {
+  opacity: 1;
+}
+
+/* ---------- Body ---------- */
+
+.player-widget__body {
+  padding: 8px 10px;
+}
+
+.player-widget__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.player-widget__list.horizontal {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* ---------- Player Row ---------- */
+
+.player-widget__player {
+  cursor: pointer;
+  margin-bottom: 6px;
+}
+
+.player-widget__player.inactive {
+  opacity: 0.35;
+}
+
+.player-widget__character {
+  color: #f5c542;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.player-widget__name {
+  font-size: 11px;
+  opacity: 0.75;
+}

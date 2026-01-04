@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import "./PlayerCharactersWidget.css";
 
 export default function PlayerCharactersWidget({ campaignId }) {
   const widgetRef = useRef(null);
@@ -62,15 +63,26 @@ export default function PlayerCharactersWidget({ campaignId }) {
   function onPointerDown(e) {
     dragging.current = true;
     const r = widgetRef.current.getBoundingClientRect();
-    dragOffset.current = { dx: e.clientX - r.left, dy: e.clientY - r.top };
+    dragOffset.current = {
+      dx: e.clientX - r.left,
+      dy: e.clientY - r.top,
+    };
     widgetRef.current.setPointerCapture(e.pointerId);
   }
 
   function onPointerMove(e) {
     if (!dragging.current) return;
     setPos({
-      x: clamp(e.clientX - dragOffset.current.dx, MARGIN, window.innerWidth - 380),
-      y: clamp(e.clientY - dragOffset.current.dy, MARGIN, window.innerHeight - 200),
+      x: clamp(
+        e.clientX - dragOffset.current.dx,
+        MARGIN,
+        window.innerWidth - 380
+      ),
+      y: clamp(
+        e.clientY - dragOffset.current.dy,
+        MARGIN,
+        window.innerHeight - 200
+      ),
     });
   }
 
@@ -91,47 +103,48 @@ export default function PlayerCharactersWidget({ campaignId }) {
   return (
     <div
       ref={widgetRef}
-      className="floating-widget"
+      className="player-widget"
       style={{
         position: "fixed",
+        width: 360,
+        zIndex: 9999,
         left: pos.x ?? "auto",
         top: pos.y ?? "auto",
         right: pos.x == null ? MARGIN : "auto",
         bottom: pos.y == null ? MARGIN : "auto",
-        width: 360,                // ✅ wider container
-        zIndex: 9999,
       }}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
     >
       <div
-        className="widget-header"
+        className="player-widget__header"
         onPointerDown={onPointerDown}
-        style={{ whiteSpace: "nowrap" }}   // ✅ no wrapping
       >
-        <div className="title">
+        <div className="player-widget__title">
           Players — Drag → Corner → Drop
         </div>
 
-        <div className="widget-controls">
+        <div className="player-widget__controls">
           <span
-            className="widget-icon"
+            className="player-widget__icon"
             title="Collapse"
             onClick={(e) => {
               e.stopPropagation();
-              setCollapsed(!collapsed);
-              persistUI({ collapsed: !collapsed });
+              const v = !collapsed;
+              setCollapsed(v);
+              persistUI({ collapsed: v });
             }}
           >
             {collapsed ? "▸" : "▾"}
           </span>
 
           <span
-            className="widget-icon"
+            className="player-widget__icon"
             title="Layout"
             onClick={(e) => {
               e.stopPropagation();
-              const v = layout === "vertical" ? "horizontal" : "vertical";
+              const v =
+                layout === "vertical" ? "horizontal" : "vertical";
               setLayout(v);
               persistUI({ layout: v });
             }}
@@ -142,34 +155,42 @@ export default function PlayerCharactersWidget({ campaignId }) {
       </div>
 
       {loading ? (
-        <div className="widget-body">Loading…</div>
-      ) : !collapsed && (
-        <div className="widget-body">
-          <ul className={`widget-list ${layout}`}>
-            {players.map((p) => {
-              const off = inactive[p.id];
-              return (
-                <li
-                  key={p.id}
-                  className={`widget-player ${off ? "inactive" : ""}`}
-                  onClick={() => {
-                    const n = { ...inactive, [p.id]: !off };
-                    setInactive(n);
-                    persistUI({ inactive: n });
-                  }}
-                  title="Toggle active / inactive"
-                >
-                  <div className="character">
-                    {p.character_name || "—"}
-                  </div>
-                  <div className="player">
-                    {`${p.first_name ?? ""} ${p.last_name ?? ""}`.trim()}
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
+        <div className="player-widget__body">Loading…</div>
+      ) : (
+        !collapsed && (
+          <div className="player-widget__body">
+            <ul className={`player-widget__list ${layout}`}>
+              {players.map((p) => {
+                const off = inactive[p.id];
+                return (
+                  <li
+                    key={p.id}
+                    className={`player-widget__player ${
+                      off ? "inactive" : ""
+                    }`}
+                    title="Toggle active / inactive"
+                    onClick={() => {
+                      const n = { ...inactive, [p.id]: !off };
+                      setInactive(n);
+                      persistUI({ inactive: n });
+                    }}
+                  >
+                    <div className="player-widget__character">
+                      {p.character_name || "—"}
+                    </div>
+                    <div className="player-widget__name">
+                      {`${p.first_name ?? ""} ${p.last_name ?? ""}`.trim()}
+                    </div>
+                  </li>
+                );
+              })}
+
+              {players.length === 0 && (
+                <li style={{ opacity: 0.6 }}>No players found.</li>
+              )}
+            </ul>
+          </div>
+        )
       )}
     </div>
   );
