@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
  * PlayersWidget
  * - Floating widget that can be dragged
  * - Snaps to nearest corner on drop
- * - Persists position per-user
+ * - Persists UI state via localStorage
  * - Loads players for the selected campaign
  *
  * Expected route:
@@ -17,6 +17,13 @@ export default function PlayerCharactersWidget({ campaignId }) {
 
   const [players, setPlayers] = useState([]);
   const [loading, setLoading] = useState(false);
+
+  /* -------------------------------------------------
+     UI state
+  -------------------------------------------------- */
+  const [collapsed, setCollapsed] = useState(false);
+  const [layout, setLayout] = useState("vertical"); // vertical | horizontal
+  const [inactive, setInactive] = useState({}); // playerId -> boolean
 
   /* -------------------------------------------------
      Per-user storage key (best effort)
@@ -52,9 +59,39 @@ export default function PlayerCharactersWidget({ campaignId }) {
   }, []);
 
   const storageKey = useMemo(
-    () => `lw:widgetpos:${userScope}:players`,
+    () => `lw:widget:${userScope}:players`,
     [userScope]
   );
+
+  /* -------------------------------------------------
+     Restore UI state
+  -------------------------------------------------- */
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(storageKey);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+
+      if (typeof parsed.collapsed === "boolean")
+        setCollapsed(parsed.collapsed);
+      if (parsed.layout) setLayout(parsed.layout);
+      if (parsed.inactive) setInactive(parsed.inactive);
+    } catch {}
+  }, [storageKey]);
+
+  function persistUI(next) {
+    try {
+      localStorage.setItem(
+        storageKey,
+        JSON.stringify({
+          collapsed,
+          layout,
+          inactive,
+          ...next,
+        })
+      );
+    } catch {}
+  }
 
   /* -------------------------------------------------
      Position state
@@ -108,23 +145,21 @@ export default function PlayerCharactersWidget({ campaignId }) {
   }
 
   function persistPosition(next) {
-    try {
-      localStorage.setItem(storageKey, JSON.stringify(next));
-    } catch {}
+    persistUI({ pos: next });
   }
 
   /* -------------------------------------------------
-     Restore saved position
+     Restore position
   -------------------------------------------------- */
   useEffect(() => {
     const t = setTimeout(() => {
       let saved = null;
       try {
         const raw = localStorage.getItem(storageKey);
-        if (raw) saved = JSON.parse(raw);
+        if (raw) saved = JSON.parse(raw)?.pos;
       } catch {}
 
-      if (saved && typeof saved.x === "number" && typeof saved.y === "number") {
+      if (saved && typeof saved.x === "number") {
         const vp = getViewport();
         const sz = getWidgetSize();
         setPos({
@@ -182,7 +217,7 @@ export default function PlayerCharactersWidget({ campaignId }) {
     dragging.current = false;
 
     setPos((prev) => {
-      if (typeof prev.x !== "number" || typeof prev.y !== "number") return prev;
+      if (typeof prev.x !== "number") return prev;
       const snapped = snapToNearestCorner(prev.x, prev.y);
       persistPosition(snapped);
       return snapped;
@@ -190,13 +225,12 @@ export default function PlayerCharactersWidget({ campaignId }) {
   }
 
   /* -------------------------------------------------
-     Load players (GUARDED by campaignId)
+     Load players (guarded)
   -------------------------------------------------- */
   useEffect(() => {
     if (!campaignId) return;
 
     setLoading(true);
-
     fetch(`/api/players?campaign_id=${campaignId}`)
       .then((r) => r.json())
       .then((data) => setPlayers(Array.isArray(data) ? data : []))
@@ -229,37 +263,75 @@ export default function PlayerCharactersWidget({ campaignId }) {
         onPointerDown={onPointerDown}
         style={{ cursor: "grab", userSelect: "none", touchAction: "none" }}
       >
-        Players
-        <span style={{ marginLeft: 8, opacity: 0.65, fontSize: 12 }}>
-          (drag)
-        </span>
+        <div className="title">Players — Drag → Corner → Drop</div>
+
+        <div className="widget-controls">
+          <span
+            className="widget-icon"
+            onClick={(e) => {
+              e.stopPropagation();
+              const v = !collapsed;
+              setCollapsed(v);
+              persistUI({ collapsed: v });
+            }}
+          >
+            {collapsed ? "▸" : "▾"}
+          </span>
+
+          <span
+            className="widget-icon"
+            onClick={(e) => {
+              e.stopPropagation();
+              const v = layout === "vertical" ? "horizontal" : "vertical";
+              setLayout(v);
+              persistUI({ layout: v });
+            }}
+          >
+            ⇄
+          </span>
+        </div>
       </div>
 
       {!campaignId ? (
-        <div className="widget-empty">
-          Select a campaign from the GM Dashboard
-        </div>
+        <div className="widget-empty">Select a campaign</div>
       ) : loading ? (
         <div className="widget-loading">Loading…</div>
       ) : (
-        <ul className="widget-list">
-          {players.map((p) => (
-            <li key={p.id}>
-              <strong>
-                {p.character_name ||
-                  `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim()}
-              </strong>
-              {p.character_name && (
-                <span className="sub">
-                  {p.first_name} {p.last_name}
-                </span>
+        !collapsed && (
+          <div className="widget-body">
+            <ul className={`widget-list ${layout}`}>
+              {players.map((p) => {
+                const muted = inactive[p.id];
+
+                return (
+                  <li
+                    key={p.id}
+                    className={`widget-player ${muted ? "inactive" : ""}`}
+                    onClick={() => {
+                      const next = {
+                        ...inactive,
+                        [p.id]: !inactive[p.id],
+                      };
+                      setInactive(next);
+                      persistUI({ inactive: next });
+                    }}
+                  >
+                    <div className="character">
+                      {p.character_name || "—"}
+                    </div>
+                    <div className="player">
+                      {`${p.first_name ?? ""} ${p.last_name ?? ""}`.trim()}
+                    </div>
+                  </li>
+                );
+              })}
+
+              {players.length === 0 && (
+                <li style={{ opacity: 0.6 }}>No players found.</li>
               )}
-            </li>
-          ))}
-          {players.length === 0 && (
-            <li style={{ opacity: 0.75 }}>No players found.</li>
-          )}
-        </ul>
+            </ul>
+          </div>
+        )
       )}
     </div>
   );
