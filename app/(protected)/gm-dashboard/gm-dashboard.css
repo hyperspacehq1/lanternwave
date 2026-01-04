@@ -352,3 +352,7 @@
   font-size: 11px;
   opacity: 0.75;
 }
+
+.widget-header .title {
+  white-space: nowrap;
+}
