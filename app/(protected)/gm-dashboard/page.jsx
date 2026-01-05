@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import "./gm-dashboard.css";
 import PlayerCharactersWidget from "@/components/widgets/PlayerCharactersWidget";
-import { DISPLAY_SCHEMAS as BASE_SCHEMAS } from "@/app/(protected)/gm-dashboard/displaySchemas"; // <-- adjust path ONLY if needed
+import { DISPLAY_SCHEMAS as BASE_SCHEMAS } from "@/lib/gm/displaySchemas";
 
 const LS_LAST_CAMPAIGN = "gm:lastCampaignId";
 const LS_LAST_SESSION_BY_CAMPAIGN_PREFIX = "gm:lastSessionId:";
