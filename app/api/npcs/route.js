@@ -30,23 +30,7 @@ function validateString(val, max, field) {
 export async function GET(req) {
   const { tenantId } = await getTenantContext(req);
   const { searchParams } = new URL(req.url);
-
-  let campaignId = searchParams.get("campaign_id");
-  const sessionId = searchParams.get("session_id");
-
-  if (!campaignId && sessionId) {
-    const { rows } = await query(
-      `
-      SELECT campaign_id
-        FROM sessions
-       WHERE id = $1
-         AND deleted_at IS NULL
-       LIMIT 1
-      `,
-      [sessionId]
-    );
-    campaignId = rows[0]?.campaign_id ?? null;
-  }
+  const campaignId = searchParams.get("campaign_id");
 
   if (!campaignId) return Response.json([]);
 
@@ -57,11 +41,21 @@ export async function GET(req) {
      WHERE tenant_id = $1
        AND campaign_id = $2
        AND deleted_at IS NULL
+     ORDER BY created_at ASC
     `,
     [tenantId, campaignId]
   );
 
-  return Response.json(/* sanitized rows */);
+  return Response.json(
+    sanitizeRows(rows, {
+      name: 120,
+      description: 10000,
+      goals: 10000,
+      secrets: 10000,
+      notes: 500,
+      factionAlignment: 120,
+    })
+  );
 }
 
 /* -----------------------------------------------------------

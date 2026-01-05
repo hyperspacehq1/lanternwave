@@ -27,41 +27,36 @@ function validateString(val, max, field) {
 /* -----------------------------------------------------------
    GET /api/npcs/[id]
 ------------------------------------------------------------ */
-export async function GET(req) {
+export async function GET(req, { params }) {
   const { tenantId } = await getTenantContext(req);
-  const { searchParams } = new URL(req.url);
+  const id = params?.id;
 
-  let campaignId = searchParams.get("campaign_id");
-  const sessionId = searchParams.get("session_id");
-
-  if (!campaignId && sessionId) {
-    const { rows } = await query(
-      `
-      SELECT campaign_id
-        FROM sessions
-       WHERE id = $1
-         AND deleted_at IS NULL
-       LIMIT 1
-      `,
-      [sessionId]
-    );
-    campaignId = rows[0]?.campaign_id ?? null;
-  }
-
-  if (!campaignId) return Response.json([]);
+  if (!id) return Response.json({ error: "id required" }, { status: 400 });
 
   const { rows } = await query(
     `
     SELECT *
       FROM npcs
      WHERE tenant_id = $1
-       AND campaign_id = $2
+       AND id = $2
        AND deleted_at IS NULL
+     LIMIT 1
     `,
-    [tenantId, campaignId]
+    [tenantId, id]
   );
 
-  return Response.json(/* sanitized rows */);
+  return Response.json(
+    rows[0]
+      ? sanitizeRow(rows[0], {
+          name: 120,
+          description: 10000,
+          goals: 10000,
+          secrets: 10000,
+          notes: 500,
+          factionAlignment: 120,
+        })
+      : null
+  );
 }
 
 /* -----------------------------------------------------------
@@ -181,3 +176,4 @@ export async function DELETE(req, { params }) {
       : null
   );
 }
+
