@@ -9,32 +9,77 @@
   max-width: 720px;
 }
 
+/* =========================
+   SECTION TITLES
+   ========================= */
+
 .account-title {
-  font-family: var(--font-terminal);
+  font-family: MU-TH-UR, system-ui, sans-serif;
+  font-style: normal;
+  font-weight: 700;
   font-size: 13px;
+  line-height: normal;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--lw-green-muted);
+  color: rgb(163, 197, 159);
   margin-bottom: 1.5rem;
 }
 
-.account-status {
-  color: var(--lw-green-muted);
-  font-size: 12px;
+.account-section-title {
+  font-family: MU-TH-UR, system-ui, sans-serif;
+  font-style: normal;
+  font-weight: 700;
+  font-size: 13px;
+  line-height: normal;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgb(163, 197, 159);
+  margin-bottom: 0.5rem;
+  transition: color 0.15s ease;
 }
 
-.account-error {
-  color: #ff6b6b;
-  font-size: 12px;
-  margin-top: 0.75rem;
+.account-section-title:hover {
+  color: rgb(183, 217, 179);
 }
+
+/* =========================
+   PANELS
+   ========================= */
 
 .account-panel {
-  border: 1px solid var(--lw-border-muted);
+  border: 1px solid rgb(108, 196, 23); /* My Account = green */
   border-radius: 10px;
   padding: 1.25rem;
   background: transparent;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
+
+/* Beacons panel */
+.account-panel.beacons-panel {
+  border-color: #f5c542;
+}
+
+/* Spacing between sections */
+.account-panel + .account-panel {
+  margin-top: 1.25rem;
+}
+
+/* Hover / focus states */
+.account-panel:hover,
+.account-panel:focus-within {
+  border-color: rgb(108, 196, 23);
+  box-shadow: 0 0 0 1px rgba(108, 196, 23, 0.35);
+}
+
+.account-panel.beacons-panel:hover,
+.account-panel.beacons-panel:focus-within {
+  border-color: #f5c542;
+  box-shadow: 0 0 0 1px rgba(245, 197, 66, 0.35);
+}
+
+/* =========================
+   ROWS
+   ========================= */
 
 .account-row {
   display: flex;
@@ -47,6 +92,20 @@
 .account-row:last-child {
   border-bottom: none;
 }
+
+.account-row label {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+.account-row label:hover {
+  color: #f5c542;
+}
+
+/* =========================
+   LABELS / VALUES
+   ========================= */
 
 .account-label {
   font-size: 11px;
@@ -61,6 +120,101 @@
   font-weight: 600;
   color: var(--lw-text-main);
 }
+
+/* =========================
+   BEACON CHECKBOX
+   ========================= */
+
+.beacon-checkbox input[type="checkbox"] {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border: 1px solid #f5c542;
+  border-radius: 3px;
+  background: transparent;
+  margin-right: 8px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.08s ease;
+}
+
+/* Animated arming fill */
+.beacon-checkbox input[type="checkbox"]::after {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  background: #f5c542;
+  border-radius: 1px;
+  transform: scaleY(0);
+  transform-origin: top;
+  transition: transform 0.18s ease-out;
+}
+
+/* Checked */
+.beacon-checkbox input[type="checkbox"]:checked::after {
+  transform: scaleY(1);
+}
+
+/* Press feedback */
+.beacon-checkbox input[type="checkbox"]:active {
+  transform: scale(0.9);
+}
+
+/* Hover */
+.beacon-checkbox input[type="checkbox"]:hover {
+  border-color: #ffd86a;
+}
+
+/* Focus-visible */
+.beacon-checkbox input[type="checkbox"]:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(245, 197, 66, 0.35);
+}
+
+/* Optional scan-line pulse */
+.beacon-checkbox input[type="checkbox"]:checked::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.35),
+    rgba(255, 255, 255, 0)
+  );
+  opacity: 0;
+  animation: beacon-scan 0.25s ease-out;
+  pointer-events: none;
+}
+
+@keyframes beacon-scan {
+  from { opacity: 0.6; }
+  to { opacity: 0; }
+}
+
+/* =========================
+   STATUS / ERRORS
+   ========================= */
+
+.account-status {
+  color: var(--lw-green-muted);
+  font-size: 12px;
+}
+
+.account-error {
+  color: #ff6b6b;
+  font-size: 12px;
+  margin-top: 0.75rem;
+}
+
+/* =========================
+   SKELETON
+   ========================= */
+
 .account-skeleton .skeleton-box {
   display: inline-block;
   height: 1em;
@@ -84,3 +238,16 @@
   100% { background-position: 0 0; }
 }
 
+/* =========================
+   REDUCED MOTION
+   ========================= */
+
+@media (prefers-reduced-motion: reduce) {
+  .account-panel,
+  .account-section-title,
+  .beacon-checkbox input[type="checkbox"],
+  .beacon-checkbox input[type="checkbox"]::after {
+    transition: none;
+    animation: none;
+  }
+}

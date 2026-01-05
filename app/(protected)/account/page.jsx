@@ -93,8 +93,8 @@ export default function AccountPage() {
             </div>
 
             {/* Widget Preferences */}
-            <div className="account-panel">
-              <h2 className="account-section-title">Widgets</h2>
+            <div className="account-panel beacons-panel">
+              <h2 className="account-section-title beacons-title">Beacons</h2>
 
               <div className="account-row">
                 <label className="account-label">
