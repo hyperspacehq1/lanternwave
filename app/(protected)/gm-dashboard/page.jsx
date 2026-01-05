@@ -209,12 +209,12 @@ export default function GMDashboardPage() {
     setLoading(true);
 
     Promise.all([
-      fetch(`/api/events?session_id=${selectedSession.id}`).then((r) => r.json()),
-      fetch(`/api/npcs?session_id=${selectedSession.id}`).then((r) => r.json()),
-      fetch(`/api/encounters?session_id=${selectedSession.id}`).then((r) => r.json()),
-      fetch(`/api/locations?session_id=${selectedSession.id}`).then((r) => r.json()),
-      fetch(`/api/items?session_id=${selectedSession.id}`).then((r) => r.json()),
-    ])
+  fetch(`/api/events?campaign_id=${selectedCampaign.id}`).then((r) => r.json()),
+  fetch(`/api/npcs?campaign_id=${selectedCampaign.id}`).then((r) => r.json()),
+  fetch(`/api/encounters?campaign_id=${selectedCampaign.id}`).then((r) => r.json()),
+  fetch(`/api/locations?campaign_id=${selectedCampaign.id}`).then((r) => r.json()),
+  fetch(`/api/items?campaign_id=${selectedCampaign.id}`).then((r) => r.json()),
+])
       .then(([events, npcs, encounters, locations, items]) => {
         setEvents(Array.isArray(events) ? events : []);
         setNpcs(Array.isArray(npcs) ? npcs : []);
