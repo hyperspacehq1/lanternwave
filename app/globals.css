@@ -257,3 +257,37 @@ button {
   padding: 6px 0;
 }
 
+/* -----------------------------------------
+   Player Characters toggle
+------------------------------------------ */
+
+.player-characters-toggle input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+
+  width: 18px;
+  height: 18px;
+  border: 2px solid #f4d03f; /* yellow */
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+  position: relative;
+}
+
+.player-characters-toggle input[type="checkbox"]:checked {
+  background: #f4d03f; /* yellow fill */
+}
+
+.player-characters-toggle input[type="checkbox"]:checked::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 5px;
+  width: 4px;
+  height: 8px;
+  border: solid #000;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
