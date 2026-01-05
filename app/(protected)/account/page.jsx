@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import "./account.css";
 
 export const dynamic = "force-dynamic";
@@ -10,31 +10,46 @@ export default function AccountPage() {
   const [error, setError] = useState(null);
   const [username, setUsername] = useState(null);
 
-  // Widget state (local only)
-  const [widgets, setWidgets] = useState({});
+  // ✅ Server-backed Beacons
+  const [beacons, setBeacons] = useState({});
 
   const loadingRef = useRef(false);
 
-  // ------------------------------
-  // Load account info
-  // ------------------------------
+  /* ------------------------------
+     Load account + beacons
+  ------------------------------ */
   useEffect(() => {
     if (loadingRef.current) return;
     loadingRef.current = true;
 
-    async function loadAccount() {
+    async function load() {
       try {
-        const res = await fetch("/api/account", {
-          credentials: "include",
-          cache: "no-store",
-        });
+        const [accountRes, beaconRes] = await Promise.all([
+          fetch("/api/account", {
+            credentials: "include",
+            cache: "no-store",
+          }),
+          fetch("/api/beacons", {
+            credentials: "include",
+            cache: "no-store",
+          }),
+        ]);
 
-        if (!res.ok) throw new Error("Failed to load account");
+        if (!accountRes.ok) throw new Error("Failed to load account");
 
-        const data = await res.json();
-        if (!data?.account?.username) throw new Error("Invalid account");
+        const accountData = await accountRes.json();
+        if (!accountData?.account?.username) {
+          throw new Error("Invalid account response");
+        }
 
-        setUsername(data.account.username);
+        setUsername(accountData.account.username);
+
+        if (beaconRes.ok) {
+          const beaconData = await beaconRes.json();
+          setBeacons(beaconData?.beacons ?? {});
+        } else {
+          setBeacons({});
+        }
       } catch (err) {
         console.error("ACCOUNT LOAD ERROR:", err);
         setError("Unable to load account details.");
@@ -43,29 +58,23 @@ export default function AccountPage() {
       }
     }
 
-    loadAccount();
+    load();
   }, []);
 
-  // ------------------------------
-  // Load widget preferences (local only)
-  // ------------------------------
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem("widgets");
-      if (stored) setWidgets(JSON.parse(stored));
-    } catch {
-      setWidgets({});
-    }
-  }, []);
+  /* ------------------------------
+     Update Beacon (optimistic)
+  ------------------------------ */
+  const updateBeacon = (key, enabled) => {
+    // Optimistic UI
+    setBeacons((prev) => ({ ...prev, [key]: enabled }));
 
-  // ------------------------------
-  // Update widget preferences
-  // ------------------------------
-  const updateWidget = (key, enabled) => {
-    setWidgets((prev) => {
-      const next = { ...prev, [key]: enabled };
-      localStorage.setItem("widgets", JSON.stringify(next));
-      return next;
+    fetch("/api/beacons", {
+      method: "PUT",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key, enabled }),
+    }).catch((err) => {
+      console.error("Beacon update failed:", err);
     });
   };
 
@@ -78,13 +87,14 @@ export default function AccountPage() {
           <div className="account-panel account-skeleton">
             <div className="account-row">
               <span className="account-label skeleton-box" />
-              <span className="account-value skeleton-box" />
+              <span className="account-value skeleton-box wide" />
             </div>
           </div>
         )}
 
         {!loading && !error && (
           <>
+            {/* ---------------- Account ---------------- */}
             <div className="account-panel">
               <div className="account-row">
                 <span className="account-label">Username</span>
@@ -92,25 +102,28 @@ export default function AccountPage() {
               </div>
             </div>
 
-            {/* Widget Preferences */}
+            {/* ---------------- Beacons ---------------- */}
+            <h2 className="account-section-title">Beacons</h2>
             <div className="account-panel beacons-panel">
-              <h2 className="account-section-title beacons-title">Beacons</h2>
-
               <div className="account-row">
                 <label className="account-label">
-                  <input
-                    type="checkbox"
-                    checked={!!widgets.player_characters}
-                    onChange={(e) =>
-                      updateWidget("player_characters", e.target.checked)
-                    }
-                  />
+                  <span className="beacon-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={!!beacons.player_characters}
+                      onChange={(e) =>
+                        updateBeacon("player_characters", e.target.checked)
+                      }
+                    />
+                  </span>
                   Player Characters
                 </label>
               </div>
             </div>
           </>
         )}
+
+        {error && <div className="account-error">{error}</div>}
       </main>
     </div>
   );

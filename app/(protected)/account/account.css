@@ -13,27 +13,22 @@
    SECTION TITLES
    ========================= */
 
-.account-title {
-  font-family: MU-TH-UR, system-ui, sans-serif;
-  font-style: normal;
-  font-weight: 700;
-  font-size: 13px;
-  line-height: normal;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: rgb(163, 197, 159);
-  margin-bottom: 1.5rem;
-}
-
+.account-title,
 .account-section-title {
   font-family: MU-TH-UR, system-ui, sans-serif;
   font-style: normal;
   font-weight: 700;
   font-size: 13px;
-  line-height: normal;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: rgb(163, 197, 159);
+}
+
+.account-title {
+  margin-bottom: 1.5rem;
+}
+
+.account-section-title {
   margin-bottom: 0.5rem;
   transition: color 0.15s ease;
 }
@@ -47,27 +42,23 @@
    ========================= */
 
 .account-panel {
-  border: 1px solid rgb(108, 196, 23); /* My Account = green */
+  border: 1px solid rgb(108, 196, 23);
   border-radius: 10px;
   padding: 1.25rem;
   background: transparent;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-/* Beacons panel */
 .account-panel.beacons-panel {
   border-color: #f5c542;
 }
 
-/* Spacing between sections */
 .account-panel + .account-panel {
   margin-top: 1.25rem;
 }
 
-/* Hover / focus states */
 .account-panel:hover,
 .account-panel:focus-within {
-  border-color: rgb(108, 196, 23);
   box-shadow: 0 0 0 1px rgba(108, 196, 23, 0.35);
 }
 
@@ -113,19 +104,18 @@
   text-transform: uppercase;
   color: var(--lw-green-muted);
   font-family: var(--font-terminal);
-}
-
-.account-value {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--lw-text-main);
+  display: inline-flex;
+  align-items: center;
 }
 
 /* =========================
-   BEACON CHECKBOX
+   SHARED CHECKBOX SYSTEM
+   (Beacon + Player Characters)
    ========================= */
 
-.beacon-checkbox input[type="checkbox"] {
+/* Shared checkbox base */
+.beacon-checkbox input[type="checkbox"],
+.account-label input[type="checkbox"] {
   appearance: none;
   width: 14px;
   height: 14px;
@@ -143,8 +133,9 @@
     transform 0.08s ease;
 }
 
-/* Animated arming fill */
-.beacon-checkbox input[type="checkbox"]::after {
+/* Animated fill */
+.beacon-checkbox input[type="checkbox"]::after,
+.account-label input[type="checkbox"]::after {
   content: "";
   position: absolute;
   inset: 2px;
@@ -156,28 +147,33 @@
 }
 
 /* Checked */
-.beacon-checkbox input[type="checkbox"]:checked::after {
+.beacon-checkbox input[type="checkbox"]:checked::after,
+.account-label input[type="checkbox"]:checked::after {
   transform: scaleY(1);
 }
 
 /* Press feedback */
-.beacon-checkbox input[type="checkbox"]:active {
+.beacon-checkbox input[type="checkbox"]:active,
+.account-label input[type="checkbox"]:active {
   transform: scale(0.9);
 }
 
 /* Hover */
-.beacon-checkbox input[type="checkbox"]:hover {
+.beacon-checkbox input[type="checkbox"]:hover,
+.account-label input[type="checkbox"]:hover {
   border-color: #ffd86a;
 }
 
 /* Focus-visible */
-.beacon-checkbox input[type="checkbox"]:focus-visible {
+.beacon-checkbox input[type="checkbox"]:focus-visible,
+.account-label input[type="checkbox"]:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px rgba(245, 197, 66, 0.35);
 }
 
 /* Optional scan-line pulse */
-.beacon-checkbox input[type="checkbox"]:checked::before {
+.beacon-checkbox input[type="checkbox"]:checked::before,
+.account-label input[type="checkbox"]:checked::before {
   content: "";
   position: absolute;
   inset: 0;
@@ -246,7 +242,9 @@
   .account-panel,
   .account-section-title,
   .beacon-checkbox input[type="checkbox"],
-  .beacon-checkbox input[type="checkbox"]::after {
+  .account-label input[type="checkbox"],
+  .beacon-checkbox input[type="checkbox"]::after,
+  .account-label input[type="checkbox"]::after {
     transition: none;
     animation: none;
   }
