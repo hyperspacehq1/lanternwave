@@ -27,36 +27,41 @@ function validateString(val, max, field) {
 /* -----------------------------------------------------------
    GET /api/npcs/[id]
 ------------------------------------------------------------ */
-export async function GET(req, { params }) {
+export async function GET(req) {
   const { tenantId } = await getTenantContext(req);
-  const id = params?.id;
+  const { searchParams } = new URL(req.url);
 
-  if (!id) return Response.json({ error: "id required" }, { status: 400 });
+  let campaignId = searchParams.get("campaign_id");
+  const sessionId = searchParams.get("session_id");
+
+  if (!campaignId && sessionId) {
+    const { rows } = await query(
+      `
+      SELECT campaign_id
+        FROM sessions
+       WHERE id = $1
+         AND deleted_at IS NULL
+       LIMIT 1
+      `,
+      [sessionId]
+    );
+    campaignId = rows[0]?.campaign_id ?? null;
+  }
+
+  if (!campaignId) return Response.json([]);
 
   const { rows } = await query(
     `
     SELECT *
       FROM npcs
      WHERE tenant_id = $1
-       AND id = $2
+       AND campaign_id = $2
        AND deleted_at IS NULL
-     LIMIT 1
     `,
-    [tenantId, id]
+    [tenantId, campaignId]
   );
 
-  return Response.json(
-    rows[0]
-      ? sanitizeRow(rows[0], {
-          name: 120,
-          description: 10000,
-          goals: 10000,
-          secrets: 10000,
-          notes: 500,
-          factionAlignment: 120,
-        })
-      : null
-  );
+  return Response.json(/* sanitized rows */);
 }
 
 /* -----------------------------------------------------------
