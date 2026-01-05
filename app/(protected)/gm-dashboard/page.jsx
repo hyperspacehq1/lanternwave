@@ -4,11 +4,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import "./gm-dashboard.css";
 import PlayerCharactersWidget from "@/components/widgets/PlayerCharactersWidget";
+import { DISPLAY_SCHEMAS as BASE_SCHEMAS } from "@/app/(protected)/gm-dashboard/displaySchemas"; // <-- adjust path ONLY if needed
 
 const LS_LAST_CAMPAIGN = "gm:lastCampaignId";
-const LS_LAST_SESSION_BY_CAMPAIGN_PREFIX = "gm:lastSessionId:"; // gm:lastSessionId:<campaignId>
-const LS_ORDER_PREFIX = "gm-order:"; // gm-order:<sessionId>:<entityKey>
-const LS_CARD_OPEN_PREFIX = "gm-card-open:"; // gm-card-open:<sessionId>:<itemId>
+const LS_LAST_SESSION_BY_CAMPAIGN_PREFIX = "gm:lastSessionId:";
+const LS_ORDER_PREFIX = "gm-order:";
+const LS_CARD_OPEN_PREFIX = "gm-card-open:";
 
 function asDate(v) {
   const d = v ? new Date(v) : null;
@@ -23,9 +24,46 @@ function mostRecentByCreatedAt(list) {
     .filter((r) => r.d);
 
   if (withDates.length === 0) return list[0] || null;
-
   withDates.sort((a, b) => b.d - a.d);
   return withDates[0].x || null;
+}
+
+/* ------------------------------
+   Render helpers (field view)
+------------------------------ */
+
+function renderValue(value, type) {
+  if (value === null || value === undefined) return null;
+  if (typeof value === "string" && value.trim() === "") return null;
+
+  if (type === "json") {
+    return <pre className="gm-json">{JSON.stringify(value, null, 2)}</pre>;
+  }
+
+  // default text
+  return <div className="gm-text">{String(value)}</div>;
+}
+
+function RecordView({ record, schema }) {
+  if (!record || !Array.isArray(schema) || schema.length === 0) return null;
+
+  return (
+    <div className="gm-record">
+      {schema.map(({ key, label, type }) => {
+        const rendered = renderValue(record[key], type);
+        if (!rendered) return null;
+
+        return (
+          <div key={key} className="gm-field">
+            <div className="gm-field-label">
+              <strong>{label}</strong>
+            </div>
+            <div className="gm-field-value">{rendered}</div>
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 export default function GMDashboardPage() {
@@ -44,35 +82,47 @@ export default function GMDashboardPage() {
   const [items, setItems] = useState([]);
 
   const [loading, setLoading] = useState(false);
-
-  // Expand all / collapse all broadcast
   const [expandAll, setExpandAll] = useState(null);
 
-  // ✅ Beacons (server)
+  // Beacons (server)
   const [beacons, setBeacons] = useState({});
 
+  // Schemas (merge base + add missing ones locally)
+  const DISPLAY_SCHEMAS = useMemo(() => {
+    // BASE_SCHEMAS contains items/npcs/locations per your file :contentReference[oaicite:4]{index=4}
+    return {
+      ...BASE_SCHEMAS,
+      events: [
+        { key: "name", label: "Name" },
+        { key: "description", label: "Description" },
+        { key: "eventType", label: "Event Type" },
+        { key: "priority", label: "Priority" },
+      ],
+      encounters: [
+        { key: "name", label: "Name" },
+        { key: "description", label: "Description" },
+      ],
+    };
+  }, []);
+
   useEffect(() => {
-    fetch("/api/beacons", { cache: "no-store" })
+    fetch("/api/beacons", { cache: "no-store", credentials: "include" })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => setBeacons(d?.beacons ?? {}))
       .catch(() => setBeacons({}));
   }, []);
 
-  /* -------------------------------------------
-     Reset to Default
-  -------------------------------------------- */
+  /* ---------------- Reset to Default ---------------- */
+
   const resetToDefault = () => {
     try {
       localStorage.removeItem(LS_LAST_CAMPAIGN);
-
       Object.keys(localStorage).forEach((k) => {
         if (k.startsWith(LS_LAST_SESSION_BY_CAMPAIGN_PREFIX)) localStorage.removeItem(k);
         if (k.startsWith(LS_ORDER_PREFIX)) localStorage.removeItem(k);
         if (k.startsWith(LS_CARD_OPEN_PREFIX)) localStorage.removeItem(k);
       });
-    } catch {
-      // ignore
-    }
+    } catch {}
 
     setSelectedCampaign(null);
     setSelectedSession(null);
@@ -85,23 +135,20 @@ export default function GMDashboardPage() {
     setExpandAll(null);
   };
 
-  /* -------------------------------------------
-     Initial load — campaigns
-  -------------------------------------------- */
+  /* ---------------- Campaigns ---------------- */
+
   useEffect(() => {
-    fetch("/api/campaigns")
+    fetch("/api/campaigns", { credentials: "include", cache: "no-store" })
       .then((r) => r.json())
-      .then((list) => {
-        const arr = Array.isArray(list) ? list : [];
+      .then((arr) => {
+        arr = Array.isArray(arr) ? arr : [];
         setCampaigns(arr);
 
         let next = null;
         try {
-          const savedId = localStorage.getItem(LS_LAST_CAMPAIGN);
-          if (savedId) next = arr.find((c) => c.id === savedId) || null;
-        } catch {
-          // ignore
-        }
+          const saved = localStorage.getItem(LS_LAST_CAMPAIGN);
+          if (saved) next = arr.find((c) => c.id === saved) || null;
+        } catch {}
 
         if (!next) next = mostRecentByCreatedAt(arr);
         if (next) setSelectedCampaign(next);
@@ -109,21 +156,15 @@ export default function GMDashboardPage() {
       .catch(() => setCampaigns([]));
   }, []);
 
-  /* -------------------------------------------
-     Persist last selected campaign
-  -------------------------------------------- */
   useEffect(() => {
     if (!selectedCampaign?.id) return;
     try {
       localStorage.setItem(LS_LAST_CAMPAIGN, selectedCampaign.id);
-    } catch {
-      // ignore
-    }
+    } catch {}
   }, [selectedCampaign?.id]);
 
-  /* -------------------------------------------
-     Load sessions when campaign changes
-  -------------------------------------------- */
+  /* ---------------- Sessions ---------------- */
+
   useEffect(() => {
     if (!selectedCampaign) return;
 
@@ -134,34 +175,29 @@ export default function GMDashboardPage() {
     setLocations([]);
     setItems([]);
 
-    fetch(`/api/sessions?campaign_id=${selectedCampaign.id}`)
+    fetch(`/api/sessions?campaign_id=${selectedCampaign.id}`, {
+      credentials: "include",
+      cache: "no-store",
+    })
       .then((r) => r.json())
-      .then((list) => {
-        const arr = Array.isArray(list) ? list : [];
+      .then((arr) => {
+        arr = Array.isArray(arr) ? arr : [];
         setSessions(arr);
 
-        let nextSession = null;
-
+        let next = null;
         try {
-          const savedSessionId = localStorage.getItem(
+          const saved = localStorage.getItem(
             `${LS_LAST_SESSION_BY_CAMPAIGN_PREFIX}${selectedCampaign.id}`
           );
-          if (savedSessionId) {
-            nextSession = arr.find((s) => s.id === savedSessionId) || null;
-          }
-        } catch {
-          // ignore
-        }
+          if (saved) next = arr.find((s) => s.id === saved) || null;
+        } catch {}
 
-        if (!nextSession) nextSession = mostRecentByCreatedAt(arr);
-        if (nextSession) setSelectedSession(nextSession);
+        if (!next) next = mostRecentByCreatedAt(arr);
+        if (next) setSelectedSession(next);
       })
       .catch(() => setSessions([]));
   }, [selectedCampaign]);
 
-  /* -------------------------------------------
-     Persist last selected session per campaign
-  -------------------------------------------- */
   useEffect(() => {
     if (!selectedCampaign?.id || !selectedSession?.id) return;
     try {
@@ -169,25 +205,42 @@ export default function GMDashboardPage() {
         `${LS_LAST_SESSION_BY_CAMPAIGN_PREFIX}${selectedCampaign.id}`,
         selectedSession.id
       );
-    } catch {
-      // ignore
-    }
+    } catch {}
   }, [selectedCampaign?.id, selectedSession?.id]);
 
-  /* -------------------------------------------
-     Load all GM data when session changes
-  -------------------------------------------- */
+  /* ---------------- Load Data (FIXED PARAMS) ---------------- */
+
   useEffect(() => {
-    if (!selectedSession) return;
+    if (!selectedCampaign?.id || !selectedSession?.id) return;
 
     setLoading(true);
 
+    const campaign_id = selectedCampaign.id;
+    const session_id = selectedSession.id;
+
+    // ✅ Important fix: pass BOTH campaign_id and session_id to all routes.
+    // If a route only filters on one, it will still work. This fixes "only encounters shows".
     Promise.all([
-      fetch(`/api/events?session_id=${selectedSession.id}`).then((r) => r.json()),
-      fetch(`/api/npcs?session_id=${selectedSession.id}`).then((r) => r.json()),
-      fetch(`/api/encounters?session_id=${selectedSession.id}`).then((r) => r.json()),
-      fetch(`/api/locations?session_id=${selectedSession.id}`).then((r) => r.json()),
-      fetch(`/api/items?session_id=${selectedSession.id}`).then((r) => r.json()),
+      fetch(`/api/events?campaign_id=${campaign_id}&session_id=${session_id}`, {
+        credentials: "include",
+        cache: "no-store",
+      }).then((r) => r.json()),
+      fetch(`/api/npcs?campaign_id=${campaign_id}&session_id=${session_id}`, {
+        credentials: "include",
+        cache: "no-store",
+      }).then((r) => r.json()),
+      fetch(`/api/encounters?campaign_id=${campaign_id}&session_id=${session_id}`, {
+        credentials: "include",
+        cache: "no-store",
+      }).then((r) => r.json()),
+      fetch(`/api/locations?campaign_id=${campaign_id}&session_id=${session_id}`, {
+        credentials: "include",
+        cache: "no-store",
+      }).then((r) => r.json()),
+      fetch(`/api/items?campaign_id=${campaign_id}&session_id=${session_id}`, {
+        credentials: "include",
+        cache: "no-store",
+      }).then((r) => r.json()),
     ])
       .then(([events, npcs, encounters, locations, items]) => {
         setEvents(Array.isArray(events) ? events : []);
@@ -204,34 +257,27 @@ export default function GMDashboardPage() {
         setItems([]);
       })
       .finally(() => setLoading(false));
-  }, [selectedSession]);
+  }, [selectedCampaign?.id, selectedSession?.id]);
 
-  /* -------------------------------------------
-     Helpers for editor navigation
-  -------------------------------------------- */
+  const canUseSession = !!selectedSession?.id;
+
   const editorPathFor = (entityKey, id) => {
-    const base = {
-      campaigns: "campaigns",
-      sessions: "sessions",
+    const map = {
       events: "events",
       npcs: "npcs",
       locations: "locations",
       encounters: "encounters",
       items: "items",
-    }[entityKey];
-
-    if (!base || !id) return null;
-    return `/${base}/${id}`;
+    };
+    const base = map[entityKey];
+    return base ? `/${base}/${id}` : null;
   };
-
-  const canUseSession = !!selectedSession?.id;
 
   return (
     <div className="gm-page">
-      {/* -------------------- TOOLBAR -------------------- */}
-      <div className="gm-toolbar" role="region" aria-label="GM Dashboard controls">
+      {/* ---------------- Toolbar (kept simple + visible) ---------------- */}
+      <div className="gm-toolbar">
         <select
-          aria-label="Select campaign"
           value={selectedCampaign?.id || ""}
           onChange={(e) => {
             const next = campaigns.find((c) => c.id === e.target.value) || null;
@@ -247,9 +293,8 @@ export default function GMDashboardPage() {
         </select>
 
         <select
-          aria-label="Select session"
-          disabled={!selectedCampaign}
           value={selectedSession?.id || ""}
+          disabled={!selectedCampaign}
           onChange={(e) => {
             const next = sessions.find((s) => s.id === e.target.value) || null;
             setSelectedSession(next);
@@ -263,112 +308,96 @@ export default function GMDashboardPage() {
           ))}
         </select>
 
-        <div className="gm-controls" style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
-          <button
-            type="button"
-            className="gm-card-action-btn"
-            onClick={() => setExpandAll(true)}
-            disabled={!canUseSession}
-            aria-label="Expand all cards"
-            title="Expand all"
-          >
-            Expand All
-          </button>
+        <button
+          type="button"
+          className="gm-card-action-btn"
+          onClick={() => setExpandAll(true)}
+          disabled={!canUseSession}
+        >
+          Expand All
+        </button>
 
-          <button
-            type="button"
-            className="gm-card-action-btn"
-            onClick={() => setExpandAll(false)}
-            disabled={!canUseSession}
-            aria-label="Collapse all cards"
-            title="Collapse all"
-          >
-            Collapse All
-          </button>
+        <button
+          type="button"
+          className="gm-card-action-btn"
+          onClick={() => setExpandAll(false)}
+          disabled={!canUseSession}
+        >
+          Collapse All
+        </button>
 
-          <button
-            type="button"
-            className="gm-card-action-btn"
-            onClick={resetToDefault}
-            aria-label="Reset dashboard view to default"
-            title="Reset to default"
-          >
-            Reset to Default
-          </button>
+        <button type="button" className="gm-card-action-btn" onClick={resetToDefault}>
+          Reset to Default
+        </button>
+      </div>
+
+      {!selectedCampaign && <div className="gm-empty">Select or create a campaign to begin.</div>}
+      {selectedCampaign && !selectedSession && (
+        <div className="gm-empty">Select or create a session.</div>
+      )}
+
+      {selectedCampaign && selectedSession && (
+        <div className="gm-grid">
+          <GMColumn
+            title="Events"
+            color="red"
+            entityKey="events"
+            items={events}
+            forceOpen={expandAll}
+            sessionId={selectedSession.id}
+            schema={DISPLAY_SCHEMAS.events}
+            onOpenEditor={(id) => router.push(editorPathFor("events", id))}
+          />
+
+          <GMColumn
+            title="NPCs"
+            color="blue"
+            entityKey="npcs"
+            items={npcs}
+            forceOpen={expandAll}
+            sessionId={selectedSession.id}
+            schema={DISPLAY_SCHEMAS.npcs}
+            onOpenEditor={(id) => router.push(editorPathFor("npcs", id))}
+          />
+
+          <GMColumn
+            title="Encounters"
+            color="green"
+            entityKey="encounters"
+            items={encounters}
+            forceOpen={expandAll}
+            sessionId={selectedSession.id}
+            schema={DISPLAY_SCHEMAS.encounters}
+            onOpenEditor={(id) => router.push(editorPathFor("encounters", id))}
+          />
+
+          <GMColumn
+            title="Locations"
+            color="purple"
+            entityKey="locations"
+            items={locations}
+            forceOpen={expandAll}
+            sessionId={selectedSession.id}
+            schema={DISPLAY_SCHEMAS.locations}
+            onOpenEditor={(id) => router.push(editorPathFor("locations", id))}
+          />
+
+          <GMColumn
+            title="Items"
+            color="orange"
+            entityKey="items"
+            items={items}
+            forceOpen={expandAll}
+            sessionId={selectedSession.id}
+            schema={DISPLAY_SCHEMAS.items}
+            onOpenEditor={(id) => router.push(editorPathFor("items", id))}
+          />
         </div>
-      </div>
-
-      {/* -------------------- MAIN GRID -------------------- */}
-      <div className="gm-grid" role="region" aria-label="GM Dashboard columns">
-        <GMColumn
-          title="Events"
-          color="red"
-          entityKey="events"
-          items={events}
-          forceOpen={expandAll}
-          sessionId={selectedSession?.id}
-          onOpenEditor={(id) => {
-            const path = editorPathFor("events", id);
-            if (path) router.push(path);
-          }}
-        />
-
-        <GMColumn
-          title="NPCs"
-          color="blue"
-          entityKey="npcs"
-          items={npcs}
-          forceOpen={expandAll}
-          sessionId={selectedSession?.id}
-          onOpenEditor={(id) => {
-            const path = editorPathFor("npcs", id);
-            if (path) router.push(path);
-          }}
-        />
-
-        <GMColumn
-          title="Encounters"
-          color="green"
-          entityKey="encounters"
-          items={encounters}
-          forceOpen={expandAll}
-          sessionId={selectedSession?.id}
-          onOpenEditor={(id) => {
-            const path = editorPathFor("encounters", id);
-            if (path) router.push(path);
-          }}
-        />
-
-        <GMColumn
-          title="Locations"
-          color="purple"
-          entityKey="locations"
-          items={locations}
-          forceOpen={expandAll}
-          sessionId={selectedSession?.id}
-          onOpenEditor={(id) => {
-            const path = editorPathFor("locations", id);
-            if (path) router.push(path);
-          }}
-        />
-
-        <GMColumn
-          title="Items"
-          color="orange"
-          entityKey="items"
-          items={items}
-          forceOpen={expandAll}
-          sessionId={selectedSession?.id}
-          onOpenEditor={(id) => {
-            const path = editorPathFor("items", id);
-            if (path) router.push(path);
-          }}
-        />
-      </div>
+      )}
 
       {loading && <div className="gm-loading">Loading…</div>}
 
-      {/* ✅ BEACON CONTROLLED WIDGET */}
+      {/* Beacon-controlled widget */}
       {selectedCampaign?.id && beacons.player_characters && (
         <PlayerCharactersWidget campaignId={selectedCampaign.id} />
       )}
@@ -377,16 +406,16 @@ export default function GMDashboardPage() {
 }
 
 /* ------------------------------------------------------------------ */
-/* Column Component (with drag reorder + persistence) */
+/* Column Component (drag reorder + persistence) */
 /* ------------------------------------------------------------------ */
 
-function GMColumn({ title, color, entityKey, items, forceOpen, sessionId, onOpenEditor }) {
+function GMColumn({ title, color, entityKey, items, forceOpen, sessionId, onOpenEditor, schema }) {
   const [order, setOrder] = useState([]);
   const draggingIndexRef = useRef(null);
 
   const storageKey = useMemo(() => {
     if (!sessionId) return null;
-    return `gm-order:${sessionId}:${entityKey}`;
+    return `${LS_ORDER_PREFIX}${sessionId}:${entityKey}`;
   }, [sessionId, entityKey]);
 
   useEffect(() => {
@@ -440,7 +469,6 @@ function GMColumn({ title, color, entityKey, items, forceOpen, sessionId, onOpen
       e.preventDefault();
       return;
     }
-
     draggingIndexRef.current = index;
     e.dataTransfer.effectAllowed = "move";
     try {
@@ -491,9 +519,14 @@ function GMColumn({ title, color, entityKey, items, forceOpen, sessionId, onOpen
             onDragStart={(e) => onDragStart(e, index)}
             onDragOver={onDragOver}
             onDrop={(e) => onDrop(e, index)}
-            aria-grabbed="false"
           >
-            <GMCard item={item} forceOpen={forceOpen} onOpenEditor={onOpenEditor} sessionId={sessionId} />
+            <GMCard
+              item={item}
+              forceOpen={forceOpen}
+              onOpenEditor={onOpenEditor}
+              sessionId={sessionId}
+              schema={schema}
+            />
           </div>
         ))}
       </div>
@@ -502,10 +535,10 @@ function GMColumn({ title, color, entityKey, items, forceOpen, sessionId, onOpen
 }
 
 /* ------------------------------------------------------------------ */
-/* Card Component (animated expand/collapse + per-session persistence) */
+/* Card Component (expand/collapse + per-session persistence) */
 /* ------------------------------------------------------------------ */
 
-function GMCard({ item, forceOpen, onOpenEditor, sessionId }) {
+function GMCard({ item, forceOpen, onOpenEditor, sessionId, schema }) {
   const [open, setOpen] = useState(false);
   const contentRef = useRef(null);
   const [height, setHeight] = useState(0);
@@ -526,43 +559,19 @@ function GMCard({ item, forceOpen, onOpenEditor, sessionId }) {
   }, [storageKey, open]);
 
   useEffect(() => {
-    if (typeof forceOpen === "boolean") {
-      setOpen(forceOpen);
-    }
+    if (typeof forceOpen === "boolean") setOpen(forceOpen);
   }, [forceOpen]);
 
   useEffect(() => {
-    if (open && contentRef.current) {
-      setHeight(contentRef.current.scrollHeight);
-    }
+    if (open && contentRef.current) setHeight(contentRef.current.scrollHeight);
   }, [open, item]);
 
   const toggle = () => setOpen((v) => !v);
 
-  const onHeaderKeyDown = (e) => {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      toggle();
-    }
-    if (e.key === "o" || e.key === "O") {
-      e.preventDefault();
-      onOpenEditor?.(item.id);
-    }
-  };
-
   return (
     <div className={`gm-card ${open ? "is-open" : ""}`}>
-      <div
-        className="gm-card-header"
-        role="button"
-        tabIndex={0}
-        aria-expanded={open}
-        onClick={toggle}
-        onDoubleClick={() => onOpenEditor?.(item.id)}
-        onKeyDown={onHeaderKeyDown}
-        title="Enter/Space to toggle • O to open editor"
-      >
-        <span className="gm-card-title">{item.name || "Untitled"}</span>
+      <div className="gm-card-header" role="button" tabIndex={0} aria-expanded={open} onClick={toggle}>
+        <span className="gm-card-title">{item?.name || "Untitled"}</span>
 
         <span className="gm-card-actions" style={{ display: "inline-flex", gap: 6 }}>
           <button
@@ -602,7 +611,11 @@ function GMCard({ item, forceOpen, onOpenEditor, sessionId }) {
         aria-hidden={!open}
       >
         <div ref={contentRef} className="gm-card-body">
-          <pre>{JSON.stringify(item, null, 2)}</pre>
+          {/* ✅ Field view instead of dumping JSON */}
+          <RecordView record={item} schema={schema} />
+
+          {/* Safety fallback: if schema missing, show minimal JSON */}
+          {!schema && <pre className="gm-json">{JSON.stringify(item, null, 2)}</pre>}
         </div>
       </div>
     </div>
