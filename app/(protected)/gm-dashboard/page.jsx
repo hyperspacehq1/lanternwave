@@ -279,13 +279,21 @@ export default function GMDashboardPage() {
   };
 
   return (
-    <div className="gm-page">
-      {/* Toolbar + Grid unchanged (intentionally) */}
+  <div className="gm-page">
 
-      {/* ---------------- WIDGETS ---------------- */}
-      {selectedCampaign?.id && beacons.player_characters && (
-        <PlayerCharactersWidget campaignId={selectedCampaign.id} />
-      )}
+    {/* === GM DASHBOARD UI (RESTORE THIS) === */}
+    <div className="gm-toolbar">
+      {/* campaign + session selectors */}
     </div>
-  );
-}
+
+    <div className="gm-grid">
+      {/* events / npcs / encounters / locations / items columns */}
+    </div>
+
+    {/* === WIDGETS (already correct) === */}
+    {selectedCampaign?.id && beacons.player_characters && (
+      <PlayerCharactersWidget campaignId={selectedCampaign.id} />
+    )}
+
+  </div>
+);
