@@ -89,7 +89,6 @@ export default function GMDashboardPage() {
 
   // Schemas (merge base + add missing ones locally)
   const DISPLAY_SCHEMAS = useMemo(() => {
-    // BASE_SCHEMAS contains items/npcs/locations per your file :contentReference[oaicite:4]{index=4}
     return {
       ...BASE_SCHEMAS,
       events: [
@@ -111,6 +110,12 @@ export default function GMDashboardPage() {
       .then((d) => setBeacons(d?.beacons ?? {}))
       .catch(() => setBeacons({}));
   }, []);
+
+  // ✅ Players beacon key compatibility (handles old/new key names)
+  const showPlayersBeacon =
+    !!beacons?.player_characters ||
+    !!beacons?.players ||
+    !!beacons?.playerCharacters;
 
   /* ---------------- Reset to Default ---------------- */
 
@@ -218,8 +223,6 @@ export default function GMDashboardPage() {
     const campaign_id = selectedCampaign.id;
     const session_id = selectedSession.id;
 
-    // ✅ Important fix: pass BOTH campaign_id and session_id to all routes.
-    // If a route only filters on one, it will still work. This fixes "only encounters shows".
     Promise.all([
       fetch(`/api/events?campaign_id=${campaign_id}&session_id=${session_id}`, {
         credentials: "include",
@@ -275,60 +278,66 @@ export default function GMDashboardPage() {
 
   return (
     <div className="gm-page">
-      {/* ---------------- Toolbar (kept simple + visible) ---------------- */}
-      <div className="gm-toolbar">
-        <select
-          value={selectedCampaign?.id || ""}
-          onChange={(e) => {
-            const next = campaigns.find((c) => c.id === e.target.value) || null;
-            setSelectedCampaign(next);
-          }}
-        >
-          <option value="">Select Campaign</option>
-          {campaigns.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
+      {/* ---------------- Toolbar (RESTORED LEFT/RIGHT LAYOUT) ---------------- */}
+      <div className="gm-toolbar" style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        {/* Left group: selects */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <select
+            value={selectedCampaign?.id || ""}
+            onChange={(e) => {
+              const next = campaigns.find((c) => c.id === e.target.value) || null;
+              setSelectedCampaign(next);
+            }}
+          >
+            <option value="">Select Campaign</option>
+            {campaigns.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
 
-        <select
-          value={selectedSession?.id || ""}
-          disabled={!selectedCampaign}
-          onChange={(e) => {
-            const next = sessions.find((s) => s.id === e.target.value) || null;
-            setSelectedSession(next);
-          }}
-        >
-          <option value="">Select Session</option>
-          {sessions.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-            </option>
-          ))}
-        </select>
+          <select
+            value={selectedSession?.id || ""}
+            disabled={!selectedCampaign}
+            onChange={(e) => {
+              const next = sessions.find((s) => s.id === e.target.value) || null;
+              setSelectedSession(next);
+            }}
+          >
+            <option value="">Select Session</option>
+            {sessions.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+        </div>
 
-        <button
-          type="button"
-          className="gm-card-action-btn"
-          onClick={() => setExpandAll(true)}
-          disabled={!canUseSession}
-        >
-          Expand All
-        </button>
+        {/* Right group: actions */}
+        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 12 }}>
+          <button
+            type="button"
+            className="gm-card-action-btn"
+            onClick={() => setExpandAll(true)}
+            disabled={!canUseSession}
+          >
+            Expand All
+          </button>
 
-        <button
-          type="button"
-          className="gm-card-action-btn"
-          onClick={() => setExpandAll(false)}
-          disabled={!canUseSession}
-        >
-          Collapse All
-        </button>
+          <button
+            type="button"
+            className="gm-card-action-btn"
+            onClick={() => setExpandAll(false)}
+            disabled={!canUseSession}
+          >
+            Collapse All
+          </button>
 
-        <button type="button" className="gm-card-action-btn" onClick={resetToDefault}>
-          Reset to Default
-        </button>
+          <button type="button" className="gm-card-action-btn" onClick={resetToDefault}>
+            Reset to Default
+          </button>
+        </div>
       </div>
 
       {!selectedCampaign && <div className="gm-empty">Select or create a campaign to begin.</div>}
@@ -398,7 +407,7 @@ export default function GMDashboardPage() {
       {loading && <div className="gm-loading">Loading…</div>}
 
       {/* Beacon-controlled widget */}
-      {selectedCampaign?.id && beacons.player_characters && (
+      {selectedCampaign?.id && showPlayersBeacon && (
         <PlayerCharactersWidget campaignId={selectedCampaign.id} />
       )}
     </div>
@@ -441,6 +450,9 @@ function GMColumn({ title, color, entityKey, items, forceOpen, sessionId, onOpen
     } catch {
       savedIds = [];
     }
+
+    // ✅ FIX: normalize saved IDs to strings so includes/merge works reliably
+    savedIds = Array.isArray(savedIds) ? savedIds.map((v) => String(v)) : [];
 
     const byId = new Map(items.map((it) => [String(it.id), it]));
     const ordered = [];
@@ -611,7 +623,7 @@ function GMCard({ item, forceOpen, onOpenEditor, sessionId, schema }) {
         aria-hidden={!open}
       >
         <div ref={contentRef} className="gm-card-body">
-          {/* ✅ Field view instead of dumping JSON */}
+          {/* Field view instead of dumping JSON */}
           <RecordView record={item} schema={schema} />
 
           {/* Safety fallback: if schema missing, show minimal JSON */}
