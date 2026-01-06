@@ -8,7 +8,6 @@ export const dynamic = "force-dynamic";
 
 /* -------------------------------------------------
    GET /api/account
-   - returns account info + beacons (single source)
 -------------------------------------------------- */
 export async function GET(req) {
   try {
@@ -23,12 +22,12 @@ export async function GET(req) {
 
     const { rows } = await query(
       `
-      select beacons
-      from account_preferences
-      where tenant_id = $1
-        and user_id = $2
-      order by updated_at desc
-      limit 1
+      SELECT beacons
+        FROM account_preferences
+       WHERE tenant_id = $1
+         AND user_id   = $2
+       ORDER BY updated_at DESC
+       LIMIT 1
       `,
       [ctx.tenantId, ctx.user.id]
     );
@@ -42,7 +41,6 @@ export async function GET(req) {
     });
   } catch (err) {
     console.error("🔥 ACCOUNT GET ERROR:", err);
-
     return NextResponse.json(
       { ok: false, error: "Failed to load account" },
       { status: 500 }
@@ -52,7 +50,8 @@ export async function GET(req) {
 
 /* -------------------------------------------------
    PUT /api/account
-   - updates beacons (replaces /api/beacons PUT)
+   - UPDATE first
+   - INSERT only if row does not exist
 -------------------------------------------------- */
 export async function PUT(req) {
   try {
@@ -74,27 +73,55 @@ export async function PUT(req) {
       );
     }
 
-    const { rows } = await query(
+    /* ---------- UPDATE (primary path) ---------- */
+    const update = await query(
       `
-      insert into account_preferences (id, tenant_id, user_id, beacons)
-      values ($1, $2, $3, jsonb_build_object($4, $5))
-      on conflict (tenant_id, user_id)
-      do update set
-        beacons = coalesce(account_preferences.beacons, '{}'::jsonb)
-                  || jsonb_build_object($4, $5),
-        updated_at = now()
-      returning beacons
+      UPDATE account_preferences
+         SET beacons = COALESCE(beacons, '{}'::jsonb)
+                       || jsonb_build_object($1::text, $2::boolean),
+             updated_at = NOW()
+       WHERE tenant_id = $3::uuid
+         AND user_id   = $4::uuid
+       RETURNING beacons
+      `,
+      [key, enabled, ctx.tenantId, ctx.user.id]
+    );
+
+    if (update.rows.length) {
+      return NextResponse.json({
+        ok: true,
+        beacons: update.rows[0].beacons,
+      });
+    }
+
+    /* ---------- INSERT (fallback only) ---------- */
+    const insert = await query(
+      `
+      INSERT INTO account_preferences (
+        id,
+        tenant_id,
+        user_id,
+        beacons,
+        updated_at
+      )
+      VALUES (
+        $1::uuid,
+        $2::uuid,
+        $3::uuid,
+        jsonb_build_object($4::text, $5::boolean),
+        NOW()
+      )
+      RETURNING beacons
       `,
       [uuid(), ctx.tenantId, ctx.user.id, key, enabled]
     );
 
     return NextResponse.json({
       ok: true,
-      beacons: rows[0]?.beacons ?? {},
+      beacons: insert.rows[0]?.beacons ?? {},
     });
   } catch (err) {
     console.error("🔥 ACCOUNT PUT ERROR:", err);
-
     return NextResponse.json(
       { ok: false, error: "Failed to update beacon" },
       { status: 500 }
@@ -136,12 +163,6 @@ export async function POST(req) {
       );
     }
 
-    console.log("📄 Upload received:", {
-      name: file.name,
-      size: file.size,
-      type: file.type,
-    });
-
     const buffer = Buffer.from(await file.arrayBuffer());
 
     const result = await ingestAdventureCodex({
@@ -149,13 +170,9 @@ export async function POST(req) {
       tenantId: ctx.tenantId,
     });
 
-    return NextResponse.json({
-      success: true,
-      result,
-    });
+    return NextResponse.json({ success: true, result });
   } catch (err) {
     console.error("🔥 ACCOUNT ROUTE ERROR:", err);
-
     return new Response(
       JSON.stringify({
         error: err?.message || "Internal server error",
