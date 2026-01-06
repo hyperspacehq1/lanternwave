@@ -116,7 +116,7 @@ export default function AccountPage() {
                       }
                     />
                   </span>
-                  Player Characters
+                  Activate GM Dashboard Player Characters
                 </label>
               </div>
             </div>

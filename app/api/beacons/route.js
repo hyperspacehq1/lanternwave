@@ -16,7 +16,10 @@ export async function GET(req) {
     `
     select beacons
     from account_preferences
-    where tenant_id = $1 and user_id = $2
+    where tenant_id = $1
+      and user_id = $2
+    order by updated_at desc
+    limit 1
     `,
     [tenant_id, user_id]
   );
@@ -46,7 +49,8 @@ export async function PUT(req) {
     values ($1, $2, $3, jsonb_build_object($4, $5))
     on conflict (tenant_id, user_id)
     do update set
-      beacons = account_preferences.beacons || jsonb_build_object($4, $5),
+      beacons = coalesce(account_preferences.beacons, '{}'::jsonb)
+                || jsonb_build_object($4, $5),
       updated_at = now()
     `,
     [uuid(), tenant_id, user_id, key, enabled]
