@@ -10,13 +10,13 @@ export default function AccountPage() {
   const [error, setError] = useState(null);
   const [username, setUsername] = useState(null);
 
-  // ✅ Server-backed Beacons
+  // ✅ Server-backed Beacons (now via /api/account)
   const [beacons, setBeacons] = useState({});
 
   const loadingRef = useRef(false);
 
   /* ------------------------------
-     Load account + beacons
+     Load account + beacons (single source)
   ------------------------------ */
   useEffect(() => {
     if (loadingRef.current) return;
@@ -24,16 +24,10 @@ export default function AccountPage() {
 
     async function load() {
       try {
-        const [accountRes, beaconRes] = await Promise.all([
-          fetch("/api/account", {
-            credentials: "include",
-            cache: "no-store",
-          }),
-          fetch("/api/beacons", {
-            credentials: "include",
-            cache: "no-store",
-          }),
-        ]);
+        const accountRes = await fetch("/api/account", {
+          credentials: "include",
+          cache: "no-store",
+        });
 
         if (!accountRes.ok) throw new Error("Failed to load account");
 
@@ -44,12 +38,8 @@ export default function AccountPage() {
 
         setUsername(accountData.account.username);
 
-        if (beaconRes.ok) {
-          const beaconData = await beaconRes.json();
-          setBeacons(beaconData?.beacons ?? {});
-        } else {
-          setBeacons({});
-        }
+        // ✅ beacons now come from /api/account
+        setBeacons(accountData?.account?.beacons ?? {});
       } catch (err) {
         console.error("ACCOUNT LOAD ERROR:", err);
         setError("Unable to load account details.");
@@ -62,20 +52,45 @@ export default function AccountPage() {
   }, []);
 
   /* ------------------------------
-     Update Beacon (optimistic)
+     Update Beacon (server-authoritative)
   ------------------------------ */
-  const updateBeacon = (key, enabled) => {
-    // Optimistic UI
+  const updateBeacon = async (key, enabled) => {
+    // Optional optimistic UI (keeps UI snappy), but we ALWAYS reconcile with server response.
     setBeacons((prev) => ({ ...prev, [key]: enabled }));
 
-    fetch("/api/beacons", {
-      method: "PUT",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ key, enabled }),
-    }).catch((err) => {
+    try {
+      const res = await fetch("/api/account", {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key, enabled }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Beacon update failed");
+      }
+
+      const data = await res.json();
+
+      // ✅ Server is source of truth — lock state to returned beacons
+      setBeacons(data?.beacons ?? {});
+    } catch (err) {
       console.error("Beacon update failed:", err);
-    });
+
+      // Revert optimistic update by reloading account beacons
+      try {
+        const accountRes = await fetch("/api/account", {
+          credentials: "include",
+          cache: "no-store",
+        });
+        if (accountRes.ok) {
+          const accountData = await accountRes.json();
+          setBeacons(accountData?.account?.beacons ?? {});
+        }
+      } catch {
+        // ignore
+      }
+    }
   };
 
   return (

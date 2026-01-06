@@ -104,18 +104,15 @@ export default function GMDashboardPage() {
     };
   }, []);
 
-  useEffect(() => {
-    fetch("/api/beacons", { cache: "no-store", credentials: "include" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => setBeacons(d?.beacons ?? {}))
-      .catch(() => setBeacons({}));
-  }, []);
+useEffect(() => {
+  fetch("/api/account", { cache: "no-store", credentials: "include" })
+    .then((r) => (r.ok ? r.json() : null))
+    .then((d) => setBeacons(d?.account?.beacons ?? {}))
+    .catch(() => setBeacons({}));
+}, []);
 
   // ✅ Players beacon key compatibility (handles old/new key names)
-  const showPlayersBeacon =
-    !!beacons?.player_characters ||
-    !!beacons?.players ||
-    !!beacons?.playerCharacters;
+ const showPlayersBeacon = !!beacons?.player_characters;
 
   /* ---------------- Reset to Default ---------------- */
 
