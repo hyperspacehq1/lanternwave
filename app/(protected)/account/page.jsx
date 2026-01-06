@@ -10,38 +10,46 @@ export default function AccountPage() {
   const [error, setError] = useState(null);
   const [username, setUsername] = useState(null);
 
-  // ✅ Server-backed Beacons (now via /api/account)
+  // Server-backed Beacons
   const [beacons, setBeacons] = useState({});
 
   const loadingRef = useRef(false);
 
   /* ------------------------------
-     Load account + beacons (single source)
+     Load account + beacons
   ------------------------------ */
   useEffect(() => {
     if (loadingRef.current) return;
     loadingRef.current = true;
 
     async function load() {
+      console.log("🧪 ACCOUNT LOAD START");
+
       try {
         const accountRes = await fetch("/api/account", {
           credentials: "include",
           cache: "no-store",
         });
 
+        console.log("🧪 ACCOUNT LOAD RESPONSE", {
+          status: accountRes.status,
+          ok: accountRes.ok,
+        });
+
         if (!accountRes.ok) throw new Error("Failed to load account");
 
         const accountData = await accountRes.json();
+
+        console.log("🧪 ACCOUNT LOAD DATA", accountData);
+
         if (!accountData?.account?.username) {
           throw new Error("Invalid account response");
         }
 
         setUsername(accountData.account.username);
-
-        // ✅ beacons now come from /api/account
         setBeacons(accountData?.account?.beacons ?? {});
       } catch (err) {
-        console.error("ACCOUNT LOAD ERROR:", err);
+        console.error("❌ ACCOUNT LOAD ERROR", err);
         setError("Unable to load account details.");
       } finally {
         setLoading(false);
@@ -52,10 +60,19 @@ export default function AccountPage() {
   }, []);
 
   /* ------------------------------
-     Update Beacon (server-authoritative)
+     Update Beacon (debug-heavy)
   ------------------------------ */
   const updateBeacon = async (key, enabled) => {
-    // Optional optimistic UI (keeps UI snappy), but we ALWAYS reconcile with server response.
+    const debugId = `beacon:${key}:${Date.now()}`;
+
+    console.log("➡️ BEACON UPDATE START", {
+      debugId,
+      key,
+      enabled,
+      prevValue: beacons[key],
+    });
+
+    // Optimistic UI (unchanged behavior)
     setBeacons((prev) => ({ ...prev, [key]: enabled }));
 
     try {
@@ -66,29 +83,54 @@ export default function AccountPage() {
         body: JSON.stringify({ key, enabled }),
       });
 
+      console.log("⬅️ BEACON UPDATE RESPONSE", {
+        debugId,
+        status: res.status,
+        ok: res.ok,
+      });
+
       if (!res.ok) {
         throw new Error("Beacon update failed");
       }
 
       const data = await res.json();
 
-      // ✅ Server is source of truth — lock state to returned beacons
+      console.log("📦 BEACON UPDATE DATA", {
+        debugId,
+        data,
+      });
+
+      // Server is source of truth
       setBeacons(data?.beacons ?? {});
     } catch (err) {
-      console.error("Beacon update failed:", err);
+      console.error("❌ BEACON UPDATE FAILED", {
+        debugId,
+        key,
+        enabled,
+        err,
+      });
 
-      // Revert optimistic update by reloading account beacons
+      // Reconcile by reloading account state
       try {
+        console.log("🔄 RELOADING ACCOUNT AFTER FAILURE", { debugId });
+
         const accountRes = await fetch("/api/account", {
           credentials: "include",
           cache: "no-store",
         });
+
         if (accountRes.ok) {
           const accountData = await accountRes.json();
+
+          console.log("🔄 RELOAD ACCOUNT DATA", {
+            debugId,
+            beacons: accountData?.account?.beacons,
+          });
+
           setBeacons(accountData?.account?.beacons ?? {});
         }
-      } catch {
-        // ignore
+      } catch (reloadErr) {
+        console.error("❌ ACCOUNT RELOAD FAILED", reloadErr);
       }
     }
   };
@@ -125,14 +167,32 @@ export default function AccountPage() {
                   <span className="beacon-checkbox">
                     <input
                       type="checkbox"
+                      data-debug-id="beacon:player_characters"
                       checked={!!beacons.player_characters}
-                      onChange={(e) =>
-                        updateBeacon("player_characters", e.target.checked)
-                      }
+                      onChange={(e) => {
+                        console.log("🧪 TOGGLE CLICK", {
+                          debugId: "beacon:player_characters",
+                          next: e.target.checked,
+                          prev: beacons.player_characters,
+                        });
+
+                        updateBeacon(
+                          "player_characters",
+                          e.target.checked
+                        );
+                      }}
                     />
                   </span>
                   Activate GM Dashboard Player Characters
                 </label>
+              </div>
+
+              {/* ---------- Visible Debug ---------- */}
+              <div className="beacon-debug">
+                <code>
+                  key=player_characters | checked=
+                  {String(!!beacons.player_characters)}
+                </code>
               </div>
             </div>
           </>
