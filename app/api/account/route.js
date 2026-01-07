@@ -7,22 +7,33 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /* -------------------------------------------------
-   GET /api/account
+   GET /api/account  (DEBUG ENABLED)
 -------------------------------------------------- */
-
-console.log("🧪 /api/account DEBUG", {
-  cookieHeader: req.headers.get("cookie"),
-  userAgent: req.headers.get("user-agent"),
-});
-
 export async function GET(req) {
-  let session;
+  // 🔎 DEBUG — req is ONLY accessed here (build-safe)
+  const debug = {
+    cookieHeader: req.headers.get("cookie"),
+    userAgent: req.headers.get("user-agent"),
+    hasCookie: Boolean(req.headers.get("cookie")),
+  };
 
+  console.log("🧪 /api/account GET DEBUG", debug);
+
+  let session;
   try {
     session = await requireAuth();
-  } catch {
+  } catch (err) {
+    console.warn("🛑 /api/account AUTH FAILED", {
+      ...debug,
+      error: err?.message,
+    });
+
     return NextResponse.json(
-      { ok: false, error: "Unauthorized" },
+      {
+        ok: false,
+        error: "Unauthorized",
+        debug,
+      },
       { status: 401 }
     );
   }
@@ -47,13 +58,24 @@ export async function GET(req) {
       ok: true,
       account: {
         username: session.username,
+        tenant_id: tenantId,
+        user_id: userId,
         beacons: rows[0]?.beacons ?? {},
       },
+      debug,
     });
   } catch (err) {
-    console.error("🔥 ACCOUNT GET ERROR:", err);
+    console.error("🔥 /api/account GET ERROR", {
+      ...debug,
+      error: err,
+    });
+
     return NextResponse.json(
-      { ok: false, error: "Failed to load account" },
+      {
+        ok: false,
+        error: "Failed to load account",
+        debug,
+      },
       { status: 500 }
     );
   }
@@ -63,13 +85,16 @@ export async function GET(req) {
    PUT /api/account
 -------------------------------------------------- */
 export async function PUT(req) {
-  let session;
+  const debug = {
+    cookieHeader: req.headers.get("cookie"),
+  };
 
+  let session;
   try {
     session = await requireAuth();
   } catch {
     return NextResponse.json(
-      { ok: false, error: "Unauthorized" },
+      { ok: false, error: "Unauthorized", debug },
       { status: 401 }
     );
   }
@@ -82,7 +107,7 @@ export async function PUT(req) {
 
     if (!key || typeof enabled !== "boolean") {
       return NextResponse.json(
-        { ok: false, error: "Invalid beacon update" },
+        { ok: false, error: "Invalid beacon update", debug },
         { status: 400 }
       );
     }
@@ -127,9 +152,9 @@ export async function PUT(req) {
       beacons: insert.rows[0]?.beacons ?? {},
     });
   } catch (err) {
-    console.error("🔥 ACCOUNT PUT ERROR:", err);
+    console.error("🔥 /api/account PUT ERROR", err);
     return NextResponse.json(
-      { ok: false, error: "Failed to update beacon" },
+      { ok: false, error: "Failed to update beacon", debug },
       { status: 500 }
     );
   }
@@ -139,13 +164,17 @@ export async function PUT(req) {
    POST /api/account  (multipart upload)
 -------------------------------------------------- */
 export async function POST(req) {
-  let session;
+  const debug = {
+    cookieHeader: req.headers.get("cookie"),
+    contentType: req.headers.get("content-type"),
+  };
 
+  let session;
   try {
     session = await requireAuth();
   } catch {
     return NextResponse.json(
-      { error: "Unauthorized" },
+      { error: "Unauthorized", debug },
       { status: 401 }
     );
   }
@@ -153,10 +182,9 @@ export async function POST(req) {
   try {
     const tenantId = session.tenant_id;
 
-    const contentType = req.headers.get("content-type") || "";
-    if (!contentType.includes("multipart/form-data")) {
+    if (!debug.contentType?.includes("multipart/form-data")) {
       return NextResponse.json(
-        { error: "Expected multipart/form-data" },
+        { error: "Expected multipart/form-data", debug },
         { status: 400 }
       );
     }
@@ -166,7 +194,7 @@ export async function POST(req) {
 
     if (!file) {
       return NextResponse.json(
-        { error: "No file received" },
+        { error: "No file received", debug },
         { status: 400 }
       );
     }
@@ -182,9 +210,9 @@ export async function POST(req) {
 
     return NextResponse.json({ success: true, result });
   } catch (err) {
-    console.error("🔥 ACCOUNT POST ERROR:", err);
+    console.error("🔥 /api/account POST ERROR", err);
     return NextResponse.json(
-      { error: err?.message || "Internal server error" },
+      { error: err?.message || "Internal server error", debug },
       { status: 500 }
     );
   }
