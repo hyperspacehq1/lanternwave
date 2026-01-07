@@ -94,11 +94,27 @@ export async function POST(req) {
        -------------------------------- */
     const resetUrl = `https://lanternwave.com/reset-password?code=${code}`;
 
-    await sendPasswordResetEmail({
-      to: email,
-      resetUrl,
-      firstName: first_name,
-    });
+ try {
+await sendPasswordResetEmail({
+  to: email,
+  resetUrl,
+  username: first_name,
+  userAgent: req.headers.get("user-agent"),
+});
+
+  console.log("PASSWORD RESET EMAIL SENT", {
+    email,
+    userId,
+  });
+} catch (emailErr) {
+  console.error("PASSWORD RESET EMAIL FAILED", {
+    email,
+    userId,
+    error: emailErr?.message,
+  });
+
+  throw emailErr; // keep current behavior
+}
 
     return NextResponse.json({ ok: true });
   } catch (err) {

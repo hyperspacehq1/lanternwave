@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { query } from "@/lib/db";
 import { randomUUID } from "crypto";
 import { createSession } from "@/lib/auth/session";
+import { sendWelcomeEmail } from "@/lib/email";
 
 export const runtime = "nodejs";
 
@@ -97,7 +98,7 @@ export async function POST(req) {
     await query("COMMIT");
 
     /* -------------------------
-       Create secure session
+       Create session
        ------------------------- */
     const res = NextResponse.json({ ok: true });
 
@@ -106,6 +107,24 @@ export async function POST(req) {
       tenantId,
       response: res,
     });
+
+    /* -------------------------
+       Send welcome email (non-blocking)
+       ------------------------- */
+    try {
+      await sendWelcomeEmail({
+        to: email,
+        username,
+        userAgent: req.headers.get("user-agent"),
+      });
+
+      console.log("WELCOME EMAIL SENT", { email });
+    } catch (emailErr) {
+      console.error("WELCOME EMAIL FAILED", {
+        email,
+        error: emailErr?.message,
+      });
+    }
 
     return res;
 
@@ -116,15 +135,12 @@ export async function POST(req) {
 
     console.error("SIGNUP FAILED:", err);
 
-    return new NextResponse(
-      JSON.stringify({
+    return NextResponse.json(
+      {
         code: "SIGNUP_FAILED",
         message: err?.message || "Internal signup error",
-      }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
-      }
+      },
+      { status: 500 }
     );
   }
 }
