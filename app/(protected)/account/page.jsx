@@ -1,110 +1,200 @@
-"use client";
+import { NextResponse } from "next/server";
+import { query } from "@/lib/db";
+import { requireAuth } from "@/lib/auth-server";
+import { v4 as uuid } from "uuid";
 
-import { useEffect, useState } from "react";
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-export default function AccountDebugPage() {
-  const [loading, setLoading] = useState(true);
-  const [status, setStatus] = useState(null);
-  const [response, setResponse] = useState(null);
-  const [error, setError] = useState(null);
+/* -------------------------------------------------
+   GET /api/account (DEBUG ENABLED)
+-------------------------------------------------- */
+export async function GET(req) {
+  // 🔍 DEBUG — safe because req exists here
+  const debug = {
+    cookieHeader: req.headers.get("cookie"),
+    userAgent: req.headers.get("user-agent"),
+  };
 
-  useEffect(() => {
-    let cancelled = false;
+  console.log("🧪 /api/account DEBUG", debug);
 
-    async function load() {
-      console.log("🧪 ACCOUNT LOAD START");
+  let session;
+  try {
+    session = await requireAuth();
+  } catch (err) {
+    console.warn("🛑 AUTH FAILED", {
+      ...debug,
+      error: err?.message,
+    });
 
-      try {
-        const res = await fetch("/api/account", {
-          method: "GET",
-          credentials: "include",
-        });
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "Unauthorized",
+        debug,
+      },
+      { status: 401 }
+    );
+  }
 
-        const text = await res.text();
-        let json = null;
+  try {
+    const tenantId = session.tenant_id;
+    const userId = session.id;
 
-        try {
-          json = JSON.parse(text);
-        } catch {
-          json = { raw: text };
-        }
+    const { rows } = await query(
+      `
+      SELECT beacons
+        FROM account_preferences
+       WHERE tenant_id = $1
+         AND user_id   = $2
+       ORDER BY updated_at DESC
+       LIMIT 1
+      `,
+      [tenantId, userId]
+    );
 
-        if (cancelled) return;
+    return NextResponse.json({
+      ok: true,
+      account: {
+        username: session.username,
+        beacons: rows[0]?.beacons ?? {},
+      },
+      debug,
+    });
+  } catch (err) {
+    console.error("🔥 ACCOUNT GET ERROR", {
+      ...debug,
+      error: err,
+    });
 
-        console.log("🧪 ACCOUNT LOAD RESPONSE", {
-          status: res.status,
-          ok: res.ok,
-          body: json,
-        });
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "Failed to load account",
+        debug,
+      },
+      { status: 500 }
+    );
+  }
+}
 
-        setStatus(res.status);
-        setResponse(json);
-        setLoading(false);
-      } catch (err) {
-        if (cancelled) return;
+/* -------------------------------------------------
+   PUT /api/account
+-------------------------------------------------- */
+export async function PUT(req) {
+  let session;
+  try {
+    session = await requireAuth();
+  } catch {
+    return NextResponse.json(
+      { ok: false, error: "Unauthorized" },
+      { status: 401 }
+    );
+  }
 
-        console.error("❌ ACCOUNT LOAD ERROR", err);
-        setError(err.message || String(err));
-        setLoading(false);
-      }
+  try {
+    const tenantId = session.tenant_id;
+    const userId = session.id;
+
+    const { key, enabled } = await req.json();
+
+    if (!key || typeof enabled !== "boolean") {
+      return NextResponse.json(
+        { ok: false, error: "Invalid beacon update" },
+        { status: 400 }
+      );
     }
 
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    const update = await query(
+      `
+      UPDATE account_preferences
+         SET beacons = COALESCE(beacons, '{}'::jsonb)
+                       || jsonb_build_object($1::text, $2::boolean),
+             updated_at = NOW()
+       WHERE tenant_id = $3
+         AND user_id   = $4
+       RETURNING beacons
+      `,
+      [key, enabled, tenantId, userId]
+    );
 
-  return (
-    <div
-      style={{
-        padding: 24,
-        fontFamily: "monospace",
-        background: "#0b0b0b",
-        color: "#e6e6e6",
-        minHeight: "100vh",
-      }}
-    >
-      <h1>🧪 Account Debug Page (DEV)</h1>
+    if (update.rows.length) {
+      return NextResponse.json({
+        ok: true,
+        beacons: update.rows[0].beacons,
+      });
+    }
 
-      {loading && <p>Loading…</p>}
+    const insert = await query(
+      `
+      INSERT INTO account_preferences (
+        id, tenant_id, user_id, beacons, updated_at
+      )
+      VALUES (
+        $1, $2, $3,
+        jsonb_build_object($4::text, $5::boolean),
+        NOW()
+      )
+      RETURNING beacons
+      `,
+      [uuid(), tenantId, userId, key, enabled]
+    );
 
-      <section style={{ marginTop: 24 }}>
-        <h2>Browser Cookie Visibility</h2>
-        <pre>{document.cookie || "(no cookies visible to JS)"}</pre>
-      </section>
+    return NextResponse.json({
+      ok: true,
+      beacons: insert.rows[0]?.beacons ?? {},
+    });
+  } catch (err) {
+    console.error("🔥 ACCOUNT PUT ERROR", err);
+    return NextResponse.json(
+      { ok: false, error: "Failed to update beacon" },
+      { status: 500 }
+    );
+  }
+}
 
-      <section style={{ marginTop: 24 }}>
-        <h2>Fetch Result</h2>
-        <pre>
-          {JSON.stringify(
-            {
-              status,
-              response,
-              error,
-            },
-            null,
-            2
-          )}
-        </pre>
-      </section>
+/* -------------------------------------------------
+   POST /api/account
+-------------------------------------------------- */
+export async function POST(req) {
+  let session;
+  try {
+    session = await requireAuth();
+  } catch {
+    return NextResponse.json(
+      { error: "Unauthorized" },
+      { status: 401 }
+    );
+  }
 
-      <section style={{ marginTop: 24 }}>
-        <h2>Notes</h2>
-        <ul>
-          <li>
-            If <code>document.cookie</code> is empty → cookie is HttpOnly
-            (expected).
-          </li>
-          <li>
-            If status is <code>401</code> → server did not accept session.
-          </li>
-          <li>
-            If response contains <code>Unauthorized</code> →{" "}
-            <code>requireAuth()</code> rejected request.
-          </li>
-        </ul>
-      </section>
-    </div>
-  );
+  try {
+    const tenantId = session.tenant_id;
+
+    const formData = await req.formData();
+    const file = formData.get("file");
+
+    if (!file) {
+      return NextResponse.json(
+        { error: "No file received" },
+        { status: 400 }
+      );
+    }
+
+    const buffer = Buffer.from(await file.arrayBuffer());
+
+    const { ingestAdventureCodex } = await import("@/lib/ai/orchestrator");
+
+    const result = await ingestAdventureCodex({
+      buffer,
+      tenantId,
+    });
+
+    return NextResponse.json({ success: true, result });
+  } catch (err) {
+    console.error("🔥 ACCOUNT POST ERROR", err);
+    return NextResponse.json(
+      { error: err?.message || "Internal server error" },
+      { status: 500 }
+    );
+  }
 }
