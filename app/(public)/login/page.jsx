@@ -24,17 +24,35 @@ export default function LoginPage() {
         body: JSON.stringify({ emailOrUsername, password }),
       });
 
-      const data = await res.json();
+      // 👇 IMPORTANT: read raw text first
+      const text = await res.text();
+
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = { raw: text };
+      }
 
       if (!res.ok) {
-        setError(data.error || "Login failed");
+        console.error("LOGIN FAILED", {
+          status: res.status,
+          response: data,
+        });
+
+        setError(
+          data?.error ||
+          data?.message ||
+          `Login failed (${res.status})`
+        );
         setLoading(false);
         return;
       }
 
       router.push("/gm-dashboard");
-    } catch {
-      setError("Server error");
+    } catch (err) {
+      console.error("LOGIN NETWORK ERROR", err);
+      setError("Network or server error — see console");
       setLoading(false);
     }
   }

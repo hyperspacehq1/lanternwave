@@ -31,16 +31,35 @@ export default function SignupPage() {
         }),
       });
 
-      const data = await res.json();
+      // 👇 IMPORTANT: read raw text first
+      const text = await res.text();
+
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = { raw: text };
+      }
 
       if (!res.ok) {
-        throw new Error(data?.message || "Failed to create account");
+        console.error("SIGNUP FAILED", {
+          status: res.status,
+          response: data,
+        });
+
+        setError(
+          data?.message ||
+          data?.error ||
+          `Signup failed (${res.status})`
+        );
+        setLoading(false);
+        return;
       }
 
       router.push("/gm-dashboard");
     } catch (err) {
-      setError(err.message);
-    } finally {
+      console.error("SIGNUP NETWORK ERROR", err);
+      setError("Network or server error — see console");
       setLoading(false);
     }
   }
