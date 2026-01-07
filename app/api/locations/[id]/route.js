@@ -1,6 +1,6 @@
 import { sanitizeRow } from "@/lib/api/sanitize";
 import { query } from "@/lib/db";
-import { getTenantContext } from "@/lib/tenant/getTenantContext";
+import { requireAuth } from "@/lib/auth-server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,7 +33,12 @@ function validateSensory(input) {
    GET /api/locations/[id]
 ------------------------------------------------------------ */
 export async function GET(req, { params }) {
-  const { tenantId } = await getTenantContext(req);
+  const session = await requireAuth();
+if (!session) {
+  return Response.json({ error: "Unauthorized" }, { status: 401 });
+}
+
+const tenantId = session.tenant_id;
   const id = params?.id;
 
   if (!id) {
@@ -68,7 +73,12 @@ export async function GET(req, { params }) {
    PUT /api/locations/[id]
 ------------------------------------------------------------ */
 export async function PUT(req, { params }) {
-  const { tenantId } = await getTenantContext(req);
+  const session = await requireAuth();
+if (!session) {
+  return Response.json({ error: "Unauthorized" }, { status: 401 });
+}
+
+const tenantId = session.tenant_id;
   const id = params?.id;
   const body = await req.json();
 
@@ -142,7 +152,12 @@ export async function PUT(req, { params }) {
    DELETE /api/locations/[id]   (SOFT DELETE)
 ------------------------------------------------------------ */
 export async function DELETE(req, { params }) {
-  const { tenantId } = await getTenantContext(req);
+  const session = await requireAuth();
+if (!session) {
+  return Response.json({ error: "Unauthorized" }, { status: 401 });
+}
+
+const tenantId = session.tenant_id;
   const id = params?.id;
 
   if (!id) {

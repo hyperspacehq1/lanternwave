@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
-import { getTenantContext } from "@/lib/tenant/getTenantContext";
+import { requireAuth } from "@/lib/auth-server";
 import { v4 as uuid } from "uuid";
 
 export const runtime = "nodejs";
@@ -11,14 +11,16 @@ export const dynamic = "force-dynamic";
 -------------------------------------------------- */
 export async function GET(req) {
   try {
-    const ctx = await getTenantContext(req);
-
-    if (!ctx?.user || !ctx?.tenantId) {
+    const session = await requireAuth();
+    if (!session) {
       return NextResponse.json(
         { ok: false, error: "Unauthorized" },
         { status: 401 }
       );
     }
+
+    const tenantId = session.tenant_id;
+    const userId = session.id;
 
     const { rows } = await query(
       `
@@ -29,13 +31,13 @@ export async function GET(req) {
        ORDER BY updated_at DESC
        LIMIT 1
       `,
-      [ctx.tenantId, ctx.user.id]
+      [tenantId, userId]
     );
 
     return NextResponse.json({
       ok: true,
       account: {
-        username: ctx.user.username,
+        username: session.username,
         beacons: rows[0]?.beacons ?? {},
       },
     });
@@ -50,19 +52,19 @@ export async function GET(req) {
 
 /* -------------------------------------------------
    PUT /api/account
-   - UPDATE first
-   - INSERT only if row does not exist
 -------------------------------------------------- */
 export async function PUT(req) {
   try {
-    const ctx = await getTenantContext(req);
-
-    if (!ctx?.user || !ctx?.tenantId) {
+    const session = await requireAuth();
+    if (!session) {
       return NextResponse.json(
         { ok: false, error: "Unauthorized" },
         { status: 401 }
       );
     }
+
+    const tenantId = session.tenant_id;
+    const userId = session.id;
 
     const { key, enabled } = await req.json();
 
@@ -73,18 +75,17 @@ export async function PUT(req) {
       );
     }
 
-    /* ---------- UPDATE (primary path) ---------- */
     const update = await query(
       `
       UPDATE account_preferences
          SET beacons = COALESCE(beacons, '{}'::jsonb)
                        || jsonb_build_object($1::text, $2::boolean),
              updated_at = NOW()
-       WHERE tenant_id = $3::uuid
-         AND user_id   = $4::uuid
+       WHERE tenant_id = $3
+         AND user_id   = $4
        RETURNING beacons
       `,
-      [key, enabled, ctx.tenantId, ctx.user.id]
+      [key, enabled, tenantId, userId]
     );
 
     if (update.rows.length) {
@@ -94,26 +95,19 @@ export async function PUT(req) {
       });
     }
 
-    /* ---------- INSERT (fallback only) ---------- */
     const insert = await query(
       `
       INSERT INTO account_preferences (
-        id,
-        tenant_id,
-        user_id,
-        beacons,
-        updated_at
+        id, tenant_id, user_id, beacons, updated_at
       )
       VALUES (
-        $1::uuid,
-        $2::uuid,
-        $3::uuid,
+        $1, $2, $3,
         jsonb_build_object($4::text, $5::boolean),
         NOW()
       )
       RETURNING beacons
       `,
-      [uuid(), ctx.tenantId, ctx.user.id, key, enabled]
+      [uuid(), tenantId, userId, key, enabled]
     );
 
     return NextResponse.json({
@@ -130,25 +124,24 @@ export async function PUT(req) {
 }
 
 /* -------------------------------------------------
-   POST /api/account
-   - multipart upload (UNCHANGED)
+   POST /api/account  (multipart upload)
 -------------------------------------------------- */
 export async function POST(req) {
   try {
-    console.log("🚀 [account upload] Route invoked");
-
-    const ctx = await getTenantContext(req);
-    if (!ctx?.tenantId) {
-      return new Response(
-        JSON.stringify({ error: "Unauthorized or missing tenant context" }),
+    const session = await requireAuth();
+    if (!session) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
         { status: 401 }
       );
     }
 
+    const tenantId = session.tenant_id;
+
     const contentType = req.headers.get("content-type") || "";
     if (!contentType.includes("multipart/form-data")) {
-      return new Response(
-        JSON.stringify({ error: "Expected multipart/form-data" }),
+      return NextResponse.json(
+        { error: "Expected multipart/form-data" },
         { status: 400 }
       );
     }
@@ -157,27 +150,26 @@ export async function POST(req) {
     const file = formData.get("file");
 
     if (!file) {
-      return new Response(
-        JSON.stringify({ error: "No file received" }),
+      return NextResponse.json(
+        { error: "No file received" },
         { status: 400 }
       );
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
 
+    const { ingestAdventureCodex } = await import("@/lib/ai/orchestrator");
+
     const result = await ingestAdventureCodex({
       buffer,
-      tenantId: ctx.tenantId,
+      tenantId,
     });
 
     return NextResponse.json({ success: true, result });
   } catch (err) {
-    console.error("🔥 ACCOUNT ROUTE ERROR:", err);
-    return new Response(
-      JSON.stringify({
-        error: err?.message || "Internal server error",
-        stack: process.env.NODE_ENV === "development" ? err?.stack : undefined,
-      }),
+    console.error("🔥 ACCOUNT POST ERROR:", err);
+    return NextResponse.json(
+      { error: err?.message || "Internal server error" },
       { status: 500 }
     );
   }

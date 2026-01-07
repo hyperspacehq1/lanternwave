@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
 import { rateLimit } from "@/lib/rateLimit";
-import { sendForgotUsernameEmail } from "@/lib/email";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,8 +12,7 @@ export async function POST(req) {
        ------------------------- */
     try {
       const ip =
-        req.headers.get("x-forwarded-for")?.split(",")[0] ||
-        "unknown";
+        req.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
 
       await rateLimit({
         ip,
@@ -48,15 +46,16 @@ export async function POST(req) {
       const { username } = result.rows[0];
 
       try {
+        // ✅ LAZY IMPORT (BUILD SAFE)
+        const { sendForgotUsernameEmail } = await import("@/lib/email");
+
         await sendForgotUsernameEmail({
           to: email,
           username,
           userAgent: req.headers.get("user-agent"),
         });
 
-        console.log("FORGOT USERNAME EMAIL SENT", {
-          email,
-        });
+        console.log("FORGOT USERNAME EMAIL SENT", { email });
       } catch (emailErr) {
         console.error("FORGOT USERNAME EMAIL FAILED", {
           email,
@@ -72,8 +71,6 @@ export async function POST(req) {
 
   } catch (err) {
     console.error("FORGOT USERNAME ERROR:", err);
-
-    // Still no enumeration
     return NextResponse.json({ ok: true });
   }
 }

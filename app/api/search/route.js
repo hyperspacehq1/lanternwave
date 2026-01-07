@@ -1,5 +1,5 @@
 import { sanitizeRows } from "@/lib/api/sanitize";
-import { getTenantContext } from "@/lib/tenant/getTenantContext";
+import { requireAuth } from "@/lib/auth-server";
 import { runSearch } from "@/lib/search/runSearch";
 
 export const runtime = "nodejs";
@@ -8,7 +8,12 @@ export const dynamic = "force-dynamic";
 export async function GET(req) {
   let tenantId;
   try {
-    ({ tenantId } = await getTenantContext(req));
+    const session = await requireAuth();
+if (!session) {
+  return Response.json({ error: "Unauthorized" }, { status: 401 });
+}
+
+const tenantId = session.tenant_id;
   } catch {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }

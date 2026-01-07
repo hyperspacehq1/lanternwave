@@ -1,6 +1,5 @@
 import { query } from "@/lib/db";
-import { getTenantContext } from "@/lib/tenant/getTenantContext";
-import { sendPasswordResetEmail } from "@/lib/email";
+import { requireAuth } from "@/lib/auth-server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,7 +10,10 @@ const ALERT_KEY = "db-health";
 
 export async function GET(req) {
   try {
-    const { tenantId } = await getTenantContext(req);
+    const session = await requireAuth();
+    if (!session) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     // -------------------------------------------------
     // Health Checks
@@ -66,24 +68,18 @@ export async function GET(req) {
     }
 
     if (longRunning.rows.length > 0) {
-      alerts.push(
-        `Long-running queries detected: ${longRunning.rows.length}`
-      );
+      alerts.push(`Long-running queries detected: ${longRunning.rows.length}`);
     }
 
     // -------------------------------------------------
-    // Alert cooldown enforcement
+    // Alert cooldown
     // -------------------------------------------------
 
     let shouldSendAlert = false;
 
     if (alerts.length) {
       const lastAlert = await query(
-        `
-        SELECT last_sent_at
-        FROM system_alerts
-        WHERE key = $1
-        `,
+        `SELECT last_sent_at FROM system_alerts WHERE key = $1`,
         [ALERT_KEY]
       );
 
@@ -101,10 +97,12 @@ export async function GET(req) {
     }
 
     // -------------------------------------------------
-    // Send alert email (rate-limited)
+    // Send alert (LAZY IMPORT)
     // -------------------------------------------------
 
     if (alerts.length && shouldSendAlert) {
+      const { sendPasswordResetEmail } = await import("@/lib/email");
+
       await sendPasswordResetEmail({
         to: "admin@lanternwave.com",
         firstName: "Admin",

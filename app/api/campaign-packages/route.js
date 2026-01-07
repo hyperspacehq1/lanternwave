@@ -1,4 +1,4 @@
-import { getTenantContext } from "@/lib/tenant/getTenantContext";
+import { requireAuth } from "@/lib/auth-server";
 import { query } from "@/lib/db";
 
 export const runtime = "nodejs";
@@ -12,7 +12,12 @@ export async function GET(req) {
   // Auth required (same pattern as campaigns)
   let tenantId = null;
 try {
-  ({ tenantId } = await getTenantContext(req));
+  const session = await requireAuth();
+if (!session) {
+  return Response.json({ error: "Unauthorized" }, { status: 401 });
+}
+
+const tenantId = session.tenant_id;
 } catch {
   // intentionally allow unauthenticated access
 }

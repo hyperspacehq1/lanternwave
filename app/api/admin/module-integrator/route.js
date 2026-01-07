@@ -1,30 +1,33 @@
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-import { getTenantContext } from "@/lib/tenant/getTenantContext";
-import { ingestAdventureCodex } from "@/lib/ai/orchestrator";
+import { requireAuth } from "@/lib/auth-server";
 import { query } from "@/lib/db";
 
 export async function POST(req) {
   console.log("🚀 /api/admin/module-integrator called");
 
   try {
-    const ctx = await getTenantContext(req);
-    if (!ctx) {
-      console.error("❌ No tenant context");
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-      });
+    // 🔐 Auth required
+    const session = await requireAuth();
+    if (!session || !session.tenant_id) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401 }
+      );
     }
+
+    const tenantId = session.tenant_id;
 
     const formData = await req.formData();
     const file = formData.get("file");
 
     if (!file) {
       console.error("❌ No file uploaded");
-      return new Response(JSON.stringify({ error: "No file uploaded" }), {
-        status: 400,
-      });
+      return new Response(
+        JSON.stringify({ error: "No file uploaded" }),
+        { status: 400 }
+      );
     }
 
     console.log("📄 File received:", file.name, file.size);
@@ -33,24 +36,27 @@ export async function POST(req) {
 
     console.log("🧠 Starting ingestion…");
 
+    // ✅ LAZY IMPORT (BUILD SAFE)
+    const { ingestAdventureCodex } = await import(
+      "@/lib/ai/orchestrator"
+    );
+
     let result;
     try {
       result = await ingestAdventureCodex({
         buffer,
-        tenantId: ctx.tenantId,
+        tenantId,
       });
     } catch (err) {
       console.error("🔥 ingestAdventureCodex FAILED:", err);
       return new Response(
         JSON.stringify({
           error: "Ingest failed",
-          details: err.message || String(err),
+          details: err?.message || String(err),
         }),
         { status: 500 }
       );
     }
-
-    console.log("🧠 Ingest result:", result);
 
     if (!result || !result.title) {
       console.error("❌ Invalid ingest result:", result);
@@ -78,7 +84,7 @@ export async function POST(req) {
       RETURNING id
       `,
       [
-        ctx.tenantId,
+        tenantId,
         result.title,
         result.summary ?? null,
         "standard",
@@ -100,7 +106,7 @@ export async function POST(req) {
     return new Response(
       JSON.stringify({
         error: "Unhandled server error",
-        detail: err.message,
+        detail: err?.message,
       }),
       { status: 500 }
     );

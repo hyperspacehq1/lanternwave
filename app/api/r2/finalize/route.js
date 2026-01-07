@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { HeadObjectCommand } from "@aws-sdk/client-s3";
 import { getR2Client, R2_BUCKET_NAME } from "@/lib/r2/server";
-import { getTenantContext } from "@/lib/tenant/getTenantContext";
+import { requireAuth } from "@/lib/auth-server";
 import { guessContentType } from "@/lib/r2/contentType";
 import { query } from "@/lib/db";
 
@@ -25,7 +25,13 @@ export async function POST(req) {
       return NextResponse.json({ ok: false, error: "missing key" }, { status: 400 });
     }
 
-    const { tenantId, user } = await getTenantContext(req);
+    const session = await requireAuth();
+if (!session) {
+  return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
+}
+
+const tenantId = session.tenant_id;
+const user = { id: session.id };
     if (!tenantId) {
       return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
     }

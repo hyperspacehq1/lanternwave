@@ -2,23 +2,17 @@ import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { query } from "@/lib/db";
 import { rateLimit } from "@/lib/rateLimit";
-import { sendPasswordResetEmail } from "@/lib/email";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
  * POST /api/auth/forgot-password
- *
- * Body:
- * {
- *   email: string
- * }
  */
 export async function POST(req) {
   try {
     /* --------------------------------
-       SAFE rate limiting (2025)
+       SAFE rate limiting
        -------------------------------- */
     let limit = { ok: true };
 
@@ -90,37 +84,39 @@ export async function POST(req) {
     );
 
     /* --------------------------------
-       Send reset email
+       Send reset email (LAZY IMPORT)
        -------------------------------- */
     const resetUrl = `https://lanternwave.com/reset-password?code=${code}`;
 
- try {
-await sendPasswordResetEmail({
-  to: email,
-  resetUrl,
-  username: first_name,
-  userAgent: req.headers.get("user-agent"),
-});
+    try {
+      const { sendPasswordResetEmail } = await import("@/lib/email");
 
-  console.log("PASSWORD RESET EMAIL SENT", {
-    email,
-    userId,
-  });
-} catch (emailErr) {
-  console.error("PASSWORD RESET EMAIL FAILED", {
-    email,
-    userId,
-    error: emailErr?.message,
-  });
+      await sendPasswordResetEmail({
+        to: email,
+        resetUrl,
+        username: first_name,
+        userAgent: req.headers.get("user-agent"),
+      });
 
-  throw emailErr; // keep current behavior
-}
+      console.log("PASSWORD RESET EMAIL SENT", {
+        email,
+        userId,
+      });
+    } catch (emailErr) {
+      console.error("PASSWORD RESET EMAIL FAILED", {
+        email,
+        userId,
+        error: emailErr?.message,
+      });
+
+      // preserve existing behavior
+      throw emailErr;
+    }
 
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("FORGOT PASSWORD ERROR:", err);
 
-    // Guaranteed JSON response
     return NextResponse.json(
       { error: "Server error" },
       { status: 500 }

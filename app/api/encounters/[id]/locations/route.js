@@ -1,6 +1,6 @@
 import { sanitizeRows } from "@/lib/api/sanitize";
 import { query } from "@/lib/db";
-import { getTenantContext } from "@/lib/tenant/getTenantContext";
+import { requireAuth } from "@/lib/auth-server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -9,7 +9,12 @@ export const dynamic = "force-dynamic";
    GET /api/encounters/:id/locations
 ------------------------------------------------------------ */
 export async function GET(req, { params }) {
-  const { tenantId } = await getTenantContext(req);
+  const session = await requireAuth();
+if (!session) {
+  return Response.json({ error: "Unauthorized" }, { status: 401 });
+}
+
+const tenantId = session.tenant_id;
   const encounterId = params.id;
 
   const { rows } = await query(
@@ -47,7 +52,12 @@ export async function GET(req, { params }) {
    POST /api/encounters/:id/locations
 ------------------------------------------------------------ */
 export async function POST(req, { params }) {
-  const { tenantId } = await getTenantContext(req);
+  const session = await requireAuth();
+if (!session) {
+  return Response.json({ error: "Unauthorized" }, { status: 401 });
+}
+
+const tenantId = session.tenant_id;
   const encounterId = params.id;
   const body = await req.json();
 
@@ -80,7 +90,12 @@ export async function POST(req, { params }) {
    DELETE /api/encounters/:id/locations?location_id=
 ------------------------------------------------------------ */
 export async function DELETE(req, { params }) {
-  const { tenantId } = await getTenantContext(req);
+  const session = await requireAuth();
+if (!session) {
+  return Response.json({ error: "Unauthorized" }, { status: 401 });
+}
+
+const tenantId = session.tenant_id;
   const encounterId = params.id;
   const { searchParams } = new URL(req.url);
   const locationId = searchParams.get("location_id");

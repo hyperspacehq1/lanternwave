@@ -1,5 +1,3 @@
-import { sanitizeRow, sanitizeRows } from "@/lib/api/sanitize";
-// app/api/ai-search/route.js
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
 import OpenAI from "openai";
@@ -8,15 +6,20 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /* -----------------------------------------------------------
-   INIT OPENAI
+   Lazy OpenAI init (BUILD SAFE)
 ------------------------------------------------------------ */
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+function getOpenAI() {
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error("OPENAI_API_KEY missing");
+  }
+
+  return new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+  });
+}
 
 /* -----------------------------------------------------------
-   FAST BM25 / TSVECTOR SEARCH (NOT ILIKE)
-   Identical to your original SQL logic.
+   FAST BM25 / TSVECTOR SEARCH
 ------------------------------------------------------------ */
 async function searchAllTables(term) {
   const ts = term.trim().split(/\s+/).join(" & ");
@@ -34,7 +37,6 @@ async function searchAllTables(term) {
       ORDER BY rank DESC
       LIMIT 10
     `),
-
     sessions: await run(`
       SELECT id, campaign_id, description, geography, 'session' AS type,
         ts_rank(search_tsv, to_tsquery('english', $1)) AS rank
@@ -43,7 +45,6 @@ async function searchAllTables(term) {
       ORDER BY rank DESC
       LIMIT 10
     `),
-
     events: await run(`
       SELECT id, description, event_type, weather, priority, 'event' AS type,
         ts_rank(search_tsv, to_tsquery('english', $1)) AS rank
@@ -52,7 +53,6 @@ async function searchAllTables(term) {
       ORDER BY rank DESC
       LIMIT 10
     `),
-
     npcs: await run(`
       SELECT id, first_name, last_name, npc_type, personality, goals,
         'npc' AS type,
@@ -62,7 +62,6 @@ async function searchAllTables(term) {
       ORDER BY rank DESC
       LIMIT 10
     `),
-
     items: await run(`
       SELECT id, description, notes, 'item' AS type,
         ts_rank(search_tsv, to_tsquery('english', $1)) AS rank
@@ -71,7 +70,6 @@ async function searchAllTables(term) {
       ORDER BY rank DESC
       LIMIT 10
     `),
-
     locations: await run(`
       SELECT id, description, city, state, notes, 'location' AS type,
         ts_rank(search_tsv, to_tsquery('english', $1)) AS rank
@@ -80,7 +78,6 @@ async function searchAllTables(term) {
       ORDER BY rank DESC
       LIMIT 10
     `),
-
     lore: await run(`
       SELECT id, description, notes, 'lore' AS type,
         ts_rank(search_tsv, to_tsquery('english', $1)) AS rank
@@ -89,7 +86,6 @@ async function searchAllTables(term) {
       ORDER BY rank DESC
       LIMIT 10
     `),
-
     encounters: await run(`
       SELECT id, description, notes, priority, 'encounter' AS type,
         ts_rank(search_tsv, to_tsquery('english', $1)) AS rank
@@ -103,15 +99,15 @@ async function searchAllTables(term) {
 
 /* -----------------------------------------------------------
    GPT RERANKING
-   Same behavior as your Netlify version.
 ------------------------------------------------------------ */
 async function aiRank(term, data) {
   try {
+    const openai = getOpenAI();
+
     const completion = await openai.chat.completions.create({
       model: "gpt-4.1-mini",
       temperature: 0.2,
       max_tokens: 600,
-      timeout: 8000,
       messages: [
         {
           role: "system",
@@ -147,10 +143,7 @@ export async function GET(req) {
     const raw = await searchAllTables(term);
     const ai_summary = await aiRank(term, raw);
 
-    return NextResponse.json(
-      { term, raw, ai_summary },
-      { status: 200 }
-    );
+    return NextResponse.json({ term, raw, ai_summary });
   } catch (err) {
     console.error("ai-search error:", err);
     return NextResponse.json(

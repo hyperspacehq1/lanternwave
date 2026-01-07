@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { getR2Client, R2_BUCKET_NAME } from "@/lib/r2/server";
-import { getTenantContext } from "@/lib/tenant/getTenantContext";
+import { requireAuth } from "@/lib/auth-server";
 import { guessContentType } from "@/lib/r2/contentType";
 import { query } from "@/lib/db";
 
@@ -36,7 +36,12 @@ export async function GET(req) {
     // ------------------------------------------------------------
     // Resolve tenant from REQUEST
     // ------------------------------------------------------------
-    const { tenantId } = await getTenantContext(req);
+    const session = await requireAuth();
+if (!session) {
+  return Response.json({ error: "Unauthorized" }, { status: 401 });
+}
+
+const tenantId = session.tenant_id;
 
     // ------------------------------------------------------------
     // Verify clip exists & belongs to tenant

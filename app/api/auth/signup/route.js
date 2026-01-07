@@ -3,7 +3,6 @@ import bcrypt from "bcryptjs";
 import { query } from "@/lib/db";
 import { randomUUID } from "crypto";
 import { createSession } from "@/lib/auth/session";
-import { sendWelcomeEmail } from "@/lib/email";
 
 export const runtime = "nodejs";
 
@@ -109,9 +108,11 @@ export async function POST(req) {
     });
 
     /* -------------------------
-       Send welcome email (non-blocking)
+       Send welcome email (LAZY IMPORT)
        ------------------------- */
     try {
+      const { sendWelcomeEmail } = await import("@/lib/email");
+
       await sendWelcomeEmail({
         to: email,
         username,
@@ -127,7 +128,6 @@ export async function POST(req) {
     }
 
     return res;
-
   } catch (err) {
     try {
       await query("ROLLBACK");

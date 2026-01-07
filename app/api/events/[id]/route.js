@@ -1,7 +1,7 @@
 // /api/events/[id]/route.js  (FULL, FIXED)
 
 import { sanitizeRow } from "@/lib/api/sanitize";
-import { getTenantContext } from "@/lib/tenant/getTenantContext";
+import { requireAuth } from "@/lib/auth-server";
 import { query } from "@/lib/db";
 
 export const runtime = "nodejs";
@@ -15,7 +15,12 @@ function hasOwn(obj, key) {
    GET /api/events/[id]
 ------------------------------------------------------------ */
 export async function GET(req, { params }) {
-  const { tenantId } = await getTenantContext(req);
+  const session = await requireAuth();
+if (!session) {
+  return Response.json({ error: "Unauthorized" }, { status: 401 });
+}
+
+const tenantId = session.tenant_id;
   const id = params?.id;
 
   if (!id) {
@@ -49,7 +54,12 @@ export async function GET(req, { params }) {
    PUT /api/events/[id]
 ------------------------------------------------------------ */
 export async function PUT(req, { params }) {
-  const { tenantId } = await getTenantContext(req);
+  const session = await requireAuth();
+if (!session) {
+  return Response.json({ error: "Unauthorized" }, { status: 401 });
+}
+
+const tenantId = session.tenant_id;
   const id = params?.id;
   const body = await req.json();
 
@@ -157,7 +167,12 @@ export async function PUT(req, { params }) {
    DELETE /api/events/[id]   (SOFT DELETE)
 ------------------------------------------------------------ */
 export async function DELETE(req, { params }) {
-  const { tenantId } = await getTenantContext(req);
+  const session = await requireAuth();
+if (!session) {
+  return Response.json({ error: "Unauthorized" }, { status: 401 });
+}
+
+const tenantId = session.tenant_id;
   const id = params?.id;
 
   if (!id) {

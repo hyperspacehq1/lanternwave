@@ -1,5 +1,5 @@
 import { sanitizeRow, sanitizeRows } from "@/lib/api/sanitize";
-import { getTenantContext } from "@/lib/tenant/getTenantContext";
+import { requireAuth } from "@/lib/auth-server";
 import { query } from "@/lib/db";
 import { fromDb } from "@/lib/campaignMapper";
 import { cloneAdventureCodexToTenant } from "@/lib/ai/cloneAdventureCodexToTenant";
@@ -71,7 +71,12 @@ function normalizeDateOnly(value) {
 export async function GET(req) {
   let tenantId;
   try {
-    ({ tenantId } = await getTenantContext(req));
+    const session = await requireAuth();
+if (!session) {
+  return Response.json({ error: "Unauthorized" }, { status: 401 });
+}
+
+const tenantId = session.tenant_id;
   } catch {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -103,16 +108,13 @@ export async function GET(req) {
    POST /api/campaigns
 ----------------------------- */
 export async function POST(req) {
-  let tenantId;
-  let userId;
+  const session = await requireAuth();
+if (!session) {
+  return Response.json({ error: "Unauthorized" }, { status: 401 });
+}
 
-  try {
-    ({ tenantId, userId } = await getTenantContext(req));
-  } catch {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const body = await req.json();
+const tenantId = session.tenant_id;
+const userId = session.id;const body = await req.json();
 
   const name =
     typeof body?.name === "string" && body.name.trim()
@@ -195,7 +197,12 @@ export async function POST(req) {
 export async function PUT(req) {
   let tenantId;
   try {
-    ({ tenantId } = await getTenantContext(req));
+    const session = await requireAuth();
+if (!session) {
+  return Response.json({ error: "Unauthorized" }, { status: 401 });
+}
+
+const tenantId = session.tenant_id;
   } catch {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }

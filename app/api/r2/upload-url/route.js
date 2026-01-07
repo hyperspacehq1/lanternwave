@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { getR2Client, R2_BUCKET_NAME } from "@/lib/r2/server";
-import { getTenantContext } from "@/lib/tenant/getTenantContext";
+import { requireAuth } from "@/lib/auth-server";
 import { guessContentType } from "@/lib/r2/contentType";
 import { query } from "@/lib/db";
 
@@ -57,7 +57,10 @@ export async function POST(req) {
     }
 
     // 🔐 Resolve tenant (request-scoped, Netlify-safe) :contentReference[oaicite:3]{index=3}
-    const ctx = await getTenantContext(req);
+    const session = await requireAuth();
+if (!session) {
+  return Response.json({ error: "Unauthorized" }, { status: 401 });
+}
 
     const tenantId = ctx?.tenantId ?? ctx?.tenant?.id;
     if (!tenantId) {
