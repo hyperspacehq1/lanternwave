@@ -10,15 +10,18 @@ export const dynamic = "force-dynamic";
    GET /api/account
 -------------------------------------------------- */
 export async function GET(req) {
-  try {
-    const session = await requireAuth();
-    if (!session) {
-      return NextResponse.json(
-        { ok: false, error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
+  let session;
 
+  try {
+    session = await requireAuth();
+  } catch {
+    return NextResponse.json(
+      { ok: false, error: "Unauthorized" },
+      { status: 401 }
+    );
+  }
+
+  try {
     const tenantId = session.tenant_id;
     const userId = session.id;
 
@@ -54,15 +57,18 @@ export async function GET(req) {
    PUT /api/account
 -------------------------------------------------- */
 export async function PUT(req) {
-  try {
-    const session = await requireAuth();
-    if (!session) {
-      return NextResponse.json(
-        { ok: false, error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
+  let session;
 
+  try {
+    session = await requireAuth();
+  } catch {
+    return NextResponse.json(
+      { ok: false, error: "Unauthorized" },
+      { status: 401 }
+    );
+  }
+
+  try {
     const tenantId = session.tenant_id;
     const userId = session.id;
 
@@ -127,15 +133,18 @@ export async function PUT(req) {
    POST /api/account  (multipart upload)
 -------------------------------------------------- */
 export async function POST(req) {
-  try {
-    const session = await requireAuth();
-    if (!session) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
+  let session;
 
+  try {
+    session = await requireAuth();
+  } catch {
+    return NextResponse.json(
+      { error: "Unauthorized" },
+      { status: 401 }
+    );
+  }
+
+  try {
     const tenantId = session.tenant_id;
 
     const contentType = req.headers.get("content-type") || "";
