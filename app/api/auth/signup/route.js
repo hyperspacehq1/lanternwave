@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { query } from "@/lib/db";
 import { randomUUID } from "crypto";
+import { createSession } from "@/lib/auth/session";
 
 export const runtime = "nodejs";
 
@@ -11,11 +12,14 @@ function normalizeUsername(username) {
 
 export async function POST(req) {
   try {
-    const { email, username, password } = await req.json();
+    const { email, username, password, birthdate } = await req.json();
 
-    if (!email || !username || !password) {
+    if (!email || !username || !password || !birthdate) {
       return NextResponse.json(
-        { code: "MISSING_FIELDS", message: "All fields are required." },
+        {
+          code: "MISSING_FIELDS",
+          message: "Email, username, password, and birthdate are required.",
+        },
         { status: 400 }
       );
     }
@@ -60,12 +64,13 @@ export async function POST(req) {
         email,
         username,
         username_normalized,
-        password_hash
+        password_hash,
+        birthdate
       )
-      VALUES (gen_random_uuid(), $1, $2, $3, $4)
+      VALUES (gen_random_uuid(), $1, $2, $3, $4, $5)
       RETURNING id
       `,
-      [email, username, usernameNormalized, passwordHash]
+      [email, username, usernameNormalized, passwordHash, birthdate]
     );
 
     const userId = userRes.rows[0].id;
@@ -92,19 +97,14 @@ export async function POST(req) {
     await query("COMMIT");
 
     /* -------------------------
-       Auto-login (2025 NETLIFY SAFE)
+       Create secure session
        ------------------------- */
     const res = NextResponse.json({ ok: true });
 
-    res.cookies.set({
-      name: "lw_session",
-      value: userId,
-      httpOnly: true,
-      secure: true,                 // REQUIRED
-      sameSite: "none",             // REQUIRED
-      path: "/",
-      domain: ".lanternwave.com",   // 🔑 REQUIRED FOR FUNCTIONS
-      maxAge: 60 * 60 * 24 * 7,
+    await createSession({
+      userId,
+      tenantId,
+      response: res,
     });
 
     return res;

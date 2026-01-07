@@ -3,18 +3,26 @@ import { query } from "@/lib/db";
 
 export async function requireAuth() {
   const cookieStore = cookies();
-  const session = cookieStore.get("lw_session")?.value;
+  const sessionId = cookieStore.get("lw_session")?.value;
 
-  if (!session) return null;
+  if (!sessionId) return null;
 
   const result = await query(
     `
-    SELECT u.id, u.email, u.is_admin
-    FROM users u
-    JOIN sessions s ON s.user_id = u.id
-    WHERE s.token = $1
+    SELECT
+      s.user_id,
+      s.tenant_id,
+      u.email,
+      tu.role
+    FROM user_sessions s
+    JOIN users u ON u.id = s.user_id
+    JOIN tenant_users tu
+      ON tu.user_id = s.user_id
+     AND tu.tenant_id = s.tenant_id
+    WHERE s.id = $1
+      AND s.expires_at > NOW()
     `,
-    [session]
+    [sessionId]
   );
 
   if (!result.rows.length) return null;

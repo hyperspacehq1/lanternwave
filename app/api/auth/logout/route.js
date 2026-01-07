@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { destroySession } from "@/lib/auth/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -6,16 +7,7 @@ export const dynamic = "force-dynamic";
 export async function POST() {
   const response = NextResponse.json({ ok: true });
 
-  response.cookies.set({
-    name: "lw_session",
-    value: "",
-    httpOnly: true,
-    secure: true,
-    sameSite: "none",
-    path: "/",
-    domain: ".lanternwave.com", // 🔑 MUST match login & signup
-    maxAge: 0,                  // Immediately expire
-  });
+  await destroySession(response);
 
   return response;
 }

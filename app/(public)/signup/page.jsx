@@ -10,6 +10,7 @@ export default function SignupPage() {
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [birthdate, setBirthdate] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -22,7 +23,12 @@ export default function SignupPage() {
       const res = await fetch("/api/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, username, password }),
+        body: JSON.stringify({
+          email,
+          username,
+          password,
+          birthdate,
+        }),
       });
 
       const data = await res.json();
@@ -31,7 +37,6 @@ export default function SignupPage() {
         throw new Error(data?.message || "Failed to create account");
       }
 
-      // Auto-login handled server-side
       router.push("/gm-dashboard");
     } catch (err) {
       setError(err.message);
@@ -86,6 +91,14 @@ export default function SignupPage() {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              className="lw-auth-input"
+            />
+
+            <input
+              type="date"
+              required
+              value={birthdate}
+              onChange={(e) => setBirthdate(e.target.value)}
               className="lw-auth-input"
             />
 

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { query } from "@/lib/db";
 import { rateLimit } from "@/lib/rateLimit";
+import { createSession } from "@/lib/auth/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -44,6 +45,9 @@ export async function POST(req) {
       );
     }
 
+    /* --------------------------------
+       Lookup user
+       -------------------------------- */
     const result = await query(
       `
       SELECT id, password_hash, deleted_at
@@ -79,42 +83,55 @@ export async function POST(req) {
       );
     }
 
-    const tenantCheck = await query(
+    /* --------------------------------
+       Resolve tenant
+       -------------------------------- */
+    const tenantRes = await query(
       `
       SELECT tenant_id
       FROM tenant_users
       WHERE user_id = $1
+      ORDER BY created_at ASC
       LIMIT 1
       `,
       [user.id]
     );
 
-    if (!tenantCheck.rows.length) {
+    if (!tenantRes.rows.length) {
       return NextResponse.json(
         { error: "No tenant access assigned" },
         { status: 403 }
       );
     }
 
+    const tenantId = tenantRes.rows[0].tenant_id;
+
     /* --------------------------------
-       SET COOKIE (FINAL 2025 FORM)
+       SESSION ROTATION
+       --------------------------------
+       Kill all existing sessions for this user
+    */
+    await query(
+      `DELETE FROM user_sessions WHERE user_id = $1`,
+      [user.id]
+    );
+
+    /* --------------------------------
+       Create new secure session
        -------------------------------- */
     const response = NextResponse.json({ ok: true });
 
-    response.cookies.set({
-      name: "lw_session",
-      value: user.id,
-      httpOnly: true,
-      secure: true,
-      sameSite: "none",
-      path: "/",
-      domain: ".lanternwave.com", // 🔑 REQUIRED FOR NETLIFY FUNCTIONS
-      maxAge: 60 * 60 * 24 * 7,
+    await createSession({
+      userId: user.id,
+      tenantId,
+      response,
     });
 
     return response;
+
   } catch (err) {
     console.error("LOGIN ERROR:", err);
+
     return NextResponse.json(
       { error: "Server error" },
       { status: 500 }
