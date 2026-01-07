@@ -9,6 +9,12 @@ export const dynamic = "force-dynamic";
 /* -------------------------------------------------
    GET /api/account
 -------------------------------------------------- */
+
+console.log("🧪 /api/account DEBUG", {
+  cookieHeader: req.headers.get("cookie"),
+  userAgent: req.headers.get("user-agent"),
+});
+
 export async function GET(req) {
   let session;
 

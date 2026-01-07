@@ -1,205 +1,110 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import "./account.css";
+import { useEffect, useState } from "react";
 
-export const dynamic = "force-dynamic";
-
-export default function AccountPage() {
+export default function AccountDebugPage() {
   const [loading, setLoading] = useState(true);
+  const [status, setStatus] = useState(null);
+  const [response, setResponse] = useState(null);
   const [error, setError] = useState(null);
-  const [username, setUsername] = useState(null);
 
-  // Server-backed Beacons
-  const [beacons, setBeacons] = useState({});
-
-  const loadingRef = useRef(false);
-
-  /* ------------------------------
-     Load account + beacons
-  ------------------------------ */
   useEffect(() => {
-    if (loadingRef.current) return;
-    loadingRef.current = true;
+    let cancelled = false;
 
     async function load() {
       console.log("🧪 ACCOUNT LOAD START");
 
       try {
-        const accountRes = await fetch("/api/account", {
+        const res = await fetch("/api/account", {
+          method: "GET",
           credentials: "include",
-          cache: "no-store",
         });
 
-        console.log("🧪 ACCOUNT LOAD RESPONSE", {
-          status: accountRes.status,
-          ok: accountRes.ok,
-        });
+        const text = await res.text();
+        let json = null;
 
-        if (!accountRes.ok) throw new Error("Failed to load account");
-
-        const accountData = await accountRes.json();
-
-        console.log("🧪 ACCOUNT LOAD DATA", accountData);
-
-        if (!accountData?.account?.username) {
-          throw new Error("Invalid account response");
+        try {
+          json = JSON.parse(text);
+        } catch {
+          json = { raw: text };
         }
 
-        setUsername(accountData.account.username);
-        setBeacons(accountData?.account?.beacons ?? {});
+        if (cancelled) return;
+
+        console.log("🧪 ACCOUNT LOAD RESPONSE", {
+          status: res.status,
+          ok: res.ok,
+          body: json,
+        });
+
+        setStatus(res.status);
+        setResponse(json);
+        setLoading(false);
       } catch (err) {
+        if (cancelled) return;
+
         console.error("❌ ACCOUNT LOAD ERROR", err);
-        setError("Unable to load account details.");
-      } finally {
+        setError(err.message || String(err));
         setLoading(false);
       }
     }
 
     load();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  /* ------------------------------
-     Update Beacon (debug-heavy)
-  ------------------------------ */
-  const updateBeacon = async (key, enabled) => {
-    const debugId = `beacon:${key}:${Date.now()}`;
-
-    console.log("➡️ BEACON UPDATE START", {
-      debugId,
-      key,
-      enabled,
-      prevValue: beacons[key],
-    });
-
-    // Optimistic UI (unchanged behavior)
-    setBeacons((prev) => ({ ...prev, [key]: enabled }));
-
-    try {
-      const res = await fetch("/api/account", {
-        method: "PUT",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ key, enabled }),
-      });
-
-      console.log("⬅️ BEACON UPDATE RESPONSE", {
-        debugId,
-        status: res.status,
-        ok: res.ok,
-      });
-
-      if (!res.ok) {
-        throw new Error("Beacon update failed");
-      }
-
-      const data = await res.json();
-
-      console.log("📦 BEACON UPDATE DATA", {
-        debugId,
-        data,
-      });
-
-      // Server is source of truth
-      setBeacons(data?.beacons ?? {});
-    } catch (err) {
-      console.error("❌ BEACON UPDATE FAILED", {
-        debugId,
-        key,
-        enabled,
-        err,
-      });
-
-      // Reconcile by reloading account state
-      try {
-        console.log("🔄 RELOADING ACCOUNT AFTER FAILURE", { debugId });
-
-        const accountRes = await fetch("/api/account", {
-          credentials: "include",
-          cache: "no-store",
-        });
-
-        if (accountRes.ok) {
-          const accountData = await accountRes.json();
-
-          console.log("🔄 RELOAD ACCOUNT DATA", {
-            debugId,
-            beacons: accountData?.account?.beacons,
-          });
-
-          setBeacons(accountData?.account?.beacons ?? {});
-        }
-      } catch (reloadErr) {
-        console.error("❌ ACCOUNT RELOAD FAILED", reloadErr);
-      }
-    }
-  };
-
   return (
-    <div className="account-page">
-      <main className="account-content">
-        <h1 className="account-title">My Account</h1>
+    <div
+      style={{
+        padding: 24,
+        fontFamily: "monospace",
+        background: "#0b0b0b",
+        color: "#e6e6e6",
+        minHeight: "100vh",
+      }}
+    >
+      <h1>🧪 Account Debug Page (DEV)</h1>
 
-        {loading && (
-          <div className="account-panel account-skeleton">
-            <div className="account-row">
-              <span className="account-label skeleton-box" />
-              <span className="account-value skeleton-box wide" />
-            </div>
-          </div>
-        )}
+      {loading && <p>Loading…</p>}
 
-        {!loading && !error && (
-          <>
-            {/* ---------------- Account ---------------- */}
-            <div className="account-panel">
-              <div className="account-row">
-                <span className="account-label">Username</span>
-                <span className="account-value">{username}</span>
-              </div>
-            </div>
+      <section style={{ marginTop: 24 }}>
+        <h2>Browser Cookie Visibility</h2>
+        <pre>{document.cookie || "(no cookies visible to JS)"}</pre>
+      </section>
 
-            {/* ---------------- Beacons ---------------- */}
-            <h2 className="account-section-title">Beacons</h2>
-            <div className="account-panel beacons-panel">
-              <div className="account-row">
-                <label className="account-label">
-                  <span className="beacon-checkbox">
-                    <input
-                      type="checkbox"
-                      data-debug-id="beacon:player_characters"
-                      checked={!!beacons.player_characters}
-                      onChange={(e) => {
-                        console.log("🧪 TOGGLE CLICK", {
-                          debugId: "beacon:player_characters",
-                          next: e.target.checked,
-                          prev: beacons.player_characters,
-                        });
+      <section style={{ marginTop: 24 }}>
+        <h2>Fetch Result</h2>
+        <pre>
+          {JSON.stringify(
+            {
+              status,
+              response,
+              error,
+            },
+            null,
+            2
+          )}
+        </pre>
+      </section>
 
-                        updateBeacon(
-                          "player_characters",
-                          e.target.checked
-                        );
-                      }}
-                    />
-                  </span>
-                  Activate GM Dashboard Player Characters
-                </label>
-              </div>
-
-              {/* ---------- Visible Debug ---------- */}
-              <div className="beacon-debug">
-                <code>
-                  key=player_characters | checked=
-                  {String(!!beacons.player_characters)}
-                </code>
-              </div>
-            </div>
-          </>
-        )}
-
-        {error && <div className="account-error">{error}</div>}
-      </main>
+      <section style={{ marginTop: 24 }}>
+        <h2>Notes</h2>
+        <ul>
+          <li>
+            If <code>document.cookie</code> is empty → cookie is HttpOnly
+            (expected).
+          </li>
+          <li>
+            If status is <code>401</code> → server did not accept session.
+          </li>
+          <li>
+            If response contains <code>Unauthorized</code> →{" "}
+            <code>requireAuth()</code> rejected request.
+          </li>
+        </ul>
+      </section>
     </div>
   );
 }
