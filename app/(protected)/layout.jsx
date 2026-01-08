@@ -1,4 +1,4 @@
-import { cookies, headers } from "next/headers";
+import { headers } from "next/headers";
 import ProtectedClientProviders from "@/components/ProtectedClientProviders";
 
 export const dynamic = "force-dynamic";
@@ -6,43 +6,40 @@ export const dynamic = "force-dynamic";
 export default function ProtectedLayout({ children }) {
   console.log("🧪 ProtectedLayout ENTERED");
 
-  let cookieStore;
   let headerStore;
-
-  try {
-    cookieStore = cookies();
-    console.log("🍪 cookies() OK");
-  } catch (err) {
-    return hardFail("cookies() threw", err);
-  }
+  let cookieHeader = "";
 
   try {
     headerStore = headers();
-    console.log("🧭 headers() OK");
+    cookieHeader = headerStore.get("cookie") || "";
+    console.log("🧭 Raw cookie header:", cookieHeader.slice(0, 120));
   } catch (err) {
     return hardFail("headers() threw", err);
   }
 
   // ===============================
-  // 🍪 SAFE COOKIE READ (NO getAll)
+  // 🍪 MANUAL COOKIE PARSE (SAFE)
   // ===============================
-  let lwSession;
+  const cookies = Object.fromEntries(
+    cookieHeader
+      .split(";")
+      .map((c) => c.trim())
+      .filter(Boolean)
+      .map((c) => {
+        const idx = c.indexOf("=");
+        if (idx === -1) return [];
+        return [c.slice(0, idx), c.slice(idx + 1)];
+      })
+  );
 
-  try {
-    lwSession = cookieStore.get("lw_session");
-    console.log("🍪 lw_session:", {
-      exists: !!lwSession,
-      length: lwSession?.value?.length,
-      hasDot: lwSession?.value?.includes("."),
-    });
-  } catch (err) {
-    return hardFail("cookieStore.get('lw_session') threw", err);
-  }
+  const lwSession = cookies["lw_session"];
+
+  console.log("🍪 lw_session present:", !!lwSession);
 
   // ===============================
   // 🔒 AUTH CHECK
   // ===============================
-  if (!lwSession?.value) {
+  if (!lwSession) {
     console.warn("🚫 No lw_session cookie found");
 
     return (
@@ -63,6 +60,7 @@ export default function ProtectedLayout({ children }) {
               {
                 host: headerStore.get("host"),
                 ua: headerStore.get("user-agent"),
+                cookieHeader,
               },
               null,
               2
