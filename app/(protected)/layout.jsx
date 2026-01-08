@@ -4,9 +4,6 @@ import ProtectedClientProviders from "@/components/ProtectedClientProviders";
 export const dynamic = "force-dynamic";
 
 export default function ProtectedLayout({ children }) {
-  // ===============================
-  // 🧪 HARD SERVER ENTRY PROBE
-  // ===============================
   console.log("🧪 ProtectedLayout ENTERED");
 
   let cookieStore;
@@ -16,7 +13,6 @@ export default function ProtectedLayout({ children }) {
     cookieStore = cookies();
     console.log("🍪 cookies() OK");
   } catch (err) {
-    console.error("❌ cookies() THREW", err);
     return hardFail("cookies() threw", err);
   }
 
@@ -24,68 +20,29 @@ export default function ProtectedLayout({ children }) {
     headerStore = headers();
     console.log("🧭 headers() OK");
   } catch (err) {
-    console.error("❌ headers() THREW", err);
     return hardFail("headers() threw", err);
   }
 
   // ===============================
-  // 🍪 COOKIE INSPECTION
+  // 🍪 SAFE COOKIE READ (NO getAll)
   // ===============================
-  let allCookies = [];
+  let lwSession;
 
   try {
-    allCookies = cookieStore.getAll();
-    console.log(
-      "🍪 All cookies:",
-      allCookies.map((c) => ({
-        name: c.name,
-        length: c.value?.length,
-        hasDot: c.value?.includes("."),
-      }))
-    );
+    lwSession = cookieStore.get("lw_session");
+    console.log("🍪 lw_session:", {
+      exists: !!lwSession,
+      length: lwSession?.value?.length,
+      hasDot: lwSession?.value?.includes("."),
+    });
   } catch (err) {
-    console.error("❌ getAll() THREW", err);
-    return hardFail("cookieStore.getAll() threw", err);
+    return hardFail("cookieStore.get('lw_session') threw", err);
   }
-
-  const lwCookies = allCookies.filter((c) => c.name === "lw_session");
-
-  // ===============================
-  // 🔥 DUPLICATE COOKIE HARD STOP
-  // ===============================
-  if (lwCookies.length > 1) {
-    console.error("🔥 DUPLICATE lw_session COOKIES DETECTED", lwCookies);
-
-    return (
-      <html lang="en">
-        <body
-          style={{
-            padding: 24,
-            background: "#0b0b0b",
-            color: "#ff5555",
-            fontFamily: "monospace",
-          }}
-        >
-          <h1>🔥 Cookie Collision Detected</h1>
-          <p>Multiple <code>lw_session</code> cookies were found.</p>
-          <pre>{JSON.stringify(lwCookies, null, 2)}</pre>
-          <p>
-            This is a hard stop to prevent undefined auth behavior.
-            Clear cookies and re-login.
-          </p>
-        </body>
-      </html>
-    );
-  }
-
-  const lwSession = lwCookies[0];
 
   // ===============================
   // 🔒 AUTH CHECK
   // ===============================
-  const hasSession = !!lwSession?.value;
-
-  if (!hasSession) {
+  if (!lwSession?.value) {
     console.warn("🚫 No lw_session cookie found");
 
     return (
@@ -99,15 +56,11 @@ export default function ProtectedLayout({ children }) {
           }}
         >
           <h1>Unauthorized</h1>
-          <p>No valid session cookie was found.</p>
+          <p>No session cookie found.</p>
 
           <pre style={{ marginTop: 16 }}>
             {JSON.stringify(
               {
-                cookies: allCookies.map((c) => ({
-                  name: c.name,
-                  preview: c.value?.slice(0, 12) + "…",
-                })),
                 host: headerStore.get("host"),
                 ua: headerStore.get("user-agent"),
               },
@@ -126,7 +79,7 @@ export default function ProtectedLayout({ children }) {
     );
   }
 
-  console.log("✅ Auth gate passed, rendering client providers");
+  console.log("✅ Auth gate passed");
 
   // ===============================
   // ✅ SERVER → CLIENT BOUNDARY
@@ -138,6 +91,8 @@ export default function ProtectedLayout({ children }) {
 // ❌ HARD FAILURE RENDER
 // ===============================
 function hardFail(reason, err) {
+  console.error("❌ ProtectedLayout hard fail:", reason, err);
+
   return (
     <html lang="en">
       <body
@@ -150,7 +105,13 @@ function hardFail(reason, err) {
       >
         <h1>❌ Protected Layout Crash</h1>
         <p>{reason}</p>
-        <pre>{JSON.stringify({ message: err?.message, stack: err?.stack }, null, 2)}</pre>
+        <pre>
+          {JSON.stringify(
+            { message: err?.message, stack: err?.stack },
+            null,
+            2
+          )}
+        </pre>
       </body>
     </html>
   );
