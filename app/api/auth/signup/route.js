@@ -6,8 +6,16 @@ import { query } from "@/lib/db";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+const SECRET = process.env.AUTH_SECRET;
+
 function normalizeUsername(username) {
   return username.trim().toLowerCase();
+}
+
+function signSession(payload) {
+  const body = Buffer.from(JSON.stringify(payload)).toString("base64url");
+  const sig = crypto.createHmac("sha256", SECRET).update(body).digest("hex");
+  return `${body}.${sig}`;
 }
 
 export async function POST(req) {
@@ -26,9 +34,6 @@ export async function POST(req) {
 
     const usernameNormalized = normalizeUsername(username);
 
-    /* -------------------------
-       Begin transaction
-       ------------------------- */
     await query("BEGIN");
 
     const emailExists = await query(
@@ -94,36 +99,14 @@ export async function POST(req) {
       [userId, tenantId]
     );
 
-    /* -------------------------
-       Create session
-       ------------------------- */
-    const sessionId = crypto.randomUUID();
-    const token = crypto.randomBytes(32).toString("hex");
-
-    await query(
-      `
-      INSERT INTO user_sessions (
-        id,
-        user_id,
-        tenant_id,
-        token,
-        created_at,
-        expires_at
-      )
-      VALUES ($1, $2, $3, $4, NOW(), NOW() + interval '30 days')
-      `,
-      [sessionId, userId, tenantId, token]
-    );
-
     await query("COMMIT");
+
+    // ✅ Stateless signed cookie (Option A)
+    const token = signSession({ userId, tenantId });
 
     const res = NextResponse.json({
       ok: true,
-      debug: {
-        userId,
-        tenantId,
-        sessionId,
-      },
+      debug: { userId, tenantId },
     });
 
     res.cookies.set("lw_session", token, {
@@ -133,21 +116,6 @@ export async function POST(req) {
       path: "/",
       maxAge: 60 * 60 * 24 * 30,
     });
-
-    /* -------------------------
-       Send welcome email (best-effort)
-       ------------------------- */
-    try {
-      const { sendWelcomeEmail } = await import("@/lib/email");
-
-      await sendWelcomeEmail({
-        to: email,
-        username,
-        userAgent: req.headers.get("user-agent"),
-      });
-    } catch (emailErr) {
-      console.error("WELCOME EMAIL FAILED", emailErr);
-    }
 
     return res;
   } catch (err) {
