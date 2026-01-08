@@ -6,13 +6,16 @@ import { GlobalAudioProvider } from "@/components/GlobalAudio";
 export const dynamic = "force-dynamic";
 
 export default async function ProtectedLayout({ children }) {
-  let session = null;
+  let hasSession = false;
   let authError = null;
 
-  // 🔍 Collect low-level request info (SAFE in Server Components)
+  // ✅ Correct stores
+  const cookieStore = cookies();
+  const headerStore = headers();
 
+  // 🔍 Collect low-level request info (SAFE in Server Components)
   const debug = {
-    cookies: cookieStore.getAll().map(c => ({
+    cookies: cookieStore.getAll().map((c) => ({
       name: c.name,
       preview: c.value?.slice(0, 12) + "…",
     })),
@@ -21,20 +24,23 @@ export default async function ProtectedLayout({ children }) {
   };
 
   try {
+    // Layouts cannot validate auth — only check presence
+    const lw = cookieStore.get("lw_session");
+    hasSession = !!lw;
   } catch (err) {
     authError = {
       message: err?.message || String(err),
       name: err?.name,
     };
 
-    console.error("🛑 PROTECTED LAYOUT AUTH FAILED", {
+    console.error("🛑 PROTECTED LAYOUT COOKIE CHECK FAILED", {
       authError,
       debug,
     });
   }
 
   // 🚨 DEBUG MODE: show screen instead of redirect
-  if (!session) {
+  if (!hasSession) {
     return (
       <html>
         <body
@@ -45,7 +51,7 @@ export default async function ProtectedLayout({ children }) {
             padding: 24,
           }}
         >
-          <h1>🛑 Protected Layout Auth Failed (DEBUG)</h1>
+          <h1>🛑 Protected Layout: No Session Cookie</h1>
 
           <h2>Auth Error</h2>
           <pre>{JSON.stringify(authError, null, 2)}</pre>
@@ -55,8 +61,9 @@ export default async function ProtectedLayout({ children }) {
 
           <h2>What this means</h2>
           <ul>
-            <li>Login/signup did not produce a usable session</li>
-            <li>OR the cookie is not visible to Server Components</li>
+            <li>The lw_session cookie is missing</li>
+            <li>Login/signup did not set a cookie</li>
+            <li>OR cookie is not visible to Server Components</li>
           </ul>
 
           <p>
@@ -69,7 +76,7 @@ export default async function ProtectedLayout({ children }) {
     );
   }
 
-  // ✅ Auth succeeded
+  // ✅ Cookie present → allow render
   return (
     <GlobalAudioProvider>
       <ProtectedHeader />

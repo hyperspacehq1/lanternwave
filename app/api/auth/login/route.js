@@ -7,6 +7,18 @@ import { rateLimit } from "@/lib/rateLimit";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+const SECRET = process.env.AUTH_SECRET;
+
+/**
+ * Create signed stateless auth cookie
+ */
+function signSession(payload) {
+  const json = JSON.stringify(payload);
+  const body = Buffer.from(json).toString("base64url");
+  const sig = crypto.createHmac("sha256", SECRET).update(body).digest("hex");
+  return `${body}.${sig}`;
+}
+
 export async function POST(req) {
   try {
     console.log("🔐 LOGIN START");
@@ -14,6 +26,7 @@ export async function POST(req) {
     const ip =
       req.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
 
+    // Rate limit (non-fatal)
     try {
       const rl = await rateLimit({ ip, route: "login" });
       if (!rl.ok) {
@@ -26,10 +39,7 @@ export async function POST(req) {
       console.warn("⚠️ rateLimit failed", e);
     }
 
-    const body = await req.json();
-    console.log("📥 LOGIN BODY", body);
-
-    const { emailOrUsername, password } = body;
+    const { emailOrUsername, password } = await req.json();
 
     if (!emailOrUsername || !password) {
       return NextResponse.json(
@@ -38,9 +48,10 @@ export async function POST(req) {
       );
     }
 
+    // --- find user ---
     const userRes = await query(
       `
-      SELECT id, email, username, password_hash, deleted_at
+      SELECT id, password_hash, deleted_at
       FROM users
       WHERE LOWER(email) = LOWER($1)
          OR LOWER(username) = LOWER($1)
@@ -48,8 +59,6 @@ export async function POST(req) {
       `,
       [emailOrUsername]
     );
-
-    console.log("👤 USER QUERY RESULT", userRes.rows);
 
     if (!userRes.rows.length) {
       return NextResponse.json(
@@ -67,20 +76,15 @@ export async function POST(req) {
       );
     }
 
-    const passwordOk = await bcrypt.compare(
-      password,
-      user.password_hash
-    );
-
-    console.log("🔑 PASSWORD OK?", passwordOk);
-
-    if (!passwordOk) {
+    const ok = await bcrypt.compare(password, user.password_hash);
+    if (!ok) {
       return NextResponse.json(
         { error: "Invalid credentials" },
         { status: 401 }
       );
     }
 
+    // --- resolve tenant ---
     const tenantRes = await query(
       `
       SELECT tenant_id
@@ -92,8 +96,6 @@ export async function POST(req) {
       [user.id]
     );
 
-    console.log("🏢 TENANT RESULT", tenantRes.rows);
-
     if (!tenantRes.rows.length) {
       return NextResponse.json(
         { error: "No tenant access" },
@@ -103,42 +105,17 @@ export async function POST(req) {
 
     const tenantId = tenantRes.rows[0].tenant_id;
 
-    // 🔥 THIS IS THE MOST LIKELY FAILURE POINT
-    console.log("🧨 CLEARING OLD SESSIONS");
-    await query(`DELETE FROM user_sessions WHERE user_id = $1`, [
-      user.id,
-    ]);
-
-    const sessionId = crypto.randomUUID();
-    const token = crypto.randomBytes(32).toString("hex");
-
-    console.log("🧪 INSERT SESSION", {
-      sessionId,
+    // --- stateless signed cookie ---
+    const token = signSession({
       userId: user.id,
       tenantId,
     });
-
-    await query(
-      `
-      INSERT INTO user_sessions (
-        id,
-        user_id,
-        tenant_id,
-        token,
-        created_at,
-        expires_at
-      )
-      VALUES ($1,$2,$3,$4,NOW(),NOW() + interval '30 days')
-      `,
-      [sessionId, user.id, tenantId, token]
-    );
 
     const res = NextResponse.json({
       ok: true,
       debug: {
         userId: user.id,
         tenantId,
-        sessionId,
       },
     });
 
@@ -151,17 +128,11 @@ export async function POST(req) {
     });
 
     console.log("✅ LOGIN SUCCESS");
-
     return res;
   } catch (err) {
-    console.error("🔥 LOGIN HARD FAIL", err);
-
+    console.error("🔥 LOGIN FAILED", err);
     return NextResponse.json(
-      {
-        error: "LOGIN_FAILED",
-        message: err?.message,
-        stack: err?.stack,
-      },
+      { error: "LOGIN_FAILED", message: err.message },
       { status: 500 }
     );
   }
