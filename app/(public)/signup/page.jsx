@@ -1,144 +1,136 @@
-"use client";
+import { NextResponse } from "next/server";
+import bcrypt from "bcryptjs";
+import crypto from "crypto";
+import { query } from "@/lib/db";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import "../auth.css";
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-export default function SignupPage() {
-  const router = useRouter();
+const SECRET = process.env.AUTH_SECRET;
 
-  const [email, setEmail] = useState("");
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [birthdate, setBirthdate] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+function normalizeUsername(username) {
+  return username.trim().toLowerCase();
+}
 
-  async function handleSubmit(e) {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
+function signSession(payload) {
+  const body = Buffer.from(JSON.stringify(payload)).toString("base64url");
+  const sig = crypto.createHmac("sha256", SECRET).update(body).digest("hex");
+  return `${body}.${sig}`;
+}
 
-    try {
-      const res = await fetch("/api/auth/signup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email,
-          username,
-          password,
-          birthdate,
-        }),
-      });
+export async function POST(req) {
+  try {
+    const { email, username, password, birthdate } = await req.json();
 
-      // 👇 IMPORTANT: read raw text first
-      const text = await res.text();
-
-      let data;
-      try {
-        data = JSON.parse(text);
-      } catch {
-        data = { raw: text };
-      }
-
-      if (!res.ok) {
-        console.error("SIGNUP FAILED", {
-          status: res.status,
-          response: data,
-        });
-
-        setError(
-          data?.message ||
-          data?.error ||
-          `Signup failed (${res.status})`
-        );
-        setLoading(false);
-        return;
-      }
-
-      router.push("/gm-dashboard");
-    } catch (err) {
-      console.error("SIGNUP NETWORK ERROR", err);
-      setError("Network or server error — see console");
-      setLoading(false);
+    if (!email || !username || !password || !birthdate) {
+      return NextResponse.json(
+        {
+          code: "MISSING_FIELDS",
+          message: "Email, username, password, and birthdate are required.",
+        },
+        { status: 400 }
+      );
     }
+
+    const usernameNormalized = normalizeUsername(username);
+
+    await query("BEGIN");
+
+    const emailExists = await query(
+      "SELECT 1 FROM users WHERE email = $1",
+      [email]
+    );
+    if (emailExists.rowCount > 0) {
+      await query("ROLLBACK");
+      return NextResponse.json(
+        { code: "EMAIL_EXISTS", message: "Email already in use." },
+        { status: 409 }
+      );
+    }
+
+    const usernameExists = await query(
+      "SELECT 1 FROM users WHERE username_normalized = $1",
+      [usernameNormalized]
+    );
+    if (usernameExists.rowCount > 0) {
+      await query("ROLLBACK");
+      return NextResponse.json(
+        { code: "USERNAME_EXISTS", message: "Username already taken." },
+        { status: 409 }
+      );
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    const userRes = await query(
+      `
+      INSERT INTO users (
+        id,
+        email,
+        username,
+        username_normalized,
+        password_hash,
+        birthdate
+      )
+      VALUES (gen_random_uuid(), $1, $2, $3, $4, $5)
+      RETURNING id
+      `,
+      [email, username, usernameNormalized, passwordHash, birthdate]
+    );
+
+    const userId = userRes.rows[0].id;
+    const tenantId = crypto.randomUUID();
+
+    await query(
+      `INSERT INTO tenants (id, name) VALUES ($1, $2)`,
+      [tenantId, `${username}'s Account`]
+    );
+
+    await query(
+      `
+      INSERT INTO tenant_users (
+        user_id,
+        tenant_id,
+        role,
+        created_at
+      )
+      VALUES ($1, $2, 'owner', NOW())
+      `,
+      [userId, tenantId]
+    );
+
+    await query("COMMIT");
+
+    // ✅ Stateless signed cookie (Option A)
+    const token = signSession({ userId, tenantId });
+
+    const res = NextResponse.json({
+      ok: true,
+      debug: { userId, tenantId },
+    });
+
+    res.cookies.set("lw_session", token, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 30,
+    });
+
+    return res;
+  } catch (err) {
+    try {
+      await query("ROLLBACK");
+    } catch {}
+
+    console.error("SIGNUP FAILED:", err);
+
+    return NextResponse.json(
+      {
+        code: "SIGNUP_FAILED",
+        message: err?.message || "Internal signup error",
+      },
+      { status: 500 }
+    );
   }
-
-  return (
-    <main className="lw-main">
-      <div className="lw-auth">
-
-        {/* BRAND */}
-        <div className="lw-brand">
-          <img
-            src="/lanternwave-logo.png"
-            alt="Lanternwave"
-            className="lw-brand-logo"
-          />
-          <div className="lw-brand-text">LANTERNWAVE</div>
-        </div>
-
-        {/* CARD */}
-        <div className="lw-auth-card">
-          <h1 className="lw-auth-title">Create Account</h1>
-
-          <form onSubmit={handleSubmit} className="lw-auth-form">
-            <input
-              type="email"
-              placeholder="Email"
-              autoComplete="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="lw-auth-input"
-            />
-
-            <input
-              type="text"
-              placeholder="Username"
-              autoComplete="username"
-              required
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="lw-auth-input"
-            />
-
-            <input
-              type="password"
-              placeholder="Password"
-              autoComplete="new-password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="lw-auth-input"
-            />
-
-            <input
-              type="date"
-              required
-              value={birthdate}
-              onChange={(e) => setBirthdate(e.target.value)}
-              className="lw-auth-input"
-            />
-
-            {error && <div className="lw-auth-error">{error}</div>}
-
-            <button
-              type="submit"
-              className="lw-auth-submit"
-              disabled={loading}
-            >
-              {loading ? "Creating Account…" : "Create Account"}
-            </button>
-          </form>
-
-          <div className="lw-auth-links">
-            <a href="/" className="lw-auth-link">
-              Back to Sign In
-            </a>
-          </div>
-        </div>
-      </div>
-    </main>
-  );
 }
