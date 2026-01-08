@@ -1,200 +1,130 @@
-import { NextResponse } from "next/server";
-import { query } from "@/lib/db";
-import { v4 as uuid } from "uuid";
+"use client";
 
-export const runtime = "nodejs";
+import { useEffect, useRef, useState } from "react";
+import "./account.css";
+
 export const dynamic = "force-dynamic";
 
-/* -------------------------------------------------
-   GET /api/account (DEBUG ENABLED)
--------------------------------------------------- */
-export async function GET(req) {
-  // 🔍 DEBUG — safe because req exists here
-  const debug = {
-    cookieHeader: req.headers.get("cookie"),
-    userAgent: req.headers.get("user-agent"),
+export default function AccountPage() {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [username, setUsername] = useState(null);
+
+  // ✅ Server-backed Beacons
+  const [beacons, setBeacons] = useState({});
+
+  const loadingRef = useRef(false);
+
+  /* ------------------------------
+     Load account + beacons
+  ------------------------------ */
+  useEffect(() => {
+    if (loadingRef.current) return;
+    loadingRef.current = true;
+
+    async function load() {
+      try {
+        const [accountRes, beaconRes] = await Promise.all([
+          fetch("/api/account", {
+            credentials: "include",
+            cache: "no-store",
+          }),
+          fetch("/api/beacons", {
+            credentials: "include",
+            cache: "no-store",
+          }),
+        ]);
+
+        if (!accountRes.ok) throw new Error("Failed to load account");
+
+        const accountData = await accountRes.json();
+        if (!accountData?.account?.username) {
+          throw new Error("Invalid account response");
+        }
+
+        setUsername(accountData.account.username);
+
+        if (beaconRes.ok) {
+          const beaconData = await beaconRes.json();
+          setBeacons(beaconData?.beacons ?? {});
+        } else {
+          setBeacons({});
+        }
+      } catch (err) {
+        console.error("ACCOUNT LOAD ERROR:", err);
+        setError("Unable to load account details.");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    load();
+  }, []);
+
+  /* ------------------------------
+     Update Beacon (optimistic)
+  ------------------------------ */
+  const updateBeacon = (key, enabled) => {
+    // Optimistic UI
+    setBeacons((prev) => ({ ...prev, [key]: enabled }));
+
+    fetch("/api/beacons", {
+      method: "PUT",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key, enabled }),
+    }).catch((err) => {
+      console.error("Beacon update failed:", err);
+    });
   };
 
-  console.log("🧪 /api/account DEBUG", debug);
+  return (
+    <div className="account-page">
+      <main className="account-content">
+        <h1 className="account-title">My Account</h1>
 
-  let session;
-  try {
-    session = await requireAuth();
-  } catch (err) {
-    console.warn("🛑 AUTH FAILED", {
-      ...debug,
-      error: err?.message,
-    });
+        {loading && (
+          <div className="account-panel account-skeleton">
+            <div className="account-row">
+              <span className="account-label skeleton-box" />
+              <span className="account-value skeleton-box wide" />
+            </div>
+          </div>
+        )}
 
-    return NextResponse.json(
-      {
-        ok: false,
-        error: "Unauthorized",
-        debug,
-      },
-      { status: 401 }
-    );
-  }
+        {!loading && !error && (
+          <>
+            {/* ---------------- Account ---------------- */}
+            <div className="account-panel">
+              <div className="account-row">
+                <span className="account-label">Username</span>
+                <span className="account-value">{username}</span>
+              </div>
+            </div>
 
-  try {
-    const tenantId = session.tenant_id;
-    const userId = session.id;
+            {/* ---------------- Beacons ---------------- */}
+            <h2 className="account-section-title">Beacons</h2>
+            <div className="account-panel beacons-panel">
+              <div className="account-row">
+                <label className="account-label">
+                  <span className="beacon-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={!!beacons.player_characters}
+                      onChange={(e) =>
+                        updateBeacon("player_characters", e.target.checked)
+                      }
+                    />
+                  </span>
+                  Player Characters
+                </label>
+              </div>
+            </div>
+          </>
+        )}
 
-    const { rows } = await query(
-      `
-      SELECT beacons
-        FROM account_preferences
-       WHERE tenant_id = $1
-         AND user_id   = $2
-       ORDER BY updated_at DESC
-       LIMIT 1
-      `,
-      [tenantId, userId]
-    );
-
-    return NextResponse.json({
-      ok: true,
-      account: {
-        username: session.username,
-        beacons: rows[0]?.beacons ?? {},
-      },
-      debug,
-    });
-  } catch (err) {
-    console.error("🔥 ACCOUNT GET ERROR", {
-      ...debug,
-      error: err,
-    });
-
-    return NextResponse.json(
-      {
-        ok: false,
-        error: "Failed to load account",
-        debug,
-      },
-      { status: 500 }
-    );
-  }
+        {error && <div className="account-error">{error}</div>}
+      </main>
+    </div>
+  );
 }
-
-/* -------------------------------------------------
-   PUT /api/account
--------------------------------------------------- */
-export async function PUT(req) {
-  let session;
-  try {
-    session = await requireAuth();
-  } catch {
-    return NextResponse.json(
-      { ok: false, error: "Unauthorized" },
-      { status: 401 }
-    );
-  }
-
-  try {
-    const tenantId = session.tenant_id;
-    const userId = session.id;
-
-    const { key, enabled } = await req.json();
-
-    if (!key || typeof enabled !== "boolean") {
-      return NextResponse.json(
-        { ok: false, error: "Invalid beacon update" },
-        { status: 400 }
-      );
-    }
-
-    const update = await query(
-      `
-      UPDATE account_preferences
-         SET beacons = COALESCE(beacons, '{}'::jsonb)
-                       || jsonb_build_object($1::text, $2::boolean),
-             updated_at = NOW()
-       WHERE tenant_id = $3
-         AND user_id   = $4
-       RETURNING beacons
-      `,
-      [key, enabled, tenantId, userId]
-    );
-
-    if (update.rows.length) {
-      return NextResponse.json({
-        ok: true,
-        beacons: update.rows[0].beacons,
-      });
-    }
-
-    const insert = await query(
-      `
-      INSERT INTO account_preferences (
-        id, tenant_id, user_id, beacons, updated_at
-      )
-      VALUES (
-        $1, $2, $3,
-        jsonb_build_object($4::text, $5::boolean),
-        NOW()
-      )
-      RETURNING beacons
-      `,
-      [uuid(), tenantId, userId, key, enabled]
-    );
-
-    return NextResponse.json({
-      ok: true,
-      beacons: insert.rows[0]?.beacons ?? {},
-    });
-  } catch (err) {
-    console.error("🔥 ACCOUNT PUT ERROR", err);
-    return NextResponse.json(
-      { ok: false, error: "Failed to update beacon" },
-      { status: 500 }
-    );
-  }
-}
-
-/* -------------------------------------------------
-   POST /api/account
--------------------------------------------------- */
-export async function POST(req) {
-  let session;
-  try {
-    session = await requireAuth();
-  } catch {
-    return NextResponse.json(
-      { error: "Unauthorized" },
-      { status: 401 }
-    );
-  }
-
-  try {
-    const tenantId = session.tenant_id;
-
-    const formData = await req.formData();
-    const file = formData.get("file");
-
-    if (!file) {
-      return NextResponse.json(
-        { error: "No file received" },
-        { status: 400 }
-      );
-    }
-
-    const buffer = Buffer.from(await file.arrayBuffer());
-
-    const { ingestAdventureCodex } = await import("@/lib/ai/orchestrator");
-
-    const result = await ingestAdventureCodex({
-      buffer,
-      tenantId,
-    });
-
-    return NextResponse.json({ success: true, result });
-  } catch (err) {
-    console.error("🔥 ACCOUNT POST ERROR", err);
-    return NextResponse.json(
-      { error: err?.message || "Internal server error" },
-      { status: 500 }
-    );
-  }
-}
-
