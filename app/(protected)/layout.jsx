@@ -1,48 +1,25 @@
 import { cookies, headers } from "next/headers";
-import ProtectedHeader from "@/components/ProtectedHeader";
-import Footer from "@/components/Footer";
-import { GlobalAudioProvider } from "@/components/GlobalAudio";
+import ProtectedClientProviders from "@/components/ProtectedClientProviders";
 
 export const dynamic = "force-dynamic";
 
-export default async function ProtectedLayout({ children }) {
-  let hasSession = false;
-  let authError = null;
-
-  // ✅ Correct stores
+export default function ProtectedLayout({ children }) {
   const cookieStore = cookies();
   const headerStore = headers();
 
-  // 🔍 Collect low-level request info (SAFE in Server Components)
-  const debug = {
-    cookies: cookieStore.getAll().map((c) => ({
-      name: c.name,
-      preview: c.value?.slice(0, 12) + "…",
-    })),
-    userAgent: headerStore.get("user-agent"),
-    host: headerStore.get("host"),
-  };
+  let hasSession = false;
 
   try {
-    // Layouts cannot validate auth — only check presence
     const lw = cookieStore.get("lw_session");
-    hasSession = !!lw;
+    hasSession = !!lw?.value;
   } catch (err) {
-    authError = {
-      message: err?.message || String(err),
-      name: err?.name,
-    };
-
-    console.error("🛑 PROTECTED LAYOUT COOKIE CHECK FAILED", {
-      authError,
-      debug,
-    });
+    console.error("❌ Protected layout cookie error", err);
   }
 
-  // 🚨 DEBUG MODE: show screen instead of redirect
+  // 🔒 No session → block protected pages
   if (!hasSession) {
     return (
-      <html>
+      <html lang="en">
         <body
           style={{
             background: "#0b0b0b",
@@ -51,24 +28,27 @@ export default async function ProtectedLayout({ children }) {
             padding: 24,
           }}
         >
-          <h1>🛑 Protected Layout: No Session Cookie</h1>
+          <h1>Unauthorized</h1>
+          <p>No session cookie found.</p>
 
-          <h2>Auth Error</h2>
-          <pre>{JSON.stringify(authError, null, 2)}</pre>
+          <pre style={{ marginTop: 16 }}>
+            {JSON.stringify(
+              {
+                cookies: cookieStore.getAll().map((c) => ({
+                  name: c.name,
+                  preview: c.value?.slice(0, 12) + "…",
+                })),
+                host: headerStore.get("host"),
+                ua: headerStore.get("user-agent"),
+              },
+              null,
+              2
+            )}
+          </pre>
 
-          <h2>Request Debug</h2>
-          <pre>{JSON.stringify(debug, null, 2)}</pre>
-
-          <h2>What this means</h2>
-          <ul>
-            <li>The lw_session cookie is missing</li>
-            <li>Login/signup did not set a cookie</li>
-            <li>OR cookie is not visible to Server Components</li>
-          </ul>
-
-          <p>
+          <p style={{ marginTop: 16 }}>
             <a href="/login" style={{ color: "#6cc5f0" }}>
-              ← Back to Login
+              ← Back to login
             </a>
           </p>
         </body>
@@ -76,12 +56,7 @@ export default async function ProtectedLayout({ children }) {
     );
   }
 
-  // ✅ Cookie present → allow render
-  return (
-    <GlobalAudioProvider>
-      <ProtectedHeader />
-      <main className="lw-main">{children}</main>
-      <Footer variant="protected" />
-    </GlobalAudioProvider>
-  );
+  // ✅ Server → Client boundary happens here
+  return <ProtectedClientProviders>{children}</ProtectedClientProviders>;
 }
+
