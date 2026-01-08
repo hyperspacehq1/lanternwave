@@ -1,18 +1,22 @@
 import { query } from "@/lib/db";
+import { getTenantContext } from "@/lib/tenant/getTenantContext";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// Alert cooldown in minutes
 const ALERT_COOLDOWN_MINUTES = 60;
 const ALERT_KEY = "db-health";
 
 export async function GET(req) {
   try {
-    const session = await getTenantContext(req);
-    if (!session) {
+    let ctx;
+    try {
+      ctx = await getTenantContext(req);
+    } catch {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const tenantId = ctx.tenantId;
 
     // -------------------------------------------------
     // Health Checks
@@ -48,10 +52,6 @@ export async function GET(req) {
       FROM pg_stat_database
     `);
 
-    // -------------------------------------------------
-    // Evaluate alert conditions
-    // -------------------------------------------------
-
     const alerts = [];
 
     if (activeResult.rows[0].count > 10) {
@@ -69,10 +69,6 @@ export async function GET(req) {
     if (longRunning.rows.length > 0) {
       alerts.push(`Long-running queries detected: ${longRunning.rows.length}`);
     }
-
-    // -------------------------------------------------
-    // Alert cooldown
-    // -------------------------------------------------
 
     let shouldSendAlert = false;
 
@@ -94,10 +90,6 @@ export async function GET(req) {
         }
       }
     }
-
-    // -------------------------------------------------
-    // Send alert (LAZY IMPORT)
-    // -------------------------------------------------
 
     if (alerts.length && shouldSendAlert) {
       const { sendPasswordResetEmail } = await import("@/lib/email");

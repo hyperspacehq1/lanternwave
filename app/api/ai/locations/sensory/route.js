@@ -1,3 +1,5 @@
+import { query } from "@/lib/db";
+import { getTenantContext } from "@/lib/tenant/getTenantContext";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,6 +12,7 @@ function clampWords(s, maxWords) {
     .trim()
     .split(/\s+/)
     .filter(Boolean);
+
   return words.length <= maxWords
     ? words.join(" ")
     : words.slice(0, maxWords).join(" ");
@@ -40,15 +43,23 @@ export async function POST(req) {
     return json(400, { error: "location_id is required" });
   }
 
-  // 🔐 Auth REQUIRED
-  const ctx = await getTenantContext(req);
-  if (!session?.tenant) {
+  // 🔐 Auth REQUIRED (Pattern A)
+  let ctx;
+  try {
+    ctx = await getTenantContext(req);
+  } catch {
     return json(401, { error: "Unauthorized" });
   }
 
   const tenantId = ctx.tenantId;
 
-  // Rate limit
+  if (!tenantId) {
+    return json(401, { error: "Missing tenant context" });
+  }
+
+  // -------------------------------------------------
+  // Rate limit (per tenant, 24h window)
+  // -------------------------------------------------
   const { rows } = await query(
     `
     SELECT COUNT(*)::int AS count
@@ -56,7 +67,7 @@ export async function POST(req) {
     WHERE tenant_id = $1
       AND created_at > NOW() - INTERVAL '24 hours'
     `,
-    [tenant.id]
+    [tenantId]
   );
 
   if (rows[0].count >= 50) {
@@ -67,12 +78,16 @@ export async function POST(req) {
   }
 
   await query(
-    `INSERT INTO tenant_ai_usage (tenant_id, action)
-     VALUES ($1, 'sensory')`,
-    [tenant.id]
+    `
+    INSERT INTO tenant_ai_usage (tenant_id, action)
+    VALUES ($1, 'sensory')
+    `,
+    [tenantId]
   );
 
-  // Lazy imports (build-safe)
+  // -------------------------------------------------
+  // Lazy AI imports (build-safe)
+  // -------------------------------------------------
   const { loadLocationContext } = await import(
     "@/lib/ai/loaders/loadLocationContext"
   );
@@ -87,7 +102,7 @@ export async function POST(req) {
   );
 
   const { campaign, location } = await loadLocationContext({
-    tenantId: tenant.id,
+    tenantId,
     locationId,
     expectedCampaignId,
   });

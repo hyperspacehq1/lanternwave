@@ -1,15 +1,17 @@
+import { query } from "@/lib/db";
+import { getTenantContext } from "@/lib/tenant/getTenantContext";
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-import { query } from "@/lib/db";
 
 export async function POST(req) {
   console.log("🚀 /api/admin/module-integrator called");
 
   try {
-    // 🔐 Auth required
-    const ctx = await getTenantContext(req);
-    if (!session || !session.tenant_id) {
+    let ctx;
+    try {
+      ctx = await getTenantContext(req);
+    } catch {
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
         { status: 401 }
@@ -22,53 +24,29 @@ export async function POST(req) {
     const file = formData.get("file");
 
     if (!file) {
-      console.error("❌ No file uploaded");
       return new Response(
         JSON.stringify({ error: "No file uploaded" }),
         { status: 400 }
       );
     }
 
-    console.log("📄 File received:", file.name, file.size);
-
     const buffer = Buffer.from(await file.arrayBuffer());
 
-    console.log("🧠 Starting ingestion…");
-
-    // ✅ LAZY IMPORT (BUILD SAFE)
     const { ingestAdventureCodex } = await import(
       "@/lib/ai/orchestrator"
     );
 
-    let result;
-    try {
-      result = await ingestAdventureCodex({
-        buffer,
-        tenantId,
-      });
-    } catch (err) {
-      console.error("🔥 ingestAdventureCodex FAILED:", err);
-      return new Response(
-        JSON.stringify({
-          error: "Ingest failed",
-          details: err?.message || String(err),
-        }),
-        { status: 500 }
-      );
-    }
+    const result = await ingestAdventureCodex({
+      buffer,
+      tenantId,
+    });
 
     if (!result || !result.title) {
-      console.error("❌ Invalid ingest result:", result);
       return new Response(
-        JSON.stringify({
-          error: "Ingest returned no usable data",
-          result,
-        }),
+        JSON.stringify({ error: "Invalid ingest result" }),
         { status: 500 }
       );
     }
-
-    console.log("💾 Writing campaign to DB…");
 
     const insertResult = await query(
       `
@@ -90,8 +68,6 @@ export async function POST(req) {
         result.rpg_game ?? null,
       ]
     );
-
-    console.log("✅ Campaign inserted:", insertResult.rows[0]);
 
     return new Response(
       JSON.stringify({

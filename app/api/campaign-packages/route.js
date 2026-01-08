@@ -6,24 +6,9 @@ export const dynamic = "force-dynamic";
 /* -------------------------------------------------
    GET /api/campaign-packages
    Used to populate Campaign creation dropdown
+   PUBLIC / NO AUTH REQUIRED
 -------------------------------------------------- */
-export async function GET(req) {
-  // Auth required (same pattern as campaigns)
-  let tenantId = null;
-try {
-  const session = await requireAuth();
-if (!session) {
-  return Response.json({ error: "Unauthorized" }, { status: 401 });
-}
-
-const tenantId = session.tenant_id;
-} catch {
-  // intentionally allow unauthenticated access
-}
-
-  /* ---------------------------------------------
-     Fetch Adventure Codex templates
-  --------------------------------------------- */
+export async function GET() {
   const { rows } = await query(
     `
     SELECT
@@ -38,9 +23,6 @@ const tenantId = session.tenant_id;
     `
   );
 
-  /* ---------------------------------------------
-     Always include Standard (no codex)
-  --------------------------------------------- */
   const packages = [
     {
       value: "standard",
