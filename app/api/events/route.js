@@ -13,13 +13,14 @@ function hasOwn(obj, key) {
    GET /api/events
 ------------------------------------------------------------ */
 export async function GET(req) {
-  const ctx = await getTenantContext(req);
-  const tenantId = ctx?.tenantId;
-
-  if (!tenantId) {
+  let ctx;
+  try {
+    ctx = await getTenantContext(req);
+  } catch {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
 
+  const tenantId = ctx.tenantId;
   const { searchParams } = new URL(req.url);
   const campaignId = searchParams.get("campaign_id");
   const id = searchParams.get("id");
@@ -75,13 +76,14 @@ export async function GET(req) {
    POST /api/events
 ------------------------------------------------------------ */
 export async function POST(req) {
-  const ctx = await getTenantContext(req);
-  const tenantId = ctx?.tenantId;
-
-  if (!tenantId) {
+  let ctx;
+  try {
+    ctx = await getTenantContext(req);
+  } catch {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
 
+  const tenantId = ctx.tenantId;
   const body = await req.json();
 
   const campaignId = body.campaign_id ?? body.campaignId ?? null;
@@ -104,39 +106,24 @@ export async function POST(req) {
 
   if (hasOwn(body, "description")) {
     if (typeof description !== "string" && description !== null) {
-      return Response.json(
-        { error: "description must be a string" },
-        { status: 400 }
-      );
+      return Response.json({ error: "description must be a string" }, { status: 400 });
     }
     if (description && description.length > 20000) {
-      return Response.json(
-        { error: "description too long" },
-        { status: 400 }
-      );
+      return Response.json({ error: "description too long" }, { status: 400 });
     }
   }
 
   if (hasOwn(body, "search_body") || hasOwn(body, "searchBody")) {
     if (typeof searchBody !== "string" && searchBody !== null) {
-      return Response.json(
-        { error: "search_body must be a string" },
-        { status: 400 }
-      );
+      return Response.json({ error: "search_body must be a string" }, { status: 400 });
     }
     if (searchBody && searchBody.length > 20000) {
-      return Response.json(
-        { error: "search_body too long" },
-        { status: 400 }
-      );
+      return Response.json({ error: "search_body too long" }, { status: 400 });
     }
   }
 
   if (!Number.isInteger(priority)) {
-    return Response.json(
-      { error: "priority must be an integer" },
-      { status: 400 }
-    );
+    return Response.json({ error: "priority must be an integer" }, { status: 400 });
   }
 
   const { rows } = await query(
@@ -182,13 +169,14 @@ export async function POST(req) {
    PUT /api/events?id=
 ------------------------------------------------------------ */
 export async function PUT(req) {
-  const ctx = await getTenantContext(req);
-  const tenantId = ctx?.tenantId;
-
-  if (!tenantId) {
+  let ctx;
+  try {
+    ctx = await getTenantContext(req);
+  } catch {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
 
+  const tenantId = ctx.tenantId;
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
   const body = await req.json();
@@ -199,55 +187,34 @@ export async function PUT(req) {
 
   if (hasOwn(body, "name")) {
     if (!body.name || !String(body.name).trim()) {
-      return Response.json(
-        { error: "name cannot be blank" },
-        { status: 400 }
-      );
+      return Response.json({ error: "name cannot be blank" }, { status: 400 });
     }
     if (String(body.name).length > 200) {
-      return Response.json(
-        { error: "name max 200 chars" },
-        { status: 400 }
-      );
+      return Response.json({ error: "name max 200 chars" }, { status: 400 });
     }
   }
 
   if (hasOwn(body, "description")) {
     if (typeof body.description !== "string" && body.description !== null) {
-      return Response.json(
-        { error: "description must be a string" },
-        { status: 400 }
-      );
+      return Response.json({ error: "description must be a string" }, { status: 400 });
     }
     if (body.description && body.description.length > 20000) {
-      return Response.json(
-        { error: "description too long" },
-        { status: 400 }
-      );
+      return Response.json({ error: "description too long" }, { status: 400 });
     }
   }
 
   if (hasOwn(body, "search_body") || hasOwn(body, "searchBody")) {
     const sb = body.search_body ?? body.searchBody;
     if (typeof sb !== "string" && sb !== null) {
-      return Response.json(
-        { error: "search_body must be a string" },
-        { status: 400 }
-      );
+      return Response.json({ error: "search_body must be a string" }, { status: 400 });
     }
     if (sb && sb.length > 20000) {
-      return Response.json(
-        { error: "search_body too long" },
-        { status: 400 }
-      );
+      return Response.json({ error: "search_body too long" }, { status: 400 });
     }
   }
 
   if (hasOwn(body, "priority") && !Number.isInteger(body.priority)) {
-    return Response.json(
-      { error: "priority must be an integer" },
-      { status: 400 }
-    );
+    return Response.json({ error: "priority must be an integer" }, { status: 400 });
   }
 
   const sets = [];
@@ -272,10 +239,7 @@ export async function PUT(req) {
   }
 
   if (!sets.length) {
-    return Response.json(
-      { error: "No fields to update" },
-      { status: 400 }
-    );
+    return Response.json({ error: "No fields to update" }, { status: 400 });
   }
 
   const { rows } = await query(
@@ -303,16 +267,17 @@ export async function PUT(req) {
 }
 
 /* -----------------------------------------------------------
-   DELETE /api/events?id=
+   DELETE /api/events?id=   (SOFT DELETE)
 ------------------------------------------------------------ */
 export async function DELETE(req) {
-  const ctx = await getTenantContext(req);
-  const tenantId = ctx?.tenantId;
-
-  if (!tenantId) {
+  let ctx;
+  try {
+    ctx = await getTenantContext(req);
+  } catch {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
 
+  const tenantId = ctx.tenantId;
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
 

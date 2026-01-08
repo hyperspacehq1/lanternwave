@@ -1,9 +1,10 @@
 // ==============================
-// /api/npcs/route.js  (FULL, FIXED)
+// /api/npcs/route.js  (FULL, FIXED - Pattern A)
 // ==============================
 
 import { sanitizeRow, sanitizeRows } from "@/lib/api/sanitize";
 import { query } from "@/lib/db";
+import { getTenantContext } from "@/lib/tenant/getTenantContext";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,12 +28,14 @@ function validateString(val, max, field) {
    GET /api/npcs
 ------------------------------------------------------------ */
 export async function GET(req) {
-  const session = await getTenantContext(req);
-if (!session) {
-  return Response.json({ error: "Unauthorized" }, { status: 401 });
-}
+  let ctx;
+  try {
+    ctx = await getTenantContext(req);
+  } catch {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-const tenantId = session.tenant_id;
+  const tenantId = ctx.tenantId;
   const { searchParams } = new URL(req.url);
   const campaignId = searchParams.get("campaign_id");
 
@@ -66,12 +69,14 @@ const tenantId = session.tenant_id;
    POST /api/npcs
 ------------------------------------------------------------ */
 export async function POST(req) {
-  const session = await getTenantContext(req);
-if (!session) {
-  return Response.json({ error: "Unauthorized" }, { status: 401 });
-}
+  let ctx;
+  try {
+    ctx = await getTenantContext(req);
+  } catch {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-const tenantId = session.tenant_id;
+  const tenantId = ctx.tenantId;
   const body = await req.json();
 
   const campaignId = body.campaign_id ?? body.campaignId ?? null;
@@ -152,12 +157,14 @@ const tenantId = session.tenant_id;
    PUT /api/npcs?id=
 ------------------------------------------------------------ */
 export async function PUT(req) {
-  const session = await getTenantContext(req);
-if (!session) {
-  return Response.json({ error: "Unauthorized" }, { status: 401 });
-}
+  let ctx;
+  try {
+    ctx = await getTenantContext(req);
+  } catch {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-const tenantId = session.tenant_id;
+  const tenantId = ctx.tenantId;
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
   const body = await req.json();
@@ -181,10 +188,7 @@ const tenantId = session.tenant_id;
     for (const key in fields) {
       if (hasOwn(body, key)) {
         if (body[key] !== null) validateString(body[key], fields[key], key);
-        const col =
-          key === "factionAlignment"
-            ? "faction_alignment"
-            : key;
+        const col = key === "factionAlignment" ? "faction_alignment" : key;
         sets.push(`${col} = $${i++}`);
         values.push(body[key] ?? null);
       }
@@ -200,10 +204,7 @@ const tenantId = session.tenant_id;
     }
 
     if (!sets.length) {
-      return Response.json(
-        { error: "No valid fields provided" },
-        { status: 400 }
-      );
+      return Response.json({ error: "No valid fields provided" }, { status: 400 });
     }
 
     const { rows } = await query(
@@ -234,4 +235,48 @@ const tenantId = session.tenant_id;
   } catch (e) {
     return Response.json({ error: e.message }, { status: 400 });
   }
+}
+
+/* -----------------------------------------------------------
+   DELETE /api/npcs?id=   (SOFT DELETE)
+------------------------------------------------------------ */
+export async function DELETE(req) {
+  let ctx;
+  try {
+    ctx = await getTenantContext(req);
+  } catch {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const tenantId = ctx.tenantId;
+  const { searchParams } = new URL(req.url);
+  const id = searchParams.get("id");
+
+  if (!id) return Response.json({ error: "id required" }, { status: 400 });
+
+  const { rows } = await query(
+    `
+    UPDATE npcs
+       SET deleted_at = NOW(),
+           updated_at = NOW()
+     WHERE tenant_id = $1
+       AND id = $2
+       AND deleted_at IS NULL
+     RETURNING *
+    `,
+    [tenantId, id]
+  );
+
+  return Response.json(
+    rows[0]
+      ? sanitizeRow(rows[0], {
+          name: 120,
+          description: 10000,
+          goals: 10000,
+          secrets: 10000,
+          notes: 500,
+          factionAlignment: 120,
+        })
+      : null
+  );
 }

@@ -1,9 +1,6 @@
-// ==============================
-// /api/players/[id]/route.js  (FULL, FIXED)
-// ==============================
-
 import { sanitizeRow } from "@/lib/api/sanitize";
 import { query } from "@/lib/db";
+import { getTenantContext } from "@/lib/tenant/getTenantContext";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -31,12 +28,14 @@ function validateOptionalString(val, max, field) {
    GET /api/players/[id]
 ------------------------------------------------------------ */
 export async function GET(req, { params }) {
-  const session = await getTenantContext(req);
-if (!session) {
-  return Response.json({ error: "Unauthorized" }, { status: 401 });
-}
+  let ctx;
+  try {
+    ctx = await getTenantContext(req);
+  } catch {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-const tenantId = ctx.tenantId;
+  const tenantId = ctx.tenantId;
   const id = params?.id;
 
   if (!id) return Response.json({ error: "id required" }, { status: 400 });
@@ -71,12 +70,14 @@ const tenantId = ctx.tenantId;
    PUT /api/players/[id]
 ------------------------------------------------------------ */
 export async function PUT(req, { params }) {
-  const session = await getTenantContext(req);
-if (!session) {
-  return Response.json({ error: "Unauthorized" }, { status: 401 });
-}
+  let ctx;
+  try {
+    ctx = await getTenantContext(req);
+  } catch {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-const tenantId = ctx.tenantId;
+  const tenantId = ctx.tenantId;
   const id = params?.id;
   const body = await req.json();
 
@@ -121,7 +122,7 @@ const tenantId = ctx.tenantId;
        WHERE tenant_id = $1
          AND id = $2
          AND deleted_at IS NULL
-     RETURNING *
+       RETURNING *
       `,
       values
     );
@@ -147,12 +148,14 @@ const tenantId = ctx.tenantId;
    DELETE /api/players/[id]   (SOFT DELETE)
 ------------------------------------------------------------ */
 export async function DELETE(req, { params }) {
-  const session = await getTenantContext(req);
-if (!session) {
-  return Response.json({ error: "Unauthorized" }, { status: 401 });
-}
+  let ctx;
+  try {
+    ctx = await getTenantContext(req);
+  } catch {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-const tenantId = ctx.tenantId;
+  const tenantId = ctx.tenantId;
   const id = params?.id;
 
   if (!id) return Response.json({ error: "id required" }, { status: 400 });

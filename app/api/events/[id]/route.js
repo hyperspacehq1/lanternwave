@@ -13,13 +13,15 @@ function hasOwn(obj, key) {
    GET /api/events/[id]
 ------------------------------------------------------------ */
 export async function GET(req, { params }) {
-  const ctx = await getTenantContext(req);
-  const tenantId = ctx?.tenantId;
-  const id = params?.id;
-
-  if (!tenantId) {
+  let ctx;
+  try {
+    ctx = await getTenantContext(req);
+  } catch {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
+
+  const tenantId = ctx.tenantId;
+  const id = params?.id;
 
   if (!id) {
     return Response.json({ error: "id required" }, { status: 400 });
@@ -52,14 +54,16 @@ export async function GET(req, { params }) {
    PUT /api/events/[id]
 ------------------------------------------------------------ */
 export async function PUT(req, { params }) {
-  const ctx = await getTenantContext(req);
-  const tenantId = ctx?.tenantId;
-  const id = params?.id;
-  const body = await req.json();
-
-  if (!tenantId) {
+  let ctx;
+  try {
+    ctx = await getTenantContext(req);
+  } catch {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
+
+  const tenantId = ctx.tenantId;
+  const id = params?.id;
+  const body = await req.json();
 
   if (!id) {
     return Response.json({ error: "id required" }, { status: 400 });
@@ -76,40 +80,25 @@ export async function PUT(req, { params }) {
 
   if (hasOwn(body, "description")) {
     if (typeof body.description !== "string" && body.description !== null) {
-      return Response.json(
-        { error: "description must be a string" },
-        { status: 400 }
-      );
+      return Response.json({ error: "description must be a string" }, { status: 400 });
     }
     if (body.description && body.description.length > 20000) {
-      return Response.json(
-        { error: "description too long" },
-        { status: 400 }
-      );
+      return Response.json({ error: "description too long" }, { status: 400 });
     }
   }
 
   if (hasOwn(body, "search_body") || hasOwn(body, "searchBody")) {
     const sb = body.search_body ?? body.searchBody;
     if (typeof sb !== "string" && sb !== null) {
-      return Response.json(
-        { error: "search_body must be a string" },
-        { status: 400 }
-      );
+      return Response.json({ error: "search_body must be a string" }, { status: 400 });
     }
     if (sb && sb.length > 20000) {
-      return Response.json(
-        { error: "search_body too long" },
-        { status: 400 }
-      );
+      return Response.json({ error: "search_body too long" }, { status: 400 });
     }
   }
 
   if (hasOwn(body, "priority") && !Number.isInteger(body.priority)) {
-    return Response.json(
-      { error: "priority must be an integer" },
-      { status: 400 }
-    );
+    return Response.json({ error: "priority must be an integer" }, { status: 400 });
   }
 
   const sets = [];
@@ -162,16 +151,18 @@ export async function PUT(req, { params }) {
 }
 
 /* -----------------------------------------------------------
-   DELETE /api/events/[id]
+   DELETE /api/events/[id]   (SOFT DELETE)
 ------------------------------------------------------------ */
 export async function DELETE(req, { params }) {
-  const ctx = await getTenantContext(req);
-  const tenantId = ctx?.tenantId;
-  const id = params?.id;
-
-  if (!tenantId) {
+  let ctx;
+  try {
+    ctx = await getTenantContext(req);
+  } catch {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
+
+  const tenantId = ctx.tenantId;
+  const id = params?.id;
 
   if (!id) {
     return Response.json({ error: "id required" }, { status: 400 });

@@ -1,10 +1,7 @@
-// ==============================
-// /api/players/route.js  (FULL, FIXED)
-// ==============================
-
 import { sanitizeRow, sanitizeRows } from "@/lib/api/sanitize";
 import { query } from "@/lib/db";
 import { v4 as uuid } from "uuid";
+import { getTenantContext } from "@/lib/tenant/getTenantContext";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -32,12 +29,14 @@ function validateOptionalString(val, max, field) {
    GET /api/players
 ------------------------------------------------------------ */
 export async function GET(req) {
-  const session = await getTenantContext(req);
-if (!session) {
-  return Response.json({ error: "Unauthorized" }, { status: 401 });
-}
+  let ctx;
+  try {
+    ctx = await getTenantContext(req);
+  } catch {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-const tenantId = ctx.tenantId;
+  const tenantId = ctx.tenantId;
   const { searchParams } = new URL(req.url);
   const campaignId = searchParams.get("campaign_id");
 
@@ -71,12 +70,14 @@ const tenantId = ctx.tenantId;
    POST /api/players
 ------------------------------------------------------------ */
 export async function POST(req) {
-  const session = await getTenantContext(req);
-if (!session) {
-  return Response.json({ error: "Unauthorized" }, { status: 401 });
-}
+  let ctx;
+  try {
+    ctx = await getTenantContext(req);
+  } catch {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-const tenantId = ctx.tenantId;
+  const tenantId = ctx.tenantId;
   const body = await req.json();
 
   const campaignId = body.campaign_id ?? body.campaignId ?? null;
@@ -107,23 +108,9 @@ const tenantId = ctx.tenantId;
       "character_name"
     );
 
-    const notes = validateOptionalString(
-      body.notes,
-      2000,
-      "notes"
-    );
-
-    const phone = validateOptionalString(
-      body.phone,
-      50,
-      "phone"
-    );
-
-    const email = validateOptionalString(
-      body.email,
-      120,
-      "email"
-    );
+    const notes = validateOptionalString(body.notes, 2000, "notes");
+    const phone = validateOptionalString(body.phone, 50, "phone");
+    const email = validateOptionalString(body.email, 120, "email");
 
     const { rows } = await query(
       `
@@ -174,19 +161,19 @@ const tenantId = ctx.tenantId;
    PUT /api/players?id=
 ------------------------------------------------------------ */
 export async function PUT(req) {
-  const session = await getTenantContext(req);
-if (!session) {
-  return Response.json({ error: "Unauthorized" }, { status: 401 });
-}
+  let ctx;
+  try {
+    ctx = await getTenantContext(req);
+  } catch {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-const tenantId = ctx.tenantId;
+  const tenantId = ctx.tenantId;
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
   const body = await req.json();
 
-  if (!id) {
-    return Response.json({ error: "id required" }, { status: 400 });
-  }
+  if (!id) return Response.json({ error: "id required" }, { status: 400 });
 
   try {
     const sets = [];
@@ -253,18 +240,18 @@ const tenantId = ctx.tenantId;
    DELETE /api/players?id=   (SOFT DELETE)
 ------------------------------------------------------------ */
 export async function DELETE(req) {
-  const session = await getTenantContext(req);
-if (!session) {
-  return Response.json({ error: "Unauthorized" }, { status: 401 });
-}
+  let ctx;
+  try {
+    ctx = await getTenantContext(req);
+  } catch {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-const tenantId = ctx.tenantId;
+  const tenantId = ctx.tenantId;
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
 
-  if (!id) {
-    return Response.json({ error: "id required" }, { status: 400 });
-  }
+  if (!id) return Response.json({ error: "id required" }, { status: 400 });
 
   const { rows } = await query(
     `

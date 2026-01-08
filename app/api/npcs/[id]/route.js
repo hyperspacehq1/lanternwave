@@ -1,9 +1,10 @@
 // ==============================
-// /api/npcs/[id]/route.js  (FULL, FIXED)
+// /api/npcs/[id]/route.js  (FULL, FIXED - Pattern A)
 // ==============================
 
 import { sanitizeRow } from "@/lib/api/sanitize";
 import { query } from "@/lib/db";
+import { getTenantContext } from "@/lib/tenant/getTenantContext";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,12 +28,14 @@ function validateString(val, max, field) {
    GET /api/npcs/[id]
 ------------------------------------------------------------ */
 export async function GET(req, { params }) {
-  const session = await getTenantContext(req);
-if (!session) {
-  return Response.json({ error: "Unauthorized" }, { status: 401 });
-}
+  let ctx;
+  try {
+    ctx = await getTenantContext(req);
+  } catch {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-const tenantId = session.tenant_id;
+  const tenantId = ctx.tenantId;
   const id = params?.id;
 
   if (!id) return Response.json({ error: "id required" }, { status: 400 });
@@ -67,12 +70,14 @@ const tenantId = session.tenant_id;
    PUT /api/npcs/[id]
 ------------------------------------------------------------ */
 export async function PUT(req, { params }) {
-  const session = await getTenantContext(req);
-if (!session) {
-  return Response.json({ error: "Unauthorized" }, { status: 401 });
-}
+  let ctx;
+  try {
+    ctx = await getTenantContext(req);
+  } catch {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-const tenantId = session.tenant_id;
+  const tenantId = ctx.tenantId;
   const id = params?.id;
   const body = await req.json();
 
@@ -95,10 +100,7 @@ const tenantId = session.tenant_id;
     for (const key in fields) {
       if (hasOwn(body, key)) {
         if (body[key] !== null) validateString(body[key], fields[key], key);
-        const col =
-          key === "factionAlignment"
-            ? "faction_alignment"
-            : key;
+        const col = key === "factionAlignment" ? "faction_alignment" : key;
         sets.push(`${col} = $${i++}`);
         values.push(body[key] ?? null);
       }
@@ -114,10 +116,7 @@ const tenantId = session.tenant_id;
     }
 
     if (!sets.length) {
-      return Response.json(
-        { error: "No valid fields provided" },
-        { status: 400 }
-      );
+      return Response.json({ error: "No valid fields provided" }, { status: 400 });
     }
 
     const { rows } = await query(
@@ -154,12 +153,14 @@ const tenantId = session.tenant_id;
    DELETE /api/npcs/[id]   (SOFT DELETE)
 ------------------------------------------------------------ */
 export async function DELETE(req, { params }) {
-  const session = await getTenantContext(req);
-if (!session) {
-  return Response.json({ error: "Unauthorized" }, { status: 401 });
-}
+  let ctx;
+  try {
+    ctx = await getTenantContext(req);
+  } catch {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-const tenantId = session.tenant_id;
+  const tenantId = ctx.tenantId;
   const id = params?.id;
 
   if (!id) return Response.json({ error: "id required" }, { status: 400 });
@@ -190,4 +191,3 @@ const tenantId = session.tenant_id;
       : null
   );
 }
-

@@ -1,6 +1,7 @@
 import { sanitizeRow, sanitizeRows } from "@/lib/api/sanitize";
 import { query } from "@/lib/db";
 import { v4 as uuid } from "uuid";
+import { getTenantContext } from "@/lib/tenant/getTenantContext";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,25 +14,22 @@ function hasOwn(obj, key) {
    GET /api/encounters
 ------------------------------------------------------------ */
 export async function GET(req) {
-  const ctx = await getTenantContext(req);
-if (!session) {
-  return Response.json({ error: "Unauthorized" }, { status: 401 });
-}
+  let ctx;
+  try {
+    ctx = await getTenantContext(req);
+  } catch {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-const tenantId = ctx.tenantId;
+  const tenantId = ctx.tenantId;
   const { searchParams } = new URL(req.url);
 
-  const id = searchParams.get("id");
-  const sessionId = searchParams.get("session_id");
-  let campaignId = searchParams.get("campaign_id");
+const id = searchParams.get("id");
+const campaignId = searchParams.get("campaign_id");
 
-  if (!campaignId && sessionId) {
-    const { rows } = await query(
-      `SELECT campaign_id FROM sessions WHERE id = $1`,
-      [sessionId]
-    );
-    campaignId = rows[0]?.campaign_id;
-  }
+if (!campaignId && !id) {
+  return Response.json([]);
+}
 
   if (id) {
     const { rows } = await query(
@@ -84,12 +82,14 @@ const tenantId = ctx.tenantId;
    POST /api/encounters
 ------------------------------------------------------------ */
 export async function POST(req) {
-  const ctx = await getTenantContext(req);
-if (!session) {
-  return Response.json({ error: "Unauthorized" }, { status: 401 });
-}
+  let ctx;
+  try {
+    ctx = await getTenantContext(req);
+  } catch {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-const tenantId = ctx.tenantId;
+  const tenantId = ctx.tenantId;
   const body = await req.json();
 
   const campaignId = body.campaign_id ?? body.campaignId ?? null;
@@ -153,12 +153,14 @@ const tenantId = ctx.tenantId;
    PUT /api/encounters?id=
 ------------------------------------------------------------ */
 export async function PUT(req) {
-  const ctx = await getTenantContext(req);
-if (!session) {
-  return Response.json({ error: "Unauthorized" }, { status: 401 });
-}
+  let ctx;
+  try {
+    ctx = await getTenantContext(req);
+  } catch {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-const tenantId = ctx.tenantId;
+  const tenantId = ctx.tenantId;
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
   const body = await req.json();
@@ -239,12 +241,14 @@ const tenantId = ctx.tenantId;
    DELETE /api/encounters?id=   (SOFT DELETE)
 ------------------------------------------------------------ */
 export async function DELETE(req) {
-  const ctx = await getTenantContext(req);
-if (!session) {
-  return Response.json({ error: "Unauthorized" }, { status: 401 });
-}
+  let ctx;
+  try {
+    ctx = await getTenantContext(req);
+  } catch {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-const tenantId = ctx.tenantId;
+  const tenantId = ctx.tenantId;
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
 

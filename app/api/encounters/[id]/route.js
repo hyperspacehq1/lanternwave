@@ -1,5 +1,6 @@
 import { sanitizeRow } from "@/lib/api/sanitize";
 import { query } from "@/lib/db";
+import { getTenantContext } from "@/lib/tenant/getTenantContext";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -8,12 +9,14 @@ export const dynamic = "force-dynamic";
    GET /api/encounters/[id]
 ------------------------------------------------------------ */
 export async function GET(req, { params }) {
-  const session = await requireAuth();
-if (!session) {
-  return Response.json({ error: "Unauthorized" }, { status: 401 });
-}
+  let ctx;
+  try {
+    ctx = await getTenantContext(req);
+  } catch {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-const tenantId = session.tenant_id;
+  const tenantId = ctx.tenantId;
   const id = params?.id;
 
   if (!id) {
@@ -48,12 +51,14 @@ const tenantId = session.tenant_id;
    DELETE /api/encounters/[id]   (SOFT DELETE)
 ------------------------------------------------------------ */
 export async function DELETE(req, { params }) {
-  const session = await requireAuth();
-if (!session) {
-  return Response.json({ error: "Unauthorized" }, { status: 401 });
-}
+  let ctx;
+  try {
+    ctx = await getTenantContext(req);
+  } catch {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-const tenantId = session.tenant_id;
+  const tenantId = ctx.tenantId;
   const id = params?.id;
 
   if (!id) {

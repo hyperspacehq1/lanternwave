@@ -1,10 +1,7 @@
-// ==============================
-// /api/items/route.js  (FULL, FIXED)
-// ==============================
-
 import { sanitizeRow, sanitizeRows } from "@/lib/api/sanitize";
 import { query } from "@/lib/db";
 import { v4 as uuid } from "uuid";
+import { getTenantContext } from "@/lib/tenant/getTenantContext";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,12 +35,14 @@ function validateProperties(input) {
    GET /api/items
 ------------------------------------------------------------ */
 export async function GET(req) {
-  const ctx = await getTenantContext(req);
-if (!session) {
-  return Response.json({ error: "Unauthorized" }, { status: 401 });
-}
+  let ctx;
+  try {
+    ctx = await getTenantContext(req);
+  } catch {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-const tenantId = ctx.tenantId;
+  const tenantId = ctx.tenantId;
   const { searchParams } = new URL(req.url);
   const campaignId = searchParams.get("campaign_id");
 
@@ -75,12 +74,14 @@ const tenantId = ctx.tenantId;
    POST /api/items
 ------------------------------------------------------------ */
 export async function POST(req) {
-  const ctx = await getTenantContext(req);
-if (!session) {
-  return Response.json({ error: "Unauthorized" }, { status: 401 });
-}
+  let ctx;
+  try {
+    ctx = await getTenantContext(req);
+  } catch {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-const tenantId = ctx.tenantId;
+  const tenantId = ctx.tenantId;
   const body = await req.json();
 
   const campaignId = body.campaign_id ?? body.campaignId ?? null;
@@ -150,12 +151,14 @@ const tenantId = ctx.tenantId;
    PUT /api/items?id=
 ------------------------------------------------------------ */
 export async function PUT(req) {
-  const ctx = await getTenantContext(req);
-if (!session) {
-  return Response.json({ error: "Unauthorized" }, { status: 401 });
-}
+  let ctx;
+  try {
+    ctx = await getTenantContext(req);
+  } catch {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-const tenantId = ctx.tenantId;
+  const tenantId = ctx.tenantId;
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
   const body = await req.json();
@@ -181,8 +184,7 @@ const tenantId = ctx.tenantId;
         if (body[key] !== null) {
           validateString(body[key], stringFields[key], key);
         }
-        const col =
-          key === "itemType" ? "item_type" : key;
+        const col = key === "itemType" ? "item_type" : key;
         sets.push(`${col} = $${i++}`);
         values.push(body[key] ?? null);
       }
@@ -232,12 +234,14 @@ const tenantId = ctx.tenantId;
    DELETE /api/items?id=   (SOFT DELETE)
 ------------------------------------------------------------ */
 export async function DELETE(req) {
-  const ctx = await getTenantContext(req);
-if (!session) {
-  return Response.json({ error: "Unauthorized" }, { status: 401 });
-}
+  let ctx;
+  try {
+    ctx = await getTenantContext(req);
+  } catch {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-const tenantId = ctx.tenantId;
+  const tenantId = ctx.tenantId;
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
 
