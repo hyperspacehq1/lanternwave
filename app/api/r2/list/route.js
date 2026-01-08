@@ -44,11 +44,12 @@ async function resolveTenantFromRequest(req) {
   const cookies = parseCookies(cookieHeader);
   const lwSession = cookies["lw_session"];
 
+  // Not logged in → anonymous-safe
   if (!lwSession) {
     return { tenantId: null };
   }
 
-  // lw_session === user_id (current design)
+  // lw_session === user_id
   const userId = lwSession;
 
   const tenantRes = await query(
@@ -72,7 +73,7 @@ export async function GET(req) {
   try {
     const { tenantId } = await resolveTenantFromRequest(req);
 
-    // Initial render / not logged in → empty list (expected)
+    // Initial render / not logged in → empty list (EXPECTED)
     if (!tenantId) {
       return NextResponse.json({ ok: true, rows: [] });
     }
