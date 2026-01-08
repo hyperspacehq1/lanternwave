@@ -1,4 +1,3 @@
-import { requireAuth } from "@/lib/auth-server";
 import { query } from "@/lib/db";
 
 export const runtime = "nodejs";

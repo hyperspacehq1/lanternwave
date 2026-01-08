@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import { query } from "@/lib/db";
 import { rateLimit } from "@/lib/rateLimit";
-import { createSession } from "@/lib/auth/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -108,30 +108,57 @@ export async function POST(req) {
 
     /* --------------------------------
        SESSION ROTATION
-       --------------------------------
-       Kill all existing sessions for this user
-    */
+       -------------------------------- */
     await query(
       `DELETE FROM user_sessions WHERE user_id = $1`,
       [user.id]
     );
 
     /* --------------------------------
-       Create new secure session
+       Create new session
        -------------------------------- */
-    const response = NextResponse.json({ ok: true });
+    const sessionId = crypto.randomUUID();
+    const token = crypto.randomBytes(32).toString("hex");
 
-    await createSession({
-      userId: user.id,
-      tenantId,
-      response,
+    await query(
+      `
+      INSERT INTO user_sessions (
+        id,
+        user_id,
+        tenant_id,
+        token,
+        created_at,
+        expires_at
+      )
+      VALUES ($1, $2, $3, $4, NOW(), NOW() + interval '30 days')
+      `,
+      [sessionId, user.id, tenantId, token]
+    );
+
+    /* --------------------------------
+       Set cookie
+       -------------------------------- */
+    const response = NextResponse.json({
+      ok: true,
+      debug: {
+        userId: user.id,
+        tenantId,
+        sessionId,
+      },
+    });
+
+    response.cookies.set("lw_session", token, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 30, // 30 days
     });
 
     return response;
 
   } catch (err) {
     console.error("LOGIN ERROR:", err);
-
     return NextResponse.json(
       { error: "Server error" },
       { status: 500 }

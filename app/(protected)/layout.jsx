@@ -2,7 +2,6 @@ import { cookies, headers } from "next/headers";
 import ProtectedHeader from "@/components/ProtectedHeader";
 import Footer from "@/components/Footer";
 import { GlobalAudioProvider } from "@/components/GlobalAudio";
-import { requireAuth } from "@/lib/auth-server";
 
 export const dynamic = "force-dynamic";
 
@@ -11,8 +10,6 @@ export default async function ProtectedLayout({ children }) {
   let authError = null;
 
   // 🔍 Collect low-level request info (SAFE in Server Components)
-  const cookieStore = cookies();
-  const headerStore = headers();
 
   const debug = {
     cookies: cookieStore.getAll().map(c => ({
@@ -24,7 +21,6 @@ export default async function ProtectedLayout({ children }) {
   };
 
   try {
-    session = await requireAuth();
   } catch (err) {
     authError = {
       message: err?.message || String(err),
@@ -61,7 +57,6 @@ export default async function ProtectedLayout({ children }) {
           <ul>
             <li>Login/signup did not produce a usable session</li>
             <li>OR the cookie is not visible to Server Components</li>
-            <li>OR requireAuth() cannot run in this context</li>
           </ul>
 
           <p>

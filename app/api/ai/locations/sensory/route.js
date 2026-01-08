@@ -1,4 +1,3 @@
-import { requireAuth } from "@/lib/auth-server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -42,15 +41,15 @@ export async function POST(req) {
   }
 
   // 🔐 Auth REQUIRED
-  const session = await requireAuth();
+  const ctx = await getTenantContext(req);
   if (!session?.tenant) {
     return json(401, { error: "Unauthorized" });
   }
 
-  const tenant = session.tenant;
+  const tenantId = ctx.tenantId;
 
   // Rate limit
-  const { rows } = await tenant.db.query(
+  const { rows } = await query(
     `
     SELECT COUNT(*)::int AS count
     FROM tenant_ai_usage
@@ -67,7 +66,7 @@ export async function POST(req) {
     });
   }
 
-  await tenant.db.query(
+  await query(
     `INSERT INTO tenant_ai_usage (tenant_id, action)
      VALUES ($1, 'sensory')`,
     [tenant.id]

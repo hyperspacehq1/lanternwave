@@ -1,7 +1,6 @@
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-import { requireAuth } from "@/lib/auth-server";
 import { query } from "@/lib/db";
 
 export async function POST(req) {
@@ -9,7 +8,7 @@ export async function POST(req) {
 
   try {
     // 🔐 Auth required
-    const session = await requireAuth();
+    const ctx = await getTenantContext(req);
     if (!session || !session.tenant_id) {
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
@@ -17,7 +16,7 @@ export async function POST(req) {
       );
     }
 
-    const tenantId = session.tenant_id;
+    const tenantId = ctx.tenantId;
 
     const formData = await req.formData();
     const file = formData.get("file");

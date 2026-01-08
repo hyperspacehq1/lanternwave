@@ -1,6 +1,5 @@
 import { sanitizeRow } from "@/lib/api/sanitize";
 import { query } from "@/lib/db";
-import { requireAuth } from "@/lib/auth-server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,12 +32,12 @@ function validateSensory(input) {
    GET /api/locations/[id]
 ------------------------------------------------------------ */
 export async function GET(req, { params }) {
-  const session = await requireAuth();
+  const ctx = await getTenantContext(req);
 if (!session) {
   return Response.json({ error: "Unauthorized" }, { status: 401 });
 }
 
-const tenantId = session.tenant_id;
+const tenantId = ctx.tenantId;
   const id = params?.id;
 
   if (!id) {
@@ -73,12 +72,12 @@ const tenantId = session.tenant_id;
    PUT /api/locations/[id]
 ------------------------------------------------------------ */
 export async function PUT(req, { params }) {
-  const session = await requireAuth();
+  const ctx = await getTenantContext(req);
 if (!session) {
   return Response.json({ error: "Unauthorized" }, { status: 401 });
 }
 
-const tenantId = session.tenant_id;
+const tenantId = ctx.tenantId;
   const id = params?.id;
   const body = await req.json();
 
@@ -152,12 +151,12 @@ const tenantId = session.tenant_id;
    DELETE /api/locations/[id]   (SOFT DELETE)
 ------------------------------------------------------------ */
 export async function DELETE(req, { params }) {
-  const session = await requireAuth();
+  const ctx = await getTenantContext(req);
 if (!session) {
   return Response.json({ error: "Unauthorized" }, { status: 401 });
 }
 
-const tenantId = session.tenant_id;
+const tenantId = ctx.tenantId;
   const id = params?.id;
 
   if (!id) {

@@ -1,7 +1,7 @@
+import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { NextResponse } from "next/server";
 import { DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getR2Client, R2_BUCKET_NAME } from "@/lib/r2/server";
-import { requireAuth } from "@/lib/auth-server";
 import { query } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -22,7 +22,6 @@ export async function DELETE(req) {
     // ------------------------------------------------------------
     // Resolve tenant from REQUEST (auth required)
     // ------------------------------------------------------------
-    const session = await requireAuth();
 if (!session) {
   return Response.json({ error: "Unauthorized" }, { status: 401 });
 }

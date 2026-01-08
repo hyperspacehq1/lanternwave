@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
-import { requireAuth } from "@/lib/auth-server";
 import { v4 as uuid } from "uuid";
 
 export const runtime = "nodejs";

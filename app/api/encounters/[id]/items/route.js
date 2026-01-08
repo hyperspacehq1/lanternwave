@@ -1,6 +1,5 @@
 import { sanitizeRows } from "@/lib/api/sanitize";
 import { query } from "@/lib/db";
-import { requireAuth } from "@/lib/auth-server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

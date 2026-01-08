@@ -1,5 +1,4 @@
 import { query } from "@/lib/db";
-import { requireAuth } from "@/lib/auth-server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,12 +17,12 @@ const TABLES = [
    POST /api/reindex-embeddings
 ------------------------------------------------------------ */
 export async function POST(req) {
-  const session = await requireAuth();
+  const ctx = await getTenantContext(req);
 if (!session) {
   return Response.json({ error: "Unauthorized" }, { status: 401 });
 }
 
-const tenantId = session.tenant_id;
+const tenantId = ctx.tenantId;
   const { table } = await req.json();
 
   if (!TABLES.includes(table)) {

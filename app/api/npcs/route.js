@@ -4,7 +4,6 @@
 
 import { sanitizeRow, sanitizeRows } from "@/lib/api/sanitize";
 import { query } from "@/lib/db";
-import { requireAuth } from "@/lib/auth-server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -28,7 +27,7 @@ function validateString(val, max, field) {
    GET /api/npcs
 ------------------------------------------------------------ */
 export async function GET(req) {
-  const session = await requireAuth();
+  const session = await getTenantContext(req);
 if (!session) {
   return Response.json({ error: "Unauthorized" }, { status: 401 });
 }
@@ -67,7 +66,7 @@ const tenantId = session.tenant_id;
    POST /api/npcs
 ------------------------------------------------------------ */
 export async function POST(req) {
-  const session = await requireAuth();
+  const session = await getTenantContext(req);
 if (!session) {
   return Response.json({ error: "Unauthorized" }, { status: 401 });
 }
@@ -153,7 +152,7 @@ const tenantId = session.tenant_id;
    PUT /api/npcs?id=
 ------------------------------------------------------------ */
 export async function PUT(req) {
-  const session = await requireAuth();
+  const session = await getTenantContext(req);
 if (!session) {
   return Response.json({ error: "Unauthorized" }, { status: 401 });
 }

@@ -4,7 +4,6 @@
 
 import { sanitizeRow, sanitizeRows } from "@/lib/api/sanitize";
 import { query } from "@/lib/db";
-import { requireAuth } from "@/lib/auth-server";
 import { v4 as uuid } from "uuid";
 
 export const runtime = "nodejs";
@@ -39,12 +38,12 @@ function validateProperties(input) {
    GET /api/items
 ------------------------------------------------------------ */
 export async function GET(req) {
-  const session = await requireAuth();
+  const ctx = await getTenantContext(req);
 if (!session) {
   return Response.json({ error: "Unauthorized" }, { status: 401 });
 }
 
-const tenantId = session.tenant_id;
+const tenantId = ctx.tenantId;
   const { searchParams } = new URL(req.url);
   const campaignId = searchParams.get("campaign_id");
 
@@ -76,12 +75,12 @@ const tenantId = session.tenant_id;
    POST /api/items
 ------------------------------------------------------------ */
 export async function POST(req) {
-  const session = await requireAuth();
+  const ctx = await getTenantContext(req);
 if (!session) {
   return Response.json({ error: "Unauthorized" }, { status: 401 });
 }
 
-const tenantId = session.tenant_id;
+const tenantId = ctx.tenantId;
   const body = await req.json();
 
   const campaignId = body.campaign_id ?? body.campaignId ?? null;
@@ -151,12 +150,12 @@ const tenantId = session.tenant_id;
    PUT /api/items?id=
 ------------------------------------------------------------ */
 export async function PUT(req) {
-  const session = await requireAuth();
+  const ctx = await getTenantContext(req);
 if (!session) {
   return Response.json({ error: "Unauthorized" }, { status: 401 });
 }
 
-const tenantId = session.tenant_id;
+const tenantId = ctx.tenantId;
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
   const body = await req.json();
@@ -233,12 +232,12 @@ const tenantId = session.tenant_id;
    DELETE /api/items?id=   (SOFT DELETE)
 ------------------------------------------------------------ */
 export async function DELETE(req) {
-  const session = await requireAuth();
+  const ctx = await getTenantContext(req);
 if (!session) {
   return Response.json({ error: "Unauthorized" }, { status: 401 });
 }
 
-const tenantId = session.tenant_id;
+const tenantId = ctx.tenantId;
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
 

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
-import { requireAuth } from "@/lib/auth-server";
+import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { v4 as uuid } from "uuid";
 
 export const runtime = "nodejs";
@@ -10,7 +10,6 @@ export const dynamic = "force-dynamic";
    GET /api/account  (DEBUG ENABLED)
 -------------------------------------------------- */
 export async function GET(req) {
-  // 🔎 DEBUG — req is ONLY accessed here (build-safe)
   const debug = {
     cookieHeader: req.headers.get("cookie"),
     userAgent: req.headers.get("user-agent"),
@@ -19,9 +18,9 @@ export async function GET(req) {
 
   console.log("🧪 /api/account GET DEBUG", debug);
 
-  let session;
+  let ctx;
   try {
-    session = await requireAuth();
+    ctx = await getTenantContext(req);
   } catch (err) {
     console.warn("🛑 /api/account AUTH FAILED", {
       ...debug,
@@ -29,18 +28,14 @@ export async function GET(req) {
     });
 
     return NextResponse.json(
-      {
-        ok: false,
-        error: "Unauthorized",
-        debug,
-      },
+      { ok: false, error: "Unauthorized", debug },
       { status: 401 }
     );
   }
 
   try {
-    const tenantId = session.tenant_id;
-    const userId = session.id;
+    const tenantId = ctx.tenantId;
+    const userId = ctx.user.id;
 
     const { rows } = await query(
       `
@@ -57,7 +52,7 @@ export async function GET(req) {
     return NextResponse.json({
       ok: true,
       account: {
-        username: session.username,
+        username: ctx.user.username,
         tenant_id: tenantId,
         user_id: userId,
         beacons: rows[0]?.beacons ?? {},
@@ -71,11 +66,7 @@ export async function GET(req) {
     });
 
     return NextResponse.json(
-      {
-        ok: false,
-        error: "Failed to load account",
-        debug,
-      },
+      { ok: false, error: "Failed to load account", debug },
       { status: 500 }
     );
   }
@@ -89,10 +80,10 @@ export async function PUT(req) {
     cookieHeader: req.headers.get("cookie"),
   };
 
-  let session;
+  let ctx;
   try {
-    session = await requireAuth();
-  } catch {
+    ctx = await getTenantContext(req);
+  } catch (err) {
     return NextResponse.json(
       { ok: false, error: "Unauthorized", debug },
       { status: 401 }
@@ -100,8 +91,8 @@ export async function PUT(req) {
   }
 
   try {
-    const tenantId = session.tenant_id;
-    const userId = session.id;
+    const tenantId = ctx.tenantId;
+    const userId = ctx.user.id;
 
     const { key, enabled } = await req.json();
 
@@ -169,9 +160,9 @@ export async function POST(req) {
     contentType: req.headers.get("content-type"),
   };
 
-  let session;
+  let ctx;
   try {
-    session = await requireAuth();
+    ctx = await getTenantContext(req);
   } catch {
     return NextResponse.json(
       { error: "Unauthorized", debug },
@@ -180,7 +171,7 @@ export async function POST(req) {
   }
 
   try {
-    const tenantId = session.tenant_id;
+    const tenantId = ctx.tenantId;
 
     if (!debug.contentType?.includes("multipart/form-data")) {
       return NextResponse.json(

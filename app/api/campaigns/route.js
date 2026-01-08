@@ -1,5 +1,4 @@
 import { sanitizeRow, sanitizeRows } from "@/lib/api/sanitize";
-import { requireAuth } from "@/lib/auth-server";
 import { query } from "@/lib/db";
 import { fromDb } from "@/lib/campaignMapper";
 import { cloneAdventureCodexToTenant } from "@/lib/ai/cloneAdventureCodexToTenant";
@@ -71,12 +70,12 @@ function normalizeDateOnly(value) {
 export async function GET(req) {
   let tenantId;
   try {
-    const session = await requireAuth();
+    const ctx = await getTenantContext(req);
 if (!session) {
   return Response.json({ error: "Unauthorized" }, { status: 401 });
 }
 
-const tenantId = session.tenant_id;
+const tenantId = ctx.tenantId;
   } catch {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -108,12 +107,12 @@ const tenantId = session.tenant_id;
    POST /api/campaigns
 ----------------------------- */
 export async function POST(req) {
-  const session = await requireAuth();
+  const ctx = await getTenantContext(req);
 if (!session) {
   return Response.json({ error: "Unauthorized" }, { status: 401 });
 }
 
-const tenantId = session.tenant_id;
+const tenantId = ctx.tenantId;
 const userId = session.id;const body = await req.json();
 
   const name =
@@ -197,12 +196,12 @@ const userId = session.id;const body = await req.json();
 export async function PUT(req) {
   let tenantId;
   try {
-    const session = await requireAuth();
+    const ctx = await getTenantContext(req);
 if (!session) {
   return Response.json({ error: "Unauthorized" }, { status: 401 });
 }
 
-const tenantId = session.tenant_id;
+const tenantId = ctx.tenantId;
   } catch {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }

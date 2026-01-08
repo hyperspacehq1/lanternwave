@@ -1,5 +1,4 @@
 import { sanitizeRow, sanitizeRows } from "@/lib/api/sanitize";
-import { requireAuth } from "@/lib/auth-server";
 import { query } from "@/lib/db";
 import { fromDb } from "@/lib/campaignMapper";
 
@@ -70,12 +69,12 @@ function normalizeDateOnlyStrict(value) {
    GET /api/campaigns
 ----------------------------- */
 export async function GET(req) {
-  const session = await requireAuth();
+  const ctx = await getTenantContext(req);
 if (!session) {
   return Response.json({ error: "Unauthorized" }, { status: 401 });
 }
 
-const tenantId = session.tenant_id;
+const tenantId = ctx.tenantId;
 
   const { rows } = await query(
     `
@@ -104,12 +103,12 @@ const tenantId = session.tenant_id;
    POST /api/campaigns
 ----------------------------- */
 export async function POST(req) {
-  const session = await requireAuth();
+  const ctx = await getTenantContext(req);
 if (!session) {
   return Response.json({ error: "Unauthorized" }, { status: 401 });
 }
 
-const tenantId = session.tenant_id;
+const tenantId = ctx.tenantId;
   const body = await req.json();
 
   const name =
@@ -207,12 +206,12 @@ const tenantId = session.tenant_id;
    PUT /api/campaigns
 ----------------------------- */
 export async function PUT(req) {
-  const session = await requireAuth();
+  const ctx = await getTenantContext(req);
 if (!session) {
   return Response.json({ error: "Unauthorized" }, { status: 401 });
 }
 
-const tenantId = session.tenant_id;
+const tenantId = ctx.tenantId;
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
   if (!id) return Response.json({ error: "id required" }, { status: 400 });

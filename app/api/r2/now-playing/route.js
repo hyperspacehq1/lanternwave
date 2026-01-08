@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
-import { requireAuth } from "@/lib/auth-server";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -11,8 +10,8 @@ export const runtime = "nodejs";
 export async function GET(req) {
   try {
     // Optional auth: if no session, treat as anonymous initial render
-    const session = await requireAuth({ allowAnonymous: true });
-    const tenantId = session?.tenant_id ?? null;
+    const ctx = await getTenantContext(req);
+    const tenantId = ctx?.tenantId ?? null;
 
     if (!tenantId) {
       return NextResponse.json({
@@ -59,7 +58,6 @@ export async function GET(req) {
 // ------------------------------------------------------------
 export async function POST(req) {
   try {
-    const session = await requireAuth();
     if (!session) {
       return NextResponse.json(
         { ok: false, error: "unauthorized" },
@@ -67,7 +65,7 @@ export async function POST(req) {
       );
     }
 
-    const tenantId = session.tenant_id;
+    const tenantId = ctx.tenantId;
     if (!tenantId) {
       return NextResponse.json(
         { ok: false, error: "unauthorized" },

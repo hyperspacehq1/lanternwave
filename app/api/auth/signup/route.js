@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import { query } from "@/lib/db";
-import { randomUUID } from "crypto";
-import { createSession } from "@/lib/auth/session";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 function normalizeUsername(username) {
   return username.trim().toLowerCase();
@@ -74,7 +74,7 @@ export async function POST(req) {
     );
 
     const userId = userRes.rows[0].id;
-    const tenantId = randomUUID();
+    const tenantId = crypto.randomUUID();
 
     await query(
       `INSERT INTO tenants (id, name) VALUES ($1, $2)`,
@@ -94,21 +94,48 @@ export async function POST(req) {
       [userId, tenantId]
     );
 
-    await query("COMMIT");
-
     /* -------------------------
        Create session
        ------------------------- */
-    const res = NextResponse.json({ ok: true });
+    const sessionId = crypto.randomUUID();
+    const token = crypto.randomBytes(32).toString("hex");
 
-    await createSession({
-      userId,
-      tenantId,
-      response: res,
+    await query(
+      `
+      INSERT INTO user_sessions (
+        id,
+        user_id,
+        tenant_id,
+        token,
+        created_at,
+        expires_at
+      )
+      VALUES ($1, $2, $3, $4, NOW(), NOW() + interval '30 days')
+      `,
+      [sessionId, userId, tenantId, token]
+    );
+
+    await query("COMMIT");
+
+    const res = NextResponse.json({
+      ok: true,
+      debug: {
+        userId,
+        tenantId,
+        sessionId,
+      },
+    });
+
+    res.cookies.set("lw_session", token, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 30,
     });
 
     /* -------------------------
-       Send welcome email (LAZY IMPORT)
+       Send welcome email (best-effort)
        ------------------------- */
     try {
       const { sendWelcomeEmail } = await import("@/lib/email");
@@ -118,13 +145,8 @@ export async function POST(req) {
         username,
         userAgent: req.headers.get("user-agent"),
       });
-
-      console.log("WELCOME EMAIL SENT", { email });
     } catch (emailErr) {
-      console.error("WELCOME EMAIL FAILED", {
-        email,
-        error: emailErr?.message,
-      });
+      console.error("WELCOME EMAIL FAILED", emailErr);
     }
 
     return res;

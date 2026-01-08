@@ -1,5 +1,4 @@
 import { query } from "@/lib/db";
-import { requireAuth } from "@/lib/auth-server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,7 +9,7 @@ const ALERT_KEY = "db-health";
 
 export async function GET(req) {
   try {
-    const session = await requireAuth();
+    const session = await getTenantContext(req);
     if (!session) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }

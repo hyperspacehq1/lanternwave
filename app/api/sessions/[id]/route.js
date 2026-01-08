@@ -1,5 +1,4 @@
 import { query } from "@/lib/db";
-import { requireAuth } from "@/lib/auth-server";
 import { sanitizeRow } from "@/lib/api/sanitize";
 
 export const runtime = "nodejs";
@@ -12,12 +11,12 @@ export async function GET(req, { params }) {
   let tenantId;
 
   try {
-    const session = await requireAuth();
+    const ctx = await getTenantContext(req);
 if (!session) {
   return Response.json({ error: "Unauthorized" }, { status: 401 });
 }
 
-const tenantId = session.tenant_id;
+const tenantId = ctx.tenantId;
   } catch {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -59,12 +58,12 @@ export async function DELETE(req, { params }) {
   let tenantId;
 
   try {
-    const session = await requireAuth();
+    const ctx = await getTenantContext(req);
 if (!session) {
   return Response.json({ error: "Unauthorized" }, { status: 401 });
 }
 
-const tenantId = session.tenant_id;
+const tenantId = ctx.tenantId;
   } catch {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }

@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { getR2Client, R2_BUCKET_NAME } from "@/lib/r2/server";
-import { requireAuth } from "@/lib/auth-server";
 import { guessContentType } from "@/lib/r2/contentType";
 import { query } from "@/lib/db";
+import { getTenantContext } from "@/lib/tenant/getTenantContext";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -36,12 +36,16 @@ export async function GET(req) {
     // ------------------------------------------------------------
     // Resolve tenant from REQUEST
     // ------------------------------------------------------------
-    const session = await requireAuth();
-if (!session) {
-  return Response.json({ error: "Unauthorized" }, { status: 401 });
-}
+    const ctx = await getTenantContext(req);
 
-const tenantId = session.tenant_id;
+    if (!ctx?.tenantId) {
+      return NextResponse.json(
+        { ok: false, error: "unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    const tenantId = ctx.tenantId;
 
     // ------------------------------------------------------------
     // Verify clip exists & belongs to tenant
@@ -98,7 +102,7 @@ const tenantId = session.tenant_id;
       });
     }
 
-    // Full content (mp3 / fallback)
+    // Full content
     if (result.ContentLength) {
       headers.set("Content-Length", String(result.ContentLength));
     }

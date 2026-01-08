@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { HeadObjectCommand } from "@aws-sdk/client-s3";
 import { getR2Client, R2_BUCKET_NAME } from "@/lib/r2/server";
-import { requireAuth } from "@/lib/auth-server";
 import { guessContentType } from "@/lib/r2/contentType";
 import { query } from "@/lib/db";
+import { getTenantContext } from "@/lib/tenant/getTenantContext";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -22,23 +22,29 @@ export async function POST(req) {
     const key = body?.key;
 
     if (!key) {
-      return NextResponse.json({ ok: false, error: "missing key" }, { status: 400 });
+      return NextResponse.json(
+        { ok: false, error: "missing key" },
+        { status: 400 }
+      );
     }
 
-    const session = await requireAuth();
-if (!session) {
-  return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
-}
+    const ctx = await getTenantContext(req);
+    const tenantId = ctx?.tenantId;
+    const userId = ctx?.user?.id ?? null;
 
-const tenantId = session.tenant_id;
-const user = { id: session.id };
     if (!tenantId) {
-      return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { ok: false, error: "unauthorized" },
+        { status: 401 }
+      );
     }
 
     const client = getR2Client();
     const head = await client.send(
-      new HeadObjectCommand({ Bucket: R2_BUCKET_NAME, Key: key })
+      new HeadObjectCommand({
+        Bucket: R2_BUCKET_NAME,
+        Key: key,
+      })
     );
 
     const byteSize = head.ContentLength || null;
@@ -47,7 +53,7 @@ const user = { id: session.id };
 
     await query(
       `
-      insert into clips (
+      INSERT INTO clips (
         tenant_id,
         user_id,
         object_key,
@@ -55,15 +61,18 @@ const user = { id: session.id };
         mime_type,
         byte_size
       )
-      values ($1, $2, $3, $4, $5, $6)
-      on conflict (object_key) do nothing
+      VALUES ($1, $2, $3, $4, $5, $6)
+      ON CONFLICT (object_key) DO NOTHING
       `,
-      [tenantId, user?.id || null, key, filename, mimeType, byteSize]
+      [tenantId, userId, key, filename, mimeType, byteSize]
     );
 
     return NextResponse.json({ ok: true, key, mimeType, byteSize });
   } catch (err) {
     console.error("[r2 finalize] real error", err);
-    return NextResponse.json({ ok: false, error: "finalize failed" }, { status: 500 });
+    return NextResponse.json(
+      { ok: false, error: "finalize failed" },
+      { status: 500 }
+    );
   }
 }
