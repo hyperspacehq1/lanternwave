@@ -28,17 +28,15 @@ export async function POST(req) {
       );
     }
 
-    const ctx = await getTenantContext(req);
-    const tenantId = ctx?.tenantId;
-    const userId = ctx?.user?.id ?? null;
+   let ctx;
+try {
+  ctx = await getTenantContext(req);
+} catch {
+  return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
+}
 
-    if (!tenantId) {
-      return NextResponse.json(
-        { ok: false, error: "unauthorized" },
-        { status: 401 }
-      );
-    }
-
+const tenantId = ctx.tenantId;
+const userId = ctx.user?.id ?? null;
     const client = getR2Client();
     const head = await client.send(
       new HeadObjectCommand({

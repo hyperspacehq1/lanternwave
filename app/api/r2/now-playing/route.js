@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
+import { getTenantContext } from "@/lib/tenant/getTenantContext";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -9,16 +10,14 @@ export const runtime = "nodejs";
 // ------------------------------------------------------------
 export async function GET(req) {
   try {
-    // Optional auth: if no session, treat as anonymous initial render
-    const ctx = await getTenantContext(req);
-    const tenantId = ctx?.tenantId ?? null;
-
-    if (!tenantId) {
-      return NextResponse.json({
-        ok: true,
-        nowPlaying: null,
-      });
+    let ctx;
+    try {
+      ctx = await getTenantContext(req);
+    } catch {
+      return NextResponse.json({ ok: true, nowPlaying: null });
     }
+
+    const tenantId = ctx.tenantId;
 
     const { rows } = await query(
       `
@@ -31,10 +30,7 @@ export async function GET(req) {
     );
 
     if (!rows[0]?.object_key) {
-      return NextResponse.json({
-        ok: true,
-        nowPlaying: null,
-      });
+      return NextResponse.json({ ok: true, nowPlaying: null });
     }
 
     return NextResponse.json({
@@ -54,11 +50,14 @@ export async function GET(req) {
 }
 
 // ------------------------------------------------------------
-// SET / CLEAR now playing (auth required)
+// POST set / clear now playing (auth required)
 // ------------------------------------------------------------
 export async function POST(req) {
   try {
-    if (!session) {
+    let ctx;
+    try {
+      ctx = await getTenantContext(req);
+    } catch {
       return NextResponse.json(
         { ok: false, error: "unauthorized" },
         { status: 401 }
@@ -66,37 +65,17 @@ export async function POST(req) {
     }
 
     const tenantId = ctx.tenantId;
-    if (!tenantId) {
-      return NextResponse.json(
-        { ok: false, error: "unauthorized" },
-        { status: 401 }
-      );
-    }
-
     const body = await req.json();
     const key = body?.key ?? null;
 
-    // CLEAR now playing
     if (key === null) {
-      await query(
-        `
-        DELETE FROM now_playing
-         WHERE tenant_id = $1
-        `,
-        [tenantId]
-      );
-
-      return NextResponse.json({
-        ok: true,
-        nowPlaying: null,
-      });
+      await query(`DELETE FROM now_playing WHERE tenant_id = $1`, [tenantId]);
+      return NextResponse.json({ ok: true, nowPlaying: null });
     }
 
-    // Ensure clip exists and belongs to tenant
     const { rowCount } = await query(
       `
-      SELECT 1
-        FROM clips
+      SELECT 1 FROM clips
        WHERE tenant_id = $1
          AND object_key = $2
          AND deleted_at IS NULL
@@ -111,7 +90,6 @@ export async function POST(req) {
       );
     }
 
-    // Upsert now playing
     await query(
       `
       INSERT INTO now_playing (tenant_id, object_key)
@@ -126,10 +104,7 @@ export async function POST(req) {
 
     return NextResponse.json({
       ok: true,
-      nowPlaying: {
-        key,
-        updatedAt: new Date().toISOString(),
-      },
+      nowPlaying: { key, updatedAt: new Date().toISOString() },
     });
   } catch (err) {
     console.error("[now-playing POST] real error", err);

@@ -57,11 +57,17 @@ export async function POST(req) {
     }
 
     // 🔐 Resolve tenant (request-scoped, Netlify-safe) :contentReference[oaicite:3]{index=3}
-if (!session) {
-  return Response.json({ error: "Unauthorized" }, { status: 401 });
+let ctx;
+try {
+  ctx = await getTenantContext(req);
+} catch {
+  return NextResponse.json(
+    { ok: false, error: "unauthorized" },
+    { status: 401 }
+  );
 }
 
-    const tenantId = ctx?.tenantId ?? ctx?.tenant?.id;
+const tenantId = ctx.tenantId;
     if (!tenantId) {
       return NextResponse.json(
         { ok: false, error: "unauthorized" },

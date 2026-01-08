@@ -1,21 +1,19 @@
 import { sanitizeRows } from "@/lib/api/sanitize";
 import { runSearch } from "@/lib/search/runSearch";
+import { getTenantContext } from "@/lib/tenant/getTenantContext";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(req) {
-  let tenantId;
+  let ctx;
   try {
-    const ctx = await getTenantContext(req);
-if (!session) {
-  return Response.json({ error: "Unauthorized" }, { status: 401 });
-}
-
-const tenantId = ctx.tenantId;
+    ctx = await getTenantContext(req);
   } catch {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const tenantId = ctx.tenantId;
 
   const { searchParams } = new URL(req.url);
   const q = searchParams.get("q")?.trim();
@@ -31,7 +29,6 @@ const tenantId = ctx.tenantId;
     limit,
   });
 
-  // Sanitize defensively (search is read-only, but consistent with API)
   const results = sanitizeRows(
     rows.map((r) => ({
       entityType: r.entity_type,

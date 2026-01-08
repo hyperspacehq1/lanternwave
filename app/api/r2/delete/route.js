@@ -19,25 +19,18 @@ export async function DELETE(req) {
       );
     }
 
-    // ------------------------------------------------------------
-    // Resolve tenant from REQUEST (auth required)
-    // ------------------------------------------------------------
-if (!session) {
-  return Response.json({ error: "Unauthorized" }, { status: 401 });
-}
-
-const tenantId = session.tenant_id;
-
-    if (!tenantId) {
+    let ctx;
+    try {
+      ctx = await getTenantContext(req);
+    } catch {
       return NextResponse.json(
         { ok: false, error: "unauthorized" },
         { status: 401 }
       );
     }
 
-    // ------------------------------------------------------------
-    // Soft delete DB record (DB = source of truth)
-    // ------------------------------------------------------------
+    const tenantId = ctx.tenantId;
+
     const { rowCount } = await query(
       `
       update clips
@@ -49,7 +42,6 @@ const tenantId = session.tenant_id;
       [tenantId, key]
     );
 
-    // Idempotent success (already deleted or never existed)
     if (rowCount === 0) {
       return NextResponse.json({
         ok: true,
@@ -58,11 +50,7 @@ const tenantId = session.tenant_id;
       });
     }
 
-    // ------------------------------------------------------------
-    // Delete from R2 (best-effort)
-    // ------------------------------------------------------------
     const client = getR2Client();
-
     await client.send(
       new DeleteObjectCommand({
         Bucket: R2_BUCKET_NAME,
@@ -70,10 +58,7 @@ const tenantId = session.tenant_id;
       })
     );
 
-    return NextResponse.json({
-      ok: true,
-      deleted: key,
-    });
+    return NextResponse.json({ ok: true, deleted: key });
   } catch (err) {
     console.error("[r2 delete] real error", err);
     return NextResponse.json(
