@@ -1,7 +1,7 @@
 import { sanitizeRow, sanitizeRows } from "@/lib/api/sanitize";
 import { query } from "@/lib/db";
 import { fromDb } from "@/lib/campaignMapper";
-import { cloneAdventureCodexToTenant } from "@/lib/ai/cloneAdventureCodexToTenant";
+import { getTenantContext } from "@/lib/tenant/getTenantContext";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -55,12 +55,14 @@ function pick(body, camel, snake) {
   return undefined;
 }
 
-function normalizeDateOnly(value) {
+function normalizeDateOnlyStrict(value) {
   if (value === undefined) return undefined;
   if (value === null || value === "") return null;
 
   const s = String(value).trim();
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    throw new Error("Invalid date format");
+  }
   return s;
 }
 
@@ -68,14 +70,9 @@ function normalizeDateOnly(value) {
    GET /api/campaigns
 ----------------------------- */
 export async function GET(req) {
-  let tenantId;
+  let ctx;
   try {
-    const ctx = await getTenantContext(req);
-if (!session) {
-  return Response.json({ error: "Unauthorized" }, { status: 401 });
-}
-
-const tenantId = ctx.tenantId;
+    ctx = await getTenantContext(req);
   } catch {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -88,7 +85,7 @@ const tenantId = ctx.tenantId;
        AND deleted_at IS NULL
      ORDER BY created_at DESC
     `,
-    [tenantId]
+    [ctx.tenantId]
   );
 
   return Response.json(
@@ -107,13 +104,14 @@ const tenantId = ctx.tenantId;
    POST /api/campaigns
 ----------------------------- */
 export async function POST(req) {
-  const ctx = await getTenantContext(req);
-if (!session) {
-  return Response.json({ error: "Unauthorized" }, { status: 401 });
-}
+  let ctx;
+  try {
+    ctx = await getTenantContext(req);
+  } catch {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-const tenantId = ctx.tenantId;
-const userId = session.id;const body = await req.json();
+  const body = await req.json();
 
   const name =
     typeof body?.name === "string" && body.name.trim()
@@ -147,10 +145,17 @@ const userId = session.id;const body = await req.json();
     return Response.json({ error: "Invalid RPG game" }, { status: 400 });
   }
 
-  const worldSetting = pick(body, "worldSetting", "world_setting");
-  const campaignDate = normalizeDateOnly(
-    pick(body, "campaignDate", "campaign_date")
-  );
+  let campaignDate;
+  try {
+    campaignDate = normalizeDateOnlyStrict(
+      pick(body, "campaignDate", "campaign_date")
+    );
+  } catch {
+    return Response.json(
+      { error: "Invalid campaignDate format (YYYY-MM-DD)" },
+      { status: 400 }
+    );
+  }
 
   const { rows } = await query(
     `
@@ -167,10 +172,10 @@ const userId = session.id;const body = await req.json();
     RETURNING *
     `,
     [
-      tenantId,
+      ctx.tenantId,
       name,
       body.description ?? null,
-      worldSetting,
+      pick(body, "worldSetting", "world_setting"),
       campaignDate,
       campaignPackage,
       rpgGame ?? null,
@@ -194,14 +199,9 @@ const userId = session.id;const body = await req.json();
    PUT /api/campaigns
 ----------------------------- */
 export async function PUT(req) {
-  let tenantId;
+  let ctx;
   try {
-    const ctx = await getTenantContext(req);
-if (!session) {
-  return Response.json({ error: "Unauthorized" }, { status: 401 });
-}
-
-const tenantId = ctx.tenantId;
+    ctx = await getTenantContext(req);
   } catch {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -212,24 +212,8 @@ const tenantId = ctx.tenantId;
 
   const body = await req.json();
 
-  if (hasOwn(body, "name") && !String(body.name).trim()) {
-    return Response.json({ error: "Campaign name cannot be blank" }, { status: 400 });
-  }
-
-  if (hasOwn(body, "campaignPackage")) {
-    return Response.json(
-      { error: "campaignPackage cannot be changed after creation" },
-      { status: 400 }
-    );
-  }
-
-  const rpgGame = pick(body, "rpgGame", "rpg_game");
-  if (rpgGame && !ALLOWED_RPG_GAMES.has(rpgGame)) {
-    return Response.json({ error: "Invalid RPG game" }, { status: 400 });
-  }
-
   const sets = [];
-  const values = [tenantId, id];
+  const values = [ctx.tenantId, id];
   let i = 3;
 
   if (hasOwn(body, "name")) {
@@ -240,23 +224,6 @@ const tenantId = ctx.tenantId;
   if (hasOwn(body, "description")) {
     sets.push(`description = $${i++}`);
     values.push(body.description ?? null);
-  }
-
-  const worldSetting = pick(body, "worldSetting", "world_setting");
-  if (worldSetting !== undefined) {
-    sets.push(`world_setting = $${i++}`);
-    values.push(worldSetting);
-  }
-
-  const dateVal = pick(body, "campaignDate", "campaign_date");
-  if (dateVal !== undefined) {
-    sets.push(`campaign_date = $${i++}`);
-    values.push(normalizeDateOnly(dateVal));
-  }
-
-  if (rpgGame !== undefined) {
-    sets.push(`rpg_game = $${i++}`);
-    values.push(rpgGame);
   }
 
   if (!sets.length) {
@@ -280,10 +247,6 @@ const tenantId = ctx.tenantId;
     sanitizeRow(fromDb(rows[0]), {
       name: 120,
       description: 10000,
-      worldSetting: 10000,
-      campaignDate: 50,
-      campaignPackage: 50,
-      rpgGame: 120,
     })
   );
 }

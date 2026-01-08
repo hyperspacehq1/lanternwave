@@ -1,5 +1,6 @@
 import { query } from "@/lib/db";
 import { sanitizeRow } from "@/lib/api/sanitize";
+import { getTenantContext } from "@/lib/tenant/getTenantContext";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -8,15 +9,9 @@ export const dynamic = "force-dynamic";
    GET /api/sessions/[id]
 ------------------------------------------------------------ */
 export async function GET(req, { params }) {
-  let tenantId;
-
+  let ctx;
   try {
-    const ctx = await getTenantContext(req);
-if (!session) {
-  return Response.json({ error: "Unauthorized" }, { status: 401 });
-}
-
-const tenantId = ctx.tenantId;
+    ctx = await getTenantContext(req);
   } catch {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -35,7 +30,7 @@ const tenantId = ctx.tenantId;
        AND deleted_at IS NULL
      LIMIT 1
     `,
-    [tenantId, id]
+    [ctx.tenantId, id]
   );
 
   if (!rows.length) {
@@ -55,15 +50,9 @@ const tenantId = ctx.tenantId;
    DELETE /api/sessions/[id]   (SOFT DELETE)
 ------------------------------------------------------------ */
 export async function DELETE(req, { params }) {
-  let tenantId;
-
+  let ctx;
   try {
-    const ctx = await getTenantContext(req);
-if (!session) {
-  return Response.json({ error: "Unauthorized" }, { status: 401 });
-}
-
-const tenantId = ctx.tenantId;
+    ctx = await getTenantContext(req);
   } catch {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -83,7 +72,7 @@ const tenantId = ctx.tenantId;
        AND deleted_at IS NULL
      RETURNING *
     `,
-    [tenantId, id]
+    [ctx.tenantId, id]
   );
 
   if (!rows.length) {
