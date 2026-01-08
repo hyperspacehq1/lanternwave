@@ -1,6 +1,6 @@
 /* =========================================================
    GM DASHBOARD
-   Extends global LanternWave styles (no overrides)
+   Extends global LanternWave styles
 ========================================================= */
 
 .gm-page {
@@ -14,60 +14,32 @@
   color: var(--lw-text-main);
 }
 
-.gm-controls {
-  position: static !important;
-  display: flex !important;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  align-items: center;
-  justify-content: flex-end;
-  margin-left: auto;
+/* =========================================================
+   ENTITY COLOR TOKENS (single source of truth)
+========================================================= */
+
+:root {
+  --gm-red:    #b33939;
+  --gm-blue:   #3a7bd5;
+  --gm-green:  #3fa96b;
+  --gm-purple: #8b5cf6;
+  --gm-orange: #e38b29;
 }
 
-/* ---------------------------------------
-   Toolbar
----------------------------------------- */
-.gm-toolbar {
- position: relative !important;
-  display: flex !important;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-}
+/* =========================================================
+   GRID / COLUMNS
+========================================================= */
 
-.gm-toolbar select {
-  background: #000;
-  color: var(--lw-green-muted);
-  border: 1px solid var(--lw-border-muted);
-  padding: 0.4rem 0.6rem;
-  font-family: var(--font-terminal);
-  font-size: 12px;
-  text-transform: uppercase;
-}
-
-.gm-toolbar select:focus {
-  outline: none;
-  border-color: var(--lw-green-primary);
-}
-
-/* ---------------------------------------
-   Grid Layout
----------------------------------------- */
 .gm-grid {
   display: grid;
   grid-auto-flow: column;
   grid-auto-columns: minmax(280px, 1fr);
   gap: 1rem;
-
   overflow-x: auto;
   overflow-y: hidden;
   padding-bottom: 0.5rem;
 }
 
-/* ---------------------------------------
-   Column
----------------------------------------- */
 .gm-column {
   background: rgba(0, 0, 0, 0.35);
   border: 1px solid var(--lw-border-muted);
@@ -88,87 +60,23 @@
 }
 
 /* Column color accents */
-.gm-red { border-color: #7a1f1f; }
-.gm-blue { border-color: #1f4a7a; }
-.gm-green { border-color: #1f7a3d; }
+.gm-red    { border-color: #7a1f1f; }
+.gm-blue   { border-color: #1f4a7a; }
+.gm-green  { border-color: #1f7a3d; }
 .gm-purple { border-color: #5b2a7a; }
 .gm-orange { border-color: #7a4a1f; }
 
-/* ---------------------------------------
-   Cards
----------------------------------------- */
+/* =========================================================
+   CARDS
+========================================================= */
+
 .gm-card {
   background: rgba(0, 0, 0, 0.55);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255,255,255,0.15);
   margin-bottom: 0.5rem;
   padding: 0.4rem 0.5rem;
   cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease;
   overflow: hidden;
-  transition: border-color 0.2s ease;
-}
-
-.gm-card:hover {
-  border-color: var(--lw-green-primary);
-}
-
-.gm-card-body {
-  margin-top: 0.5rem;
-  font-size: 11px;
-  color: var(--lw-green-muted);
-  white-space: pre-wrap;
-  line-height: 1.35;
-}
-
-/* ---------------------------------------
-   Utility
----------------------------------------- */
-.gm-loading {
-  margin-top: 1rem;
-  font-family: var(--font-terminal);
-  opacity: 0.6;
-}
-
-/* ---------------------------------------
-   Expand / Collapse Animation
----------------------------------------- */
-
-.gm-card-toggle {
-  font-weight: bold;
-  opacity: 0.8;
-  transition: transform 0.2s ease, opacity 0.2s ease;
-}
-
-.gm-card.is-open .gm-card-toggle {
-  transform: rotate(180deg);
-  opacity: 1;
-}
-
-/* Wrapper animates height */
-.gm-card-body-wrapper {
-  max-height: 0;
-  overflow: hidden;
-  transition: max-height 0.35s ease, opacity 0.25s ease;
-  opacity: 0;
-}
-
-.gm-card.is-open .gm-card-body-wrapper {
-  max-height: 800px; /* large enough for content */
-  opacity: 1;
-}
-
-/* Inner content */
-.gm-card-body {
-  padding-top: 0.5rem;
-  font-size: 11px;
-  line-height: 1.4;
-  color: var(--lw-green-muted);
-}
-/* Smooth animated expand/collapse */
-.gm-card {
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  background: rgba(0, 0, 0, 0.55);
-  margin-bottom: 0.5rem;
   transition: border-color 0.2s ease;
 }
 
@@ -180,98 +88,196 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  cursor: pointer;
   padding: 0.4rem 0.6rem;
   font-size: 12px;
   font-weight: 600;
-  cursor: pointer;
   user-select: none;
 }
 
-.gm-card-toggle {
-  transition: transform 0.25s ease, opacity 0.2s ease;
+.gm-card-body-wrapper {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: max-height 0.35s ease, opacity 0.25s ease;
 }
 
-.gm-card.is-open .gm-card-toggle {
-  transform: rotate(180deg);
+.gm-card.is-open .gm-card-body-wrapper {
+  max-height: 800px;
+  opacity: 1;
 }
 
-/* Drag interaction */
-.gm-drag-wrapper {
-  cursor: grab;
-}
-
-.gm-drag-wrapper:active {
-  cursor: grabbing;
-}
-
-.gm-drag-wrapper.dragging {
-  opacity: 0.5;
-}
-
-/* Optional hover cue */
-.gm-drag-wrapper:hover {
-  outline: 1px dashed rgba(255, 255, 255, 0.15);
+.gm-card-body {
+  padding-top: 0.5rem;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--lw-green-muted);
 }
 
 /* =========================================================
-   Card Action Buttons ( + / ↗ )
+   FLOATING PANEL RAIL
 ========================================================= */
 
-.gm-card-action-btn {
-  background: transparent;
-  border: 1px solid currentColor;
-  color: inherit;
-  padding: 0;
-  border-radius: 3px;
-  font-size: 13px;
-  line-height: 1;
-  display: inline-flex;
+.gm-panel-rail {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100vw;
+  max-height: 70vh;
+
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(30%, 1fr);
+  gap: 0.75rem;
+
+  padding: 0.75rem;
+  background: linear-gradient(
+    to top,
+    rgba(0,0,0,0.85),
+    rgba(0,0,0,0.35)
+  );
+
+  overflow-x: auto;
+  overflow-y: hidden;
+  border-top: 1px solid var(--lw-border-muted);
+  z-index: 50;
+}
+
+/* =========================================================
+   FLOATING PANELS
+========================================================= */
+
+.gm-floating-panel {
+  background: rgba(0,0,0,0.9);
+  border: 1px solid var(--lw-border-muted);
+  border-radius: 6px;
+
+  display: flex;
+  flex-direction: column;
+  min-width: 320px;
+  max-width: 40vw;
+  width: calc(var(--panel-width) * 1%);
+
+  position: relative;
+  box-shadow: 0 0 18px rgba(0,0,0,0.6);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+/* -------------------------
+   Active panel glow
+-------------------------- */
+
+.gm-floating-panel.is-active {
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,0.15),
+    0 0 18px currentColor,
+    0 0 32px rgba(0,0,0,0.8);
+  z-index: 60;
+}
+
+/* =========================================================
+   PANEL HEADERS (ENTITY-COLORED)
+========================================================= */
+
+.gm-floating-header {
+  display: flex;
+  justify-content: space-between;
   align-items: center;
-  justify-content: center;
-  width: auto;
-  min-height: 28px;
+
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid currentColor;
+
+  font-family: var(--font-terminal);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+
+  background: linear-gradient(
+    to bottom,
+    rgba(255,255,255,0.06),
+    rgba(0,0,0,0)
+  );
+}
+
+/* Entity-specific header colors */
+.gm-panel-events     { color: var(--gm-red); }
+.gm-panel-npcs       { color: var(--gm-blue); }
+.gm-panel-encounters { color: var(--gm-green); }
+.gm-panel-locations  { color: var(--gm-purple); }
+.gm-panel-items      { color: var(--gm-orange); }
+
+/* =========================================================
+   PANEL BODY
+========================================================= */
+
+.gm-floating-body {
+  padding: 0.75rem;
+  overflow-y: auto;
+  font-size: 11px;
+  color: var(--lw-green-muted);
+}
+
+/* =========================================================
+   PANEL RESIZE HANDLE
+========================================================= */
+
+.gm-panel-resize {
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 6px;
+  height: 100%;
+  cursor: ew-resize;
+  background: rgba(255,255,255,0.04);
+}
+
+.gm-panel-resize:hover {
+  background: rgba(255,255,255,0.12);
+}
+
+/* =========================================================
+   PANEL MINIMIZE TAB STRIP
+========================================================= */
+
+.gm-panel-tabs {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100vw;
+
+  display: flex;
+  gap: 6px;
+  padding: 6px 10px;
+
+  background: rgba(0,0,0,0.85);
+  border-top: 1px solid var(--lw-border-muted);
+  z-index: 55;
+}
+
+.gm-panel-tab {
   padding: 4px 10px;
-  white-space: nowrap;
-  flex-shrink: 0;
+  font-family: var(--font-terminal);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+
+  border: 1px solid currentColor;
+  border-radius: 3px;
   cursor: pointer;
   opacity: 0.85;
-  transition: 
-    background 0.15s ease,
-    box-shadow 0.15s ease,
-    opacity 0.15s ease,
-    transform 0.1s ease;
+  transition: opacity 0.15s ease, box-shadow 0.15s ease;
 }
 
-.gm-card-action-btn:hover {
+.gm-panel-tab:hover {
   opacity: 1;
-  background: rgba(255, 255, 255, 0.06);
-  box-shadow: 0 0 6px currentColor;
+  box-shadow: 0 0 8px currentColor;
 }
 
-.gm-controls > button {
-  position: static !important;
-  white-space: nowrap;
-  flex-shrink: 0;
+/* =========================================================
+   UTILITY
+========================================================= */
+
+.gm-loading {
+  margin-top: 1rem;
+  font-family: var(--font-terminal);
+  opacity: 0.6;
 }
-
-.gm-card-action-btn:active {
-  transform: scale(0.92);
-}
-
-/* ---------------------------------------------------------
-   Column color inheritance
---------------------------------------------------------- */
-
-.gm-red    .gm-card-action-btn { color: #b33939; }
-.gm-blue   .gm-card-action-btn { color: #3a7bd5; }
-.gm-green  .gm-card-action-btn { color: #3fa96b; }
-.gm-purple .gm-card-action-btn { color: #8b5cf6; }
-.gm-orange .gm-card-action-btn { color: #e38b29; }
-
-/* Optional: subtle glow on hover */
-.gm-red    .gm-card-action-btn:hover { box-shadow: 0 0 6px rgba(179,57,57,0.6); }
-.gm-blue   .gm-card-action-btn:hover { box-shadow: 0 0 6px rgba(58,123,213,0.6); }
-.gm-green  .gm-card-action-btn:hover { box-shadow: 0 0 6px rgba(63,169,107,0.6); }
-.gm-purple .gm-card-action-btn:hover { box-shadow: 0 0 6px rgba(139,92,246,0.6); }
-.gm-orange .gm-card-action-btn:hover { box-shadow: 0 0 6px rgba(227,139,41,0.6); }
