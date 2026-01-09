@@ -345,3 +345,152 @@ button {
     filter 180ms ease,
     opacity 180ms ease;
 }
+
+/* ============================================================
+   MODULE INTEGRATOR — ADMIN DASHBOARD
+   Safe to extend. No global overrides.
+============================================================ */
+
+/* Page container */
+.module-integrator {
+  max-width: 960px;
+  margin: 3.5rem auto;
+  padding: 0 1.5rem;
+}
+
+/* Header */
+.module-integrator h1 {
+  font-family: var(--font-terminal);
+  font-size: 14px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--lw-green-primary);
+  margin-bottom: 0.25rem;
+}
+
+.module-integrator .subtitle {
+  font-size: 13px;
+  color: var(--lw-green-muted);
+  margin-bottom: 2rem;
+}
+
+/* Upload panel */
+.module-upload {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.25rem;
+  border: 1px solid var(--lw-border-muted);
+  border-radius: 10px;
+  margin-bottom: 2rem;
+}
+
+.module-upload input[type="file"] {
+  color: var(--lw-text-main);
+}
+
+.module-upload button {
+  font-family: var(--font-terminal);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  background: transparent;
+  border: 1px solid var(--lw-border-muted);
+  color: var(--lw-green-muted);
+  padding: 0.45rem 0.9rem;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.module-upload button:hover {
+  border-color: var(--lw-green-primary);
+  color: var(--lw-green-primary);
+}
+
+.module-upload button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Pipeline */
+.pipeline {
+  margin-top: 2.5rem;
+}
+
+.pipeline h3 {
+  font-family: var(--font-terminal);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--lw-green-muted);
+  margin-bottom: 0.75rem;
+}
+
+/* Pipeline steps */
+.pipeline-steps {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  border-left: 1px solid var(--lw-border-muted);
+}
+
+.pipeline-step {
+  padding: 0.6rem 0 0.6rem 1.25rem;
+  position: relative;
+  font-size: 14px;
+}
+
+.pipeline-step::before {
+  content: "";
+  position: absolute;
+  left: -6px;
+  top: 1.05rem;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #000;
+  border: 1px solid var(--lw-border-muted);
+}
+
+.pipeline-step.completed::before {
+  background: var(--lw-green-primary);
+  border-color: var(--lw-green-primary);
+}
+
+.pipeline-step.active {
+  color: var(--lw-green-primary);
+}
+
+.pipeline-step .message {
+  display: block;
+  font-size: 12px;
+  color: var(--lw-green-muted);
+  margin-top: 0.15rem;
+}
+
+/* Logs */
+.pipeline-log {
+  margin-top: 2rem;
+  padding: 1rem;
+  border: 1px solid var(--lw-border-muted);
+  border-radius: 8px;
+  background: #050505;
+  font-size: 12px;
+  line-height: 1.4;
+  max-height: 280px;
+  overflow: auto;
+  white-space: pre-wrap;
+}
+
+/* Errors */
+.pipeline-error {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  border: 1px solid rgba(255, 80, 80, 0.4);
+  border-radius: 8px;
+  color: #ff8080;
+  background: rgba(255, 0, 0, 0.05);
+  font-size: 13px;
+}
+

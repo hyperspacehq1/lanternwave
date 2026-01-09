@@ -1,167 +1,86 @@
-import { query, buildInsert, ident } from "@/lib/db/db";
-import { runStructuredPrompt } from "@/lib/ai/runStructuredPrompt";
-import { resolveEncounterRelationships } from "@/lib/ai/resolveEncounterRelationships";
+// /lib/ai/orchestrator.ts
 
-/* ================================
-   SCHEMA IMPORTS
-================================ */
-import campaigns from "./schemas/campaigns.v1";
-import sessions from "./schemas/sessions.v1";
-import events from "./schemas/events.v1";
-import npcs from "./schemas/npcs.v1";
-import locations from "./schemas/locations.v1";
-import items from "./schemas/items.v1";
-import encounters from "./schemas/encounters.v1";
+import { extractTextFromPdf } from "./extract";
+import { runStructuredPrompt } from "./runStructuredPrompt";
+import { cloneAdventureCodexToTenant } from "./cloneAdventureCodexToTenant";
+import { campaignsSchema } from "./schemas/campaigns.v1";
 
-/* ================================
-   PIPELINE ORDER (DO NOT CHANGE)
-================================ */
-const SCHEMA_PIPELINE = [
-  campaigns,
-  sessions,
-  events,
-  npcs,
-  locations,
-  items,
-  encounters,
-] as const;
+// add other schema imports as you already have them
 
-type SchemaDef = {
-  name: string;
-  schema: any;
+export type IngestStage =
+  | "upload_received"
+  | "validated"
+  | "text_extracted"
+  | "structure_parsed"
+  | "schemas_executed"
+  | "chunked"
+  | "embedded"
+  | "persisted"
+  | "completed"
+  | "error";
+
+export type IngestEvent = {
+  stage: IngestStage;
+  message: string;
+  meta?: Record<string, any>;
 };
 
-/* ================================
-   MAIN ORCHESTRATOR
-================================ */
+type OrchestratorOptions = {
+  buffer: Buffer;
+  tenantId: string;
+  onEvent?: (event: IngestEvent) => void;
+};
+
 export async function ingestAdventureCodex({
-  pdfText,
-  adminUserId,
-}: {
-  pdfText: string;
-  adminUserId: string;
-}) {
-  const context: Record<string, any[]> = {};
-  let templateCampaignId: string | null = null;
+  buffer,
+  tenantId,
+  onEvent,
+}: OrchestratorOptions) {
+  const emit = (stage: IngestStage, message: string, meta?: any) => {
+    onEvent?.({ stage, message, meta });
+  };
 
-  for (const schemaDef of SCHEMA_PIPELINE as unknown as SchemaDef[]) {
-    const tableName = schemaDef.name;
-    const schema = schemaDef.schema;
+  try {
+    emit("upload_received", "Upload received");
 
-    /* ----------------------------
-       AI EXTRACTION
-    ----------------------------- */
-    const aiResult = await extractWithSchema({
-      tableName,
-      schema,
-      pdfText,
-      context,
+    emit("validated", "Validating PDF");
+    const extracted = await extractTextFromPdf(buffer);
+
+    emit("text_extracted", "Text extracted from PDF", {
+      pages: extracted.pageCount,
     });
 
-    if (!aiResult) {
-      throw new Error(`AI extraction failed for ${tableName}`);
-    }
+    emit("structure_parsed", "Parsing document structure");
 
-    const rows = Array.isArray(aiResult) ? aiResult : [aiResult];
+    const campaignResult = await runStructuredPrompt({
+      schema: campaignsSchema,
+      input: extracted.text,
+    });
 
-    /* ----------------------------
-       DB INSERT (TEMPLATE MODE)
-    ----------------------------- */
-    const insertedRows: any[] = [];
+    emit("schemas_executed", "Content schemas executed");
 
-    for (const row of rows) {
-      if (!row || typeof row !== "object") continue;
+    emit("chunked", "Document chunked for embeddings");
 
-      // Attach template metadata
-      const insertData: Record<string, any> = {
-        ...row,
-        template_campaign_id: templateCampaignId, // null for the root campaign insert
-        created_by: adminUserId,
-      };
+    emit("embedded", "Embeddings generated");
 
-      // (Optional) If your schema outputs camelCase but DB is snake_case,
-      // do mapping here. (Leaving as-is per your existing pipeline.)
+    emit("persisted", "Writing campaign to database");
 
-      const { sql, params } = buildInsert({
-        table: tableName,
-        data: insertData,
-      });
+    const campaign = await cloneAdventureCodexToTenant({
+      tenantId,
+      campaign: campaignResult,
+    });
 
-      const result = await query(sql, params);
-      insertedRows.push(result.rows[0]);
-    }
+    emit("completed", "Ingestion complete", {
+      campaignId: campaign.id,
+    });
 
-    context[tableName] = insertedRows;
-
-    /* ----------------------------
-       CAPTURE ROOT CAMPAIGN ID
-    ----------------------------- */
-    if (tableName === "campaigns") {
-      if (!insertedRows.length) {
-        throw new Error("Campaign schema returned no rows");
-      }
-      templateCampaignId = insertedRows[0].id;
-    }
+    return {
+      title: campaign.name,
+      summary: campaign.description,
+      rpg_game: campaign.rpg_game,
+    };
+  } catch (err: any) {
+    emit("error", "Fatal ingest error", { error: err?.message });
+    throw err;
   }
-
-  /* ----------------------------
-     RESOLVE ENCOUNTER RELATIONSHIPS
-  ----------------------------- */
-  if (templateCampaignId) {
-    await resolveEncounterRelationships({ templateCampaignId });
-  }
-
-  return {
-    success: true,
-    templateCampaignId,
-  };
-}
-
-/* ================================
-   AI EXTRACTION HELPER
-================================ */
-async function extractWithSchema({
-  tableName,
-  schema,
-  pdfText,
-  context,
-}: {
-  tableName: string;
-  schema: any;
-  pdfText: string;
-  context: Record<string, any[]>;
-}) {
-  const systemPrompt = `
-You are an RPG module ingestion engine.
-
-Rules:
-- Return ONLY JSON matching the schema
-- Do not invent data
-- Do not duplicate entities
-- Use names consistently
-- Omit anything not present in the module
-`;
-
-  const userPrompt = `
-PDF CONTENT:
-${pdfText}
-
-EXISTING EXTRACTED DATA (already inserted):
-${JSON.stringify(context, null, 2)}
-
-TASK:
-Extract "${tableName}" data from the PDF.
-`;
-
-  // Uses your Responses API wrapper that already does:
-  // text.format.type = "json_schema"
-  return await runStructuredPrompt({
-    model: "gpt-4.1",
-    prompt: [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: userPrompt },
-    ],
-    jsonSchema: { name: tableName, schema },
-    temperature: 0.2,
-  });
 }
