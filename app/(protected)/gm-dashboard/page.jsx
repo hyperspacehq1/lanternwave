@@ -15,6 +15,7 @@ const LS_ORDER_PREFIX = "gm-order:";
 const LS_CARD_OPEN_PREFIX = "gm-card-open:";
 const LS_OPEN_PANELS_PREFIX = "gm:open-panels:";
 
+
 /* =========================
    Utils
 ========================= */
@@ -96,6 +97,9 @@ export default function GMDashboardPage() {
   /* -------- Floating Panels -------- */
   const [openPanels, setOpenPanels] = useState([]);
 
+/* -------- Floating Windows (overlay layer) -------- */
+const [floatingWindows, setFloatingWindows] = useState([]);
+
   /* -------- Beacons -------- */
   const [beacons, setBeacons] = useState({});
   const showPlayersBeacon = !!beacons?.player_characters;
@@ -127,15 +131,36 @@ export default function GMDashboardPage() {
     return map[entityKey]?.find((r) => String(r.id) === String(id)) || null;
   };
 
-  const openPanel = (entityKey, record) => {
-    if (!record?.id) return;
-    setOpenPanels((prev) => {
-      // prevent duplicates
-      if (prev.some((p) => String(p.id) === String(record.id))) return prev;
-      return [...prev, { id: record.id, entityKey, record, width: 30 }];
-    });
-  };
+const openPanel = (entityKey, record, e) => {
+  if (!record?.id) return;
 
+  // 1. Keep existing rail behavior (safety net)
+  setOpenPanels((prev) => {
+    if (prev.some((p) => String(p.id) === String(record.id))) return prev;
+    return [...prev, { id: record.id, entityKey, record, width: 30 }];
+  });
+
+  // 2. Floating window at click position
+  const clickX = e?.clientX ?? 160;
+  const clickY = e?.clientY ?? 120;
+
+  setFloatingWindows((prev) => {
+    if (prev.some((w) => String(w.id) === String(record.id))) return prev;
+
+    return [
+      ...prev,
+      {
+        id: record.id,
+        entityKey,
+        record,
+        x: Math.max(16, clickX - 180),
+        y: Math.max(16, clickY - 20),
+        width: 360,
+        z: Date.now(),
+      },
+    ];
+  });
+};
   const closePanel = (id) => {
     setOpenPanels((prev) => prev.filter((p) => String(p.id) !== String(id)));
   };
@@ -539,6 +564,28 @@ export default function GMDashboardPage() {
   ))}
 </div>
 
+{/* Floating record windows (overlay) */}
+{floatingWindows.map((win) => (
+  <FloatingWindow
+    key={`fw-${win.entityKey}-${win.id}`}
+    win={win}
+    schema={DISPLAY_SCHEMAS[win.entityKey]}
+    onClose={() =>
+      setFloatingWindows((prev) => prev.filter((w) => w.id !== win.id))
+    }
+    onMove={(id, x, y) =>
+      setFloatingWindows((prev) =>
+        prev.map((w) => (w.id === id ? { ...w, x, y } : w))
+      )
+    }
+    onResize={(id, width) =>
+      setFloatingWindows((prev) =>
+        prev.map((w) => (w.id === id ? { ...w, width } : w))
+      )
+    }
+  />
+))}
+
       {/* Beacon-controlled widget */}
       {selectedCampaign?.id && showPlayersBeacon && <PlayerCharactersWidget campaignId={selectedCampaign.id} />}
     </div>
@@ -777,15 +824,15 @@ function GMCard({
             type="button"
             className="gm-card-action-btn"
             onClick={(e) => {
-              e.stopPropagation();
+  e.stopPropagation();
 
-              if (onOpenPanel) {
-                onOpenPanel(entityKey, item);
-                return;
-              }
+  if (onOpenPanel) {
+    onOpenPanel(entityKey, item, e); // 👈 pass event
+    return;
+  }
 
-              onOpenEditor?.(item.id);
-            }}
+  onOpenEditor?.(item.id);
+}}
             aria-label="Open record"
             title="Open record"
           >
@@ -887,3 +934,70 @@ function FloatingPanel({ panel, index, schema, onClose, onMove, onResize }) {
     </div>
   );
 }
+
+/* =========================
+   Floating Window Component
+========================= */
+function FloatingWindow({ win, schema, onClose, onMove, onResize }) {
+  const ref = useRef(null);
+  const drag = useRef({ dx: 0, dy: 0 });
+
+  const onMouseDown = (e) => {
+    const r = ref.current.getBoundingClientRect();
+    drag.current = { dx: e.clientX - r.left, dy: e.clientY - r.top };
+
+    const move = (ev) => {
+      onMove(win.id, ev.clientX - drag.current.dx, ev.clientY - drag.current.dy);
+    };
+
+    const up = () => {
+      window.removeEventListener("mousemove", move);
+      window.removeEventListener("mouseup", up);
+    };
+
+    window.addEventListener("mousemove", move);
+    window.addEventListener("mouseup", up);
+  };
+
+  return (
+    <div
+      ref={ref}
+      style={{
+        position: "fixed",
+        left: win.x,
+        top: win.y,
+        width: win.width,
+        zIndex: 200,
+      }}
+      className={`gm-floating-panel gm-panel-${win.entityKey}`}
+    >
+      <div className="gm-floating-header" onMouseDown={onMouseDown}>
+        <span>{win.record?.name || "Untitled"}</span>
+        <button className="gm-card-action-btn" onClick={onClose}>✕</button>
+      </div>
+
+      <div className="gm-floating-body">
+        <RecordView record={win.record} schema={schema} />
+      </div>
+
+      <div
+        className="gm-panel-resize"
+        onMouseDown={(e) => {
+          e.preventDefault();
+          const startX = e.clientX;
+          const startW = win.width;
+
+          const move = (ev) => onResize(win.id, Math.max(320, startW + (ev.clientX - startX)));
+          const up = () => {
+            window.removeEventListener("mousemove", move);
+            window.removeEventListener("mouseup", up);
+          };
+
+          window.addEventListener("mousemove", move);
+          window.addEventListener("mouseup", up);
+        }}
+      />
+    </div>
+  );
+}
+
