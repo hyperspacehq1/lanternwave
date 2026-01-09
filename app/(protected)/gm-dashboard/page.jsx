@@ -589,6 +589,7 @@ function GMColumn({
   onOpenPanel,  // ✅ NEW
   schema,
 }) {
+  const stableStorageKeyRef = useRef(null);
   const hydratedRef = useRef(false);
   const [order, setOrder] = useState([]);
   const draggingIndexRef = useRef(null);
@@ -602,6 +603,9 @@ function GMColumn({
   hydratedRef.current = false;
 
   if (!Array.isArray(items)) {
+  if (storageKey && !stableStorageKeyRef.current) {
+  stableStorageKeyRef.current = storageKey;
+}
     setOrder([]);
     hydratedRef.current = true;
     return;
@@ -680,29 +684,43 @@ useEffect(() => {
   };
 
   const onDrop = (e, dropIndex) => {
-    e.preventDefault();
+  e.preventDefault();
 
-    const fromIndexRaw = (() => {
+  const fromIndexRaw = (() => {
+    try {
+      return e.dataTransfer.getData("text/plain");
+    } catch {
+      return "";
+    }
+  })();
+
+  const fromIndex =
+    fromIndexRaw !== "" ? Number(fromIndexRaw) : draggingIndexRef.current;
+
+  if (fromIndex == null || Number.isNaN(fromIndex)) return;
+  if (fromIndex === dropIndex) return;
+
+  setOrder((prev) => {
+    const updated = [...prev];
+    const [moved] = updated.splice(fromIndex, 1);
+    updated.splice(dropIndex, 0, moved);
+
+    // ✅ Use the locked key, not the live one
+    const key = stableStorageKeyRef.current;
+    if (key) {
       try {
-        return e.dataTransfer.getData("text/plain");
-      } catch {
-        return "";
-      }
-    })();
+        localStorage.setItem(
+          key,
+          JSON.stringify(updated.map((it) => String(it.id)))
+        );
+      } catch {}
+    }
 
-    const fromIndex = fromIndexRaw !== "" ? Number(fromIndexRaw) : draggingIndexRef.current;
-    if (fromIndex == null || Number.isNaN(fromIndex)) return;
-    if (fromIndex === dropIndex) return;
+    return updated;
+  });
 
-    setOrder((prev) => {
-      const updated = [...prev];
-      const [moved] = updated.splice(fromIndex, 1);
-      updated.splice(dropIndex, 0, moved);
-      return updated;
-    });
-
-    draggingIndexRef.current = null;
-  };
+  draggingIndexRef.current = null;
+};
 
   return (
     <div className={`gm-column gm-${color}`}>
