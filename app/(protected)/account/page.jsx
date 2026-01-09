@@ -10,7 +10,7 @@ export default function AccountPage() {
   const [error, setError] = useState(null);
   const [username, setUsername] = useState(null);
 
-  // ✅ Server-backed Beacons
+  // Server-backed beacons (from /api/account)
   const [beacons, setBeacons] = useState({});
 
   const loadingRef = useRef(false);
@@ -25,32 +25,22 @@ export default function AccountPage() {
     async function load() {
       try {
         const accountRes = await fetch("/api/account", {
-  credentials: "include",
-  cache: "no-store",
-});
+          credentials: "include",
+          cache: "no-store",
+        });
 
-if (!accountRes.ok) throw new Error("Failed to load account");
-
-const accountData = await accountRes.json();
-
-setUsername(accountData.account.username);
-setBeacons(accountData.account.beacons ?? {});
-
-        if (!accountRes.ok) throw new Error("Failed to load account");
+        if (!accountRes.ok) {
+          throw new Error("Failed to load account");
+        }
 
         const accountData = await accountRes.json();
+
         if (!accountData?.account?.username) {
           throw new Error("Invalid account response");
         }
 
         setUsername(accountData.account.username);
-
-        if (beaconRes.ok) {
-          const beaconData = await beaconRes.json();
-          setBeacons(beaconData?.beacons ?? {});
-        } else {
-          setBeacons({});
-        }
+        setBeacons(accountData.account.beacons ?? {});
       } catch (err) {
         console.error("ACCOUNT LOAD ERROR:", err);
         setError("Unable to load account details.");
@@ -69,12 +59,14 @@ setBeacons(accountData.account.beacons ?? {});
     // Optimistic UI
     setBeacons((prev) => ({ ...prev, [key]: enabled }));
 
-   fetch("/api/account", {
-  method: "PUT",
-  credentials: "include",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ key, enabled }),
-});
+    fetch("/api/account", {
+      method: "PUT",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key, enabled }),
+    }).catch((err) => {
+      console.error("Beacon update failed:", err);
+    });
   };
 
   return (
@@ -111,7 +103,10 @@ setBeacons(accountData.account.beacons ?? {});
                       type="checkbox"
                       checked={!!beacons.player_characters}
                       onChange={(e) =>
-                        updateBeacon("player_characters", e.target.checked)
+                        updateBeacon(
+                          "player_characters",
+                          e.target.checked
+                        )
                       }
                     />
                   </span>
