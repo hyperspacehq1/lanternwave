@@ -505,68 +505,73 @@ if (allRecords.length === 0) return;
       {selectedCampaign && !selectedSession && <div className="gm-empty">Select or create a session.</div>}
 
       {selectedCampaign && selectedSession && (
-        <div className="gm-grid">
-          <GMColumn
-            title="Events"
-            color="red"
-            entityKey="events"
-            items={events}
-            forceOpen={expandAll}
-            sessionId={selectedSession.id}
-            schema={DISPLAY_SCHEMAS.events}
-            onOpenPanel={openPanel} // ✅ NEW wiring
-            onOpenEditor={(id) => router.push(editorPathFor("events", id))}
-          />
+  <div className="gm-grid">
+    <GMColumn
+      title="Events"
+      color="red"
+      entityKey="events"
+      items={events}
+      forceOpen={expandAll}
+      campaignId={selectedCampaign.id}   // ✅ ADD
+      sessionId={selectedSession.id}
+      schema={DISPLAY_SCHEMAS.events}
+      onOpenPanel={openPanel}
+      onOpenEditor={(id) => router.push(editorPathFor("events", id))}
+    />
 
-          <GMColumn
-            title="NPCs"
-            color="blue"
-            entityKey="npcs"
-            items={npcs}
-            forceOpen={expandAll}
-            sessionId={selectedSession.id}
-            schema={DISPLAY_SCHEMAS.npcs}
-            onOpenPanel={openPanel} // ✅ NEW wiring
-            onOpenEditor={(id) => router.push(editorPathFor("npcs", id))}
-          />
+    <GMColumn
+      title="NPCs"
+      color="blue"
+      entityKey="npcs"
+      items={npcs}
+      forceOpen={expandAll}
+      campaignId={selectedCampaign.id}   // ✅ ADD
+      sessionId={selectedSession.id}
+      schema={DISPLAY_SCHEMAS.npcs}
+      onOpenPanel={openPanel}
+      onOpenEditor={(id) => router.push(editorPathFor("npcs", id))}
+    />
 
-          <GMColumn
-            title="Encounters"
-            color="green"
-            entityKey="encounters"
-            items={encounters}
-            forceOpen={expandAll}
-            sessionId={selectedSession.id}
-            schema={DISPLAY_SCHEMAS.encounters}
-            onOpenPanel={openPanel} // ✅ NEW wiring
-            onOpenEditor={(id) => router.push(editorPathFor("encounters", id))}
-          />
+    <GMColumn
+      title="Encounters"
+      color="green"
+      entityKey="encounters"
+      items={encounters}
+      forceOpen={expandAll}
+      campaignId={selectedCampaign.id}   // ✅ ADD
+      sessionId={selectedSession.id}
+      schema={DISPLAY_SCHEMAS.encounters}
+      onOpenPanel={openPanel}
+      onOpenEditor={(id) => router.push(editorPathFor("encounters", id))}
+    />
 
-          <GMColumn
-            title="Locations"
-            color="purple"
-            entityKey="locations"
-            items={locations}
-            forceOpen={expandAll}
-            sessionId={selectedSession.id}
-            schema={DISPLAY_SCHEMAS.locations}
-            onOpenPanel={openPanel} // ✅ NEW wiring
-            onOpenEditor={(id) => router.push(editorPathFor("locations", id))}
-          />
+    <GMColumn
+      title="Locations"
+      color="purple"
+      entityKey="locations"
+      items={locations}
+      forceOpen={expandAll}
+      campaignId={selectedCampaign.id}   // ✅ ADD
+      sessionId={selectedSession.id}
+      schema={DISPLAY_SCHEMAS.locations}
+      onOpenPanel={openPanel}
+      onOpenEditor={(id) => router.push(editorPathFor("locations", id))}
+    />
 
-          <GMColumn
-            title="Items"
-            color="orange"
-            entityKey="items"
-            items={items}
-            forceOpen={expandAll}
-            sessionId={selectedSession.id}
-            schema={DISPLAY_SCHEMAS.items}
-            onOpenPanel={openPanel} // ✅ NEW wiring
-            onOpenEditor={(id) => router.push(editorPathFor("items", id))}
-          />
-        </div>
-      )}
+    <GMColumn
+      title="Items"
+      color="orange"
+      entityKey="items"
+      items={items}
+      forceOpen={expandAll}
+      campaignId={selectedCampaign.id}   // ✅ ADD
+      sessionId={selectedSession.id}
+      schema={DISPLAY_SCHEMAS.items}
+      onOpenPanel={openPanel}
+      onOpenEditor={(id) => router.push(editorPathFor("items", id))}
+    />
+  </div>
+)}
 
       {loading && <div className="gm-loading">Loading…</div>}
 
@@ -617,6 +622,7 @@ function GMColumn({
   color,
   entityKey,
   items,
+  campaignId,   // ✅ REQUIRED
   forceOpen,
   sessionId,
   onOpenEditor, // keep for future pop-out pages
@@ -628,10 +634,10 @@ function GMColumn({
   const [order, setOrder] = useState([]);
   const draggingIndexRef = useRef(null);
 
-  const storageKey = useMemo(() => {
-    if (!campaignId) return null;
-    return `${LS_ORDER_PREFIX}${campaignId}:${entityKey}`;
-  }, [sessionId, entityKey]);
+const storageKey = useMemo(() => {
+  if (!campaignId) return null;
+  return `${LS_ORDER_PREFIX}${campaignId}:${entityKey}`;
+}, [campaignId, entityKey]);
 
  useEffect(() => {
   // ✅ LOCK the storage key as soon as it exists
