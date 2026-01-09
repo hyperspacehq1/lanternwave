@@ -6,9 +6,9 @@ import LogoMark from "@/components/LogoMark";
 
 /**
  * Header
- * - variant="app"    => GM/CM/Controller/Account (shows 5 app tabs + Logout)
- * - variant="public" => login/signup/forgot/reset (shows Support/Create Account/Sign In only)
- * - variant="player" => Player view (shows Logo + LANTERNWAVE only; no nav, no logout)
+ * - variant="app"    => GM/CM/Controller/Account
+ * - variant="public" => login/signup/forgot/reset
+ * - variant="player" => Player view (logo + title only)
  */
 export default function Header({ variant = "app" }) {
   const pathname = usePathname();
@@ -37,20 +37,15 @@ export default function Header({ variant = "app" }) {
     }
   }
 
-  /**
-   * Logo click target
-   * - public  → /login
-   * - app     → /gm-dashboard
-   * - player  → not clickable
-   */
-  const logoHref =
+  // 🎯 Logo + title destination
+  const homeHref =
     variant === "public"
       ? "/login"
       : variant === "app"
       ? "/gm-dashboard"
       : null;
 
-  // ✅ PLAYER MODE: logo + title only (no tabs, no logout, no link)
+  // ✅ PLAYER MODE (no links)
   if (variant === "player") {
     return (
       <header className="lw-header">
@@ -70,17 +65,21 @@ export default function Header({ variant = "app" }) {
     <header className="lw-header">
       {/* LEFT */}
       <div className="lw-header-left">
-        {logoHref ? (
-          <Link href={logoHref} className="lw-logo-wrap">
-            <LogoMark />
+        {homeHref ? (
+          <Link href={homeHref} className="lw-brand">
+            <span className="lw-logo-wrap">
+              <LogoMark />
+            </span>
+            <span className="lw-header-title">LANTERNWAVE</span>
           </Link>
         ) : (
-          <div className="lw-logo-wrap">
-            <LogoMark />
-          </div>
+          <>
+            <div className="lw-logo-wrap">
+              <LogoMark />
+            </div>
+            <div className="lw-header-title">LANTERNWAVE</div>
+          </>
         )}
-
-        <div className="lw-header-title">LANTERNWAVE</div>
       </div>
 
       {/* RIGHT NAV */}
@@ -100,7 +99,6 @@ export default function Header({ variant = "app" }) {
           );
         })}
 
-        {/* ✅ Logout only for app */}
         {variant === "app" && (
           <button onClick={handleLogout} className="lw-nav-link" type="button">
             Logout

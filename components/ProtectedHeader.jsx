@@ -9,10 +9,5 @@ export default function ProtectedHeader() {
   const isPlayer =
     pathname === "/player" || pathname.startsWith("/player/");
 
-  return (
-    <Header
-      variant={isPlayer ? "player" : "app"}
-      homeHref="/gm-dashboard"
-    />
-  );
+  return <Header variant={isPlayer ? "player" : "app"} />;
 }

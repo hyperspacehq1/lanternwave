@@ -1,16 +1,16 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import "./player.css";
-import { useEffect, useState, useRef } from "react";
 
-// ===========================================================================
-// Helpers copied from Controller (so Player shares 100% logic)
-// ===========================================================================
-function clipTypeFromKey(key = "") {
-  const lower = key.toLowerCase();
-  if (lower.endsWith(".mp3")) return "audio";
-  if (lower.endsWith(".mp4")) return "video";
-  if (lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".png"))
+/* ================================
+   Helpers
+================================ */
+function clipTypeFromKey(key) {
+  const k = key.toLowerCase();
+  if (k.endsWith(".mp3")) return "audio";
+  if (k.endsWith(".mp4")) return "video";
+  if (k.endsWith(".jpg") || k.endsWith(".jpeg") || k.endsWith(".png"))
     return "image";
   return "unknown";
 }
@@ -20,41 +20,42 @@ function streamUrlForKey(key) {
 }
 
 async function getNowPlaying() {
-  const res = await fetch(`/api/r2/now-playing`, { cache: "no-store" });
+  const res = await fetch("/api/r2/now-playing", { cache: "no-store" });
+  if (!res.ok) return null;
   const data = await res.json();
-  return data.nowPlaying;
+  return data.nowPlaying || null;
 }
 
-// Extract key
-function deriveKey(nowPlaying) {
-  if (!nowPlaying || !nowPlaying.key) return null;
-  return nowPlaying.key.startsWith("clips/")
-    ? nowPlaying.key
-    : `clips/${nowPlaying.key}`;
+/* ================================
+   🔑 TIMING SYNC (NEW)
+================================ */
+function syncMediaToNowPlaying(mediaEl, updatedAt) {
+  if (!mediaEl || !updatedAt || mediaEl.__synced) return;
+
+  const startedAt = new Date(updatedAt).getTime();
+  const elapsed = (Date.now() - startedAt) / 1000;
+
+  if (elapsed > 0 && !Number.isNaN(elapsed)) {
+    mediaEl.currentTime = elapsed;
+    mediaEl.__synced = true;
+  }
 }
 
-// ===========================================================================
-// Player Page
-// ===========================================================================
+/* ================================
+   Player Page
+================================ */
 export default function PlayerPage() {
   const [nowPlaying, setNowPlaying] = useState(null);
-  const [loading, setLoading] = useState(true);
   const mediaRef = useRef(null);
 
-  // POLLING
   useEffect(() => {
     let cancelled = false;
 
     async function poll() {
       try {
         const data = await getNowPlaying();
-        if (!cancelled) {
-          setNowPlaying(data);
-          setLoading(false);
-        }
-      } catch (err) {
-        console.error("[LW Player] Poll error:", err);
-      }
+        if (!cancelled) setNowPlaying(data);
+      } catch {}
       if (!cancelled) setTimeout(poll, 1200);
     }
 
@@ -62,75 +63,36 @@ export default function PlayerPage() {
     return () => (cancelled = true);
   }, []);
 
-  const key = deriveKey(nowPlaying);
+  const key = nowPlaying?.key || null;
   const type = key ? clipTypeFromKey(key) : null;
   const url = key ? streamUrlForKey(key) : null;
 
-  const volume = nowPlaying?.volume ?? 100;
-
-  // Apply volume when changed
-  useEffect(() => {
-    if (!mediaRef.current) return;
-    mediaRef.current.volume = Math.max(0, Math.min(1, volume / 100));
-  }, [volume, key, url]);
-
-  // IMAGE / AUDIO / VIDEO RENDERER
-  const renderMedia = () => {
-    if (!url || !type) return null;
-
-    if (type === "audio") {
-      return (
-        <audio
-          ref={mediaRef}
-          src={url}
-          autoPlay
-          className="lw-preview-media"
-        />
-      );
-    }
-
-    if (type === "video") {
-      return (
-        <video
-          ref={mediaRef}
-          src={url}
-          autoPlay
-          className="lw-preview-media"
-        />
-      );
-    }
-
-    return (
-      <img
-        src={url}
-        alt="Now Playing"
-        className="lw-preview-media"
-      />
-    );
-  };
-
-  // =====================================================================
-  // RENDER
-  // =====================================================================
   return (
     <div className="lw-player">
-      {/* NO SIGNAL / LOADING */}
-      {loading && (
-        <div className="lw-player-idle">
-          <div className="lw-player-idle-text">CONNECTING...</div>
-        </div>
-      )}
+      {!key && <div className="lw-player-idle">NO SIGNAL</div>}
 
-      {!loading && !key && (
-        <div className="lw-player-idle">
-          <div className="lw-player-idle-text">NO SIGNAL</div>
-        </div>
-      )}
-
-      {/* ACTIVE PLAYER CONTAINER (uses same frame as controller preview) */}
-      {!loading && key && (
+      {key && type === "image" && (
         <div className="lw-preview-frame">
-          {renderMedia()}
+          <img src={url} className="lw-preview-media" />
+        </div>
+      )}
+
+      {key && type === "audio" && (
+        <audio ref={mediaRef} src={url} autoPlay />
+      )}
+
+      {key && type === "video" && (
+        <div className="lw-preview-frame">
+          <video
+            ref={mediaRef}
+            src={url}
+            autoPlay
+            playsInline
+            className="lw-preview-media"
+            onLoadedMetadata={() =>
+              syncMediaToNowPlaying(mediaRef.current, nowPlaying?.updatedAt)
+            }
+          />
         </div>
       )}
     </div>
