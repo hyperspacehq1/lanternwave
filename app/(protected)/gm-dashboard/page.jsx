@@ -368,13 +368,45 @@ if (allRecords.length === 0) return;
         cache: "no-store",
       }).then((r) => r.json()),
     ])
-      .then(([eventsRes, npcsRes, encountersRes, locationsRes, itemsRes]) => {
-        setEvents(Array.isArray(eventsRes) ? eventsRes : []);
-        setNpcs(Array.isArray(npcsRes) ? npcsRes : []);
-        setEncounters(Array.isArray(encountersRes) ? encountersRes : []);
-        setLocations(Array.isArray(locationsRes) ? locationsRes : []);
-        setItems(Array.isArray(itemsRes) ? itemsRes : []);
-      })
+
+
+  .then(([eventsRes, npcsRes, encountersRes, locationsRes, itemsRes]) => {
+  const applyOrder = (entityKey, rows) => {
+    if (!selectedSession?.id) return rows;
+
+    try {
+      const key = `gm-order:${selectedSession.id}:${entityKey}`;
+      const raw = localStorage.getItem(key);
+      if (!raw) return rows;
+
+      const ids = JSON.parse(raw);
+      if (!Array.isArray(ids)) return rows;
+
+      const byId = new Map(rows.map(r => [String(r.id), r]));
+      const ordered = [];
+
+      for (const id of ids) {
+        const row = byId.get(String(id));
+        if (row) ordered.push(row);
+      }
+
+      for (const row of rows) {
+        if (!ids.includes(String(row.id))) ordered.push(row);
+      }
+
+      return ordered;
+    } catch {
+      return rows;
+    }
+  };
+
+  setEvents(applyOrder("events", Array.isArray(eventsRes) ? eventsRes : []));
+  setNpcs(applyOrder("npcs", Array.isArray(npcsRes) ? npcsRes : []));
+  setEncounters(applyOrder("encounters", Array.isArray(encountersRes) ? encountersRes : []));
+  setLocations(applyOrder("locations", Array.isArray(locationsRes) ? locationsRes : []));
+  setItems(applyOrder("items", Array.isArray(itemsRes) ? itemsRes : []));
+})
+
       .catch(() => {
         setEvents([]);
         setNpcs([]);
