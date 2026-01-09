@@ -101,13 +101,10 @@
   border-radius: 6px;
   margin-bottom: 8px;
   background: #050505;
-  white-space: nowrap;
-  width: fit-content;
-}
 
   /* ⭐ prevents rows from stretching wider than content */
-  width: 100%;
   white-space: nowrap;
+  width: fit-content;
 }
 
 .player-widget__player:last-child {
