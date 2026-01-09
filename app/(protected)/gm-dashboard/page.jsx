@@ -94,9 +94,6 @@ export default function GMDashboardPage() {
   const [loading, setLoading] = useState(false);
   const [expandAll, setExpandAll] = useState(null);
 
-  /* -------- Floating Panels -------- */
-  const [openPanels, setOpenPanels] = useState([]);
-
 /* -------- Floating Windows (overlay layer) -------- */
 const [floatingWindows, setFloatingWindows] = useState([]);
 
@@ -134,13 +131,7 @@ const [floatingWindows, setFloatingWindows] = useState([]);
 const openPanel = (entityKey, record, e) => {
   if (!record?.id) return;
 
-  // 1. Keep existing rail behavior (safety net)
-  setOpenPanels((prev) => {
-    if (prev.some((p) => String(p.id) === String(record.id))) return prev;
-    return [...prev, { id: record.id, entityKey, record, width: 30 }];
-  });
-
-  // 2. Floating window at click position
+  // 1. Floating window at click position
   const clickX = e?.clientX ?? 160;
   const clickY = e?.clientY ?? 120;
 
@@ -235,32 +226,98 @@ const openPanel = (entityKey, record, e) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedSession?.id, events, npcs, encounters, locations, items]);
 
+/* =========================
+   Persist Floating Windows
+========================= */
+useEffect(() => {
+  if (!selectedSession?.id) return;
+
+  try {
+    localStorage.setItem(
+      `gm:floating-windows:${selectedSession.id}`,
+      JSON.stringify(
+        floatingWindows.map(({ id, entityKey, x, y, width }) => ({
+          id,
+          entityKey,
+          x,
+          y,
+          width,
+        }))
+      )
+    );
+  } catch {}
+}, [floatingWindows, selectedSession?.id]);
+
   /* =========================
-     Reset to Default (keep existing + add panels reset)
-  ========================= */
-  const resetToDefault = () => {
-    try {
-      localStorage.removeItem(LS_LAST_CAMPAIGN);
+   Reset to Default (keep existing + add panels reset)
+========================= */
+const resetToDefault = () => {
+  try {
+    localStorage.removeItem(LS_LAST_CAMPAIGN);
 
-      Object.keys(localStorage).forEach((k) => {
-        if (k.startsWith(LS_LAST_SESSION_BY_CAMPAIGN_PREFIX)) localStorage.removeItem(k);
-        if (k.startsWith(LS_ORDER_PREFIX)) localStorage.removeItem(k);
-        if (k.startsWith(LS_CARD_OPEN_PREFIX)) localStorage.removeItem(k);
-        if (k.startsWith(LS_OPEN_PANELS_PREFIX)) localStorage.removeItem(k);
-      });
-    } catch {}
+    Object.keys(localStorage).forEach((k) => {
+      if (k.startsWith(LS_LAST_SESSION_BY_CAMPAIGN_PREFIX)) localStorage.removeItem(k);
+      if (k.startsWith(LS_ORDER_PREFIX)) localStorage.removeItem(k);
+      if (k.startsWith(LS_CARD_OPEN_PREFIX)) localStorage.removeItem(k);
+      if (k.startsWith(LS_OPEN_PANELS_PREFIX)) localStorage.removeItem(k);
 
-    setSelectedCampaign(null);
-    setSelectedSession(null);
-    setSessions([]);
-    setEvents([]);
-    setNpcs([]);
-    setEncounters([]);
-    setLocations([]);
-    setItems([]);
-    setExpandAll(null);
-    setOpenPanels([]);
-  };
+      // 🆕 remove floating window layouts
+      if (k.startsWith("gm:floating-windows:")) localStorage.removeItem(k);
+    });
+  } catch {}
+
+  setSelectedCampaign(null);
+  setSelectedSession(null);
+  setSessions([]);
+  setEvents([]);
+  setNpcs([]);
+  setEncounters([]);
+  setLocations([]);
+  setItems([]);
+  setExpandAll(null);
+  setOpenPanels([]);
+
+  // 🆕 close all floating record windows immediately
+  setFloatingWindows([]);
+};
+
+/* =========================
+   Restore Floating Windows
+========================= */
+useEffect(() => {
+  if (!selectedSession?.id) return;
+
+  try {
+    const raw = localStorage.getItem(`gm:floating-windows:${selectedSession.id}`);
+    if (!raw) return;
+
+    const saved = JSON.parse(raw);
+
+    const restored = saved
+      .map((w) => {
+        const record =
+          events.find(r => r.id === w.id) ||
+          npcs.find(r => r.id === w.id) ||
+          encounters.find(r => r.id === w.id) ||
+          locations.find(r => r.id === w.id) ||
+          items.find(r => r.id === w.id);
+
+        return record
+          ? { ...w, record, z: Date.now() + Math.random() }
+          : null;
+      })
+      .filter(Boolean);
+
+    setFloatingWindows(restored);
+  } catch {}
+}, [
+  selectedSession?.id,
+  events,
+  npcs,
+  encounters,
+  locations,
+  items,
+]);
 
   /* =========================
      Account / Beacons
@@ -549,20 +606,6 @@ const openPanel = (entityKey, record, e) => {
       )}
 
       {loading && <div className="gm-loading">Loading…</div>}
-
-  <div className="gm-panel-rail">
-  {openPanels.map((panel, index) => (
-    <FloatingPanel
-      key={`${panel.entityKey}:${panel.id}`}
-      index={index}
-      panel={panel}
-      schema={DISPLAY_SCHEMAS[panel.entityKey]}
-      onClose={() => closePanel(panel.id)}
-      onMove={movePanel}
-      onResize={resizePanel}
-    />
-  ))}
-</div>
 
 {/* Floating record windows (overlay) */}
 {floatingWindows.map((win) => (
