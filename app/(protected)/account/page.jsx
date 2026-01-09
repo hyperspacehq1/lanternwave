@@ -24,16 +24,17 @@ export default function AccountPage() {
 
     async function load() {
       try {
-        const [accountRes, beaconRes] = await Promise.all([
-          fetch("/api/account", {
-            credentials: "include",
-            cache: "no-store",
-          }),
-          fetch("/api/beacons", {
-            credentials: "include",
-            cache: "no-store",
-          }),
-        ]);
+        const accountRes = await fetch("/api/account", {
+  credentials: "include",
+  cache: "no-store",
+});
+
+if (!accountRes.ok) throw new Error("Failed to load account");
+
+const accountData = await accountRes.json();
+
+setUsername(accountData.account.username);
+setBeacons(accountData.account.beacons ?? {});
 
         if (!accountRes.ok) throw new Error("Failed to load account");
 
@@ -68,14 +69,12 @@ export default function AccountPage() {
     // Optimistic UI
     setBeacons((prev) => ({ ...prev, [key]: enabled }));
 
-    fetch("/api/beacons", {
-      method: "PUT",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ key, enabled }),
-    }).catch((err) => {
-      console.error("Beacon update failed:", err);
-    });
+   fetch("/api/account", {
+  method: "PUT",
+  credentials: "include",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ key, enabled }),
+});
   };
 
   return (

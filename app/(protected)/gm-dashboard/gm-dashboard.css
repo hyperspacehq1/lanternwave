@@ -281,3 +281,25 @@
   font-family: var(--font-terminal);
   opacity: 0.6;
 }
+
+.gm-toolbar select,
+.gm-toolbar option {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-weight: 400;
+  font-size: 13px;
+  line-height: normal;
+  color: rgb(0, 0, 0);
+
+  -webkit-appearance: none;
+  appearance: none;
+
+  background-image:
+    linear-gradient(45deg, transparent 50%, currentColor 50%),
+    linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position:
+    calc(100% - 16px) 55%,
+    calc(100% - 12px) 55%;
+  background-size: 4px 4px;
+  background-repeat: no-repeat;
+  padding-right: 28px;
+}

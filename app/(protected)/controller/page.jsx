@@ -320,7 +320,7 @@ export default function ControllerPage() {
 
         {/* Audience Preview */}
         <section className="lw-panel">
-          <h2 className="lw-panel-title">AUDIENCE PREVIEW</h2>
+          <h2 className="lw-panel-title">PLAYER PREVIEW</h2>
 
           <div className="lw-preview-frame">
             {!previewKey && <div className="lw-preview-placeholder">NO CLIP</div>}
