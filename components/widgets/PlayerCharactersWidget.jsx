@@ -139,14 +139,14 @@ export default function PlayerCharactersWidget({ campaignId }) {
     <div
       ref={widgetRef}
       className="player-widget"
+      data-layout={layout}
       style={{
-        position: "fixed",
-        width: 480,
-        zIndex: 9999,
-        left: pos.x ?? "auto",
-        top: pos.y ?? "auto",
-        right: pos.x == null ? MARGIN : "auto",
-        bottom: pos.y == null ? MARGIN : "auto",
+    position: "fixed",
+    zIndex: 9999,
+    left: pos.x ?? "auto",
+    top: pos.y ?? "auto",
+    right: pos.x == null ? MARGIN : "auto",
+    bottom: pos.y == null ? MARGIN : "auto",
       }}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
