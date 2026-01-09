@@ -1,11 +1,8 @@
 // /lib/ai/orchestrator.ts
 
-import { extractTextFromPdf } from "./extract";
+import { extractWithSchema } from "./extract";
 import { runStructuredPrompt } from "./runStructuredPrompt";
 import { cloneAdventureCodexToTenant } from "./cloneAdventureCodexToTenant";
-import { campaignsSchema } from "./schemas/campaigns.v1";
-
-// add other schema imports as you already have them
 
 export type IngestStage =
   | "upload_received"
@@ -44,16 +41,16 @@ export async function ingestAdventureCodex({
     emit("upload_received", "Upload received");
 
     emit("validated", "Validating PDF");
-    const extracted = await extractTextFromPdf(buffer);
+
+    const extracted = await extractWithSchema(buffer);
 
     emit("text_extracted", "Text extracted from PDF", {
-      pages: extracted.pageCount,
+      pages: extracted?.pageCount,
     });
 
     emit("structure_parsed", "Parsing document structure");
 
-    const campaignResult = await runStructuredPrompt({
-      schema: campaignsSchema,
+    const structured = await runStructuredPrompt({
       input: extracted.text,
     });
 
@@ -67,7 +64,7 @@ export async function ingestAdventureCodex({
 
     const campaign = await cloneAdventureCodexToTenant({
       tenantId,
-      campaign: campaignResult,
+      campaign: structured,
     });
 
     emit("completed", "Ingestion complete", {
@@ -80,7 +77,9 @@ export async function ingestAdventureCodex({
       rpg_game: campaign.rpg_game,
     };
   } catch (err: any) {
-    emit("error", "Fatal ingest error", { error: err?.message });
+    emit("error", "Fatal ingest error", {
+      error: err?.message,
+    });
     throw err;
   }
 }
