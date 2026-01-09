@@ -103,38 +103,38 @@ export default function GMDashboardPage() {
     ],
   }), []);
 
-  /* =========================
-     Floating Panel Helpers
-  ========================= */
-  const lookupRecord = (entityKey, id) => {
-    const map = { events, npcs, encounters, locations, items };
-    return map[entityKey]?.find(r => String(r.id) === String(id)) || null;
-  };
+ /* =========================
+   Floating Panel Helpers
+========================= */
+const lookupRecord = (entityKey, id) => {
+  const map = { events, npcs, encounters, locations, items };
+  return map[entityKey]?.find(r => String(r.id) === String(id)) || null;
+};
 
-  const openPanel = (entityKey, record, e) => {
-    if (!record?.id) return;
+const openPanel = (entityKey, record, e) => {
+  if (!record?.id) return;
 
-    const clickX = e?.clientX ?? 160;
-    const clickY = e?.clientY ?? 120;
+  const clickX = e?.clientX ?? 160;
+  const clickY = e?.clientY ?? 120;
 
-    setOpenPanels(prev => {
-      if (prev.some(p => String(p.id) === String(record.id))) return prev;
-      const maxZ = Math.max(0, ...prev.map(p => p.z || 1));
-      return [
-        ...prev.map(p => ({ ...p, active: false })),
-        {
-          id: record.id,
-          entityKey,
-          record,
-          width: 360,
-          x: Math.max(16, clickX - 180),
-          y: Math.max(16, clickY - 20),
-          z: maxZ + 1,
-          active: true,
-        }
-      ];
-    });
-  };
+  setOpenPanels(prev => {
+    if (prev.some(p => String(p.id) === String(record.id))) return prev;
+    const maxZ = Math.max(0, ...prev.map(p => p.z || 1));
+    return [
+      ...prev.map(p => ({ ...p, active: false })),
+      {
+        id: record.id,
+        entityKey,
+        record,
+        width: 360,
+        x: Math.max(16, clickX - 180),
+        y: Math.max(16, clickY - 20),
+        z: maxZ + 1,
+        active: true,
+      }
+    ];
+  });
+};
 
   /* =========================
      Persist Panels Per Session
@@ -171,26 +171,143 @@ export default function GMDashboardPage() {
      Render
   ========================= */
   return (
-    <div className="gm-page">
-      {/* GRID + TOOLBAR UNCHANGED */}
-      {/* ... everything above remains exactly as before ... */}
+  <div className="gm-page">
+    {/* ---------------- Toolbar ---------------- */}
+    <div className="gm-toolbar" style={{ display: "flex", alignItems: "center", gap: 12 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <select
+          value={selectedCampaign?.id || ""}
+          onChange={(e) => {
+            const next = campaigns.find((c) => c.id === e.target.value) || null;
+            setSelectedCampaign(next);
+          }}
+        >
+          <option value="">Select Campaign</option>
+          {campaigns.map((c) => (
+            <option key={c.id} value={c.id}>{c.name}</option>
+          ))}
+        </select>
 
-      {/* Floating Panels (NO DOCK) */}
-      {openPanels.map(panel => (
-        <FloatingPanel
-          key={`${panel.entityKey}:${panel.id}`}
-          panel={panel}
-          schema={DISPLAY_SCHEMAS[panel.entityKey]}
-          setPanels={setOpenPanels}
-        />
-      ))}
+        <select
+          value={selectedSession?.id || ""}
+          disabled={!selectedCampaign}
+          onChange={(e) => {
+            const next = sessions.find((s) => s.id === e.target.value) || null;
+            setSelectedSession(next);
+          }}
+        >
+          <option value="">Select Session</option>
+          {sessions.map((s) => (
+            <option key={s.id} value={s.id}>{s.name}</option>
+          ))}
+        </select>
+      </div>
 
-      {selectedCampaign?.id && showPlayersBeacon && (
-        <PlayerCharactersWidget campaignId={selectedCampaign.id} />
-      )}
+      <div style={{ marginLeft: "auto", display: "flex", gap: 12 }}>
+        <button
+          type="button"
+          className="gm-card-action-btn"
+          onClick={() => setExpandAll(true)}
+          disabled={!selectedSession}
+        >
+          Expand All
+        </button>
+
+        <button
+          type="button"
+          className="gm-card-action-btn"
+          onClick={() => setExpandAll(false)}
+          disabled={!selectedSession}
+        >
+          Collapse All
+        </button>
+      </div>
     </div>
-  );
-}
+
+    {!selectedCampaign && (
+      <div className="gm-empty">Select or create a campaign to begin.</div>
+    )}
+
+    {selectedCampaign && !selectedSession && (
+      <div className="gm-empty">Select or create a session.</div>
+    )}
+
+    {selectedCampaign && selectedSession && (
+      <div className="gm-grid">
+        <GMColumn
+          title="Events"
+          color="red"
+          entityKey="events"
+          items={events}
+          forceOpen={expandAll}
+          sessionId={selectedSession.id}
+          schema={DISPLAY_SCHEMAS.events}
+          onOpenPanel={openPanel}
+        />
+
+        <GMColumn
+          title="NPCs"
+          color="blue"
+          entityKey="npcs"
+          items={npcs}
+          forceOpen={expandAll}
+          sessionId={selectedSession.id}
+          schema={DISPLAY_SCHEMAS.npcs}
+          onOpenPanel={openPanel}
+        />
+
+        <GMColumn
+          title="Encounters"
+          color="green"
+          entityKey="encounters"
+          items={encounters}
+          forceOpen={expandAll}
+          sessionId={selectedSession.id}
+          schema={DISPLAY_SCHEMAS.encounters}
+          onOpenPanel={openPanel}
+        />
+
+        <GMColumn
+          title="Locations"
+          color="purple"
+          entityKey="locations"
+          items={locations}
+          forceOpen={expandAll}
+          sessionId={selectedSession.id}
+          schema={DISPLAY_SCHEMAS.locations}
+          onOpenPanel={openPanel}
+        />
+
+        <GMColumn
+          title="Items"
+          color="orange"
+          entityKey="items"
+          items={items}
+          forceOpen={expandAll}
+          sessionId={selectedSession.id}
+          schema={DISPLAY_SCHEMAS.items}
+          onOpenPanel={openPanel}
+        />
+      </div>
+    )}
+
+    {loading && <div className="gm-loading">Loading…</div>}
+
+    {/* Floating Panels (true windows, no dock) */}
+    {openPanels.map(panel => (
+      <FloatingPanel
+        key={`${panel.entityKey}:${panel.id}`}
+        panel={panel}
+        schema={DISPLAY_SCHEMAS[panel.entityKey]}
+        setPanels={setOpenPanels}
+      />
+    ))}
+
+    {selectedCampaign?.id && showPlayersBeacon && (
+      <PlayerCharactersWidget campaignId={selectedCampaign.id} />
+    )}
+  </div>
+);
 
 /* =========================
    Floating Panel Window

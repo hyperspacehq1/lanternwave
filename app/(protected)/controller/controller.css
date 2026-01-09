@@ -165,28 +165,23 @@
   color: red;
 }
 
-/* ============================================================
-   PREVIEW (FIXED — FRAME CONTROLS SIZE)
-============================================================ */
-
-.lw-main .lw-preview-frame {
+/* CONTROLLER PREVIEW ONLY */
+.lw-main .lw-panel .lw-preview-frame {
   position: relative;
   width: 100%;
-  max-width: 420px;
+  min-height: 180px;
   aspect-ratio: 16 / 9;
   border: 1px solid var(--lw-border-muted);
   background: #000;
   overflow: hidden;
-  display: block;
 }
 
-.lw-main .lw-preview-media {
+.lw-main .lw-panel .lw-preview-media {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: contain; /* change to cover if desired */
-  background: #000;
+  object-fit: contain;
 }
 
 .lw-main .lw-preview-placeholder {
