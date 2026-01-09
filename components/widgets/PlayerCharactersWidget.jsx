@@ -31,6 +31,8 @@ export default function PlayerCharactersWidget({ campaignId }) {
   );
 
   /* Restore UI */
+  const [pos, setPos] = useState({ x: null, y: null });
+
   useEffect(() => {
     try {
       const raw = localStorage.getItem(storageKey);
@@ -64,7 +66,6 @@ export default function PlayerCharactersWidget({ campaignId }) {
 
   /* Position + Drag */
   const MARGIN = 16;
-  const [pos, setPos] = useState({ x: null, y: null });
   const dragging = useRef(false);
   const dragOffset = useRef({ dx: 0, dy: 0 });
 
@@ -77,12 +78,8 @@ export default function PlayerCharactersWidget({ campaignId }) {
       dx: e.clientX - r.left,
       dy: e.clientY - r.top,
     };
-   function onPointerUp(e) {
-  dragging.current = false;
-  try {
-    widgetRef.current?.releasePointerCapture(e.pointerId);
-  } catch {}
-}
+    widgetRef.current?.setPointerCapture(e.pointerId);
+  }
 
   function onPointerMove(e) {
     if (!dragging.current) return;
@@ -102,8 +99,11 @@ export default function PlayerCharactersWidget({ campaignId }) {
     persistUI({ pos: next });
   }
 
-  function onPointerUp() {
+  function onPointerUp(e) {
     dragging.current = false;
+    try {
+      widgetRef.current?.releasePointerCapture(e.pointerId);
+    } catch {}
   }
 
   /* Load players */
@@ -186,7 +186,7 @@ export default function PlayerCharactersWidget({ campaignId }) {
           </span>
 
           <span
-            className="player-widget__icon" 
+            className="player-widget__icon"
             onPointerDown={(e) => e.stopPropagation()}
             title="Collapse"
             onClick={() => {
@@ -252,7 +252,7 @@ export default function PlayerCharactersWidget({ campaignId }) {
                     </div>
 
                     <span
-                      className="player-widget__icon" 
+                      className="player-widget__icon"
                       onPointerDown={(e) => e.stopPropagation()}
                       title={off ? "Unhide" : "Hide"}
                       onClick={() => {
@@ -276,4 +276,3 @@ export default function PlayerCharactersWidget({ campaignId }) {
     </div>
   );
 }
-
