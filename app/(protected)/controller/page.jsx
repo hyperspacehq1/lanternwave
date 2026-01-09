@@ -7,7 +7,7 @@ import "./controller.css";
 /* ================================
    Helpers
 ================================ */
-function clipTypeFromKey(key = "") {
+function clipTypeFromKey(key) {
   const k = key.toLowerCase();
   if (k.endsWith(".mp3")) return "audio";
   if (k.endsWith(".mp4")) return "video";
@@ -25,29 +25,104 @@ function streamUrlForKey(key) {
 }
 
 /* ================================
-   🔑 TIMING SYNC HELPER (NEW)
-================================ */
-function syncMediaToNowPlaying(mediaEl, updatedAt) {
-  if (!mediaEl || !updatedAt || mediaEl.__synced) return;
-
-  const startedAt = new Date(updatedAt).getTime();
-  const elapsed = (Date.now() - startedAt) / 1000;
-
-  if (elapsed > 0 && !Number.isNaN(elapsed)) {
-    mediaEl.currentTime = elapsed;
-    mediaEl.__synced = true;
-  }
-}
-
-/* ================================
    API helpers
 ================================ */
-// (unchanged)
-async function listClips() { /* unchanged */ }
-async function deleteClip(key) { /* unchanged */ }
-async function uploadClip(file, onProgress) { /* unchanged */ }
-async function getNowPlaying() { /* unchanged */ }
-async function setNowPlaying(key) { /* unchanged */ }
+async function listClips() {
+  const res = await fetch("/api/r2/list", {
+    cache: "no-store",
+    credentials: "include",
+  });
+  if (!res.ok) throw new Error("Not authenticated");
+  const data = await res.json();
+  return data.rows || [];
+}
+
+async function deleteClip(key) {
+  const res = await fetch(`/api/r2/delete?key=${encodeURIComponent(key)}`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+  if (!res.ok) throw new Error("Delete failed");
+}
+
+async function uploadClip(file, onProgress) {
+  const urlRes = await fetch("/api/r2/upload-url", {
+    method: "POST",
+    credentials: "include",
+    body: JSON.stringify({ filename: file.name, size: file.size }),
+    headers: { "Content-Type": "application/json" },
+  });
+
+  const urlData = await urlRes.json().catch(() => null);
+
+  if (!urlRes.ok || !urlData?.uploadUrl || !urlData?.key) {
+    const msg =
+      urlData?.error ||
+      `Upload initialization failed (status ${urlRes.status})`;
+    throw new Error(msg);
+  }
+
+  const { uploadUrl, key } = urlData;
+
+  await new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", uploadUrl);
+
+    xhr.upload.onprogress = (evt) => {
+      if (evt.lengthComputable && onProgress) {
+        const pct = Math.round((evt.loaded / evt.total) * 100);
+        onProgress(pct);
+      }
+    };
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) resolve();
+      else reject(new Error(`Upload to storage failed (status ${xhr.status})`));
+    };
+
+    xhr.onerror = () => reject(new Error("Upload to storage failed"));
+
+    xhr.setRequestHeader("Content-Type", file.type);
+    xhr.send(file);
+  });
+
+  const finRes = await fetch("/api/r2/finalize", {
+    method: "POST",
+    credentials: "include",
+    body: JSON.stringify({ key }),
+    headers: { "Content-Type": "application/json" },
+  });
+
+  const finData = await finRes.json().catch(() => null);
+  if (!finRes.ok || finData?.ok === false) {
+    const msg = finData?.error || `Finalize failed (status ${finRes.status})`;
+    throw new Error(msg);
+  }
+
+  return key;
+}
+
+async function getNowPlaying() {
+  const res = await fetch("/api/r2/now-playing", {
+    cache: "no-store",
+    credentials: "include",
+  });
+  if (!res.ok) return null;
+  const data = await res.json();
+  return data.nowPlaying || null;
+}
+
+async function setNowPlaying(key) {
+  const res = await fetch("/api/r2/now-playing", {
+    method: "POST",
+    credentials: "include",
+    body: JSON.stringify({ key }),
+    headers: { "Content-Type": "application/json" },
+  });
+  if (!res.ok) throw new Error("Not authenticated");
+  const data = await res.json();
+  return data.nowPlaying || null;
+}
 
 /* ================================
    Controller Page
@@ -78,43 +153,185 @@ export default function ControllerPage() {
     refresh();
   }, []);
 
-  const playingKey = nowPlaying?.key || null;
-  const playingType = playingKey ? clipTypeFromKey(playingKey) : null;
+  // ✅ Source of truth for "what is playing" (server OR local audio)
+  const playingKey = nowPlaying?.key || audio?.currentKey || null;
+
+  // ✅ Preview source of truth
+  const previewKey = playingKey;
+  const previewType = previewKey ? clipTypeFromKey(previewKey) : null;
+  const previewUrl = previewKey ? streamUrlForKey(previewKey) : null;
 
   return (
     <div className="lw-main">
       <div className="lw-console">
+        {/* Upload */}
+        <section className="lw-panel">
+          <h2 className="lw-panel-title">UPLOAD CLIP</h2>
 
-        {/* Upload + Library sections unchanged */}
+          <label className={`lw-file-button ${loading ? "disabled" : ""}`}>
+            SELECT FILE
+            <input
+              type="file"
+              disabled={loading}
+              accept=".mp3,.mp4,.jpg,.jpeg,.png"
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file || loading) return;
 
-        {/* ================= Preview ================= */}
+                setUploadProgress(0);
+                setUploadError(null);
+                setLoading(true);
+
+                try {
+                  await uploadClip(file, setUploadProgress);
+                  setUploadProgress(null);
+                  e.target.value = "";
+                  await refresh();
+                } catch (err) {
+                  console.error("[upload]", err);
+                  setUploadError(err?.message || "Upload failed");
+                  setUploadProgress(null);
+                } finally {
+                  setLoading(false);
+                }
+              }}
+            />
+          </label>
+
+          {uploadProgress !== null && (
+            <div className="lw-upload-progress">
+              <div
+                className="lw-upload-progress-fill"
+                style={{ width: `${uploadProgress}%` }}
+              />
+            </div>
+          )}
+
+          {uploadError && <div className="lw-upload-error">{uploadError}</div>}
+        </section>
+
+        {/* Library */}
+        <section className="lw-panel">
+          <h2 className="lw-panel-title">CLIP LIBRARY</h2>
+
+          {loading && <div className="lw-loading">Loading clips…</div>}
+
+          <div className="lw-clip-list">
+            {clips.map((clip) => {
+              const key = clip.object_key;
+              const isNow = playingKey === key;
+              const isBusy = busyKey === key || loading;
+
+              return (
+                <div
+                  key={key}
+                  className={`lw-clip-row ${isNow ? "lw-clip-row-active" : ""}`}
+                >
+                  <div className="lw-clip-main">
+                    <span className="lw-clip-type">
+                      {clipTypeFromKey(key).toUpperCase()}
+                    </span>
+                    <span className="lw-clip-name">{displayNameFromKey(key)}</span>
+                  </div>
+
+                  <div className="lw-clip-actions">
+                    <button
+                      // ✅ Animate/glow ONLY when loop is ON and THIS clip is playing
+                      className={`lw-btn loop-btn ${audio?.loop && isNow ? "active" : ""}`}
+                      disabled={isBusy}
+                      title={audio?.loop ? "Loop enabled" : "Loop disabled"}
+                      aria-pressed={!!audio?.loop}
+                      onClick={() => {
+                        if (!audio?.setLoop) return;
+                        audio.setLoop(!audio.loop);
+                      }}
+                    >
+                      ⟳
+                    </button>
+
+                    <button
+                      className="lw-btn"
+                      disabled={isBusy}
+                      onClick={async () => {
+                        setBusyKey(key);
+                        try {
+                          await setNowPlaying(key);
+                          setNowPlayingState({ key });
+
+                          // ✅ apply current loop mode BEFORE starting playback
+                          if (audio?.setLoop) audio.setLoop(!!audio.loop);
+
+                          audio.play(streamUrlForKey(key), key);
+                        } finally {
+                          setBusyKey(null);
+                        }
+                      }}
+                    >
+                      PLAY
+                    </button>
+
+                    <button
+                      className="lw-btn"
+                      disabled={isBusy}
+                      onClick={async () => {
+                        setBusyKey(key);
+                        try {
+                          await setNowPlaying(null);
+                          setNowPlayingState(null);
+                          audio.stop();
+                        } finally {
+                          setBusyKey(null);
+                        }
+                      }}
+                    >
+                      STOP
+                    </button>
+
+                    <button
+                      className="lw-btn lw-btn-danger"
+                      disabled={isBusy}
+                      onClick={async () => {
+                        setBusyKey(key);
+                        try {
+                          await deleteClip(key);
+                          await refresh();
+                        } finally {
+                          setBusyKey(null);
+                        }
+                      }}
+                    >
+                      DELETE
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* Audience Preview */}
         <section className="lw-panel">
           <h2 className="lw-panel-title">AUDIENCE PREVIEW</h2>
 
           <div className="lw-preview-frame">
-            {!playingKey && <div className="lw-preview-placeholder">NO CLIP</div>}
+            {!previewKey && <div className="lw-preview-placeholder">NO CLIP</div>}
 
-            {playingKey && playingType === "image" && (
-              <img
-                src={streamUrlForKey(playingKey)}
-                className="lw-preview-media"
-              />
+            {previewKey && previewType === "image" && (
+              <img src={previewUrl} className="lw-preview-media" alt="preview" />
             )}
 
-            {playingKey && playingType === "video" && (
+            {previewKey && previewType === "video" && (
               <video
-                src={streamUrlForKey(playingKey)}
                 className="lw-preview-media"
+                src={previewUrl}
                 muted
                 autoPlay
+                loop={!!audio?.loop}
                 playsInline
-                onLoadedMetadata={(e) =>
-                  syncMediaToNowPlaying(e.currentTarget, nowPlaying?.updatedAt)
-                }
               />
             )}
 
-            {playingKey && playingType === "audio" && (
+            {previewKey && previewType === "audio" && (
               <div className="lw-audio-visual">
                 <div className="lw-audio-bar" />
                 <div className="lw-audio-bar" />
@@ -125,7 +342,6 @@ export default function ControllerPage() {
             )}
           </div>
         </section>
-
       </div>
     </div>
   );
