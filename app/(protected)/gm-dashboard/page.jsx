@@ -697,9 +697,12 @@ const storageKey = useMemo(() => {
   hydratedRef.current = true;
 }, [items, storageKey]);
 
+const didUserReorderRef = useRef(false);
+
 useEffect(() => {
   if (!storageKey) return;
-  if (!hydratedRef.current) return; // ✅ prevent first-mount overwrite
+  if (!hydratedRef.current) return;
+  if (!didUserReorderRef.current) return; // 🔥 CRITICAL
 
   try {
     const ids = order.map((it) => String(it.id));
@@ -743,6 +746,7 @@ useEffect(() => {
   if (fromIndex === dropIndex) return;
 
   setOrder((prev) => {
+    didUserReorderRef.current = true; // ✅ ADD THIS
     const updated = [...prev];
     const [moved] = updated.splice(fromIndex, 1);
     updated.splice(dropIndex, 0, moved);
