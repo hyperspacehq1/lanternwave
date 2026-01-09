@@ -375,7 +375,7 @@ if (allRecords.length === 0) return;
   if (!selectedSession?.id) return rows;
 
   try {
-    const key = `gm-order:${selectedSession.id}:${entityKey}`;
+    const key = `gm-order:${selectedCampaign.id}:${entityKey}`;
     const raw = localStorage.getItem(key);
     if (!raw) return rows;
 
@@ -629,8 +629,8 @@ function GMColumn({
   const draggingIndexRef = useRef(null);
 
   const storageKey = useMemo(() => {
-    if (!sessionId) return null;
-    return `${LS_ORDER_PREFIX}${sessionId}:${entityKey}`;
+    if (!campaignId) return null;
+    return `${LS_ORDER_PREFIX}${campaignId}:${entityKey}`;
   }, [sessionId, entityKey]);
 
  useEffect(() => {
