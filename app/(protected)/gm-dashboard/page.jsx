@@ -598,60 +598,68 @@ function GMColumn({
     return `${LS_ORDER_PREFIX}${sessionId}:${entityKey}`;
   }, [sessionId, entityKey]);
 
-  useEffect(() => {
-    if (!Array.isArray(items)) {
-      setOrder([]);
-      return;
-    }
+ useEffect(() => {
+  hydratedRef.current = false;
 
-    if (!storageKey) {
-      setOrder(items);
-      return;
-    }
+  if (!Array.isArray(items)) {
+    setOrder([]);
+    hydratedRef.current = true;
+    return;
+  }
 
-    let saved = null;
-    try {
-      saved = localStorage.getItem(storageKey);
-    } catch {
-      saved = null;
-    }
+  if (!storageKey) {
+    setOrder(items);
+    hydratedRef.current = true;
+    return;
+  }
 
-    if (!saved) {
-      setOrder(items);
-      return;
-    }
+  let saved = null;
+  try {
+    saved = localStorage.getItem(storageKey);
+  } catch {
+    saved = null;
+  }
 
-    let savedIds = [];
-    try {
-      savedIds = JSON.parse(saved);
-    } catch {
-      savedIds = [];
-    }
+  if (!saved) {
+    setOrder(items);
+    hydratedRef.current = true;
+    return;
+  }
 
-    savedIds = Array.isArray(savedIds) ? savedIds.map((v) => String(v)) : [];
+  let savedIds = [];
+  try {
+    savedIds = JSON.parse(saved);
+  } catch {
+    savedIds = [];
+  }
 
-    const byId = new Map(items.map((it) => [String(it.id), it]));
-    const ordered = [];
+  savedIds = Array.isArray(savedIds) ? savedIds.map((v) => String(v)) : [];
 
-    for (const id of savedIds) {
-      const row = byId.get(String(id));
-      if (row) ordered.push(row);
-    }
+  const byId = new Map(items.map((it) => [String(it.id), it]));
+  const ordered = [];
 
-    for (const it of items) {
-      if (!savedIds.includes(String(it.id))) ordered.push(it);
-    }
+  for (const id of savedIds) {
+    const row = byId.get(String(id));
+    if (row) ordered.push(row);
+  }
 
-    setOrder(ordered);
-  }, [items, storageKey]);
+  for (const it of items) {
+    if (!savedIds.includes(String(it.id))) ordered.push(it);
+  }
 
-  useEffect(() => {
-    if (!storageKey) return;
-    try {
-      const ids = order.map((it) => String(it.id));
-      localStorage.setItem(storageKey, JSON.stringify(ids));
-    } catch {}
-  }, [order, storageKey]);
+  setOrder(ordered);
+  hydratedRef.current = true;
+}, [items, storageKey]);
+
+useEffect(() => {
+  if (!storageKey) return;
+  if (!hydratedRef.current) return; // ✅ prevent first-mount overwrite
+
+  try {
+    const ids = order.map((it) => String(it.id));
+    localStorage.setItem(storageKey, JSON.stringify(ids));
+  } catch {}
+}, [order, storageKey]);
 
   const onDragStart = (e, index) => {
     const t = e.target;
