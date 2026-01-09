@@ -24,7 +24,7 @@ export default function Header({ variant = "app" }) {
   const publicNavItems = [
     { label: "Support", href: "/support" },
     { label: "Create Account", href: "/signup" },
-    { label: "Sign In", href: "/" },
+    { label: "Sign In", href: "/login" },
   ];
 
   async function handleLogout() {
@@ -33,11 +33,24 @@ export default function Header({ variant = "app" }) {
     } catch (err) {
       console.error("Logout failed:", err);
     } finally {
-      window.location.href = "/";
+      window.location.href = "/login";
     }
   }
 
-  // ✅ PLAYER MODE: logo + title only (no tabs, no logout)
+  /**
+   * Logo click target
+   * - public  → /login
+   * - app     → /gm-dashboard
+   * - player  → not clickable
+   */
+  const logoHref =
+    variant === "public"
+      ? "/login"
+      : variant === "app"
+      ? "/gm-dashboard"
+      : null;
+
+  // ✅ PLAYER MODE: logo + title only (no tabs, no logout, no link)
   if (variant === "player") {
     return (
       <header className="lw-header">
@@ -57,9 +70,15 @@ export default function Header({ variant = "app" }) {
     <header className="lw-header">
       {/* LEFT */}
       <div className="lw-header-left">
-        <div className="lw-logo-wrap">
-          <LogoMark />
-        </div>
+        {logoHref ? (
+          <Link href={logoHref} className="lw-logo-wrap">
+            <LogoMark />
+          </Link>
+        ) : (
+          <div className="lw-logo-wrap">
+            <LogoMark />
+          </div>
+        )}
 
         <div className="lw-header-title">LANTERNWAVE</div>
       </div>
@@ -81,8 +100,8 @@ export default function Header({ variant = "app" }) {
           );
         })}
 
-        {/* ✅ Logout only for non-public + non-player */}
-        {variant !== "public" && (
+        {/* ✅ Logout only for app */}
+        {variant === "app" && (
           <button onClick={handleLogout} className="lw-nav-link" type="button">
             Logout
           </button>
