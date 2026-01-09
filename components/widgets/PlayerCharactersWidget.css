@@ -1,56 +1,59 @@
-/* =========================================================
-   Player Characters Widget (Scoped)
-   Yellow-on-black, isolated from GM dashboard
-========================================================= */
-
 .player-widget {
   background: #000;
   color: #fff;
   border: 1px solid #f5c542;
-  border-radius: 6px;
-  box-shadow: 0 0 14px rgba(0, 0, 0, 0.8);
-  font-family: var(--font-terminal);
+  border-radius: 8px;
+  box-shadow: 0 0 16px rgba(0, 0, 0, 0.85);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
-/* ---------- Header ---------- */
+/* HEADER */
 
 .player-widget__header {
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  padding: 6px 10px;
-  border-bottom: 1px solid rgba(245, 197, 66, 0.6);
+  align-items: center;
+  padding: 10px 14px;
+  background: #f5c542;
+  color: #000;
   cursor: grab;
   user-select: none;
 }
 
+.player-widget__header:active {
+  cursor: grabbing;
+}
+
 .player-widget__title {
-  color: #f5c542;
-  font-size: 11px;
-  letter-spacing: 0.14em;
+  font-weight: 700;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  white-space: nowrap;
+  font-size: 13px;
 }
 
 .player-widget__controls {
   display: flex;
-  gap: 10px;
+  gap: 12px;
 }
 
 .player-widget__icon {
   color: #f5c542;
+  background: #000;
+  border: 1px solid #f5c542;
+  padding: 4px 6px;
+  border-radius: 4px;
   cursor: pointer;
-  opacity: 0.85;
+  font-size: 14px;
 }
 
 .player-widget__icon:hover {
-  opacity: 1;
+  background: #111;
 }
 
-/* ---------- Body ---------- */
+/* BODY */
 
 .player-widget__body {
-  padding: 8px 10px;
+  padding: 14px;
 }
 
 .player-widget__list {
@@ -62,27 +65,37 @@
 .player-widget__list.horizontal {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 12px;
 }
 
-/* ---------- Player Row ---------- */
+/* PLAYER ROW */
 
 .player-widget__player {
-  cursor: pointer;
-  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid rgba(245, 197, 66, 0.35);
+  border-radius: 6px;
+  margin-bottom: 8px;
+  background: #050505;
 }
 
 .player-widget__player.inactive {
   opacity: 0.35;
 }
 
+.player-widget__text {
+  flex: 1;
+}
+
 .player-widget__character {
   color: #f5c542;
   font-weight: 600;
-  font-size: 12px;
+  font-size: 15px;
 }
 
 .player-widget__name {
-  font-size: 11px;
-  opacity: 0.75;
+  font-size: 13px;
+  opacity: 0.8;
 }

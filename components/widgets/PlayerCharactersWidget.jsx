@@ -13,8 +13,10 @@ export default function PlayerCharactersWidget({ campaignId }) {
   const [collapsed, setCollapsed] = useState(false);
   const [layout, setLayout] = useState("vertical");
   const [inactive, setInactive] = useState({});
+  const [turns, setTurns] = useState({});
+  const [order, setOrder] = useState([]);
 
-  /* Storage scope */
+  /* User scope */
   const [userScope, setUserScope] = useState("anon");
   useEffect(() => {
     fetch("/api/account")
@@ -28,7 +30,7 @@ export default function PlayerCharactersWidget({ campaignId }) {
     [userScope]
   );
 
-  /* Restore UI state */
+  /* Restore UI */
   useEffect(() => {
     try {
       const raw = localStorage.getItem(storageKey);
@@ -37,6 +39,9 @@ export default function PlayerCharactersWidget({ campaignId }) {
       setCollapsed(!!s.collapsed);
       setLayout(s.layout || "vertical");
       setInactive(s.inactive || {});
+      setTurns(s.turns || {});
+      setOrder(s.order || []);
+      if (s.pos) setPos(s.pos);
     } catch {}
   }, [storageKey]);
 
@@ -44,21 +49,26 @@ export default function PlayerCharactersWidget({ campaignId }) {
     try {
       localStorage.setItem(
         storageKey,
-        JSON.stringify({ collapsed, layout, inactive, ...next })
+        JSON.stringify({
+          collapsed,
+          layout,
+          inactive,
+          turns,
+          order,
+          pos,
+          ...next,
+        })
       );
     } catch {}
   }
 
-  /* Position */
+  /* Position + Drag */
   const MARGIN = 16;
   const [pos, setPos] = useState({ x: null, y: null });
-
   const dragging = useRef(false);
   const dragOffset = useRef({ dx: 0, dy: 0 });
 
-  function clamp(v, min, max) {
-    return Math.max(min, Math.min(max, v));
-  }
+  const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
 
   function onDragStart(e) {
     dragging.current = true;
@@ -72,18 +82,20 @@ export default function PlayerCharactersWidget({ campaignId }) {
 
   function onPointerMove(e) {
     if (!dragging.current) return;
-    setPos({
+    const next = {
       x: clamp(
         e.clientX - dragOffset.current.dx,
         MARGIN,
-        window.innerWidth - 380
+        window.innerWidth - 480
       ),
       y: clamp(
         e.clientY - dragOffset.current.dy,
         MARGIN,
-        window.innerHeight - 200
+        window.innerHeight - 260
       ),
-    });
+    };
+    setPos(next);
+    persistUI({ pos: next });
   }
 
   function onPointerUp() {
@@ -96,9 +108,28 @@ export default function PlayerCharactersWidget({ campaignId }) {
     setLoading(true);
     fetch(`/api/players?campaign_id=${campaignId}`)
       .then((r) => r.json())
-      .then((d) => setPlayers(Array.isArray(d) ? d : []))
+      .then((d) => {
+        const list = Array.isArray(d) ? d : [];
+        setPlayers(list);
+        if (!order.length) setOrder(list.map((p) => p.id));
+      })
       .finally(() => setLoading(false));
   }, [campaignId]);
+
+  /* Ordered players */
+  const orderedPlayers = order
+    .map((id) => players.find((p) => p.id === id))
+    .filter(Boolean);
+
+  /* Reorder logic */
+  function movePlayer(from, to) {
+    if (from === to) return;
+    const next = [...order];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    setOrder(next);
+    persistUI({ order: next });
+  }
 
   return (
     <div
@@ -106,7 +137,7 @@ export default function PlayerCharactersWidget({ campaignId }) {
       className="player-widget"
       style={{
         position: "fixed",
-        width: 360,
+        width: 480,
         zIndex: 9999,
         left: pos.x ?? "auto",
         top: pos.y ?? "auto",
@@ -116,26 +147,23 @@ export default function PlayerCharactersWidget({ campaignId }) {
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
     >
-      <div className="player-widget__header">
-        {/* DRAG HANDLE ONLY */}
-        <div
-          className="player-widget__title"
-          onPointerDown={onDragStart}
-        >
-          Players — Drag → Corner → Drop
-        </div>
+      {/* HEADER = DRAG HANDLE */}
+      <div
+        className="player-widget__header"
+        onPointerDown={onDragStart}
+      >
+        <div className="player-widget__title">Players</div>
 
         <div className="player-widget__controls">
           <span
             className="player-widget__icon"
-            title="Collapse"
+            title="Reset Turns"
             onClick={() => {
-              const v = !collapsed;
-              setCollapsed(v);
-              persistUI({ collapsed: v });
+              setTurns({});
+              persistUI({ turns: {} });
             }}
           >
-            {collapsed ? "▸" : "▾"}
+            ↺
           </span>
 
           <span
@@ -150,16 +178,28 @@ export default function PlayerCharactersWidget({ campaignId }) {
           >
             ⇄
           </span>
+
+          <span
+            className="player-widget__icon"
+            title="Collapse"
+            onClick={() => {
+              const v = !collapsed;
+              setCollapsed(v);
+              persistUI({ collapsed: v });
+            }}
+          >
+            {collapsed ? "▸" : "▾"}
+          </span>
         </div>
       </div>
 
-      {loading ? (
-        <div className="player-widget__body">Loading…</div>
-      ) : (
-        !collapsed && (
-          <div className="player-widget__body">
+      {!collapsed && (
+        <div className="player-widget__body">
+          {loading ? (
+            <div>Loading…</div>
+          ) : (
             <ul className={`player-widget__list ${layout}`}>
-              {players.map((p) => {
+              {orderedPlayers.map((p, index) => {
                 const off = inactive[p.id];
                 return (
                   <li
@@ -167,25 +207,65 @@ export default function PlayerCharactersWidget({ campaignId }) {
                     className={`player-widget__player ${
                       off ? "inactive" : ""
                     }`}
-                    onClick={() => {
-                      const n = { ...inactive, [p.id]: !off };
-                      setInactive(n);
-                      persistUI({ inactive: n });
+                    draggable
+                    onDragStart={(e) =>
+                      e.dataTransfer.setData(
+                        "text/plain",
+                        String(index)
+                      )
+                    }
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => {
+                      const from = Number(
+                        e.dataTransfer.getData("text/plain")
+                      );
+                      if (!Number.isNaN(from)) movePlayer(from, index);
                     }}
                   >
-                    <div className="player-widget__character">
-                      {p.character_name || "—"}
+                    <input
+                      type="checkbox"
+                      checked={!!turns[p.id]}
+                      onChange={() => {
+                        const n = {
+                          ...turns,
+                          [p.id]: !turns[p.id],
+                        };
+                        setTurns(n);
+                        persistUI({ turns: n });
+                      }}
+                    />
+
+                    <div className="player-widget__text">
+                      <div className="player-widget__character">
+                        {p.character_name || "—"}
+                      </div>
+                      <div className="player-widget__name">
+                        {`${p.first_name ?? ""} ${p.last_name ?? ""}`.trim()}
+                      </div>
                     </div>
-                    <div className="player-widget__name">
-                      {`${p.first_name ?? ""} ${p.last_name ?? ""}`.trim()}
-                    </div>
+
+                    <span
+                      className="player-widget__icon"
+                      title={off ? "Unhide" : "Hide"}
+                      onClick={() => {
+                        const n = {
+                          ...inactive,
+                          [p.id]: !off,
+                        };
+                        setInactive(n);
+                        persistUI({ inactive: n });
+                      }}
+                    >
+                      {off ? "👁" : "🚫"}
+                    </span>
                   </li>
                 );
               })}
             </ul>
-          </div>
-        )
+          )}
+        </div>
       )}
     </div>
   );
 }
+
