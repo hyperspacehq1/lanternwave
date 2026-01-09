@@ -413,8 +413,9 @@ function FloatingPanel({ panel, schema, setPanels }) {
   }
 
   function up() {
-    dragging.current = false;
-    window.removeEventListener("mousemove", move);
-    window.removeEventListener("mouseup", up);
-  }
+  dragging.current = false;
+  window.removeEventListener("mousemove", move);
+  window.removeEventListener("mouseup", up);
 }
+
+} 
