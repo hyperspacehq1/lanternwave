@@ -510,9 +510,10 @@ if (allRecords.length === 0) return;
     href="/account"
     className="gm-toolbar-btn gm-toolbar-btn-beacons"
   >
-    Activate Beacons
+  Activate Beacons
   </a>
 </div>
+</div> 
 
       {!selectedCampaign && <div className="gm-empty">Select or create a campaign to begin.</div>}
       {selectedCampaign && !selectedSession && <div className="gm-empty">Select or create a session.</div>}
