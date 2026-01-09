@@ -13,7 +13,6 @@ const LS_LAST_CAMPAIGN = "gm:lastCampaignId";
 const LS_LAST_SESSION_BY_CAMPAIGN_PREFIX = "gm:lastSessionId:";
 const LS_ORDER_PREFIX = "gm-order:";
 const LS_CARD_OPEN_PREFIX = "gm-card-open:";
-const LS_OPEN_PANELS_PREFIX = "gm:open-panels:";
 
 
 /* =========================
@@ -120,14 +119,7 @@ const [floatingWindows, setFloatingWindows] = useState([]);
 
   const canUseSession = !!selectedSession?.id;
 
-  /* =========================
-     Floating Panel Helpers
-  ========================= */
-  const lookupRecord = (entityKey, id) => {
-    const map = { events, npcs, encounters, locations, items };
-    return map[entityKey]?.find((r) => String(r.id) === String(id)) || null;
-  };
-
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 const openPanel = (entityKey, record, e) => {
   if (!record?.id) return;
 
@@ -144,87 +136,14 @@ const openPanel = (entityKey, record, e) => {
         id: record.id,
         entityKey,
         record,
-        x: Math.max(16, clickX - 180),
-        y: Math.max(16, clickY - 20),
+x: clamp(clickX - 180, 16, window.innerWidth - 360 - 16),
+y: clamp(clickY - 20, 16, window.innerHeight - 240 - 16),
         width: 360,
         z: Date.now(),
       },
     ];
   });
 };
-  const closePanel = (id) => {
-    setOpenPanels((prev) => prev.filter((p) => String(p.id) !== String(id)));
-  };
-
-  const movePanel = (fromIndex, toIndex) => {
-    setOpenPanels((prev) => {
-      if (
-        fromIndex == null ||
-        toIndex == null ||
-        Number.isNaN(fromIndex) ||
-        Number.isNaN(toIndex) ||
-        fromIndex === toIndex
-      )
-        return prev;
-
-      const next = [...prev];
-      const [moved] = next.splice(fromIndex, 1);
-      next.splice(toIndex, 0, moved);
-      return next;
-    });
-  };
-
-  const resizePanel = (id, width) => {
-    setOpenPanels((prev) =>
-      prev.map((p) =>
-        String(p.id) === String(id)
-          ? { ...p, width: Math.min(40, Math.max(30, Number(width) || 30)) }
-          : p
-      )
-    );
-  };
-
-  /* =========================
-     Persist Panels Per Session
-  ========================= */
-  useEffect(() => {
-    if (!selectedSession?.id) return;
-
-    try {
-      localStorage.setItem(
-        `${LS_OPEN_PANELS_PREFIX}${selectedSession.id}`,
-        JSON.stringify(openPanels.map(({ id, entityKey, width }) => ({ id, entityKey, width })))
-      );
-    } catch {}
-  }, [openPanels, selectedSession?.id]);
-
-  useEffect(() => {
-    if (!selectedSession?.id) return;
-
-    const key = `${LS_OPEN_PANELS_PREFIX}${selectedSession.id}`;
-    let saved = null;
-
-    try {
-      saved = localStorage.getItem(key);
-    } catch {
-      saved = null;
-    }
-    if (!saved) return;
-
-    try {
-      const parsed = JSON.parse(saved);
-      const restored = (Array.isArray(parsed) ? parsed : [])
-        .map((p) => {
-          const record = lookupRecord(p.entityKey, p.id);
-          if (!record) return null;
-          return { ...p, record, width: Math.min(40, Math.max(30, Number(p.width) || 30)) };
-        })
-        .filter(Boolean);
-
-      setOpenPanels(restored);
-    } catch {}
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedSession?.id, events, npcs, encounters, locations, items]);
 
 /* =========================
    Persist Floating Windows
@@ -236,7 +155,7 @@ useEffect(() => {
     localStorage.setItem(
       `gm:floating-windows:${selectedSession.id}`,
       JSON.stringify(
-        floatingWindows.map(({ id, entityKey, x, y, width }) => ({
+        floatingWindows.map(({ id, entityKey, x, y, width, z }) => ({
           id,
           entityKey,
           x,
@@ -259,7 +178,6 @@ const resetToDefault = () => {
       if (k.startsWith(LS_LAST_SESSION_BY_CAMPAIGN_PREFIX)) localStorage.removeItem(k);
       if (k.startsWith(LS_ORDER_PREFIX)) localStorage.removeItem(k);
       if (k.startsWith(LS_CARD_OPEN_PREFIX)) localStorage.removeItem(k);
-      if (k.startsWith(LS_OPEN_PANELS_PREFIX)) localStorage.removeItem(k);
 
       // 🆕 remove floating window layouts
       if (k.startsWith("gm:floating-windows:")) localStorage.removeItem(k);
@@ -275,7 +193,6 @@ const resetToDefault = () => {
   setLocations([]);
   setItems([]);
   setExpandAll(null);
-  setOpenPanels([]);
 
   // 🆕 close all floating record windows immediately
   setFloatingWindows([]);
@@ -286,6 +203,17 @@ const resetToDefault = () => {
 ========================= */
 useEffect(() => {
   if (!selectedSession?.id) return;
+
+// 🛑 GUARD: wait until at least one dataset has loaded
+  if (
+    events.length === 0 &&
+    npcs.length === 0 &&
+    encounters.length === 0 &&
+    locations.length === 0 &&
+    items.length === 0
+  ) {
+    return;
+  }
 
   try {
     const raw = localStorage.getItem(`gm:floating-windows:${selectedSession.id}`);
@@ -303,7 +231,7 @@ useEffect(() => {
           items.find(r => r.id === w.id);
 
         return record
-          ? { ...w, record, z: Date.now() + Math.random() }
+          ? { ...w, record, z: w.z ?? Date.now() + Math.random() }
           : null;
       })
       .filter(Boolean);
@@ -371,7 +299,6 @@ useEffect(() => {
     setLocations([]);
     setItems([]);
     setExpandAll(null);
-    setOpenPanels([]);
 
     fetch(`/api/sessions?campaign_id=${selectedCampaign.id}`, {
       credentials: "include",
@@ -616,11 +543,21 @@ useEffect(() => {
     onClose={() =>
       setFloatingWindows((prev) => prev.filter((w) => w.id !== win.id))
     }
-    onMove={(id, x, y) =>
-      setFloatingWindows((prev) =>
-        prev.map((w) => (w.id === id ? { ...w, x, y } : w))
-      )
-    }
+    onMove={(id, x, y, bringToFront = false) =>
+  setFloatingWindows((prev) => {
+    const maxZ = Math.max(0, ...prev.map(w => w.z || 0));
+    return prev.map((w) =>
+      w.id === id
+        ? {
+            ...w,
+            x,
+            y,
+            z: bringToFront ? maxZ + 1 : w.z,
+          }
+        : w
+    );
+  })
+}
     onResize={(id, width) =>
       setFloatingWindows((prev) =>
         prev.map((w) => (w.id === id ? { ...w, width } : w))
@@ -902,92 +839,18 @@ function GMCard({
 }
 
 /* =========================
-   Floating Panel Component
-========================= */
-function FloatingPanel({ panel, index, schema, onClose, onMove, onResize }) {
-  const onDragStart = (e) => {
-    try {
-      e.dataTransfer.setData("text/plain", String(index));
-    } catch {}
-    e.dataTransfer.effectAllowed = "move";
-  };
-
-  const onDrop = (e) => {
-    e.preventDefault();
-    let fromRaw = "";
-    try {
-      fromRaw = e.dataTransfer.getData("text/plain");
-    } catch {}
-    const from = Number(fromRaw);
-    if (!Number.isNaN(from)) onMove(from, index);
-  };
-
-  return (
-    <div
-      className="gm-floating-panel"
-      draggable
-      onDragStart={onDragStart}
-      onDragOver={(e) => e.preventDefault()}
-      onDrop={onDrop}
-      style={{ "--panel-width": panel.width }}
-    >
-      <div className="gm-floating-header">
-        <span>{panel.record?.name || "Untitled"}</span>
-        <button
-          type="button"
-          className="gm-card-action-btn"
-          onClick={onClose}
-          aria-label="Close panel"
-          title="Close"
-        >
-          ✕
-        </button>
-      </div>
-
-      <div className="gm-floating-body">
-        <RecordView record={panel.record} schema={schema} />
-        {!schema && <pre className="gm-json">{JSON.stringify(panel.record, null, 2)}</pre>}
-      </div>
-
-      {/* Resize handle: 30% -> 40% */}
-      <div
-        className="gm-panel-resize"
-        onMouseDown={(e) => {
-          e.preventDefault();
-
-          const startX = e.clientX;
-          const startWidth = Number(panel.width) || 30;
-
-          const onMoveEvt = (ev) => {
-            const delta = ev.clientX - startX;
-            const percent = (delta / window.innerWidth) * 100;
-            onResize(panel.id, startWidth + percent);
-          };
-
-          const onUp = () => {
-            window.removeEventListener("mousemove", onMoveEvt);
-            window.removeEventListener("mouseup", onUp);
-          };
-
-          window.addEventListener("mousemove", onMoveEvt);
-          window.addEventListener("mouseup", onUp);
-        }}
-        aria-hidden="true"
-      />
-    </div>
-  );
-}
-
-/* =========================
    Floating Window Component
 ========================= */
 function FloatingWindow({ win, schema, onClose, onMove, onResize }) {
   const ref = useRef(null);
   const drag = useRef({ dx: 0, dy: 0 });
 
-  const onMouseDown = (e) => {
-    const r = ref.current.getBoundingClientRect();
-    drag.current = { dx: e.clientX - r.left, dy: e.clientY - r.top };
+ const onMouseDown = (e) => {
+  // bring to front
+  onMove(win.id, win.x, win.y, true);
+
+  const r = ref.current.getBoundingClientRect();
+  drag.current = { dx: e.clientX - r.left, dy: e.clientY - r.top };
 
     const move = (ev) => {
       onMove(win.id, ev.clientX - drag.current.dx, ev.clientY - drag.current.dy);
@@ -1010,7 +873,7 @@ function FloatingWindow({ win, schema, onClose, onMove, onResize }) {
         left: win.x,
         top: win.y,
         width: win.width,
-        zIndex: 200,
+        zIndex: win.z ?? 200,
       }}
       className={`gm-floating-panel gm-panel-${win.entityKey}`}
     >
