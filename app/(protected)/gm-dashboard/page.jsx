@@ -95,6 +95,7 @@ export default function GMDashboardPage() {
 
 /* -------- Floating Windows (overlay layer) -------- */
 const [floatingWindows, setFloatingWindows] = useState([]);
+const floatingHydratedRef = useRef(false);
 
   /* -------- Beacons -------- */
   const [beacons, setBeacons] = useState({});
@@ -150,18 +151,14 @@ y: clamp(clickY - 20, 16, window.innerHeight - 240 - 16),
 ========================= */
 useEffect(() => {
   if (!selectedSession?.id) return;
+  if (!floatingHydratedRef.current) return; // 👈 prevent first-mount overwrite
 
   try {
     localStorage.setItem(
       `gm:floating-windows:${selectedSession.id}`,
       JSON.stringify(
         floatingWindows.map(({ id, entityKey, x, y, width, z }) => ({
-          id,
-          entityKey,
-          x,
-          y,
-          width,
-          z,
+          id, entityKey, x, y, width, z,
         }))
       )
     );
@@ -241,6 +238,7 @@ if (allRecords.length === 0) return;
       .filter(Boolean);
 
     setFloatingWindows(restored);
+    floatingHydratedRef.current = true;
   } catch {}
 }, [
   selectedSession?.id,
@@ -591,6 +589,7 @@ function GMColumn({
   onOpenPanel,  // ✅ NEW
   schema,
 }) {
+  const hydratedRef = useRef(false);
   const [order, setOrder] = useState([]);
   const draggingIndexRef = useRef(null);
 
@@ -700,28 +699,26 @@ function GMColumn({
   return (
     <div className={`gm-column gm-${color}`}>
       <div className="gm-column-header">{title}</div>
-
       <div className="gm-column-body" aria-label={`${title} column`}>
         {order.map((item, index) => (
           <div
-            key={item.id}
-            className="gm-drag-wrapper"
-            draggable
-            onDragStart={(e) => onDragStart(e, index)}
-            onDragOver={onDragOver}
-            onDrop={(e) => onDrop(e, index)}
-          >
-            <GMCard
-              key={`${entityKey}-${item.id}`} // 👈 ensures correct remount timing
-              item={item}
-              entityKey={entityKey}   // ✅ needed for explicit wiring
-              forceOpen={forceOpen}
-              onOpenEditor={onOpenEditor}
-              onOpenPanel={onOpenPanel} // ✅ NEW
-              sessionId={sessionId}
-              schema={schema}
-            />
-          </div>
+  key={`${entityKey}-${item.id}`}   // ✅ key MUST be here (wrapper)
+  className="gm-drag-wrapper"
+  draggable
+  onDragStart={(e) => onDragStart(e, index)}
+  onDragOver={onDragOver}
+  onDrop={(e) => onDrop(e, index)}
+>
+  <GMCard
+    item={item}
+    entityKey={entityKey}
+    forceOpen={forceOpen}
+    onOpenEditor={onOpenEditor}
+    onOpenPanel={onOpenPanel}
+    sessionId={sessionId}
+    schema={schema}
+  />
+</div>
         ))}
       </div>
     </div>
@@ -741,6 +738,7 @@ function GMCard({
   sessionId,
   schema,
 }) {
+  const hydratedRef = useRef(false);  
   const [open, setOpen] = useState(false);
   const contentRef = useRef(null);
   const [height, setHeight] = useState(0);
