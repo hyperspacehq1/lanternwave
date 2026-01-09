@@ -476,30 +476,43 @@ if (allRecords.length === 0) return;
         </div>
 
         {/* Right group: actions */}
-        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 12 }}>
-          <button
-            type="button"
-            className="gm-card-action-btn"
-            onClick={() => setExpandAll(true)}
-            disabled={!canUseSession}
-          >
-            Expand All
-          </button>
+<div
+  className="gm-toolbar-actions"
+  style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 12 }}
+>
+  <button
+    type="button"
+    className="gm-toolbar-btn"
+    onClick={() => setExpandAll(true)}
+    disabled={!canUseSession}
+  >
+    Expand All
+  </button>
 
-          <button
-            type="button"
-            className="gm-card-action-btn"
-            onClick={() => setExpandAll(false)}
-            disabled={!canUseSession}
-          >
-            Collapse All
-          </button>
+  <button
+    type="button"
+    className="gm-toolbar-btn"
+    onClick={() => setExpandAll(false)}
+    disabled={!canUseSession}
+  >
+    Collapse All
+  </button>
 
-          <button type="button" className="gm-card-action-btn" onClick={resetToDefault}>
-            Reset to Default
-          </button>
-        </div>
-      </div>
+  <button
+    type="button"
+    className="gm-toolbar-btn"
+    onClick={resetToDefault}
+  >
+    Reset to Default
+  </button>
+
+  <a
+    href="/account"
+    className="gm-toolbar-btn gm-toolbar-btn-beacons"
+  >
+    Activate Beacons
+  </a>
+</div>
 
       {!selectedCampaign && <div className="gm-empty">Select or create a campaign to begin.</div>}
       {selectedCampaign && !selectedSession && <div className="gm-empty">Select or create a session.</div>}

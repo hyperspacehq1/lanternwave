@@ -43,17 +43,30 @@ export default function Header({ variant = "app" }) {
       ? "/login"
       : variant === "app"
       ? "/gm-dashboard"
+      : variant === "player"
+      ? "/gm-dashboard"
       : null;
 
-  // ✅ PLAYER MODE (unchanged)
+  // ✅ PLAYER MODE: logo + title only (no tabs, no logout) BUT clickable
   if (variant === "player") {
     return (
       <header className="lw-header">
         <div className="lw-header-left">
-          <div className="lw-logo-wrap">
-            <LogoMark />
-          </div>
-          <div className="lw-header-title">LANTERNWAVE</div>
+          {homeHref ? (
+            <Link href={homeHref} className="lw-brand" aria-label="Home">
+              <div className="lw-logo-wrap">
+                <LogoMark />
+              </div>
+              <div className="lw-header-title">LANTERNWAVE</div>
+            </Link>
+          ) : (
+            <>
+              <div className="lw-logo-wrap">
+                <LogoMark />
+              </div>
+              <div className="lw-header-title">LANTERNWAVE</div>
+            </>
+          )}
         </div>
       </header>
     );
@@ -66,7 +79,7 @@ export default function Header({ variant = "app" }) {
       {/* LEFT */}
       <div className="lw-header-left">
         {homeHref ? (
-          <Link href={homeHref} className="lw-brand">
+          <Link href={homeHref} className="lw-brand" aria-label="Home">
             <div className="lw-logo-wrap">
               <LogoMark />
             </div>

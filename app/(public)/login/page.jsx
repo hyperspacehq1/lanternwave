@@ -106,10 +106,16 @@ export default function LoginPage() {
           </form>
 
           <div className="lw-auth-links">
-            <a href="/forgot-password" className="lw-auth-link">
-              Forgot password?
-            </a>
-          </div>
+  <a href="/forgot-password" className="lw-auth-link">
+    Forgot password?
+  </a>
+
+  <span className="lw-auth-link-sep">•</span>
+
+  <a href="/forgot-username" className="lw-auth-link">
+    Forgot username?
+  </a>
+</div>
         </div>
       </div>
     </main>

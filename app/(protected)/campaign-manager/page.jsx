@@ -65,21 +65,22 @@ export default function CampaignManagerPage() {
         if (!cancelled) {
           setRecords((p) => ({ ...p, [activeType]: list }));
 
-          const first = list?.[0] ?? null;
-          setSelectedId(first?.id ?? null);
-          setSelectedRecord(first);
+         const first = [...list]
+  .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0] ?? null;
 
-          if (activeType === "campaigns" && first) {
-            setCampaignContext({
-              campaign: first,
-              session: null,
-            });
-          } else if (activeType === "sessions" && first) {
-            setCampaignContext({
-              campaign,
-              session: first,
-            });
-          }
+// 🔒 Do NOT overwrite existing selection
+if (!selectedId && first) {
+  setSelectedId(first.id);
+  setSelectedRecord(first);
+
+  if (activeType === "campaigns" && !campaign) {
+    setCampaignContext({ campaign: first, session: null });
+  }
+
+  if (activeType === "sessions" && !session) {
+    setCampaignContext({ campaign, session: first });
+  }
+}
 
           if (activeType === "campaigns" && list?.length) {
             setCampaignContext({ campaign: list[0], session: null });
