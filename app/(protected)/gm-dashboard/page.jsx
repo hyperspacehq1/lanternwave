@@ -600,12 +600,14 @@ function GMColumn({
   }, [sessionId, entityKey]);
 
  useEffect(() => {
+  // ✅ LOCK the storage key as soon as it exists
+  if (storageKey && !stableStorageKeyRef.current) {
+    stableStorageKeyRef.current = storageKey;
+  }
+
   hydratedRef.current = false;
 
   if (!Array.isArray(items)) {
-  if (storageKey && !stableStorageKeyRef.current) {
-  stableStorageKeyRef.current = storageKey;
-}
     setOrder([]);
     hydratedRef.current = true;
     return;
@@ -705,15 +707,13 @@ useEffect(() => {
     const [moved] = updated.splice(fromIndex, 1);
     updated.splice(dropIndex, 0, moved);
 
-    // ✅ Use the locked key, not the live one
+    // ✅ guaranteed valid key now
     const key = stableStorageKeyRef.current;
     if (key) {
-      try {
-        localStorage.setItem(
-          key,
-          JSON.stringify(updated.map((it) => String(it.id)))
-        );
-      } catch {}
+      localStorage.setItem(
+        key,
+        JSON.stringify(updated.map((it) => String(it.id)))
+      );
     }
 
     return updated;
