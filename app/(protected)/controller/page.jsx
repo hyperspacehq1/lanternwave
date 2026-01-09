@@ -154,6 +154,7 @@ export default function ControllerPage() {
   }, []);
 
   // ✅ Source of truth for "what is playing" (server OR local audio)
+  // Keep this for now so MP3 still shows immediately even if now_playing lags
   const playingKey = nowPlaying?.key || audio?.currentKey || null;
 
   // ✅ Preview source of truth
@@ -236,8 +237,9 @@ export default function ControllerPage() {
 
                   <div className="lw-clip-actions">
                     <button
-                      // ✅ Animate/glow ONLY when loop is ON and THIS clip is playing
-                      className={`lw-btn loop-btn ${audio?.loop && isNow ? "active" : ""}`}
+                      className={`lw-btn loop-btn ${
+                        audio?.loop && isNow ? "active" : ""
+                      }`}
                       disabled={isBusy}
                       title={audio?.loop ? "Loop enabled" : "Loop disabled"}
                       aria-pressed={!!audio?.loop}
@@ -255,13 +257,20 @@ export default function ControllerPage() {
                       onClick={async () => {
                         setBusyKey(key);
                         try {
+                          // ✅ always update server "now playing"
                           await setNowPlaying(key);
                           setNowPlayingState({ key });
 
-                          // ✅ apply current loop mode BEFORE starting playback
-                          if (audio?.setLoop) audio.setLoop(!!audio.loop);
+                          const type = clipTypeFromKey(key);
 
-                          audio.play(streamUrlForKey(key), key);
+                          // ✅ apply loop preference for MP3 only
+                          if (type === "audio") {
+                            if (audio?.setLoop) audio.setLoop(!!audio.loop);
+                            audio.play(streamUrlForKey(key), key);
+                          } else {
+                            // ✅ CRITICAL: do NOT locally play MP4 in controller
+                            audio.stop();
+                          }
                         } finally {
                           setBusyKey(null);
                         }
