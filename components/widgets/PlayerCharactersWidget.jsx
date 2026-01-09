@@ -77,8 +77,12 @@ export default function PlayerCharactersWidget({ campaignId }) {
       dx: e.clientX - r.left,
       dy: e.clientY - r.top,
     };
-    widgetRef.current.setPointerCapture(e.pointerId);
-  }
+   function onPointerUp(e) {
+  dragging.current = false;
+  try {
+    widgetRef.current?.releasePointerCapture(e.pointerId);
+  } catch {}
+}
 
   function onPointerMove(e) {
     if (!dragging.current) return;
@@ -157,6 +161,7 @@ export default function PlayerCharactersWidget({ campaignId }) {
         <div className="player-widget__controls">
           <span
             className="player-widget__icon"
+            onPointerDown={(e) => e.stopPropagation()}
             title="Reset Turns"
             onClick={() => {
               setTurns({});
@@ -168,6 +173,7 @@ export default function PlayerCharactersWidget({ campaignId }) {
 
           <span
             className="player-widget__icon"
+            onPointerDown={(e) => e.stopPropagation()}
             title="Layout"
             onClick={() => {
               const v =
@@ -180,7 +186,8 @@ export default function PlayerCharactersWidget({ campaignId }) {
           </span>
 
           <span
-            className="player-widget__icon"
+            className="player-widget__icon" 
+            onPointerDown={(e) => e.stopPropagation()}
             title="Collapse"
             onClick={() => {
               const v = !collapsed;
@@ -245,7 +252,8 @@ export default function PlayerCharactersWidget({ campaignId }) {
                     </div>
 
                     <span
-                      className="player-widget__icon"
+                      className="player-widget__icon" 
+                      onPointerDown={(e) => e.stopPropagation()}
                       title={off ? "Unhide" : "Hide"}
                       onClick={() => {
                         const n = {

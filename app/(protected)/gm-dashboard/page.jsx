@@ -161,6 +161,7 @@ useEffect(() => {
           x,
           y,
           width,
+          z,
         }))
       )
     );
@@ -204,16 +205,15 @@ const resetToDefault = () => {
 useEffect(() => {
   if (!selectedSession?.id) return;
 
-// 🛑 GUARD: wait until at least one dataset has loaded
-  if (
-    events.length === 0 &&
-    npcs.length === 0 &&
-    encounters.length === 0 &&
-    locations.length === 0 &&
-    items.length === 0
-  ) {
-    return;
-  }
+const allRecords = [
+  ...events,
+  ...npcs,
+  ...encounters,
+  ...locations,
+  ...items,
+];
+
+if (allRecords.length === 0) return;
 
   try {
     const raw = localStorage.getItem(`gm:floating-windows:${selectedSession.id}`);
@@ -231,8 +231,12 @@ useEffect(() => {
           items.find(r => r.id === w.id);
 
         return record
-          ? { ...w, record, z: w.z ?? Date.now() + Math.random() }
-          : null;
+      ? {
+          ...w,
+          record,
+          z: typeof w.z === "number" ? w.z : Date.now(), // 👈 preserve z
+        }
+      : null;
       })
       .filter(Boolean);
 
@@ -708,6 +712,7 @@ function GMColumn({
             onDrop={(e) => onDrop(e, index)}
           >
             <GMCard
+              key={`${entityKey}-${item.id}`} // 👈 ensures correct remount timing
               item={item}
               entityKey={entityKey}   // ✅ needed for explicit wiring
               forceOpen={forceOpen}
