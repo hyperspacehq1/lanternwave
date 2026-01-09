@@ -372,33 +372,35 @@ if (allRecords.length === 0) return;
 
   .then(([eventsRes, npcsRes, encountersRes, locationsRes, itemsRes]) => {
   const applyOrder = (entityKey, rows) => {
-    if (!selectedSession?.id) return rows;
+  if (!selectedSession?.id) return rows;
 
-    try {
-      const key = `gm-order:${selectedSession.id}:${entityKey}`;
-      const raw = localStorage.getItem(key);
-      if (!raw) return rows;
+  try {
+    const key = `gm-order:${selectedSession.id}:${entityKey}`;
+    const raw = localStorage.getItem(key);
+    if (!raw) return rows;
 
-      const ids = JSON.parse(raw);
-      if (!Array.isArray(ids)) return rows;
+    // ✅ normalize everything to strings
+    const idsRaw = JSON.parse(raw);
+    const ids = Array.isArray(idsRaw) ? idsRaw.map((v) => String(v)) : [];
+    const idSet = new Set(ids);
 
-      const byId = new Map(rows.map(r => [String(r.id), r]));
-      const ordered = [];
+    const byId = new Map(rows.map((r) => [String(r.id), r]));
+    const ordered = [];
 
-      for (const id of ids) {
-        const row = byId.get(String(id));
-        if (row) ordered.push(row);
-      }
-
-      for (const row of rows) {
-        if (!ids.includes(String(row.id))) ordered.push(row);
-      }
-
-      return ordered;
-    } catch {
-      return rows;
+    for (const id of ids) {
+      const row = byId.get(id);
+      if (row) ordered.push(row);
     }
-  };
+
+    for (const row of rows) {
+      if (!idSet.has(String(row.id))) ordered.push(row);
+    }
+
+    return ordered;
+  } catch {
+    return rows;
+  }
+};
 
   setEvents(applyOrder("events", Array.isArray(eventsRes) ? eventsRes : []));
   setNpcs(applyOrder("npcs", Array.isArray(npcsRes) ? npcsRes : []));
