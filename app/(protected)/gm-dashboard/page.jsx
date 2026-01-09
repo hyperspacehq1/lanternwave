@@ -306,8 +306,9 @@ const openPanel = (entityKey, record, e) => {
     {selectedCampaign?.id && showPlayersBeacon && (
       <PlayerCharactersWidget campaignId={selectedCampaign.id} />
     )}
-  </div>
+ </div>
 );
+}
 
 /* =========================
    Floating Panel Window
