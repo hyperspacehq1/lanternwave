@@ -255,14 +255,19 @@ export default function ControllerPage() {
                       onClick={async () => {
                         setBusyKey(key);
                         try {
-                          await setNowPlaying(key);
-                          setNowPlayingState({ key });
+                       await setNowPlaying(key);
+setNowPlayingState({ key });
 
-                          // ✅ apply current loop mode BEFORE starting playback
-                          if (audio?.setLoop) audio.setLoop(!!audio.loop);
+const type = clipTypeFromKey(key);
 
-                          audio.play(streamUrlForKey(key), key);
-                        } finally {
+// ✅ Only play audio for AUDIO clips
+if (type === "audio") {
+  if (audio?.setLoop) audio.setLoop(!!audio.loop);
+  audio.play(streamUrlForKey(key), key);
+} else {
+  // ✅ Ensure no stray audio continues
+  audio.stop();
+} finally {
                           setBusyKey(null);
                         }
                       }}
