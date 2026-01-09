@@ -210,6 +210,7 @@ a {
 button {
   font-family: inherit;
 }
+
 /* Player Characters Widget */
 
 .floating-widget {
@@ -268,7 +269,7 @@ button {
 
   width: 18px;
   height: 18px;
-  border: 2px solid #f4d03f; /* yellow */
+  border: 2px solid #f4d03f;
   border-radius: 4px;
   background: transparent;
   cursor: pointer;
@@ -276,7 +277,7 @@ button {
 }
 
 .player-characters-toggle input[type="checkbox"]:checked {
-  background: #f4d03f; /* yellow fill */
+  background: #f4d03f;
 }
 
 .player-characters-toggle input[type="checkbox"]:checked::after {
@@ -291,3 +292,56 @@ button {
   transform: rotate(45deg);
 }
 
+/* ------------------------------
+   BRAND (LOGO + TITLE)
+   Interactive polish — SAFE
+------------------------------ */
+
+.lw-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+  color: inherit;
+
+  cursor: pointer;
+
+  transition:
+    filter 180ms ease,
+    transform 180ms ease,
+    opacity 180ms ease;
+}
+
+/* Prevent inline-link baseline shift */
+.lw-brand > * {
+  display: flex;
+  align-items: center;
+}
+
+/* Hover glow (subtle, premium) */
+.lw-brand:hover {
+  filter:
+    drop-shadow(0 0 6px rgba(108, 197, 240, 0.35))
+    drop-shadow(0 0 14px rgba(108, 197, 240, 0.15));
+  transform: translateY(-1px);
+  opacity: 0.98;
+}
+
+/* Click / press feedback */
+.lw-brand:active {
+  transform: translateY(0);
+  opacity: 0.92;
+}
+
+/* Soften when header hovered but brand not */
+.lw-header:hover .lw-brand:not(:hover) {
+  opacity: 0.92;
+}
+
+/* Animate logo + text together */
+.lw-brand * {
+  transition:
+    transform 180ms ease,
+    filter 180ms ease,
+    opacity 180ms ease;
+}

@@ -37,7 +37,7 @@ export default function Header({ variant = "app" }) {
     }
   }
 
-  // 🎯 Logo + title destination
+  // Where logo + title should go
   const homeHref =
     variant === "public"
       ? "/login"
@@ -45,7 +45,7 @@ export default function Header({ variant = "app" }) {
       ? "/gm-dashboard"
       : null;
 
-  // ✅ PLAYER MODE (no links)
+  // ✅ PLAYER MODE (unchanged)
   if (variant === "player") {
     return (
       <header className="lw-header">
@@ -67,10 +67,10 @@ export default function Header({ variant = "app" }) {
       <div className="lw-header-left">
         {homeHref ? (
           <Link href={homeHref} className="lw-brand">
-            <span className="lw-logo-wrap">
+            <div className="lw-logo-wrap">
               <LogoMark />
-            </span>
-            <span className="lw-header-title">LANTERNWAVE</span>
+            </div>
+            <div className="lw-header-title">LANTERNWAVE</div>
           </Link>
         ) : (
           <>
