@@ -2,12 +2,20 @@
   background: #000;
   color: #fff;
   border: 1px solid #f5c542;
+  overflow: hidden;
   border-radius: 8px;
   box-shadow: 0 0 16px rgba(0, 0, 0, 0.85);
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial,
+    sans-serif;
+
+  /* ⭐ animated width + height changes */
+  transition:
+    width 220ms ease,
+    max-width 220ms ease,
+    height 180ms ease;
 }
 
-/* HEADER */
+/* ===== HEADER ===== */
 
 .player-widget__header {
   display: flex;
@@ -50,11 +58,13 @@
   background: #111;
 }
 
-/* BODY */
+/* ===== BODY ===== */
 
 .player-widget__body {
   padding: 14px;
 }
+
+/* ===== LIST ===== */
 
 .player-widget__list {
   list-style: none;
@@ -62,13 +72,25 @@
   margin: 0;
 }
 
+/* Horizontal = fixed grid width */
 .player-widget__list.horizontal {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
 }
 
-/* PLAYER ROW */
+/* Vertical = auto width based on content */
+.player-widget__list.vertical {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+
+  /* ⭐ auto-size to longest row */
+  width: fit-content;
+  max-width: 360px;
+}
+
+/* ===== PLAYER ROW ===== */
 
 .player-widget__player {
   display: flex;
@@ -79,14 +101,29 @@
   border-radius: 6px;
   margin-bottom: 8px;
   background: #050505;
+
+  /* ⭐ prevents rows from stretching wider than content */
+  width: 100%;
+  white-space: nowrap;
+}
+
+.player-widget__player:last-child {
+  margin-bottom: 0;
 }
 
 .player-widget__player.inactive {
   opacity: 0.35;
 }
 
+/* ===== TEXT ===== */
+
 .player-widget__text {
-  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  /* ⭐ allow text to define width */
+  flex: 0 0 auto;
 }
 
 .player-widget__character {
@@ -98,4 +135,24 @@
 .player-widget__name {
   font-size: 13px;
   opacity: 0.8;
+}
+
+/* ===== CHECKBOX ===== */
+
+.player-widget input[type="checkbox"] {
+  cursor: pointer;
+}
+
+/* ===== LAYOUT WIDTH MODES ===== */
+
+/* Vertical = content-driven width */
+.player-widget[data-layout="vertical"] {
+  width: fit-content;
+  max-width: 360px;
+}
+
+/* Horizontal = predictable width */
+.player-widget[data-layout="horizontal"] {
+  width: 480px;
+  max-width: 90vw;
 }
