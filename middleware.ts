@@ -1,10 +1,40 @@
-// /middleware.ts
 import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
-export function middleware(request) {
+function isPhoneUserAgent(ua = "") {
+  const isMobile =
+    /iphone|ipod|android.*mobile|windows phone/i.test(ua);
+
+  const isTablet =
+    /ipad|android(?!.*mobile)/i.test(ua);
+
+  return isMobile && !isTablet;
+}
+
+export function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  const ua = request.headers.get("user-agent") || "";
   const hasSession = request.cookies.get("lw_session");
 
-  if (!hasSession && request.nextUrl.pathname.startsWith("/gm-dashboard")) {
+  /* -------------------------------------------------
+     PHONE BLOCK (runs first)
+  -------------------------------------------------- */
+  if (
+    isPhoneUserAgent(ua) &&
+    !pathname.startsWith("/login") &&
+    !pathname.startsWith("/signup") &&
+    !pathname.startsWith("/forgot") &&
+    !pathname.startsWith("/mobile-unsupported")
+  ) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/mobile-unsupported";
+    return NextResponse.rewrite(url);
+  }
+
+  /* -------------------------------------------------
+     EXISTING AUTH RULE (unchanged)
+  -------------------------------------------------- */
+  if (!hasSession && pathname.startsWith("/gm-dashboard")) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
@@ -13,6 +43,9 @@ export function middleware(request) {
   return NextResponse.next();
 }
 
+/* -------------------------------------------------
+   Apply middleware broadly (NOT just gm-dashboard)
+-------------------------------------------------- */
 export const config = {
-  matcher: ["/gm-dashboard/:path*"],
+  matcher: ["/((?!_next|favicon.ico).*)"],
 };
