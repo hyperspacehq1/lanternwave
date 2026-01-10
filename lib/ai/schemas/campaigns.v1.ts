@@ -92,15 +92,12 @@ const campaignsSchema = {
       },
     },
     required: [
-      "name",
-      "description",
-      "world_setting",
-      "campaign_date",
-      "campaign_package",
-      "rpg_game",
-      "is_template",
-      "template_campaign_id"
-    ],
+  "name",
+  "campaign_package",
+  "rpg_game",
+  "is_template",
+  "template_campaign_id"
+]
   },
 };
 
