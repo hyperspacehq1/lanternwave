@@ -19,8 +19,8 @@ function isPhoneUserAgent(ua = "") {
 function MobileNostromoBlock() {
   return (
     <>
-      {/* Global styles injected safely */}
-      <style jsx global>{`
+      {/* ✅ Plain <style> is allowed in Server Components */}
+      <style>{`
         body {
           margin: 0;
           padding: 0;
@@ -129,6 +129,6 @@ export default function ProtectedLayout({ children }) {
     return <MobileNostromoBlock />;
   }
 
-  // ✅ ORIGINAL behavior (unchanged)
+  // ✅ ORIGINAL behavior — unchanged
   return <ProtectedClientProviders>{children}</ProtectedClientProviders>;
 }
