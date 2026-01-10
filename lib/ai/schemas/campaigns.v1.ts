@@ -1,9 +1,13 @@
 const campaignsSchema = {
   name: "campaigns",
-  description: "Top-level campaign metadata extracted from an RPG module.",
+
+  description:
+    "Top-level campaign metadata extracted from an RPG module.",
+
   schema: {
     type: "object",
     additionalProperties: false,
+
     properties: {
       name: {
         type: "string",
@@ -12,21 +16,21 @@ const campaignsSchema = {
       },
 
       description: {
-        type: "string",
+        type: ["string", "null"],
         description:
           "Short summary of the campaign story and themes. Under 200 words.",
       },
 
       world_setting: {
-        type: "string",
+        type: ["string", "null"],
         description:
-          "The world, region, or setting in which the campaign takes place.",
+          "Narrative description of the era, world, or setting (e.g. 'late medieval fantasy', 'far-future spacefaring civilization'). Do NOT invent calendar dates.",
       },
 
       campaign_date: {
-        type: "string",
+        type: ["string", "null"],
         description:
-          "Estimated in-world date or era for the campaign. Can be a year or full date.",
+          "Explicit in-world date or year ONLY if directly stated in the PDF. Must be null if no explicit date exists.",
       },
 
       campaign_package: {
@@ -73,7 +77,7 @@ const campaignsSchema = {
           "The Electric State Roleplaying Game",
           "The One Ring Roleplaying Game",
           "Vaesen",
-          "Vampire: The Masquerade 5th Edition"
+          "Vampire: The Masquerade 5th Edition",
         ],
         description:
           "The tabletop RPG system used for this campaign.",
@@ -86,18 +90,27 @@ const campaignsSchema = {
       },
 
       template_campaign_id: {
-        type: "string",
+        type: ["string", "null"],
         description:
           "Unique ID linking this campaign to its originating Adventure Codex.",
       },
     },
+
+    /*
+      OpenAI structured output rule:
+      Every property MUST be listed in `required`,
+      even if its value may be null.
+    */
     required: [
-  "name",
-  "campaign_package",
-  "rpg_game",
-  "is_template",
-  "template_campaign_id"
-]
+      "name",
+      "description",
+      "world_setting",
+      "campaign_date",
+      "campaign_package",
+      "rpg_game",
+      "is_template",
+      "template_campaign_id",
+    ],
   },
 };
 

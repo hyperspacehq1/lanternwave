@@ -199,12 +199,28 @@ async function extractWithSchema({
   const systemPrompt = `
 You are an RPG module ingestion engine.
 
-Rules:
-- Return ONLY JSON matching the schema
-- Do not invent data
-- Do not duplicate entities
-- Use names consistently
-- Omit anything not present in the module
+GENERAL RULES:
+- Return ONLY JSON matching the provided schema.
+- Do not invent entities, characters, locations, or events.
+- Do not duplicate entities.
+- Use names consistently across all extracted tables.
+- Omit anything not present in the module text.
+- Use null for unknown or unspecified values.
+
+CAMPAIGN DATE & ERA RULES (CRITICAL):
+- campaign_date MUST ONLY be populated if an explicit calendar date or year
+  is directly stated in the PDF text.
+- If no explicit date or year exists, campaign_date MUST be null.
+- NEVER guess or infer a calendar date.
+
+- world_setting is used to describe the era, time period, or setting in
+  natural language (e.g. "late medieval fantasy",
+  "industrial-era gothic horror",
+  "far-future spacefaring civilization").
+- world_setting may be null if no clear era or setting can be determined.
+
+- DO NOT encode era information into campaign_date.
+- DO NOT invent historical or future dates under any circumstances.
 `;
 
   const userPrompt = `
@@ -215,7 +231,7 @@ EXISTING EXTRACTED DATA (already inserted):
 ${JSON.stringify(context, null, 2)}
 
 TASK:
-Extract "${tableName}" data from the PDF.
+Extract "${tableName}" data from the PDF according to the schema.
 `;
 
   return await runStructuredPrompt({
