@@ -4,7 +4,7 @@ export default function MobileUnsupportedPage() {
   return (
     <div className="lw-nostromo">
       <div className="terminal">
-        <h1>MU/TH/UR 6000</h1>
+        <h1>LANTERNWAVE MAINFRAME 9.1011</h1>
 
         <p>
           INITIALIZING INTERFACE…

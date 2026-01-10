@@ -10,6 +10,7 @@ import locations from "./schemas/locations.v1";
 import items from "./schemas/items.v1";
 import encounters from "./schemas/encounters.v1";
 
+const ADMIN_TENANT_ID = "1c6c314c-f33e-4f9f-bb6d-d547a23cbcf9";
 const SCHEMA_PIPELINE = [
   campaigns,
   sessions,
@@ -113,6 +114,7 @@ export async function ingestAdventureCodex({
 
         const insertData: Record<string, any> = {
   ...row,
+  tenant_id: ADMIN_TENANT_ID,        // 🔒 force Codex ownership
   template_campaign_id: templateCampaignId,
 };
 
