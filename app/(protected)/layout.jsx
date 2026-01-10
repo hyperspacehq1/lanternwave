@@ -1,5 +1,4 @@
 import { headers } from "next/headers";
-import { redirect } from "next/navigation";
 import ProtectedClientProviders from "@/components/ProtectedClientProviders";
 
 export const dynamic = "force-dynamic";
@@ -19,82 +18,82 @@ function isPhoneUserAgent(ua = "") {
 
 function MobileNostromoBlock() {
   return (
-    <html lang="en">
-      <body className="lw-nostromo">
-        <style>{`
-          html, body {
-            margin: 0;
-            padding: 0;
-            height: 100%;
-            background: #000;
-          }
+    <>
+      {/* Global styles injected safely */}
+      <style jsx global>{`
+        body {
+          margin: 0;
+          padding: 0;
+          background: #000;
+        }
 
-          .lw-nostromo {
-            font-family: "Courier New", monospace;
-            color: rgb(245, 197, 66);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-          }
+        .lw-nostromo {
+          min-height: 100vh;
+          font-family: "Courier New", monospace;
+          color: rgb(245, 197, 66);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          overflow: hidden;
+        }
 
-          .terminal {
-            width: 100%;
-            max-width: 520px;
-            padding: 28px 22px;
-            position: relative;
-            animation: flicker 2.8s infinite;
-          }
+        .lw-nostromo .terminal {
+          width: 100%;
+          max-width: 520px;
+          padding: 28px 22px;
+          position: relative;
+          animation: flicker 2.8s infinite;
+        }
 
-          .terminal::before {
-            content: "";
-            position: absolute;
-            inset: 0;
-            background:
-              repeating-linear-gradient(
-                to bottom,
-                rgba(255,255,255,0.04),
-                rgba(255,255,255,0.04) 1px,
-                transparent 2px,
-                transparent 4px
-              );
-            pointer-events: none;
-            mix-blend-mode: overlay;
-          }
+        .lw-nostromo .terminal::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          background: repeating-linear-gradient(
+            to bottom,
+            rgba(255,255,255,0.04),
+            rgba(255,255,255,0.04) 1px,
+            transparent 2px,
+            transparent 4px
+          );
+          pointer-events: none;
+          mix-blend-mode: overlay;
+        }
 
-          h1 {
-            font-size: 18px;
-            letter-spacing: 2px;
-            margin-bottom: 14px;
-          }
+        .lw-nostromo h1 {
+          font-size: 18px;
+          letter-spacing: 2px;
+          margin-bottom: 14px;
+        }
 
-          p {
-            font-size: 14px;
-            line-height: 1.6;
-            opacity: 0.9;
-          }
+        .lw-nostromo p {
+          font-size: 14px;
+          line-height: 1.6;
+          opacity: 0.9;
+        }
 
-          .status {
-            margin-top: 18px;
-            opacity: 0.75;
-            animation: blink 1.4s steps(2, start) infinite;
-          }
+        .lw-nostromo .status {
+          margin-top: 18px;
+          opacity: 0.75;
+          animation: blink 1.4s steps(2, start) infinite;
+        }
 
-          @keyframes flicker {
-            0%   { opacity: 0.95; }
-            3%   { opacity: 0.85; }
-            6%   { opacity: 0.98; }
-            8%   { opacity: 0.9; }
-            100% { opacity: 0.95; }
-          }
+        @keyframes flicker {
+          0%   { opacity: 0.95; }
+          3%   { opacity: 0.85; }
+          6%   { opacity: 0.98; }
+          8%   { opacity: 0.9; }
+          100% { opacity: 0.95; }
+        }
 
-          @keyframes blink {
-            0% { opacity: 0.2; }
-            50% { opacity: 1; }
-            100% { opacity: 0.2; }
-          }
-        `}</style>
+        @keyframes blink {
+          0% { opacity: 0.2; }
+          50% { opacity: 1; }
+          100% { opacity: 0.2; }
+        }
+      `}</style>
 
+      <div className="lw-nostromo">
         <div className="terminal">
           <h1>MU/TH/UR 6000</h1>
 
@@ -115,12 +114,10 @@ function MobileNostromoBlock() {
             laptop, or tablet.
           </p>
 
-          <div className="status">
-            SIGNAL LOST ▌▌▌
-          </div>
+          <div className="status">SIGNAL LOST ▌▌▌</div>
         </div>
-      </body>
-    </html>
+      </div>
+    </>
   );
 }
 
@@ -132,10 +129,6 @@ export default function ProtectedLayout({ children }) {
     return <MobileNostromoBlock />;
   }
 
-  // ✅ Normal protected app
-  return (
-    <ProtectedClientProviders>
-      {children}
-    </ProtectedClientProviders>
-  );
+  // ✅ ORIGINAL behavior (unchanged)
+  return <ProtectedClientProviders>{children}</ProtectedClientProviders>;
 }
