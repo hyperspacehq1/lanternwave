@@ -46,7 +46,14 @@ function MobileNostromoBlock() {
 }
 
 export default function ProtectedLayout({ children }) {
-  const ua = headers().get("user-agent") || "";
+  let ua = "";
+
+  try {
+    ua = headers().get("user-agent") || "";
+  } catch {
+    // headers() can throw during certain RSC render paths
+    ua = "";
+  }
 
   // 🚫 Phone-only interception
   if (isPhoneUserAgent(ua)) {
