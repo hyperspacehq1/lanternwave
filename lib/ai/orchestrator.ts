@@ -112,10 +112,9 @@ export async function ingestAdventureCodex({
         if (!row || typeof row !== "object") continue;
 
         const insertData: Record<string, any> = {
-          ...row,
-          template_campaign_id: templateCampaignId,
-          created_by: adminUserId,
-        };
+  ...row,
+  template_campaign_id: templateCampaignId,
+};
 
         const { sql, params } = buildInsert({
           table: tableName,
