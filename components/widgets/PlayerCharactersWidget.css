@@ -69,14 +69,17 @@
   margin: 0;
 }
 
-/* Horizontal = fixed grid width */
+/* ✅ HORIZONTAL = players in the same row */
 .player-widget__list.horizontal {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: row;
+  flex-wrap: nowrap;      /* keep in one row */
   gap: 12px;
+  overflow-x: auto;       /* scroll if too many */
+  padding-bottom: 4px;    /* nicer scrollbar spacing */
 }
 
-/* Vertical = auto width based on content */
+/* ✅ VERTICAL = column list, auto width */
 .player-widget__list.vertical {
   display: flex;
   flex-direction: column;
@@ -97,7 +100,13 @@
   margin-bottom: 8px;
   background: #050505;
   white-space: nowrap;
-  width: fit-content;
+  width: fit-content;     /* content-driven width */
+}
+
+/* vertical spacing only in vertical mode */
+.player-widget__list.horizontal .player-widget__player {
+  margin-bottom: 0;
+  flex: 0 0 auto;         /* don’t stretch full width */
 }
 
 .player-widget__player:last-child {
@@ -168,7 +177,7 @@
   opacity: 1;
 }
 
-/* ===== HIDE BUTTON (yellow eye / eye-slash) ===== */
+/* ===== HIDE BUTTON (uses your PNG icons) ===== */
 
 .player-widget__hidebtn {
   background: #000;
@@ -176,7 +185,6 @@
   border-radius: 4px;
   padding: 4px 6px;
   cursor: pointer;
-  color: #f5c542;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -186,11 +194,11 @@
   background: #111;
 }
 
-.player-widget__eye {
+.player-widget__hideimg {
   width: 18px;
   height: 18px;
   display: block;
-  color: #f5c542;
+  object-fit: contain;
 }
 
 /* ===== LAYOUT WIDTH MODES ===== */
@@ -203,9 +211,4 @@
 .player-widget[data-layout="horizontal"] {
   width: 480px;
   max-width: 90vw;
-}
-
-/* Horizontal layout = rows stretch */
-.player-widget__list.horizontal .player-widget__player {
-  width: 100%;
 }

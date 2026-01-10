@@ -259,7 +259,11 @@ export default function PlayerCharactersWidget({ campaignId }) {
                         persistUI({ inactive: n });
                       }}
                     >
-                      <EyeIcon slashed={!off} />
+                      <img
+  className="player-widget__hideimg"
+  src={off ? "/unhide.png" : "/hide.png"}
+  alt={off ? "Unhide" : "Hide"}
+/>
                     </button>
                   </li>
                 );
