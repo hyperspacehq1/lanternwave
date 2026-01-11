@@ -3,21 +3,22 @@ import { query, ident, isSafeIdent } from "@/lib/db/db";
 /* =========================================================
    PUBLIC ENTRY POINT
 ========================================================= */
+
 export async function resolveEncounterRelationships({
-  templateCampaignId,
+  campaignId,
 }: {
-  templateCampaignId: string;
+  campaignId: string;
 }) {
-  if (!templateCampaignId) {
-    throw new Error("templateCampaignId is required");
+  if (!campaignId) {
+    throw new Error("campaignId is required");
   }
 
-  const encounters = await getEncounters(templateCampaignId);
+  const encounters = await getEncounters(campaignId);
 
-  const npcLookup = await buildLookup("npcs", templateCampaignId);
-  const itemLookup = await buildLookup("items", templateCampaignId);
-  const locationLookup = await buildLookup("locations", templateCampaignId);
-  const eventLookup = await buildLookup("events", templateCampaignId);
+  const npcLookup = await buildLookup("npcs", campaignId);
+  const itemLookup = await buildLookup("items", campaignId);
+  const locationLookup = await buildLookup("locations", campaignId);
+  const eventLookup = await buildLookup("events", campaignId);
 
   for (const encounter of encounters) {
     await linkEntities({
@@ -62,14 +63,15 @@ export async function resolveEncounterRelationships({
 /* =========================================================
    LOAD ENCOUNTERS
 ========================================================= */
-async function getEncounters(templateCampaignId: string) {
+
+async function getEncounters(campaignId: string) {
   const result = await query(
     `
     SELECT *
       FROM encounters
-     WHERE template_campaign_id = $1
+     WHERE campaign_id = $1
     `,
-    [templateCampaignId]
+    [campaignId]
   );
 
   return result.rows;
@@ -78,19 +80,22 @@ async function getEncounters(templateCampaignId: string) {
 /* =========================================================
    BUILD NAME → ID LOOKUP
 ========================================================= */
+
 async function buildLookup(
   table: string,
-  templateCampaignId: string
+  campaignId: string
 ): Promise<Map<string, string>> {
-  if (!isSafeIdent(table)) throw new Error(`Unsafe table: ${table}`);
+  if (!isSafeIdent(table)) {
+    throw new Error(\`Unsafe table: \${table}\`);
+  }
 
   const result = await query(
     `
     SELECT id, name
       FROM ${ident(table)}
-     WHERE template_campaign_id = $1
+     WHERE campaign_id = $1
     `,
-    [templateCampaignId]
+    [campaignId]
   );
 
   const map = new Map<string, string>();
@@ -100,7 +105,7 @@ async function buildLookup(
 
     if (map.has(key)) {
       throw new Error(
-        `Duplicate normalized name "${row.name}" detected in table "${table}"`
+        \`Duplicate normalized name "\${row.name}" detected in table "\${table}"\`
       );
     }
 
@@ -113,6 +118,7 @@ async function buildLookup(
 /* =========================================================
    LINK ENTITIES (IDEMPOTENT)
 ========================================================= */
+
 async function linkEntities({
   encounterId,
   names,
@@ -127,8 +133,9 @@ async function linkEntities({
   joinColumn: string;
 }) {
   if (!names || !Array.isArray(names) || names.length === 0) return;
-  if (!isSafeIdent(joinTable)) throw new Error(`Unsafe join table: ${joinTable}`);
-  if (!isSafeIdent(joinColumn)) throw new Error(`Unsafe join column: ${joinColumn}`);
+  if (!isSafeIdent(joinTable)) throw new Error(\`Unsafe join table: \${joinTable}\`);
+  if (!isSafeIdent(joinColumn))
+    throw new Error(\`Unsafe join column: \${joinColumn}\`);
 
   for (const rawName of names) {
     const normalized = normalizeName(rawName);
@@ -136,7 +143,7 @@ async function linkEntities({
 
     if (!entityId) {
       throw new Error(
-        `Encounter ${encounterId} references missing entity "${rawName}" in ${joinTable}`
+        \`Encounter \${encounterId} references missing entity "\${rawName}" in \${joinTable}\`
       );
     }
 
@@ -154,11 +161,12 @@ async function linkEntities({
 /* =========================================================
    NAME NORMALIZATION
 ========================================================= */
+
 function normalizeName(name: string): string {
   return String(name)
     .toLowerCase()
-    .replace(/[’'"]/g, "") // quotes
-    .replace(/[^\w\s]/g, "") // punctuation
-    .replace(/\s+/g, " ") // whitespace
+    .replace(/[’'"]/g, "")
+    .replace(/[^\w\s]/g, "")
+    .replace(/\s+/g, " ")
     .trim();
 }
