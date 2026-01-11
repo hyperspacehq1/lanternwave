@@ -43,6 +43,7 @@ const ALLOWED_RPG_GAMES = new Set([
   "The One Ring Roleplaying Game",
   "Vaesen",
   "Vampire: The Masquerade 5th Edition"
+  "XYZ-Custom Campaign Codex"
 ]);
 
 function hasOwn(obj, key) {

@@ -24,19 +24,13 @@ const campaignsSchema = {
       world_setting: {
         type: ["string", "null"],
         description:
-          "Narrative description of the era, world, or setting (e.g. 'late medieval fantasy', 'far-future spacefaring civilization'). Do NOT invent calendar dates.",
+          "Narrative description of the era or setting (do not invent calendar dates).",
       },
 
       campaign_date: {
         type: ["string", "null"],
         description:
-          "Explicit in-world date or year ONLY if directly stated in the PDF. Must be null if no explicit date exists.",
-      },
-
-      campaign_package: {
-        type: "string",
-        description:
-          "Name of the Adventure Codex this campaign belongs to.",
+          "Explicit date or year ONLY if directly stated in the PDF. Otherwise null.",
       },
 
       rpg_game: {
@@ -78,9 +72,10 @@ const campaignsSchema = {
           "The One Ring Roleplaying Game",
           "Vaesen",
           "Vampire: The Masquerade 5th Edition",
+          "XYZ-Custom Campaign Codex"
         ],
         description:
-          "The tabletop RPG system used for this campaign.",
+          "Select the closest matching RPG system from the allowed list. If no confident match exists, use 'XYZ-Custom Campaign Codex'.",
       },
 
       is_template: {
@@ -96,17 +91,11 @@ const campaignsSchema = {
       },
     },
 
-    /*
-      OpenAI structured output rule:
-      Every property MUST be listed in `required`,
-      even if its value may be null.
-    */
     required: [
       "name",
       "description",
       "world_setting",
       "campaign_date",
-      "campaign_package",
       "rpg_game",
       "is_template",
       "template_campaign_id",
