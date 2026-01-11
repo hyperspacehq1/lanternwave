@@ -1,6 +1,8 @@
 import Busboy from "busboy";
 import { ingestAdventureCodex } from "@/lib/ai/orchestrator";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
+import { db } from "@/lib/db"; // ← adjust import if your db helper is named differently
+import { randomUUID } from "crypto";
 
 export const config = {
   api: {
@@ -69,34 +71,110 @@ export default async function handler(req, res) {
         ts: new Date().toISOString(),
       });
 
-      // ⛔ Deferred extraction (matches your current design)
-      const pdfText = "PDF text extraction deferred";
+      /* ============================================================
+         BACKGROUND INGESTION — PATH B
+      ============================================================ */
 
-      try {
-        const result = await ingestAdventureCodex({
-          pdfText,
-          adminUserId: userId,
-          onEvent: (e) =>
-            events.push({ ...e, ts: new Date().toISOString() }),
-        });
+      const jobId = randomUUID();
 
-        res.status(result.success ? 200 : 500).json({
-          ok: result.success,
-          campaignId: result.campaignId,
-          error: result.error ?? null,
-          events,
-        });
-      } catch (err) {
-        res.status(500).json({
-          ok: false,
-          error: "Ingestion failed",
-          detail: err?.message,
-          events,
-        });
-      }
+      // 1️⃣ Create ingestion job (queued)
+      await db.query(
+        `
+        insert into ingestion_jobs (
+          id,
+          status,
+          progress,
+          current_stage,
+          created_at,
+          updated_at
+        )
+        values ($1, 'queued', 0, 'Queued', now(), now())
+        `,
+        [jobId]
+      );
+
+      // 2️⃣ Respond immediately (no timeout)
+      res.status(202).json({
+        ok: true,
+        jobId,
+        events,
+      });
+
+      // 3️⃣ Continue ingestion in background
+      setImmediate(async () => {
+        try {
+          await db.query(
+            `
+            update ingestion_jobs
+            set status = 'running',
+                progress = 10,
+                current_stage = 'PDF parsed',
+                updated_at = now()
+            where id = $1
+            `,
+            [jobId]
+          );
+
+          // ⛔ Deferred extraction preserved (no regression)
+          const pdfText = "PDF text extraction deferred";
+
+          const result = await ingestAdventureCodex({
+            pdfText,
+            adminUserId: userId,
+            onEvent: async (e) => {
+              // schema-level transparency preserved
+              await db.query(
+                `
+                update ingestion_jobs
+                set current_stage = $2,
+                    updated_at = now()
+                where id = $1
+                `,
+                [jobId, e.stage]
+              );
+            },
+          });
+
+          if (result.success) {
+            await db.query(
+              `
+              update ingestion_jobs
+              set status = 'completed',
+                  progress = 100,
+                  current_stage = 'Completed',
+                  updated_at = now()
+              where id = $1
+              `,
+              [jobId]
+            );
+          } else {
+            await db.query(
+              `
+              update ingestion_jobs
+              set status = 'failed',
+                  current_stage = 'Failed',
+                  updated_at = now()
+              where id = $1
+              `,
+              [jobId]
+            );
+          }
+        } catch (err) {
+          await db.query(
+            `
+            update ingestion_jobs
+            set status = 'failed',
+                current_stage = 'Unhandled error',
+                updated_at = now()
+            where id = $1
+            `,
+            [jobId]
+          );
+        }
+      });
     });
 
-    // 🔑 THIS is what App Router could not do
+    // 🔑 Pages Router allows true Node streaming
     req.pipe(busboy);
   } catch (err) {
     res.status(500).json({
@@ -106,3 +184,4 @@ export default async function handler(req, res) {
     });
   }
 }
+

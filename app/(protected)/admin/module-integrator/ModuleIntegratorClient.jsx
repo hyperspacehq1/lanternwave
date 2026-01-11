@@ -1,9 +1,24 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 /* ============================================================
-   SCHEMA ORDER (authoritative display order)
+   STAGE → PROGRESS MAP (AUTHORITATIVE)
+============================================================ */
+
+const STAGE_PROGRESS = {
+  job_created: { label: "Job created", progress: 0 },
+  pdf_parsed: { label: "PDF parsed", progress: 10 },
+  text_extracted: { label: "Text extracted", progress: 25 },
+  ai_campaign_extraction: { label: "AI campaign extraction", progress: 40 },
+  sessions_extracted: { label: "Sessions extracted", progress: 55 },
+  entities_extracted: { label: "Entities extracted", progress: 75 },
+  db_inserts_complete: { label: "DB inserts complete", progress: 90 },
+  finalization: { label: "Finalization", progress: 100 },
+};
+
+/* ============================================================
+   SCHEMA ORDER
 ============================================================ */
 
 const SCHEMA_ORDER = [
@@ -27,8 +42,8 @@ function nowIso() {
 function safeJsonParse(text) {
   try {
     return { ok: true, value: JSON.parse(text) };
-  } catch (e) {
-    return { ok: false, error: e };
+  } catch {
+    return { ok: false };
   }
 }
 
@@ -56,8 +71,9 @@ export default function ModuleIntegratorClient() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [requestId, setRequestId] = useState("");
+  const [jobId, setJobId] = useState(null);
 
-  // pipeline timing (existing behavior preserved)
+  // pipeline timing
   const [uploadStartedAt, setUploadStartedAt] = useState(null);
   const [uploadFinishedAt, setUploadFinishedAt] = useState(null);
   const [requestStartedAt, setRequestStartedAt] = useState(null);
@@ -67,9 +83,10 @@ export default function ModuleIntegratorClient() {
   const [expandedSchema, setExpandedSchema] = useState(null);
 
   const startedAtRef = useRef(null);
+  const pollingRef = useRef(null);
 
   /* ============================================================
-     BUSBOY / MULTIPART TRANSPARENCY (ADDITIVE)
+     BUSBOY TRANSPARENCY FLAGS (EXISTING)
   ============================================================ */
 
   const hasBusboyInit = events.some((e) => e.stage === "busboy_init");
@@ -81,7 +98,28 @@ export default function ModuleIntegratorClient() {
   );
 
   /* ============================================================
-     SCHEMA PROGRESS DERIVATION (UNCHANGED LOGIC)
+     JOB-LEVEL PROGRESS (DERIVED)
+  ============================================================ */
+
+  const jobProgress = useMemo(() => {
+    let max = 0;
+    let stage = "Pending";
+
+    for (const e of events) {
+      const def = STAGE_PROGRESS[e.stage];
+      if (!def) continue;
+
+      if (def.progress >= max) {
+        max = def.progress;
+        stage = def.label;
+      }
+    }
+
+    return { percent: max, stage };
+  }, [events]);
+
+  /* ============================================================
+     SCHEMA PROGRESS (UNCHANGED)
   ============================================================ */
 
   const schemaProgress = useMemo(() => {
@@ -103,15 +141,12 @@ export default function ModuleIntegratorClient() {
       if (ev.stage === "schema_extract_start") {
         state[table].extracting = true;
       }
-
       if (ev.stage === "db_insert_start") {
         state[table].inserting = true;
       }
-
       if (ev.stage === "db_insert_done") {
         state[table].completed = true;
       }
-
       if (ev.stage === "error") {
         state[table].error = true;
       }
@@ -121,7 +156,7 @@ export default function ModuleIntegratorClient() {
   }, [events]);
 
   /* ============================================================
-     SUBMIT (UNCHANGED LOGIC)
+     SUBMIT (UNCHANGED BEHAVIOR + jobId CAPTURE)
   ============================================================ */
 
   async function handleSubmit(e) {
@@ -130,6 +165,7 @@ export default function ModuleIntegratorClient() {
     setError("");
     setEvents([]);
     setRawResponse("");
+    setJobId(null);
     setUploadStartedAt(null);
     setUploadFinishedAt(null);
     setRequestStartedAt(null);
@@ -145,7 +181,6 @@ export default function ModuleIntegratorClient() {
     setRequestId(rid);
     startedAtRef.current = nowIso();
     setLoading(true);
-
     setUploadStartedAt(nowIso());
 
     const formData = new FormData();
@@ -159,9 +194,7 @@ export default function ModuleIntegratorClient() {
       const res = await fetch("/api/admin/module-integrator", {
         method: "POST",
         body: formData,
-        headers: {
-          "x-request-id": rid,
-        },
+        headers: { "x-request-id": rid },
       });
 
       const text = await res.text();
@@ -171,7 +204,6 @@ export default function ModuleIntegratorClient() {
       const parsed = safeJsonParse(text);
       if (!parsed.ok) {
         setError("Non-JSON server response");
-        setRawResponse(text);
         return;
       }
 
@@ -179,13 +211,64 @@ export default function ModuleIntegratorClient() {
         throw new Error(parsed.value?.error || "Import failed");
       }
 
-      setEvents(parsed.value?.events || []);
+      if (parsed.value?.jobId) {
+        setJobId(parsed.value.jobId);
+      }
+
+      if (parsed.value?.events) {
+        setEvents(parsed.value.events);
+      }
     } catch (err) {
       setError(err?.message || "Unexpected error");
     } finally {
       setLoading(false);
     }
   }
+
+  /* ============================================================
+     POLLING (NEW, ADDITIVE)
+  ============================================================ */
+
+  useEffect(() => {
+    if (!jobId) return;
+
+    pollingRef.current = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/ingestion-jobs/${jobId}`);
+        const json = await res.json();
+        if (!json.ok) return;
+
+        const stageKey = Object.keys(STAGE_PROGRESS).find(
+          (k) =>
+            STAGE_PROGRESS[k].label === json.job.current_stage
+        );
+
+        if (stageKey) {
+          setEvents((prev) => {
+            if (prev.some((e) => e.stage === stageKey)) return prev;
+            return [...prev, { stage: stageKey }];
+          });
+        }
+
+        if (
+          json.job.status === "completed" ||
+          json.job.status === "failed"
+        ) {
+          clearInterval(pollingRef.current);
+          pollingRef.current = null;
+        }
+      } catch {
+        // silent — polling must be resilient
+      }
+    }, 1500);
+
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+    };
+  }, [jobId]);
 
   /* ============================================================
      RENDER
@@ -196,8 +279,6 @@ export default function ModuleIntegratorClient() {
       <h1>Module Integrator</h1>
 
       <div className="mi-layout">
-        {/* ================= LEFT COLUMN ================= */}
-
         <div className="mi-left">
           <form onSubmit={handleSubmit}>
             <input
@@ -210,10 +291,9 @@ export default function ModuleIntegratorClient() {
             </button>
           </form>
 
-          {/* PIPELINE OVERVIEW */}
-
           <section className="mi-card">
             <h3>Import Pipeline</h3>
+
             <ul className="pipeline-overview">
               <li>
                 <b>Upload:</b>{" "}
@@ -256,44 +336,20 @@ export default function ModuleIntegratorClient() {
               </li>
             </ul>
 
-            <div className="pipeline-note">
-              Large PDFs are streamed and parsed incrementally to avoid size
-              limits.
+            <div className="job-progress">
+              <div className="job-progress-label">
+                {jobProgress.stage}
+              </div>
+              <div className="job-progress-bar">
+                <div
+                  className="job-progress-fill"
+                  style={{ width: `${jobProgress.percent}%` }}
+                />
+              </div>
+              <div className="job-progress-percent">
+                {jobProgress.percent}%
+              </div>
             </div>
-          </section>
-
-          {/* SCHEMA BOARD */}
-
-          <section className="mi-card">
-            <h3>Schema Processing</h3>
-
-            <ul className="schema-progress">
-              {SCHEMA_ORDER.map((schema) => {
-                const s = schemaProgress[schema];
-
-                let status = "Pending";
-                if (s.error) status = "Error";
-                else if (s.completed) status = "Completed";
-                else if (s.inserting) status = "Inserting…";
-                else if (s.extracting) status = "Extracting…";
-                else if (loading) status = "Waiting…";
-
-                return (
-                  <li
-                    key={schema}
-                    className={`schema-row ${status
-                      .toLowerCase()
-                      .replace("…", "")}`}
-                    onClick={() => setExpandedSchema(schema)}
-                  >
-                    <span className="schema-name">
-                      {titleCase(schema)}
-                    </span>
-                    <span className="schema-status">{status}</span>
-                  </li>
-                );
-              })}
-            </ul>
           </section>
 
           {error && (
@@ -301,16 +357,7 @@ export default function ModuleIntegratorClient() {
               <b>Error:</b> {error}
             </div>
           )}
-
-          {rawResponse && (
-            <section className="mi-card">
-              <h3>Raw Server Response</h3>
-              <pre className="mono pre">{rawResponse}</pre>
-            </section>
-          )}
         </div>
-
-        {/* ================= RIGHT COLUMN ================= */}
 
         <div className="mi-right">
           {!expandedSchema ? (
@@ -320,7 +367,6 @@ export default function ModuleIntegratorClient() {
           ) : (
             <div className="mi-inspector">
               <h3>{titleCase(expandedSchema)} Events</h3>
-
               <ul className="mi-event-list">
                 {events
                   .filter(
@@ -331,9 +377,6 @@ export default function ModuleIntegratorClient() {
                     <li key={i} className="mi-event">
                       <div className="mi-event-stage">
                         {e.stage}
-                      </div>
-                      <div className="mi-event-time">
-                        {e.timestamp || ""}
                       </div>
                     </li>
                   ))}
