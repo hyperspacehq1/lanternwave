@@ -8,10 +8,11 @@ export default async function handler(req, res) {
   }
 
   try {
-    const ctx = await getTenantContext(req);
-    const tenantId = ctx.tenantId;
+    // Auth guard only
+    await getTenantContext(req);
 
     const { jobId } = req.query;
+
     if (!jobId) {
       res.status(400).json({ ok: false, error: "Missing jobId" });
       return;
@@ -27,10 +28,9 @@ export default async function handler(req, res) {
         updated_at
       FROM ingestion_jobs
       WHERE id = $1
-        AND tenant_id = $2
       LIMIT 1
       `,
-      [jobId, tenantId]
+      [jobId]
     );
 
     if (!rows.length) {
