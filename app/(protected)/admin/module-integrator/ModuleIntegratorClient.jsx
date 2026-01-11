@@ -153,11 +153,11 @@ export default function ModuleIntegratorClient() {
       setRequestFinishedAt(nowIso());
 
       const parsed = safeJsonParse(text);
-      if (!parsed.ok) {
-        throw new Error(
-          "Server returned non-JSON response. See RAW RESPONSE panel."
-        );
-      }
+if (!parsed.ok) {
+  setError("Non-JSON server response");
+  setRawResponse(text);
+  return;
+}
 
       if (!res.ok) {
         throw new Error(parsed.value?.error || "Import failed");
