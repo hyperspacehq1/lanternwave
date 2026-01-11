@@ -11,6 +11,7 @@ import items from "./schemas/items.v1";
 import encounters from "./schemas/encounters.v1";
 
 const ADMIN_TENANT_ID = "1c6c314c-f33e-4f9f-bb6d-d547a23cbcf9";
+
 const SCHEMA_PIPELINE = [
   campaigns,
   sessions,
@@ -52,7 +53,40 @@ export type IngestEvent = {
 type EmitFn = (event: IngestEvent) => void;
 
 /* ============================================================
-   CANONICAL ORCHESTRATOR (UNCHANGED LOGIC)
+   HELPERS
+============================================================ */
+
+/**
+ * Ensure campaign name is unique per tenant
+ * (The Whispering Vault, The Whispering Vault (v2), etc.)
+ */
+async function getUniqueCampaignName(
+  tenantId: string,
+  baseName: string
+) {
+  const { rows } = await query(
+    `
+    SELECT name
+    FROM campaigns
+    WHERE tenant_id = $1
+      AND name ILIKE $2 || '%'
+    `,
+    [tenantId, baseName]
+  );
+
+  if (!rows.length) return baseName;
+
+  const versions = rows.map((r) => {
+    const m = r.name.match(/\(v(\d+)\)$/);
+    return m ? parseInt(m[1], 10) : 1;
+  });
+
+  const nextVersion = Math.max(...versions) + 1;
+  return `${baseName} (v${nextVersion})`;
+}
+
+/* ============================================================
+   CANONICAL ORCHESTRATOR
 ============================================================ */
 
 export async function ingestAdventureCodex({
@@ -112,11 +146,32 @@ export async function ingestAdventureCodex({
       for (const row of rows) {
         if (!row || typeof row !== "object") continue;
 
+        let insertRow = { ...row };
+
+        // 🔒 Campaign-specific fixes
+        if (tableName === "campaigns") {
+          insertRow.name = await getUniqueCampaignName(
+            ADMIN_TENANT_ID,
+            row.name
+          );
+        }
+
+        // 🔒 Events.priority must never be NULL
+        if (tableName === "events") {
+          if (
+            insertRow.priority === undefined ||
+            insertRow.priority === null ||
+            Number.isNaN(Number(insertRow.priority))
+          ) {
+            insertRow.priority = 0;
+          }
+        }
+
         const insertData: Record<string, any> = {
-  ...row,
-  tenant_id: ADMIN_TENANT_ID,        // 🔒 force Codex ownership
-  template_campaign_id: templateCampaignId,
-};
+          ...insertRow,
+          tenant_id: ADMIN_TENANT_ID,
+          template_campaign_id: templateCampaignId,
+        };
 
         const { sql, params } = buildInsert({
           table: tableName,
@@ -184,7 +239,7 @@ export async function ingestAdventureCodex({
 }
 
 /* ============================================================
-   AI EXTRACTION (UNCHANGED)
+   AI EXTRACTION (UNCHANGED PROMPT LOGIC)
 ============================================================ */
 
 async function extractWithSchema({
