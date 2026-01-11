@@ -33,7 +33,16 @@ function safeJsonParse(text) {
 }
 
 function makeRequestId() {
-  return `ing_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+  return `ing_${Date.now().toString(36)}_${Math.random()
+    .toString(36)
+    .slice(2, 10)}`;
+}
+
+function msSince(startIso) {
+  if (!startIso) return "";
+  const ms = Date.now() - new Date(startIso).getTime();
+  if (ms < 1000) return `${ms}ms`;
+  return `${(ms / 1000).toFixed(2)}s`;
 }
 
 /* ============================================================
@@ -48,10 +57,16 @@ export default function ModuleIntegratorClient() {
   const [loading, setLoading] = useState(false);
   const [requestId, setRequestId] = useState("");
 
+  // NEW: high-level pipeline visibility
+  const [uploadStartedAt, setUploadStartedAt] = useState(null);
+  const [uploadFinishedAt, setUploadFinishedAt] = useState(null);
+  const [requestStartedAt, setRequestStartedAt] = useState(null);
+  const [requestFinishedAt, setRequestFinishedAt] = useState(null);
+
   const startedAtRef = useRef(null);
 
   /* ============================================================
-     SCHEMA PROGRESS DERIVATION
+     SCHEMA PROGRESS DERIVATION (unchanged logic)
   ============================================================ */
 
   const schemaProgress = useMemo(() => {
@@ -100,6 +115,10 @@ export default function ModuleIntegratorClient() {
     setError("");
     setEvents([]);
     setRawResponse("");
+    setUploadStartedAt(null);
+    setUploadFinishedAt(null);
+    setRequestStartedAt(null);
+    setRequestFinishedAt(null);
 
     if (!file) {
       setError("Please select a PDF to upload.");
@@ -111,11 +130,16 @@ export default function ModuleIntegratorClient() {
     startedAtRef.current = nowIso();
     setLoading(true);
 
+    setUploadStartedAt(nowIso());
+
     const formData = new FormData();
     formData.append("file", file);
     formData.append("requestId", rid);
 
     try {
+      setUploadFinishedAt(nowIso());
+      setRequestStartedAt(nowIso());
+
       const res = await fetch("/api/admin/module-integrator", {
         method: "POST",
         body: formData,
@@ -126,6 +150,7 @@ export default function ModuleIntegratorClient() {
 
       const text = await res.text();
       setRawResponse(text);
+      setRequestFinishedAt(nowIso());
 
       const parsed = safeJsonParse(text);
       if (!parsed.ok) {
@@ -166,7 +191,41 @@ export default function ModuleIntegratorClient() {
       </form>
 
       {/* ======================================================
-          SCHEMA PROGRESS BOARD
+          PIPELINE OVERVIEW (NEW)
+      ====================================================== */}
+
+      <section className="mi-card">
+        <h3>Import Pipeline</h3>
+        <ul className="pipeline-overview">
+          <li>
+            <b>Upload:</b>{" "}
+            {uploadStartedAt
+              ? uploadFinishedAt
+                ? `Completed (${msSince(uploadStartedAt)})`
+                : "In progress…"
+              : "Pending"}
+          </li>
+          <li>
+            <b>Server Request:</b>{" "}
+            {requestStartedAt
+              ? requestFinishedAt
+                ? `Completed (${msSince(requestStartedAt)})`
+                : "In progress…"
+              : "Pending"}
+          </li>
+          <li>
+            <b>Schema Processing:</b>{" "}
+            {events.length
+              ? "In progress / Completed (see below)"
+              : loading
+              ? "Waiting…"
+              : "Pending"}
+          </li>
+        </ul>
+      </section>
+
+      {/* ======================================================
+          SCHEMA PROGRESS BOARD (EXISTING, ENHANCED CONTEXT)
       ====================================================== */}
 
       <section className="mi-card">
@@ -184,7 +243,10 @@ export default function ModuleIntegratorClient() {
             else if (loading) status = "Waiting…";
 
             return (
-              <li key={schema} className={`schema-row ${status.toLowerCase()}`}>
+              <li
+                key={schema}
+                className={`schema-row ${status.toLowerCase()}`}
+              >
                 <span className="schema-name">
                   {titleCase(schema)}
                 </span>
@@ -196,7 +258,7 @@ export default function ModuleIntegratorClient() {
       </section>
 
       {/* ======================================================
-          ERROR + RAW RESPONSE
+          ERROR + RAW RESPONSE (EXISTING)
       ====================================================== */}
 
       {error && (

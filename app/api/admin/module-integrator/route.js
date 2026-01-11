@@ -1,40 +1,22 @@
 import { ingestAdventureCodex } from "@/lib/ai/orchestrator";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
-import { createRequire } from "module";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-// ✅ Correct way to load CommonJS deps in App Router
-const require = createRequire(import.meta.url);
-const pdfParse = require("pdf-parse");
 
 export async function POST(req) {
   try {
     const { userId } = await getTenantContext(req);
 
-    const formData = await req.formData();
-    const file = formData.get("file");
+    // ✅ Expect JSON only
+    const body = await req.json();
+    const { pdfText } = body;
 
-    if (!file) {
-      return new Response(
-        JSON.stringify({ ok: false, error: "No PDF file uploaded" }),
-        { status: 400 }
-      );
-    }
-
-    // Read PDF into buffer
-    const buffer = Buffer.from(await file.arrayBuffer());
-
-    // ✅ This is now guaranteed to be a function
-    const parsed = await pdfParse(buffer);
-    const pdfText = parsed?.text ?? "";
-
-    if (!pdfText.trim()) {
+    if (!pdfText || typeof pdfText !== "string") {
       return new Response(
         JSON.stringify({
           ok: false,
-          error: "PDF contains no extractable text",
+          error: "pdfText is required",
         }),
         { status: 400 }
       );
@@ -62,7 +44,6 @@ export async function POST(req) {
       { status: result.success ? 200 : 500 }
     );
   } catch (err) {
-    // ABSOLUTE GUARANTEE: JSON ONLY
     return new Response(
       JSON.stringify({
         ok: false,
