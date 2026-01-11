@@ -1,60 +1,78 @@
 const locationsSchema = {
   name: "locations",
+
   description:
-    "Represents a physical or fictional place within an RPG campaign. Locations may be real-world, fictional, or abstract settings used during the story.",
+    "Represents a physical or fictional place within an RPG campaign. Locations may be real-world, fictional, or abstract settings.",
+
   schema: {
     type: "object",
     additionalProperties: false,
+
     properties: {
       name: {
         type: "string",
         description:
-          "The name of the location. This may be a specific place, landmark, building, or general area. Less than 20 words.",
+          "The name of the location. May be a dungeon, building, landmark, or general area.",
       },
 
       world: {
-        type: "string",
+        type: ["string", "null"],
         description:
-          "The broader region, realm, or world in which this location exists. Less than 20 words.",
+          "The broader world, realm, plane, or setting where this location exists.",
       },
 
       description: {
-        type: "string",
+        type: ["string", "null"],
         description:
-          "A short narrative description of the location, including atmosphere, purpose, or significance. Maximum 200 words.",
+          "Short narrative description of the location, including atmosphere or significance.",
       },
 
-      street: {
-        type: "string",
+      address_street: {
+        type: ["string", "null"],
         description:
-          "Street name or address if the location corresponds to a real-world or structured address. Optional.",
+          "Street address if the location has a real-world or structured address. Usually null.",
       },
 
-      city: {
-        type: "string",
+      address_city: {
+        type: ["string", "null"],
         description:
-          "City or municipality where the location is situated, if applicable.",
+          "City or settlement name if applicable (e.g. Arkham).",
       },
 
-      state: {
-        type: "string",
+      address_state: {
+        type: ["string", "null"],
         description:
-          "State, province, or region for the location, if applicable.",
+          "State, province, or region if applicable (e.g. Massachusetts).",
       },
 
-      zip: {
-        type: "string",
+      address_zip: {
+        type: ["string", "null"],
         description:
-          "Postal or ZIP code associated with the location, if applicable.",
+          "Postal or ZIP code if applicable. Rarely present.",
       },
 
-      country: {
-        type: "string",
+      address_country: {
+        type: ["string", "null"],
         description:
-          "Country in which the location exists, if applicable.",
+          "Country name if applicable (e.g. United States).",
       },
     },
-    required: ["name", "world", "description"],
+
+    /*
+      OPENAI STRUCTURED OUTPUT RULE:
+      Every property must be listed in `required`,
+      even if the value is allowed to be null.
+    */
+    required: [
+      "name",
+      "world",
+      "description",
+      "address_street",
+      "address_city",
+      "address_state",
+      "address_zip",
+      "address_country",
+    ],
   },
 };
 
