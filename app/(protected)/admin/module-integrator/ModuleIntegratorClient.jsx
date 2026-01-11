@@ -11,10 +11,16 @@ const STAGE_PROGRESS = {
   job_created: { label: "Job created", progress: 0 },
   pdf_parsed: { label: "PDF parsed", progress: 10 },
   text_extracted: { label: "Text extracted", progress: 25 },
-  ai_campaign_extraction: { label: "AI campaign extraction", progress: 40 },
+  ai_campaign_extraction: {
+    label: "AI campaign extraction",
+    progress: 40,
+  },
   sessions_extracted: { label: "Sessions extracted", progress: 55 },
   entities_extracted: { label: "Entities extracted", progress: 75 },
-  db_inserts_complete: { label: "DB inserts complete", progress: 90 },
+  db_inserts_complete: {
+    label: "DB inserts complete",
+    progress: 90,
+  },
   finalization: { label: "Finalization", progress: 100 },
 };
 
@@ -74,32 +80,54 @@ export default function ModuleIntegratorClient() {
   const [requestId, setRequestId] = useState("");
   const [jobId, setJobId] = useState(null);
 
-  // pipeline timing
   const [uploadStartedAt, setUploadStartedAt] = useState(null);
   const [uploadFinishedAt, setUploadFinishedAt] = useState(null);
   const [requestStartedAt, setRequestStartedAt] = useState(null);
   const [requestFinishedAt, setRequestFinishedAt] = useState(null);
 
-  // schema inspector
   const [expandedSchema, setExpandedSchema] = useState(null);
 
   const startedAtRef = useRef(null);
   const pollingRef = useRef(null);
 
   /* ============================================================
-     BUSBOY TRANSPARENCY FLAGS (EXISTING)
+     DERIVED FLAGS
   ============================================================ */
 
-  const hasBusboyInit = events.some((e) => e.stage === "busboy_init");
-  const hasBusboyFile = events.some(
-    (e) => e.stage === "busboy_file_detected"
-  );
-  const hasBusboyComplete = events.some(
-    (e) => e.stage === "busboy_complete"
+  const fatalErrors = events.filter((e) => e.stage === "error");
+
+  const campaignEvents = events.filter(
+    (e) => e?.meta?.tableName === "campaigns"
   );
 
+  const campaignStatus = useMemo(() => {
+    const created = campaignEvents.find(
+      (e) => e.stage === "db_insert_row"
+    );
+    const skipped = campaignEvents.find(
+      (e) => e.stage === "schema_skipped"
+    );
+    const errored = campaignEvents.find(
+      (e) => e.stage === "error"
+    );
+
+    if (created) return { state: "created" };
+    if (errored)
+      return {
+        state: "error",
+        reason: errored?.meta?.message,
+      };
+    if (skipped)
+      return {
+        state: "skipped",
+        reason: skipped?.meta?.reason,
+      };
+
+    return { state: "pending" };
+  }, [campaignEvents]);
+
   /* ============================================================
-     JOB-LEVEL PROGRESS (DERIVED)
+     JOB-LEVEL PROGRESS
   ============================================================ */
 
   const jobProgress = useMemo(() => {
@@ -120,44 +148,7 @@ export default function ModuleIntegratorClient() {
   }, [events]);
 
   /* ============================================================
-     SCHEMA PROGRESS (UNCHANGED)
-  ============================================================ */
-
-  const schemaProgress = useMemo(() => {
-    const state = {};
-
-    for (const schema of SCHEMA_ORDER) {
-      state[schema] = {
-        extracting: false,
-        inserting: false,
-        completed: false,
-        error: false,
-      };
-    }
-
-    for (const ev of events) {
-      const table = ev?.meta?.tableName;
-      if (!table || !state[table]) continue;
-
-      if (ev.stage === "schema_extract_start") {
-        state[table].extracting = true;
-      }
-      if (ev.stage === "db_insert_start") {
-        state[table].inserting = true;
-      }
-      if (ev.stage === "db_insert_done") {
-        state[table].completed = true;
-      }
-      if (ev.stage === "error") {
-        state[table].error = true;
-      }
-    }
-
-    return state;
-  }, [events]);
-
-  /* ============================================================
-     SUBMIT (UNCHANGED BEHAVIOR + jobId CAPTURE)
+     SUBMIT
   ============================================================ */
 
   async function handleSubmit(e) {
@@ -167,10 +158,6 @@ export default function ModuleIntegratorClient() {
     setEvents([]);
     setRawResponse("");
     setJobId(null);
-    setUploadStartedAt(null);
-    setUploadFinishedAt(null);
-    setRequestStartedAt(null);
-    setRequestFinishedAt(null);
     setExpandedSchema(null);
 
     if (!file) {
@@ -227,7 +214,7 @@ export default function ModuleIntegratorClient() {
   }
 
   /* ============================================================
-     POLLING (NEW, ADDITIVE)
+     POLLING
   ============================================================ */
 
   useEffect(() => {
@@ -239,18 +226,6 @@ export default function ModuleIntegratorClient() {
         const json = await res.json();
         if (!json.ok) return;
 
-        const stageKey = Object.keys(STAGE_PROGRESS).find(
-          (k) =>
-            STAGE_PROGRESS[k].label === json.job.current_stage
-        );
-
-        if (stageKey) {
-          setEvents((prev) => {
-            if (prev.some((e) => e.stage === stageKey)) return prev;
-            return [...prev, { stage: stageKey }];
-          });
-        }
-
         if (
           json.job.status === "completed" ||
           json.job.status === "failed"
@@ -258,9 +233,7 @@ export default function ModuleIntegratorClient() {
           clearInterval(pollingRef.current);
           pollingRef.current = null;
         }
-      } catch {
-        // silent — polling must be resilient
-      }
+      } catch {}
     }, 1500);
 
     return () => {
@@ -285,7 +258,9 @@ export default function ModuleIntegratorClient() {
             <input
               type="file"
               accept=".pdf"
-              onChange={(e) => setFile(e.target.files?.[0] || null)}
+              onChange={(e) =>
+                setFile(e.target.files?.[0] || null)
+              }
             />
             <button type="submit" disabled={loading}>
               {loading ? "Processing…" : "Upload PDF"}
@@ -295,48 +270,6 @@ export default function ModuleIntegratorClient() {
           <section className="mi-card">
             <h3>Import Pipeline</h3>
 
-            <ul className="pipeline-overview">
-              <li>
-                <b>Upload:</b>{" "}
-                {uploadStartedAt
-                  ? uploadFinishedAt
-                    ? `Completed (${msSince(uploadStartedAt)})`
-                    : "In progress…"
-                  : "Pending"}
-              </li>
-
-              <li>
-                <b>Server Request:</b>{" "}
-                {requestStartedAt
-                  ? requestFinishedAt
-                    ? `Completed (${msSince(requestStartedAt)})`
-                    : "In progress…"
-                  : "Pending"}
-              </li>
-
-              <li>
-                <b>Multipart Parsing:</b>{" "}
-                {hasBusboyComplete
-                  ? "Completed"
-                  : hasBusboyFile
-                  ? "Streaming PDF…"
-                  : hasBusboyInit
-                  ? "Initializing…"
-                  : loading
-                  ? "Pending…"
-                  : "Pending"}
-              </li>
-
-              <li>
-                <b>Schema Processing:</b>{" "}
-                {events.length
-                  ? "In progress / Completed"
-                  : loading
-                  ? "Waiting…"
-                  : "Pending"}
-              </li>
-            </ul>
-
             <div className="job-progress">
               <div className="job-progress-label">
                 {jobProgress.stage}
@@ -344,14 +277,41 @@ export default function ModuleIntegratorClient() {
               <div className="job-progress-bar">
                 <div
                   className="job-progress-fill"
-                  style={{ width: `${jobProgress.percent}%` }}
+                  style={{
+                    width: `${jobProgress.percent}%`,
+                  }}
                 />
               </div>
               <div className="job-progress-percent">
                 {jobProgress.percent}%
               </div>
             </div>
+
+            <div className="campaign-status">
+              <b>Campaign:</b>{" "}
+              {campaignStatus.state === "created" &&
+                "Created"}
+              {campaignStatus.state === "skipped" &&
+                `Skipped — ${campaignStatus.reason}`}
+              {campaignStatus.state === "error" &&
+                `Error — ${campaignStatus.reason}`}
+              {campaignStatus.state === "pending" &&
+                "Pending"}
+            </div>
           </section>
+
+          {fatalErrors.length > 0 && (
+            <div className="pipeline-error">
+              <b>Errors detected:</b>
+              <ul>
+                {fatalErrors.map((e, i) => (
+                  <li key={i}>
+                    {e.meta?.message || "Unknown error"}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {error && (
             <div className="pipeline-error">
@@ -361,11 +321,21 @@ export default function ModuleIntegratorClient() {
         </div>
 
         <div className="mi-right">
-          {!expandedSchema ? (
-            <div className="mi-inspector-empty">
-              Select a schema to inspect events
-            </div>
-          ) : (
+          <div className="mi-schema-list">
+            {SCHEMA_ORDER.map((s) => (
+              <button
+                key={s}
+                onClick={() => setExpandedSchema(s)}
+                className={
+                  expandedSchema === s ? "active" : ""
+                }
+              >
+                {titleCase(s)}
+              </button>
+            ))}
+          </div>
+
+          {expandedSchema && (
             <div className="mi-inspector">
               <h3>{titleCase(expandedSchema)} Events</h3>
               <ul className="mi-event-list">
@@ -379,6 +349,15 @@ export default function ModuleIntegratorClient() {
                       <div className="mi-event-stage">
                         {e.stage}
                       </div>
+                      {e.meta && (
+                        <pre className="mi-event-meta">
+                          {JSON.stringify(
+                            e.meta,
+                            null,
+                            2
+                          )}
+                        </pre>
+                      )}
                     </li>
                   ))}
               </ul>

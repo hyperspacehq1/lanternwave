@@ -22,19 +22,11 @@ const SCHEMA_PIPELINE = [
   encounters,
 ] as const;
 
-type SchemaDef = {
-  name: string;
-  schema: any;
-};
-
-/* ============================================================
-   STAGE CALLBACKS (OPTION A)
-============================================================ */
-
 export type IngestStage =
   | "start"
   | "schema_extract_start"
   | "schema_extract_done"
+  | "schema_skipped"
   | "db_insert_start"
   | "db_insert_row"
   | "db_insert_done"
@@ -52,43 +44,6 @@ export type IngestEvent = {
 
 type EmitFn = (event: IngestEvent) => void;
 
-/* ============================================================
-   HELPERS
-============================================================ */
-
-/**
- * Ensure campaign name is unique per tenant
- * (The Whispering Vault, The Whispering Vault (v2), etc.)
- */
-async function getUniqueCampaignName(
-  tenantId: string,
-  baseName: string
-) {
-  const { rows } = await query(
-    `
-    SELECT name
-    FROM campaigns
-    WHERE tenant_id = $1
-      AND name ILIKE $2 || '%'
-    `,
-    [tenantId, baseName]
-  );
-
-  if (!rows.length) return baseName;
-
-  const versions = rows.map((r) => {
-    const m = r.name.match(/\(v(\d+)\)$/);
-    return m ? parseInt(m[1], 10) : 1;
-  });
-
-  const nextVersion = Math.max(...versions) + 1;
-  return `${baseName} (v${nextVersion})`;
-}
-
-/* ============================================================
-   CANONICAL ORCHESTRATOR
-============================================================ */
-
 export async function ingestAdventureCodex({
   pdfText,
   adminUserId,
@@ -101,9 +56,7 @@ export async function ingestAdventureCodex({
   const emit = (stage: IngestStage, message: string, meta?: any) => {
     try {
       onEvent?.({ stage, message, meta });
-    } catch {
-      // telemetry must never break ingestion
-    }
+    } catch {}
   };
 
   emit("start", "Ingestion started");
@@ -112,24 +65,39 @@ export async function ingestAdventureCodex({
   let rootCampaignId: string | null = null;
 
   try {
-    for (const schemaDef of SCHEMA_PIPELINE as unknown as SchemaDef[]) {
+    for (const schemaDef of SCHEMA_PIPELINE) {
       const tableName = schemaDef.name;
       const schema = schemaDef.schema;
 
       emit("schema_extract_start", `Extracting ${tableName}`, { tableName });
 
-      const aiResult = await extractWithSchema({
-        tableName,
-        schema,
-        pdfText,
-        context,
+      const aiResult = await runStructuredPrompt({
+        model: "gpt-4.1",
+        prompt: [
+          { role: "system", content: "Extract structured RPG data." },
+          { role: "user", content: pdfText },
+        ],
+        jsonSchema: { name: tableName, schema },
+        temperature: 0.2,
       });
 
       if (!aiResult) {
-        throw new Error(`AI extraction failed for ${tableName}`);
+        emit("schema_skipped", `Skipped ${tableName}`, {
+          reason: "AI returned no structured output",
+        });
+        context[tableName] = [];
+        continue;
       }
 
       const rows = Array.isArray(aiResult) ? aiResult : [aiResult];
+
+      if (!rows.length) {
+        emit("schema_skipped", `Skipped ${tableName}`, {
+          reason: "No rows extracted",
+        });
+        context[tableName] = [];
+        continue;
+      }
 
       emit("schema_extract_done", `Extracted ${tableName}`, {
         tableName,
@@ -146,39 +114,14 @@ export async function ingestAdventureCodex({
       for (const row of rows) {
         if (!row || typeof row !== "object") continue;
 
-        let insertRow = { ...row };
-
-        // Campaign-specific fixes
-        if (tableName === "campaigns") {
-          insertRow.name = await getUniqueCampaignName(
-            ADMIN_TENANT_ID,
-            row.name
-          );
-        }
-
-        // Events.priority must never be NULL
-        if (tableName === "events") {
-          if (
-            insertRow.priority === undefined ||
-            insertRow.priority === null ||
-            Number.isNaN(Number(insertRow.priority))
-          ) {
-            insertRow.priority = 0;
-          }
-        }
-
         const insertData: Record<string, any> = {
-          ...insertRow,
+          ...row,
           tenant_id: ADMIN_TENANT_ID,
         };
 
-        // campaigns-only metadata
         if (tableName === "campaigns") {
           insertData.template_campaign_id = null;
-        }
-
-        // all child tables link to campaign_id
-        if (tableName !== "campaigns") {
+        } else {
           insertData.campaign_id = rootCampaignId;
         }
 
@@ -190,9 +133,9 @@ export async function ingestAdventureCodex({
         const result = await query(sql, params);
         insertedRows.push(result.rows[0]);
 
-        emit("db_insert_row", `Inserted row into ${tableName}`, {
+        emit("db_insert_row", `Inserted ${tableName}`, {
           tableName,
-          id: result?.rows?.[0]?.id,
+          id: result.rows[0]?.id,
         });
       }
 
@@ -205,11 +148,11 @@ export async function ingestAdventureCodex({
 
       if (tableName === "campaigns") {
         if (!insertedRows.length) {
-          throw new Error("Campaign schema returned no rows");
+          emit("schema_skipped", "Campaign schema produced no rows");
+          continue;
         }
 
-        rootCampaignId = insertedRows[0].campaign_id ?? insertedRows[0].id;
-
+        rootCampaignId = insertedRows[0].id;
         emit("root_campaign_captured", "Captured root campaign id", {
           rootCampaignId,
         });
@@ -217,97 +160,20 @@ export async function ingestAdventureCodex({
     }
 
     if (rootCampaignId) {
-      emit(
-        "resolve_relationships_start",
-        "Resolving encounter relationships",
-        { rootCampaignId }
-      );
-
+      emit("resolve_relationships_start", "Resolving encounter relationships");
       await resolveEncounterRelationships({ campaignId: rootCampaignId });
-
-      emit(
-        "resolve_relationships_done",
-        "Resolved encounter relationships",
-        { rootCampaignId }
-      );
+      emit("resolve_relationships_done", "Resolved encounter relationships");
     }
 
     emit("completed", "Ingestion complete", { rootCampaignId });
 
-    return {
-      success: true,
-      campaignId: rootCampaignId,
-    };
-
+    return { success: true, campaignId: rootCampaignId };
   } catch (err: any) {
     emit("error", "Fatal ingest error", {
       message: err?.message ?? String(err),
       rootCampaignId,
     });
 
-    // ✅ DO NOT THROW — return structured failure
-    return {
-      success: false,
-      campaignId: rootCampaignId,
-      error: err?.message ?? "Unknown ingest error",
-    };
+    return { success: false, campaignId: rootCampaignId };
   }
-}
-
-/* ============================================================
-   AI EXTRACTION
-============================================================ */
-
-async function extractWithSchema({
-  tableName,
-  schema,
-  pdfText,
-  context,
-}: {
-  tableName: string;
-  schema: any;
-  pdfText: string;
-  context: Record<string, any[]>;
-}) {
-  const systemPrompt = `
-You are an RPG module ingestion engine.
-
-GENERAL RULES:
-- Return ONLY JSON matching the provided schema.
-- Do not invent entities, characters, locations, or events.
-- Do not duplicate entities.
-- Use names consistently across all extracted tables.
-- Omit anything not present in the module text.
-- Use null for unknown or unspecified values.
-
-CAMPAIGN DATE & ERA RULES:
-- campaign_date MUST ONLY be populated if an explicit calendar date or year
-  is directly stated in the PDF text.
-- If no explicit date exists, campaign_date MUST be null.
-- NEVER guess or infer a calendar date.
-
-- world_setting may describe era or setting in natural language.
-- DO NOT encode era information into campaign_date.
-`;
-
-  const userPrompt = `
-PDF CONTENT:
-${pdfText}
-
-EXISTING EXTRACTED DATA:
-${JSON.stringify(context, null, 2)}
-
-TASK:
-Extract "${tableName}" data from the PDF according to the schema.
-`;
-
-  return await runStructuredPrompt({
-    model: "gpt-4.1",
-    prompt: [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: userPrompt },
-    ],
-    jsonSchema: { name: tableName, schema },
-    temperature: 0.2,
-  });
 }

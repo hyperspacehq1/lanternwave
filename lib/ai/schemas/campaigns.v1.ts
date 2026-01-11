@@ -72,10 +72,10 @@ const campaignsSchema = {
           "The One Ring Roleplaying Game",
           "Vaesen",
           "Vampire: The Masquerade 5th Edition",
-          "XYZ-Custom Campaign Codex"
+          "XYZ-Custom Campaign Codex",
         ],
         description:
-          "Select the closest matching RPG system from the allowed list. If no confident match exists, use 'XYZ-Custom Campaign Codex'.",
+          "Select the closest matching RPG system from the allowed list.",
       },
 
       is_template: {

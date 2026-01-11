@@ -1,4 +1,5 @@
 import Busboy from "busboy";
+import pdfParse from "pdf-parse";
 import { ingestAdventureCodex } from "@/lib/ai/orchestrator";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { query } from "@/lib/db";
@@ -21,9 +22,6 @@ export default async function handler(req, res) {
   const HARD_TIMEOUT_MS = 15000;
   const hardTimeout = setTimeout(() => {
     if (responseSent) return;
-
-    console.error("[ModuleIntegrator] HARD TIMEOUT before job creation");
-
     try {
       res.status(504).json({
         ok: false,
@@ -34,7 +32,6 @@ export default async function handler(req, res) {
   }, HARD_TIMEOUT_MS);
 
   try {
-    // Auth guard only
     const ctx = await getTenantContext(req);
     const userId = ctx.userId;
 
@@ -87,7 +84,7 @@ export default async function handler(req, res) {
 
       const jobId = randomUUID();
 
-      // ✅ THIS IS THE CRITICAL FIX
+      // 🔹 Create ingestion job
       try {
         await query(
           `
@@ -101,16 +98,13 @@ export default async function handler(req, res) {
           `,
           [jobId, "queued", 0, "Queued"]
         );
-      } catch (dbErr) {
+      } catch (err) {
         clearTimeout(hardTimeout);
-
-        console.error("[ModuleIntegrator] Job insert failed", dbErr);
-
         if (!responseSent) {
           res.status(500).json({
             ok: false,
             error: "Failed to create ingestion job",
-            detail: dbErr.message,
+            detail: err.message,
           });
           responseSent = true;
         }
@@ -127,7 +121,10 @@ export default async function handler(req, res) {
         responseSent = true;
       }
 
-      // Background ingestion unchanged
+      // ============================================================
+      // 🔥 REAL PDF INGESTION STARTS HERE
+      // ============================================================
+
       setImmediate(async () => {
         try {
           await query(
@@ -135,15 +132,31 @@ export default async function handler(req, res) {
             UPDATE ingestion_jobs
                SET status='running',
                    progress=10,
-                   current_stage='PDF parsed',
+                   current_stage='PDF parsing',
                    updated_at=NOW()
              WHERE id=$1
             `,
             [jobId]
           );
 
+          // ✅ REAL PDF TEXT EXTRACTION
+          const parsed = await pdfParse(pdfBuffer);
+          const pdfText = parsed.text;
+
+          await query(
+            `
+            UPDATE ingestion_jobs
+               SET progress=25,
+                   current_stage='Text extracted',
+                   updated_at=NOW()
+             WHERE id=$1
+            `,
+            [jobId]
+          );
+
+          // 🔥 Pass REAL text into orchestrator
           const result = await ingestAdventureCodex({
-            pdfText: "deferred",
+            pdfText,
             adminUserId: userId,
             onEvent: async (e) => {
               await query(
@@ -200,9 +213,6 @@ export default async function handler(req, res) {
     });
   } catch (err) {
     clearTimeout(hardTimeout);
-
-    console.error("[ModuleIntegrator] Handler error", err);
-
     if (!responseSent) {
       res.status(500).json({
         ok: false,

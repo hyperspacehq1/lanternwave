@@ -1,4 +1,3 @@
-// /lib/ai/extract.ts
 import OpenAI from "openai";
 
 const openai = new OpenAI();
@@ -14,8 +13,13 @@ export async function extractWithSchema({
   pdfText: string;
   context: Record<string, any>;
 }) {
+  if (!pdfText || pdfText.trim().length < 200) {
+    return null; // 🔍 visibly skipped upstream
+  }
+
   const systemPrompt = `
 You are extracting structured RPG data.
+
 Return ONLY valid JSON matching the schema.
 Do not invent data.
 Do not repeat entities.
