@@ -1,12 +1,12 @@
 import Busboy from "busboy";
 import { ingestAdventureCodex } from "@/lib/ai/orchestrator";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
-import { query } from "@/lib/db";
+import { ident } from "@/lib/db";
 import { randomUUID } from "crypto";
 
 export const config = {
   api: {
-    bodyParser: false,
+    bodyParser: false, // 🔑 REQUIRED for Busboy
   },
 };
 
@@ -16,28 +16,43 @@ export default async function handler(req, res) {
     return;
   }
 
+  // ============================================================
+  // WATCHDOGS (ADDITIVE)
+  // ============================================================
+
   let responseSent = false;
 
-  const HARD_TIMEOUT_MS = 15000;
+  const HARD_TIMEOUT_MS = 15000; // 15s to reach job creation
   const hardTimeout = setTimeout(() => {
     if (responseSent) return;
 
     console.error("[ModuleIntegrator] HARD TIMEOUT before job creation");
+
     try {
       res.status(504).json({
         ok: false,
         error: "Server did not reach job creation",
+        detail:
+          "Upload reached server but multipart parsing or job creation did not complete.",
       });
       responseSent = true;
-    } catch {}
+    } catch {
+      // response may already be in bad state
+    }
   }, HARD_TIMEOUT_MS);
 
   try {
+    // 🔒 Auth guard (do NOT assume tenant_id exists on ingestion_jobs)
     const ctx = await getTenantContext(req);
-    const tenantId = ctx.tenantId;
     const userId = ctx.userId;
 
     const events = [];
+
+    events.push({
+      stage: "busboy_init",
+      message: "Initializing multipart stream",
+      ts: new Date().toISOString(),
+    });
 
     const busboy = Busboy({ headers: req.headers });
 
@@ -52,9 +67,10 @@ export default async function handler(req, res) {
       }
 
       fileFound = true;
+
       events.push({
         stage: "busboy_file_detected",
-        message: info.filename,
+        message: `PDF stream detected (${info.filename})`,
         ts: new Date().toISOString(),
       });
 
@@ -69,7 +85,11 @@ export default async function handler(req, res) {
       if (!fileFound) {
         clearTimeout(hardTimeout);
         if (!responseSent) {
-          res.status(400).json({ ok: false, error: "No PDF uploaded" });
+          res.status(400).json({
+            ok: false,
+            error: "No PDF file uploaded",
+            events,
+          });
           responseSent = true;
         }
         return;
@@ -77,38 +97,62 @@ export default async function handler(req, res) {
 
       const pdfBuffer = Buffer.concat(pdfChunks);
 
+      events.push({
+        stage: "busboy_complete",
+        message: `Multipart parsing complete (${pdfBuffer.length} bytes)`,
+        ts: new Date().toISOString(),
+      });
+
+      /* ============================================================
+         BACKGROUND INGESTION — PATH B (UNCHANGED)
+      ============================================================ */
+
       const jobId = randomUUID();
 
       try {
-        await query(
+        // ✅ Minimal insert that matches your actual table shape
+        // id is required; created_at/updated_at default now()
+        // status/progress/current_stage are nullable per DB export
+        await ident.query(
           `
-          INSERT INTO ingestion_jobs (
+          insert into ingestion_jobs (
             id,
-            tenant_id,
             status,
             progress,
-            current_stage,
-            created_at,
-            updated_at
+            current_stage
           )
-          VALUES ($1,$2,'queued',0,'Queued',NOW(),NOW())
+          values ($1, $2, $3, $4)
           `,
-          [jobId, tenantId]
+          [jobId, "queued", 0, "Queued"]
         );
-      } catch (e) {
+      } catch (dbErr) {
         clearTimeout(hardTimeout);
-        console.error("JOB INSERT FAILED", e);
+
+        console.error("[ModuleIntegrator] Failed to create job row", dbErr);
+
+        // ✅ Surface real Postgres info to UI (this is the fastest way to diagnose)
         if (!responseSent) {
           res.status(500).json({
             ok: false,
             error: "Failed to create ingestion job",
-            detail: e.message,
+            detail: dbErr?.message,
+            pg: {
+              code: dbErr?.code,
+              detail: dbErr?.detail,
+              hint: dbErr?.hint,
+              constraint: dbErr?.constraint,
+              table: dbErr?.table,
+              column: dbErr?.column,
+              schema: dbErr?.schema,
+              routine: dbErr?.routine,
+            },
           });
           responseSent = true;
         }
         return;
       }
 
+      // 2️⃣ Respond immediately (no timeout)
       clearTimeout(hardTimeout);
       if (!responseSent) {
         res.status(202).json({
@@ -119,84 +163,111 @@ export default async function handler(req, res) {
         responseSent = true;
       }
 
+      // 3️⃣ Continue ingestion in background (UNCHANGED)
       setImmediate(async () => {
         try {
-          await query(
+          await ident.query(
             `
-            UPDATE ingestion_jobs
-               SET status='running',
-                   progress=10,
-                   current_stage='PDF parsed',
-                   updated_at=NOW()
-             WHERE id=$1 AND tenant_id=$2
+            update ingestion_jobs
+            set status = $2,
+                progress = $3,
+                current_stage = $4,
+                updated_at = now()
+            where id = $1
             `,
-            [jobId, tenantId]
+            [jobId, "running", 10, "PDF parsed"]
           );
 
+          // ⛔ Deferred extraction preserved (no regression)
+          const pdfText = "PDF text extraction deferred";
+
           const result = await ingestAdventureCodex({
-            pdfText: "deferred",
+            pdfText,
             adminUserId: userId,
             onEvent: async (e) => {
-              await query(
+              // schema-level transparency preserved
+              await ident.query(
                 `
-                UPDATE ingestion_jobs
-                   SET current_stage=$3,
-                       updated_at=NOW()
-                 WHERE id=$1 AND tenant_id=$2
+                update ingestion_jobs
+                set current_stage = $2,
+                    updated_at = now()
+                where id = $1
                 `,
-                [jobId, tenantId, e.stage]
+                [jobId, e.stage]
               );
             },
           });
 
-          await query(
-            `
-            UPDATE ingestion_jobs
-               SET status=$3,
-                   progress=$4,
-                   current_stage=$5,
-                   updated_at=NOW()
-             WHERE id=$1 AND tenant_id=$2
-            `,
-            [
-              jobId,
-              tenantId,
-              result.success ? "completed" : "failed",
-              result.success ? 100 : 0,
-              result.success ? "Completed" : "Failed",
-            ]
-          );
+          if (result.success) {
+            await ident.query(
+              `
+              update ingestion_jobs
+              set status = $2,
+                  progress = $3,
+                  current_stage = $4,
+                  updated_at = now()
+              where id = $1
+              `,
+              [jobId, "completed", 100, "Completed"]
+            );
+          } else {
+            await ident.query(
+              `
+              update ingestion_jobs
+              set status = $2,
+                  current_stage = $3,
+                  updated_at = now()
+              where id = $1
+              `,
+              [jobId, "failed", "Failed"]
+            );
+          }
         } catch (err) {
-          console.error("BACKGROUND INGEST ERROR", err);
-          await query(
-            `
-            UPDATE ingestion_jobs
-               SET status='failed',
-                   current_stage='Unhandled error',
-                   updated_at=NOW()
-             WHERE id=$1 AND tenant_id=$2
-            `,
-            [jobId, tenantId]
-          );
+          console.error("[ModuleIntegrator] Background ingestion error", err);
+
+          try {
+            await ident.query(
+              `
+              update ingestion_jobs
+              set status = $2,
+                  current_stage = $3,
+                  updated_at = now()
+              where id = $1
+              `,
+              [jobId, "failed", "Unhandled error"]
+            );
+          } catch (e2) {
+            console.error(
+              "[ModuleIntegrator] Failed to mark job failed",
+              e2
+            );
+          }
         }
       });
     });
 
+    // 🔑 Pages Router allows true Node streaming
     req.pipe(busboy);
+
+    req.on("aborted", () => {
+      console.warn("[ModuleIntegrator] Request aborted by client");
+    });
 
     req.on("close", () => {
       if (!busboyFinished && !responseSent) {
-        console.warn("[ModuleIntegrator] Request closed early");
+        console.warn("[ModuleIntegrator] Request closed before Busboy finished");
       }
     });
   } catch (err) {
     clearTimeout(hardTimeout);
-    console.error("HANDLER ERROR", err);
+
+    console.error("[ModuleIntegrator] Unhandled handler error", err);
+
     if (!responseSent) {
       res.status(500).json({
         ok: false,
         error: "Unhandled module-integrator error",
-        detail: err.message,
+        detail: err?.message,
       });
       responseSent = true;
     }
