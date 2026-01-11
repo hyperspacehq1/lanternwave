@@ -167,12 +167,20 @@ export async function ingestAdventureCodex({
           }
         }
 
-        const insertData: Record<string, any> = {
-          ...insertRow,
-          tenant_id: ADMIN_TENANT_ID,
-          template_campaign_id: templateCampaignId,
-        };
+const insertData: Record<string, any> = {
+  ...row,
+  tenant_id: ADMIN_TENANT_ID,
+};
 
+// Only campaigns have template_campaign_id
+if (tableName === "campaigns") {
+  insertData.template_campaign_id = templateCampaignId;
+}
+
+// All non-campaign tables must link to the root campaign
+if (tableName !== "campaigns") {
+  insertData.campaign_id = templateCampaignId;
+}
         const { sql, params } = buildInsert({
           table: tableName,
           data: insertData,
