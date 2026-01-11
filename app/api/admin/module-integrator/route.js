@@ -1,8 +1,13 @@
 import { ingestAdventureCodex } from "@/lib/ai/orchestrator";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
+import { createRequire } from "module";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+// ✅ Correct way to load CommonJS deps in App Router
+const require = createRequire(import.meta.url);
+const pdfParse = require("pdf-parse");
 
 export async function POST(req) {
   try {
@@ -21,15 +26,16 @@ export async function POST(req) {
     // Read PDF into buffer
     const buffer = Buffer.from(await file.arrayBuffer());
 
-    // ✅ CORRECT pdf-parse import (CommonJS)
-    const pdfParse = (await import("pdf-parse")).default;
+    // ✅ This is now guaranteed to be a function
     const parsed = await pdfParse(buffer);
+    const pdfText = parsed?.text ?? "";
 
-    const pdfText = parsed.text;
-
-    if (!pdfText || !pdfText.trim()) {
+    if (!pdfText.trim()) {
       return new Response(
-        JSON.stringify({ ok: false, error: "PDF contains no extractable text" }),
+        JSON.stringify({
+          ok: false,
+          error: "PDF contains no extractable text",
+        }),
         { status: 400 }
       );
     }
@@ -39,12 +45,11 @@ export async function POST(req) {
     const result = await ingestAdventureCodex({
       pdfText,
       adminUserId: userId,
-      onEvent: (e) => {
+      onEvent: (e) =>
         events.push({
           ...e,
           ts: new Date().toISOString(),
-        });
-      },
+        }),
     });
 
     return new Response(
