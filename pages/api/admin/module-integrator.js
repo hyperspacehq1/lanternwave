@@ -16,6 +16,31 @@ export default async function handler(req, res) {
     return;
   }
 
+  // ============================================================
+  // WATCHDOGS (ADDITIVE)
+  // ============================================================
+
+  let responseSent = false;
+
+  const HARD_TIMEOUT_MS = 15000; // 15s to reach job creation
+  const hardTimeout = setTimeout(() => {
+    if (responseSent) return;
+
+    console.error("[ModuleIntegrator] HARD TIMEOUT before job creation");
+
+    try {
+      res.status(504).json({
+        ok: false,
+        error: "Server did not reach job creation",
+        detail:
+          "Upload reached server but multipart parsing or job creation did not complete.",
+      });
+      responseSent = true;
+    } catch {
+      // response may already be in bad state
+    }
+  }, HARD_TIMEOUT_MS);
+
   try {
     // 🔒 Tenant context (safe in Pages Router)
     const ctx = await getTenantContext(req);
@@ -33,6 +58,7 @@ export default async function handler(req, res) {
 
     let pdfChunks = [];
     let fileFound = false;
+    let busboyFinished = false;
 
     busboy.on("file", (fieldname, file, info) => {
       if (fieldname !== "file") {
@@ -54,12 +80,18 @@ export default async function handler(req, res) {
     });
 
     busboy.on("finish", async () => {
+      busboyFinished = true;
+
       if (!fileFound) {
-        res.status(400).json({
-          ok: false,
-          error: "No PDF file uploaded",
-          events,
-        });
+        clearTimeout(hardTimeout);
+        if (!responseSent) {
+          res.status(400).json({
+            ok: false,
+            error: "No PDF file uploaded",
+            events,
+          });
+          responseSent = true;
+        }
         return;
       }
 
@@ -72,35 +104,54 @@ export default async function handler(req, res) {
       });
 
       /* ============================================================
-         BACKGROUND INGESTION — PATH B
+         BACKGROUND INGESTION — PATH B (UNCHANGED)
       ============================================================ */
 
       const jobId = randomUUID();
 
-      // 1️⃣ Create ingestion job (queued)
-      await ident.query(
-        `
-        insert into ingestion_jobs (
-          id,
-          status,
-          progress,
-          current_stage,
-          created_at,
-          updated_at
-        )
-        values ($1, 'queued', 0, 'Queued', now(), now())
-        `,
-        [jobId]
-      );
+      try {
+        // 1️⃣ Create ingestion job (queued)
+        await ident.query(
+          `
+          insert into ingestion_jobs (
+            id,
+            status,
+            progress,
+            current_stage,
+            created_at,
+            updated_at
+          )
+          values ($1, 'queued', 0, 'Queued', now(), now())
+          `,
+          [jobId]
+        );
+      } catch (dbErr) {
+        clearTimeout(hardTimeout);
+        console.error("[ModuleIntegrator] Failed to create job row", dbErr);
+
+        if (!responseSent) {
+          res.status(500).json({
+            ok: false,
+            error: "Failed to create ingestion job",
+            detail: dbErr?.message,
+          });
+          responseSent = true;
+        }
+        return;
+      }
 
       // 2️⃣ Respond immediately (no timeout)
-      res.status(202).json({
-        ok: true,
-        jobId,
-        events,
-      });
+      clearTimeout(hardTimeout);
+      if (!responseSent) {
+        res.status(202).json({
+          ok: true,
+          jobId,
+          events,
+        });
+        responseSent = true;
+      }
 
-      // 3️⃣ Continue ingestion in background
+      // 3️⃣ Continue ingestion in background (UNCHANGED)
       setImmediate(async () => {
         try {
           await ident.query(
@@ -115,14 +166,12 @@ export default async function handler(req, res) {
             [jobId]
           );
 
-          // ⛔ Deferred extraction preserved (no regression)
           const pdfText = "PDF text extraction deferred";
 
           const result = await ingestAdventureCodex({
             pdfText,
             adminUserId: userId,
             onEvent: async (e) => {
-              // schema-level transparency preserved
               await ident.query(
                 `
                 update ingestion_jobs
@@ -160,6 +209,8 @@ export default async function handler(req, res) {
             );
           }
         } catch (err) {
+          console.error("[ModuleIntegrator] Background ingestion error", err);
+
           await ident.query(
             `
             update ingestion_jobs
@@ -176,12 +227,34 @@ export default async function handler(req, res) {
 
     // 🔑 Pages Router allows true Node streaming
     req.pipe(busboy);
-  } catch (err) {
-    res.status(500).json({
-      ok: false,
-      error: "Unhandled module-integrator error",
-      detail: err?.message,
+
+    // ============================================================
+    // SAFETY: detect if busboy never finishes
+    // ============================================================
+
+    req.on("aborted", () => {
+      console.warn("[ModuleIntegrator] Request aborted by client");
     });
+
+    req.on("close", () => {
+      if (!busboyFinished && !responseSent) {
+        console.warn(
+          "[ModuleIntegrator] Request closed before Busboy finished"
+        );
+      }
+    });
+  } catch (err) {
+    clearTimeout(hardTimeout);
+
+    console.error("[ModuleIntegrator] Unhandled handler error", err);
+
+    if (!responseSent) {
+      res.status(500).json({
+        ok: false,
+        error: "Unhandled module-integrator error",
+        detail: err?.message,
+      });
+      responseSent = true;
+    }
   }
 }
-
