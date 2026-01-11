@@ -1,5 +1,6 @@
 "use client";
 
+import "./module-integrator.css";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 /* ============================================================
