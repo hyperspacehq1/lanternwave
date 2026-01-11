@@ -1,0 +1,227 @@
+/* =========================================================
+   Module Integrator — Page Shell
+   ========================================================= */
+
+.module-integrator {
+  width: 100%;
+  max-width: none;              /* LEFT justified */
+  margin: 2.5rem 0 0 0;         /* remove auto-centering */
+  padding: 0 2rem;
+  box-sizing: border-box;
+}
+
+.module-integrator h1 {
+  font-size: 1.8rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.module-integrator .subtitle {
+  font-size: 0.95rem;
+  opacity: 0.75;
+  margin-bottom: 1.5rem;
+}
+
+
+/* =========================================================
+   Upload Panel
+   ========================================================= */
+
+.module-upload {
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+  padding: 1.25rem;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.02);
+  margin-bottom: 2rem;
+}
+
+.module-upload input[type="file"] {
+  margin-top: 0.75rem;
+}
+
+
+/* =========================================================
+   Pipeline Status
+   ========================================================= */
+
+.pipeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 2rem;
+}
+
+.pipeline-step {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.9rem;
+}
+
+.pipeline-step.complete {
+  color: #6cc5f0;
+}
+
+.pipeline-step.pending {
+  opacity: 0.6;
+}
+
+.pipeline-step.error {
+  color: #ff6b6b;
+}
+
+.pipeline-error {
+  background: rgba(255, 0, 0, 0.08);
+  border: 1px solid rgba(255, 0, 0, 0.25);
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
+
+/* =========================================================
+   Schema Progress
+   ========================================================= */
+
+.schema-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+}
+
+.schema-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.03);
+  font-size: 0.85rem;
+}
+
+.schema-row.complete {
+  background: rgba(108, 197, 240, 0.15);
+}
+
+.schema-row.pending {
+  opacity: 0.6;
+}
+
+
+/* =========================================================
+   Logs / Output
+   ========================================================= */
+
+.pipeline-log {
+  font-family: monospace;
+  font-size: 0.8rem;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 0.75rem;
+  border-radius: 6px;
+  max-height: 260px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+}
+
+
+/* =========================================================
+   Utility
+   ========================================================= */
+
+.module-integrator button {
+  cursor: pointer;
+}
+
+.module-integrator .muted {
+  opacity: 0.6;
+}
+
+/* =========================================================
+   Two-Column Layout
+========================================================= */
+
+.mi-layout {
+  display: grid;
+  grid-template-columns: 420px 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.mi-left {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.mi-right {
+  min-height: 320px;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  padding: 1rem;
+  background: rgba(255,255,255,0.02);
+}
+
+/* =========================================================
+   Animated Pipeline States
+========================================================= */
+
+.schema-row {
+  position: relative;
+  transition: background 0.25s ease, transform 0.15s ease;
+}
+
+.schema-row.extracting,
+.schema-row.inserting {
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+.schema-row.completed {
+  background: rgba(108,197,240,0.15);
+}
+
+.schema-row.error {
+  background: rgba(255,80,80,0.15);
+}
+
+@keyframes pulse {
+  0%   { opacity: 0.6; }
+  50%  { opacity: 1; }
+  100% { opacity: 0.6; }
+}
+
+/* =========================================================
+   Schema Inspector
+========================================================= */
+
+.mi-inspector h3 {
+  margin-bottom: 0.75rem;
+}
+
+.mi-event-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.mi-event {
+  font-size: 0.8rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  background: rgba(0,0,0,0.35);
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+.mi-event-stage {
+  font-weight: 600;
+}
+
+.mi-event-time {
+  opacity: 0.6;
+  font-size: 0.7rem;
+}
+
