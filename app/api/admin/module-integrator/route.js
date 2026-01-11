@@ -1,5 +1,6 @@
 import { ingestAdventureCodex } from "@/lib/ai/orchestrator";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
+import pdfParse from "pdf-parse";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -8,12 +9,26 @@ export async function POST(req) {
   try {
     const { userId } = await getTenantContext(req);
 
-    const body = await req.json();
-    const { pdfText } = body;
+    const formData = await req.formData();
+    const file = formData.get("file");
 
-    if (!pdfText || typeof pdfText !== "string") {
+    if (!file) {
       return new Response(
-        JSON.stringify({ error: "pdfText is required" }),
+        JSON.stringify({ ok: false, error: "No PDF file uploaded" }),
+        { status: 400 }
+      );
+    }
+
+    // Read PDF into buffer
+    const buffer = Buffer.from(await file.arrayBuffer());
+
+    // Extract text from PDF
+    const parsed = await pdfParse(buffer);
+    const pdfText = parsed.text;
+
+    if (!pdfText || !pdfText.trim()) {
+      return new Response(
+        JSON.stringify({ ok: false, error: "PDF contains no extractable text" }),
         { status: 400 }
       );
     }
@@ -23,21 +38,29 @@ export async function POST(req) {
     const result = await ingestAdventureCodex({
       pdfText,
       adminUserId: userId,
-      onEvent: (e) => events.push(e),
+      onEvent: (e) => {
+        events.push({
+          ...e,
+          ts: new Date().toISOString(),
+        });
+      },
     });
 
     return new Response(
       JSON.stringify({
-        ok: true,
+        ok: result.success,
         campaignId: result.campaignId,
+        error: result.error ?? null,
         events,
       }),
-      { status: 200 }
+      { status: result.success ? 200 : 500 }
     );
   } catch (err) {
+    // ABSOLUTE GUARANTEE: JSON ONLY
     return new Response(
       JSON.stringify({
-        error: err?.message || "Server error",
+        ok: false,
+        error: err?.message || "Unhandled server error",
       }),
       { status: 500 }
     );
