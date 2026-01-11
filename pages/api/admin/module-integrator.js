@@ -1,7 +1,7 @@
 import Busboy from "busboy";
 import { ingestAdventureCodex } from "@/lib/ai/orchestrator";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
-import { db } from "@/lib/db"; // ← adjust import if your db helper is named differently
+import { ident } from "@/lib/db";
 import { randomUUID } from "crypto";
 
 export const config = {
@@ -78,7 +78,7 @@ export default async function handler(req, res) {
       const jobId = randomUUID();
 
       // 1️⃣ Create ingestion job (queued)
-      await db.query(
+      await ident.query(
         `
         insert into ingestion_jobs (
           id,
@@ -103,7 +103,7 @@ export default async function handler(req, res) {
       // 3️⃣ Continue ingestion in background
       setImmediate(async () => {
         try {
-          await db.query(
+          await ident.query(
             `
             update ingestion_jobs
             set status = 'running',
@@ -123,7 +123,7 @@ export default async function handler(req, res) {
             adminUserId: userId,
             onEvent: async (e) => {
               // schema-level transparency preserved
-              await db.query(
+              await ident.query(
                 `
                 update ingestion_jobs
                 set current_stage = $2,
@@ -136,7 +136,7 @@ export default async function handler(req, res) {
           });
 
           if (result.success) {
-            await db.query(
+            await ident.query(
               `
               update ingestion_jobs
               set status = 'completed',
@@ -148,7 +148,7 @@ export default async function handler(req, res) {
               [jobId]
             );
           } else {
-            await db.query(
+            await ident.query(
               `
               update ingestion_jobs
               set status = 'failed',
@@ -160,7 +160,7 @@ export default async function handler(req, res) {
             );
           }
         } catch (err) {
-          await db.query(
+          await ident.query(
             `
             update ingestion_jobs
             set status = 'failed',

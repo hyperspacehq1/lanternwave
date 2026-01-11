@@ -1,4 +1,4 @@
-import { db } from "@/lib/db"; // same helper used in module-integrator
+import { ident } from "@/lib/db";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 
 export default async function handler(req, res) {
@@ -21,7 +21,7 @@ export default async function handler(req, res) {
       return;
     }
 
-    const { rows } = await db.query(
+    const { rows } = await ident.query(
       `
       select
         id,
