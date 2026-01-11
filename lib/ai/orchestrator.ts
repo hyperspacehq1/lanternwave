@@ -238,12 +238,19 @@ export async function ingestAdventureCodex({
       success: true,
       campaignId: rootCampaignId,
     };
+
   } catch (err: any) {
     emit("error", "Fatal ingest error", {
       message: err?.message ?? String(err),
       rootCampaignId,
     });
-    throw err;
+
+    // ✅ DO NOT THROW — return structured failure
+    return {
+      success: false,
+      campaignId: rootCampaignId,
+      error: err?.message ?? "Unknown ingest error",
+    };
   }
 }
 
