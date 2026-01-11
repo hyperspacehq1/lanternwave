@@ -1,4 +1,4 @@
-import { ident } from "@/lib/db";
+import { query } from "@/lib/db";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 
 export default async function handler(req, res) {
@@ -8,32 +8,29 @@ export default async function handler(req, res) {
   }
 
   try {
-    // 🔒 Auth / tenant guard (cheap, safe)
-    await getTenantContext(req);
+    const ctx = await getTenantContext(req);
+    const tenantId = ctx.tenantId;
 
     const { jobId } = req.query;
-
     if (!jobId) {
-      res.status(400).json({
-        ok: false,
-        error: "Missing jobId",
-      });
+      res.status(400).json({ ok: false, error: "Missing jobId" });
       return;
     }
 
-    const { rows } = await ident.query(
+    const { rows } = await query(
       `
-      select
+      SELECT
         id,
         status,
         progress,
         current_stage,
         updated_at
-      from ingestion_jobs
-      where id = $1
-      limit 1
+      FROM ingestion_jobs
+      WHERE id = $1
+        AND tenant_id = $2
+      LIMIT 1
       `,
-      [jobId]
+      [jobId, tenantId]
     );
 
     if (!rows.length) {
@@ -52,7 +49,7 @@ export default async function handler(req, res) {
     res.status(500).json({
       ok: false,
       error: "Failed to fetch ingestion job",
-      detail: err?.message,
+      detail: err.message,
     });
   }
 }

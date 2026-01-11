@@ -1,12 +1,12 @@
 import Busboy from "busboy";
 import { ingestAdventureCodex } from "@/lib/ai/orchestrator";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
-import { ident } from "@/lib/db";
+import { query } from "@/lib/db";
 import { randomUUID } from "crypto";
 
 export const config = {
   api: {
-    bodyParser: false, // 🔑 REQUIRED for Busboy
+    bodyParser: false,
   },
 };
 
@@ -16,43 +16,28 @@ export default async function handler(req, res) {
     return;
   }
 
-  // ============================================================
-  // WATCHDOGS (ADDITIVE)
-  // ============================================================
-
   let responseSent = false;
 
-  const HARD_TIMEOUT_MS = 15000; // 15s to reach job creation
+  const HARD_TIMEOUT_MS = 15000;
   const hardTimeout = setTimeout(() => {
     if (responseSent) return;
 
     console.error("[ModuleIntegrator] HARD TIMEOUT before job creation");
-
     try {
       res.status(504).json({
         ok: false,
         error: "Server did not reach job creation",
-        detail:
-          "Upload reached server but multipart parsing or job creation did not complete.",
       });
       responseSent = true;
-    } catch {
-      // response may already be in bad state
-    }
+    } catch {}
   }, HARD_TIMEOUT_MS);
 
   try {
-    // 🔒 Tenant context (safe in Pages Router)
     const ctx = await getTenantContext(req);
+    const tenantId = ctx.tenantId;
     const userId = ctx.userId;
 
     const events = [];
-
-    events.push({
-      stage: "busboy_init",
-      message: "Initializing multipart stream",
-      ts: new Date().toISOString(),
-    });
 
     const busboy = Busboy({ headers: req.headers });
 
@@ -67,10 +52,9 @@ export default async function handler(req, res) {
       }
 
       fileFound = true;
-
       events.push({
         stage: "busboy_file_detected",
-        message: `PDF stream detected (${info.filename})`,
+        message: info.filename,
         ts: new Date().toISOString(),
       });
 
@@ -85,11 +69,7 @@ export default async function handler(req, res) {
       if (!fileFound) {
         clearTimeout(hardTimeout);
         if (!responseSent) {
-          res.status(400).json({
-            ok: false,
-            error: "No PDF file uploaded",
-            events,
-          });
+          res.status(400).json({ ok: false, error: "No PDF uploaded" });
           responseSent = true;
         }
         return;
@@ -97,50 +77,38 @@ export default async function handler(req, res) {
 
       const pdfBuffer = Buffer.concat(pdfChunks);
 
-      events.push({
-        stage: "busboy_complete",
-        message: `Multipart parsing complete (${pdfBuffer.length} bytes)`,
-        ts: new Date().toISOString(),
-      });
-
-      /* ============================================================
-         BACKGROUND INGESTION — PATH B (UNCHANGED)
-      ============================================================ */
-
       const jobId = randomUUID();
 
       try {
-        // 1️⃣ Create ingestion job (queued)
-        await ident.query(
+        await query(
           `
-          insert into ingestion_jobs (
+          INSERT INTO ingestion_jobs (
             id,
+            tenant_id,
             status,
             progress,
             current_stage,
             created_at,
             updated_at
           )
-          values ($1, 'queued', 0, 'Queued', now(), now())
+          VALUES ($1,$2,'queued',0,'Queued',NOW(),NOW())
           `,
-          [jobId]
+          [jobId, tenantId]
         );
-      } catch (dbErr) {
+      } catch (e) {
         clearTimeout(hardTimeout);
-        console.error("[ModuleIntegrator] Failed to create job row", dbErr);
-
+        console.error("JOB INSERT FAILED", e);
         if (!responseSent) {
           res.status(500).json({
             ok: false,
             error: "Failed to create ingestion job",
-            detail: dbErr?.message,
+            detail: e.message,
           });
           responseSent = true;
         }
         return;
       }
 
-      // 2️⃣ Respond immediately (no timeout)
       clearTimeout(hardTimeout);
       if (!responseSent) {
         res.status(202).json({
@@ -151,108 +119,84 @@ export default async function handler(req, res) {
         responseSent = true;
       }
 
-      // 3️⃣ Continue ingestion in background (UNCHANGED)
       setImmediate(async () => {
         try {
-          await ident.query(
+          await query(
             `
-            update ingestion_jobs
-            set status = 'running',
-                progress = 10,
-                current_stage = 'PDF parsed',
-                updated_at = now()
-            where id = $1
+            UPDATE ingestion_jobs
+               SET status='running',
+                   progress=10,
+                   current_stage='PDF parsed',
+                   updated_at=NOW()
+             WHERE id=$1 AND tenant_id=$2
             `,
-            [jobId]
+            [jobId, tenantId]
           );
 
-          const pdfText = "PDF text extraction deferred";
-
           const result = await ingestAdventureCodex({
-            pdfText,
+            pdfText: "deferred",
             adminUserId: userId,
             onEvent: async (e) => {
-              await ident.query(
+              await query(
                 `
-                update ingestion_jobs
-                set current_stage = $2,
-                    updated_at = now()
-                where id = $1
+                UPDATE ingestion_jobs
+                   SET current_stage=$3,
+                       updated_at=NOW()
+                 WHERE id=$1 AND tenant_id=$2
                 `,
-                [jobId, e.stage]
+                [jobId, tenantId, e.stage]
               );
             },
           });
 
-          if (result.success) {
-            await ident.query(
-              `
-              update ingestion_jobs
-              set status = 'completed',
-                  progress = 100,
-                  current_stage = 'Completed',
-                  updated_at = now()
-              where id = $1
-              `,
-              [jobId]
-            );
-          } else {
-            await ident.query(
-              `
-              update ingestion_jobs
-              set status = 'failed',
-                  current_stage = 'Failed',
-                  updated_at = now()
-              where id = $1
-              `,
-              [jobId]
-            );
-          }
-        } catch (err) {
-          console.error("[ModuleIntegrator] Background ingestion error", err);
-
-          await ident.query(
+          await query(
             `
-            update ingestion_jobs
-            set status = 'failed',
-                current_stage = 'Unhandled error',
-                updated_at = now()
-            where id = $1
+            UPDATE ingestion_jobs
+               SET status=$3,
+                   progress=$4,
+                   current_stage=$5,
+                   updated_at=NOW()
+             WHERE id=$1 AND tenant_id=$2
             `,
-            [jobId]
+            [
+              jobId,
+              tenantId,
+              result.success ? "completed" : "failed",
+              result.success ? 100 : 0,
+              result.success ? "Completed" : "Failed",
+            ]
+          );
+        } catch (err) {
+          console.error("BACKGROUND INGEST ERROR", err);
+          await query(
+            `
+            UPDATE ingestion_jobs
+               SET status='failed',
+                   current_stage='Unhandled error',
+                   updated_at=NOW()
+             WHERE id=$1 AND tenant_id=$2
+            `,
+            [jobId, tenantId]
           );
         }
       });
     });
 
-    // 🔑 Pages Router allows true Node streaming
     req.pipe(busboy);
-
-    // ============================================================
-    // SAFETY: detect if busboy never finishes
-    // ============================================================
-
-    req.on("aborted", () => {
-      console.warn("[ModuleIntegrator] Request aborted by client");
-    });
 
     req.on("close", () => {
       if (!busboyFinished && !responseSent) {
-        console.warn(
-          "[ModuleIntegrator] Request closed before Busboy finished"
-        );
+        console.warn("[ModuleIntegrator] Request closed early");
       }
     });
   } catch (err) {
     clearTimeout(hardTimeout);
-
-    console.error("[ModuleIntegrator] Unhandled handler error", err);
-
+    console.error("HANDLER ERROR", err);
     if (!responseSent) {
       res.status(500).json({
         ok: false,
         error: "Unhandled module-integrator error",
-        detail: err?.message,
+        detail: err.message,
       });
       responseSent = true;
     }
