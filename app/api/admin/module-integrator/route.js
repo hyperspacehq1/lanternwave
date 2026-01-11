@@ -1,3 +1,4 @@
+import { ingestAdventureCodex } from "@/lib/ai/orchestrator";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 
 export const runtime = "nodejs";
@@ -5,30 +6,20 @@ export const dynamic = "force-dynamic";
 
 export async function POST(req) {
   try {
-    const ctx = await getTenantContext(req); // should include userId + tenantId
-    const { userId } = ctx;
+    const { userId } = await getTenantContext(req);
 
-    const formData = await req.formData();
-    const file = formData.get("file");
+    const body = await req.json();
+    const { pdfText } = body;
 
-    if (!file) {
-      return new Response(JSON.stringify({ error: "No file uploaded" }), {
-        status: 400,
-      });
+    if (!pdfText || typeof pdfText !== "string") {
+      return new Response(
+        JSON.stringify({ error: "pdfText is required" }),
+        { status: 400 }
+      );
     }
 
-    // Read file to Buffer
-    const buffer = Buffer.from(await file.arrayBuffer());
-
-    // ✅ IMPORTANT: import your PDF text extractor (use your real function name/path)
-    // If your extractor is different, tell me the exact path + export name and I’ll adapt.
-    const { extractTextFromPdf } = await import("@/lib/ai/extractTextFromPdf");
-
-    const pdfText = await extractTextFromPdf(buffer);
-
-    const { ingestAdventureCodex } = await import("@/lib/ai/orchestrator");
-
     const events = [];
+
     const result = await ingestAdventureCodex({
       pdfText,
       adminUserId: userId,
@@ -38,8 +29,7 @@ export async function POST(req) {
     return new Response(
       JSON.stringify({
         ok: true,
-        templateCampaignId: result?.templateCampaignId ?? null,
-        campaignId: result?.campaignId ?? null,
+        campaignId: result.campaignId,
         events,
       }),
       { status: 200 }
@@ -47,7 +37,7 @@ export async function POST(req) {
   } catch (err) {
     return new Response(
       JSON.stringify({
-        error: err?.message || "Unhandled server error",
+        error: err?.message || "Server error",
       }),
       { status: 500 }
     );
