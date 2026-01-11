@@ -66,11 +66,7 @@ export async function resolveEncounterRelationships({
 
 async function getEncounters(campaignId: string) {
   const result = await query(
-    `
-    SELECT *
-      FROM encounters
-     WHERE campaign_id = $1
-    `,
+    "SELECT * FROM encounters WHERE campaign_id = $1",
     [campaignId]
   );
 
@@ -86,15 +82,11 @@ async function buildLookup(
   campaignId: string
 ): Promise<Map<string, string>> {
   if (!isSafeIdent(table)) {
-    throw new Error(\`Unsafe table: \${table}\`);
+    throw new Error("Unsafe table: " + table);
   }
 
   const result = await query(
-    `
-    SELECT id, name
-      FROM ${ident(table)}
-     WHERE campaign_id = $1
-    `,
+    "SELECT id, name FROM " + ident(table) + " WHERE campaign_id = $1",
     [campaignId]
   );
 
@@ -105,7 +97,11 @@ async function buildLookup(
 
     if (map.has(key)) {
       throw new Error(
-        \`Duplicate normalized name "\${row.name}" detected in table "\${table}"\`
+        'Duplicate normalized name "' +
+          row.name +
+          '" detected in table "' +
+          table +
+          '"'
       );
     }
 
@@ -133,9 +129,14 @@ async function linkEntities({
   joinColumn: string;
 }) {
   if (!names || !Array.isArray(names) || names.length === 0) return;
-  if (!isSafeIdent(joinTable)) throw new Error(\`Unsafe join table: \${joinTable}\`);
-  if (!isSafeIdent(joinColumn))
-    throw new Error(\`Unsafe join column: \${joinColumn}\`);
+
+  if (!isSafeIdent(joinTable)) {
+    throw new Error("Unsafe join table: " + joinTable);
+  }
+
+  if (!isSafeIdent(joinColumn)) {
+    throw new Error("Unsafe join column: " + joinColumn);
+  }
 
   for (const rawName of names) {
     const normalized = normalizeName(rawName);
@@ -143,16 +144,21 @@ async function linkEntities({
 
     if (!entityId) {
       throw new Error(
-        \`Encounter \${encounterId} references missing entity "\${rawName}" in \${joinTable}\`
+        "Encounter " +
+          encounterId +
+          ' references missing entity "' +
+          rawName +
+          '" in ' +
+          joinTable
       );
     }
 
     await query(
-      `
-      INSERT INTO ${ident(joinTable)} (encounter_id, ${ident(joinColumn)})
-      VALUES ($1, $2)
-      ON CONFLICT DO NOTHING
-      `,
+      "INSERT INTO " +
+        ident(joinTable) +
+        " (encounter_id, " +
+        ident(joinColumn) +
+        ") VALUES ($1, $2) ON CONFLICT DO NOTHING",
       [encounterId, entityId]
     );
   }
