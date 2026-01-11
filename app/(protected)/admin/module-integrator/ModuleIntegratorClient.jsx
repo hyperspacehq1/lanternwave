@@ -57,16 +57,28 @@ export default function ModuleIntegratorClient() {
   const [loading, setLoading] = useState(false);
   const [requestId, setRequestId] = useState("");
 
-  // NEW: pipeline timing (existing behavior preserved)
+  // pipeline timing (existing behavior preserved)
   const [uploadStartedAt, setUploadStartedAt] = useState(null);
   const [uploadFinishedAt, setUploadFinishedAt] = useState(null);
   const [requestStartedAt, setRequestStartedAt] = useState(null);
   const [requestFinishedAt, setRequestFinishedAt] = useState(null);
 
-  // NEW: schema inspector
+  // schema inspector
   const [expandedSchema, setExpandedSchema] = useState(null);
 
   const startedAtRef = useRef(null);
+
+  /* ============================================================
+     BUSBOY / MULTIPART TRANSPARENCY (ADDITIVE)
+  ============================================================ */
+
+  const hasBusboyInit = events.some((e) => e.stage === "busboy_init");
+  const hasBusboyFile = events.some(
+    (e) => e.stage === "busboy_file_detected"
+  );
+  const hasBusboyComplete = events.some(
+    (e) => e.stage === "busboy_complete"
+  );
 
   /* ============================================================
      SCHEMA PROGRESS DERIVATION (UNCHANGED LOGIC)
@@ -211,6 +223,7 @@ export default function ModuleIntegratorClient() {
                     : "In progress…"
                   : "Pending"}
               </li>
+
               <li>
                 <b>Server Request:</b>{" "}
                 {requestStartedAt
@@ -219,6 +232,20 @@ export default function ModuleIntegratorClient() {
                     : "In progress…"
                   : "Pending"}
               </li>
+
+              <li>
+                <b>Multipart Parsing:</b>{" "}
+                {hasBusboyComplete
+                  ? "Completed"
+                  : hasBusboyFile
+                  ? "Streaming PDF…"
+                  : hasBusboyInit
+                  ? "Initializing…"
+                  : loading
+                  ? "Pending…"
+                  : "Pending"}
+              </li>
+
               <li>
                 <b>Schema Processing:</b>{" "}
                 {events.length
@@ -228,6 +255,11 @@ export default function ModuleIntegratorClient() {
                   : "Pending"}
               </li>
             </ul>
+
+            <div className="pipeline-note">
+              Large PDFs are streamed and parsed incrementally to avoid size
+              limits.
+            </div>
           </section>
 
           {/* SCHEMA BOARD */}

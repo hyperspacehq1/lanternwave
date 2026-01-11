@@ -1,3 +1,4 @@
+import Busboy from "busboy";
 import { ingestAdventureCodex } from "@/lib/ai/orchestrator";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 
@@ -6,58 +7,132 @@ export const dynamic = "force-dynamic";
 
 export async function POST(req) {
   try {
-    let formData;
-    let file;
-    let userId;
+    // 🔒 Tenant context FIRST (does not consume body)
+    const ctx = await getTenantContext(req);
+    const userId = ctx.userId;
 
-    try {
-      // 🔒 isolate all early framework calls
-      const ctx = await getTenantContext(req);
-      userId = ctx.userId;
-
-      formData = await req.formData();
-      file = formData.get("file");
-    } catch (e) {
+    const contentType = req.headers.get("content-type") || "";
+    if (!contentType.includes("multipart/form-data")) {
       return Response.json(
-        {
-          ok: false,
-          error: "Failed to read request data",
-          detail: e?.message,
-        },
+        { ok: false, error: "Invalid content type" },
         { status: 400 }
       );
     }
 
-    if (!file) {
-      return Response.json(
-        { ok: false, error: "No PDF file uploaded" },
-        { status: 400 }
-      );
-    }
+    return await new Promise((resolve) => {
+      const events = [];
 
-    // ⛔ TEMPORARY: we are NOT parsing PDF server-side
-    // This prevents build/runtime issues
-    const pdfText = "PDF text extraction deferred";
+      // 🔍 Transparency: busboy lifecycle
+      events.push({
+        stage: "busboy_init",
+        message: "Initializing multipart stream",
+        ts: new Date().toISOString(),
+      });
 
-    const events = [];
+      const busboy = Busboy({
+        headers: Object.fromEntries(req.headers),
+      });
 
-    const result = await ingestAdventureCodex({
-      pdfText,
-      adminUserId: userId,
-      onEvent: (e) => events.push({ ...e, ts: new Date().toISOString() }),
+      let pdfChunks = [];
+      let fileFound = false;
+
+      busboy.on("file", (fieldname, file, info) => {
+        if (fieldname !== "file") {
+          file.resume();
+          return;
+        }
+
+        fileFound = true;
+
+        events.push({
+          stage: "busboy_file_detected",
+          message: `PDF stream detected (${info.filename})`,
+          ts: new Date().toISOString(),
+        });
+
+        file.on("data", (chunk) => {
+          pdfChunks.push(chunk);
+        });
+
+        file.on("limit", () => {
+          resolve(
+            Response.json(
+              {
+                ok: false,
+                error: "PDF exceeds allowed size",
+                events,
+              },
+              { status: 413 }
+            )
+          );
+        });
+      });
+
+      busboy.on("finish", async () => {
+        if (!fileFound) {
+          resolve(
+            Response.json(
+              {
+                ok: false,
+                error: "No PDF file uploaded",
+                events,
+              },
+              { status: 400 }
+            )
+          );
+          return;
+        }
+
+        const pdfBuffer = Buffer.concat(pdfChunks);
+
+        events.push({
+          stage: "busboy_complete",
+          message: `Multipart parsing complete (${pdfBuffer.length} bytes)`,
+          ts: new Date().toISOString(),
+        });
+
+        // ⛔ Intentionally deferred: actual PDF text extraction
+        const pdfText = "PDF text extraction deferred";
+
+        try {
+          const result = await ingestAdventureCodex({
+            pdfText,
+            adminUserId: userId,
+            onEvent: (e) =>
+              events.push({ ...e, ts: new Date().toISOString() }),
+          });
+
+          resolve(
+            Response.json(
+              {
+                ok: result.success,
+                campaignId: result.campaignId,
+                error: result.error ?? null,
+                events,
+              },
+              { status: result.success ? 200 : 500 }
+            )
+          );
+        } catch (err) {
+          resolve(
+            Response.json(
+              {
+                ok: false,
+                error: "Ingestion failed",
+                detail: err?.message,
+                events,
+              },
+              { status: 500 }
+            )
+          );
+        }
+      });
+
+      // 🔑 Stream request body directly into Busboy
+      req.body.pipe(busboy);
     });
-
-    return Response.json(
-      {
-        ok: result.success,
-        campaignId: result.campaignId,
-        error: result.error ?? null,
-        events,
-      },
-      { status: result.success ? 200 : 500 }
-    );
   } catch (err) {
-    // 🔒 absolute last line of defense
+    // 🔒 Absolute last line of defense
     return Response.json(
       {
         ok: false,

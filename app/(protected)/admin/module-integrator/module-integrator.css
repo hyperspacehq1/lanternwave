@@ -225,3 +225,14 @@
   font-size: 0.7rem;
 }
 
+.pipeline-note {
+  font-size: 0.8rem;
+  opacity: 0.7;
+  margin-top: 0.5rem;
+}
+
+.upload-meta {
+  font-size: 0.8rem;
+  opacity: 0.85;
+  margin-top: 0.5rem;
+}
