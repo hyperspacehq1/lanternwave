@@ -1,4 +1,4 @@
-import { query, buildInsert, ident } from "@/lib/db/db";
+import { query, buildInsert } from "@/lib/db/db";
 import { runStructuredPrompt } from "@/lib/ai/runStructuredPrompt";
 import { resolveEncounterRelationships } from "@/lib/ai/resolveEncounterRelationships";
 
@@ -28,7 +28,7 @@ type SchemaDef = {
 };
 
 /* ============================================================
-   OPTION A — STAGE CALLBACKS (IN-MEMORY)
+   STAGE CALLBACKS (OPTION A)
 ============================================================ */
 
 export type IngestStage =
@@ -109,7 +109,7 @@ export async function ingestAdventureCodex({
   emit("start", "Ingestion started");
 
   const context: Record<string, any[]> = {};
-  let templateCampaignId: string | null = null;
+  let rootCampaignId: string | null = null;
 
   try {
     for (const schemaDef of SCHEMA_PIPELINE as unknown as SchemaDef[]) {
@@ -148,7 +148,7 @@ export async function ingestAdventureCodex({
 
         let insertRow = { ...row };
 
-        // 🔒 Campaign-specific fixes
+        // Campaign-specific fixes
         if (tableName === "campaigns") {
           insertRow.name = await getUniqueCampaignName(
             ADMIN_TENANT_ID,
@@ -156,7 +156,7 @@ export async function ingestAdventureCodex({
           );
         }
 
-        // 🔒 Events.priority must never be NULL
+        // Events.priority must never be NULL
         if (tableName === "events") {
           if (
             insertRow.priority === undefined ||
@@ -167,20 +167,21 @@ export async function ingestAdventureCodex({
           }
         }
 
-const insertData: Record<string, any> = {
-  ...row,
-  tenant_id: ADMIN_TENANT_ID,
-};
+        const insertData: Record<string, any> = {
+          ...insertRow,
+          tenant_id: ADMIN_TENANT_ID,
+        };
 
-// Only campaigns have template_campaign_id
-if (tableName === "campaigns") {
-  insertData.template_campaign_id = templateCampaignId;
-}
+        // campaigns-only metadata
+        if (tableName === "campaigns") {
+          insertData.template_campaign_id = null;
+        }
 
-// All non-campaign tables must link to the root campaign
-if (tableName !== "campaigns") {
-  insertData.campaign_id = templateCampaignId;
-}
+        // all child tables link to campaign_id
+        if (tableName !== "campaigns") {
+          insertData.campaign_id = rootCampaignId;
+        }
+
         const { sql, params } = buildInsert({
           table: tableName,
           data: insertData,
@@ -207,47 +208,47 @@ if (tableName !== "campaigns") {
           throw new Error("Campaign schema returned no rows");
         }
 
-        templateCampaignId = insertedRows[0].id;
+        rootCampaignId = insertedRows[0].campaign_id ?? insertedRows[0].id;
 
-        emit("root_campaign_captured", "Captured template campaign id", {
-          templateCampaignId,
+        emit("root_campaign_captured", "Captured root campaign id", {
+          rootCampaignId,
         });
       }
     }
 
-    if (templateCampaignId) {
+    if (rootCampaignId) {
       emit(
         "resolve_relationships_start",
         "Resolving encounter relationships",
-        { templateCampaignId }
+        { rootCampaignId }
       );
 
-      await resolveEncounterRelationships({ templateCampaignId });
+      await resolveEncounterRelationships({ campaignId: rootCampaignId });
 
       emit(
         "resolve_relationships_done",
         "Resolved encounter relationships",
-        { templateCampaignId }
+        { rootCampaignId }
       );
     }
 
-    emit("completed", "Ingestion complete", { templateCampaignId });
+    emit("completed", "Ingestion complete", { rootCampaignId });
 
     return {
       success: true,
-      templateCampaignId,
+      campaignId: rootCampaignId,
     };
   } catch (err: any) {
     emit("error", "Fatal ingest error", {
       message: err?.message ?? String(err),
-      templateCampaignId,
+      rootCampaignId,
     });
     throw err;
   }
 }
 
 /* ============================================================
-   AI EXTRACTION (UNCHANGED PROMPT LOGIC)
+   AI EXTRACTION
 ============================================================ */
 
 async function extractWithSchema({
@@ -272,27 +273,21 @@ GENERAL RULES:
 - Omit anything not present in the module text.
 - Use null for unknown or unspecified values.
 
-CAMPAIGN DATE & ERA RULES (CRITICAL):
+CAMPAIGN DATE & ERA RULES:
 - campaign_date MUST ONLY be populated if an explicit calendar date or year
   is directly stated in the PDF text.
-- If no explicit date or year exists, campaign_date MUST be null.
+- If no explicit date exists, campaign_date MUST be null.
 - NEVER guess or infer a calendar date.
 
-- world_setting is used to describe the era, time period, or setting in
-  natural language (e.g. "late medieval fantasy",
-  "industrial-era gothic horror",
-  "far-future spacefaring civilization").
-- world_setting may be null if no clear era or setting can be determined.
-
+- world_setting may describe era or setting in natural language.
 - DO NOT encode era information into campaign_date.
-- DO NOT invent historical or future dates under any circumstances.
 `;
 
   const userPrompt = `
 PDF CONTENT:
 ${pdfText}
 
-EXISTING EXTRACTED DATA (already inserted):
+EXISTING EXTRACTED DATA:
 ${JSON.stringify(context, null, 2)}
 
 TASK:
