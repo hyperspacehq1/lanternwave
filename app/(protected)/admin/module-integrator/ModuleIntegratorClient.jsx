@@ -636,9 +636,10 @@ const jobProgress = useMemo(() => {
       >
         {rawResponse}
       </pre>
-    )}
-  </>
-)}
+                )}
+            </>
+          )}
+        </div> 
 
 
         {/* RIGHT */}
