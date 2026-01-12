@@ -2,11 +2,6 @@ import OpenAI from "openai";
 
 const openai = new OpenAI();
 
-/**
- * 2025-grade structured extraction.
- * We DO NOT send raw PDF text.
- * We reference the uploaded file directly.
- */
 export async function extractWithSchema({
   tableName,
   schema,
@@ -53,6 +48,7 @@ ${JSON.stringify(context, null, 2)}
     ],
     text: {
       format: {
+type: "json", 
         name: schema.name,
         schema: schema.schema,
       },
