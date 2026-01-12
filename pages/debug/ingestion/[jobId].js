@@ -13,7 +13,7 @@ export default function IngestionDebugPage() {
   const lastUpdatedRef = useRef(null);
 
   useEffect(() => {
-    // ⛔ Router not ready during prerender
+    // ⛔ Router not ready during prerender / first render
     if (!router.isReady || !jobId || !polling) return;
 
     const poll = async () => {
@@ -22,10 +22,16 @@ export default function IngestionDebugPage() {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
         const data = await res.json();
-        setJob(data);
 
-        // Stop polling on terminal states
-        if (data.status === "failed" || data.status === "completed") {
+        // ✅ NORMALIZE RESPONSE SHAPE
+        const normalizedJob = data?.job ?? data;
+        setJob(normalizedJob);
+
+        // ✅ Stop polling on terminal states
+        if (
+          normalizedJob?.status === "failed" ||
+          normalizedJob?.status === "completed"
+        ) {
           setPolling(false);
         }
 
@@ -69,6 +75,7 @@ export default function IngestionDebugPage() {
 
       {job && (
         <>
+          {/* Execution State */}
           <div
             style={{
               ...styles.card,
@@ -81,11 +88,15 @@ export default function IngestionDebugPage() {
             }}
           >
             <h2>Execution State</h2>
+
             <div><strong>Status:</strong> {job.status}</div>
             <div><strong>Progress:</strong> {job.progress}%</div>
+
             <div>
               <strong>Current Stage:</strong>
-              <pre style={styles.stage}>{job.current_stage}</pre>
+              <pre style={styles.stage}>
+                {job.current_stage}
+              </pre>
             </div>
 
             {lastUpdatedRef.current && (
@@ -95,6 +106,7 @@ export default function IngestionDebugPage() {
             )}
           </div>
 
+          {/* Raw DB Payload */}
           <div style={styles.card}>
             <h2>Raw Job Record (DB)</h2>
             <pre style={styles.json}>
