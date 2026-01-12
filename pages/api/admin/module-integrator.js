@@ -1,6 +1,7 @@
 import Busboy from "busboy";
 import pdfParse from "pdf-parse";
 import { randomUUID } from "crypto";
+import { getTenantContext } from "@/lib/tenant/getTenantContext";
 
 export const config = {
   api: { bodyParser: false },
