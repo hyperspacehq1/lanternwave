@@ -575,70 +575,71 @@ const jobProgress = useMemo(() => {
             </div>
           ) : null}
 
-          {/* RAW RESPONSE + METADATA */}
-{rawResponse ? (
-  <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
-    <button
-      type="button"
-      onClick={() => setShowRaw((v) => !v)}
-    >
-      {showRaw ? "Hide" : "Show"} Raw Server Response
-    </button>
+{/* RAW RESPONSE + METADATA */}
+{rawResponse && (
+  <>
+    <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
+      <button
+        type="button"
+        onClick={() => setShowRaw((v) => !v)}
+      >
+        {showRaw ? "Hide" : "Show"} Raw Server Response
+      </button>
 
-    <button
-      type="button"
-      onClick={() => {
-        if (showMetadata) {
-          setShowMetadata(false);
-        } else {
-          loadMetadata();
-          setShowMetadata(true);
-        }
-      }}
-      disabled={!jobId}
-    >
-      {showMetadata ? "Hide" : "View"} Metadata
-    </button>
-  </div>
-) : null}
+      <button
+        type="button"
+        onClick={() => {
+          if (showMetadata) {
+            setShowMetadata(false);
+          } else {
+            loadMetadata();
+            setShowMetadata(true);
+          }
+        }}
+        disabled={!jobId}
+      >
+        {showMetadata ? "Hide" : "View"} Metadata
+      </button>
+    </div>
 
-{showMetadata ? (
-  <pre
-    style={{
-      whiteSpace: "pre-wrap",
-      wordBreak: "break-word",
-      border: "1px solid rgba(255,255,255,0.15)",
-      padding: 10,
-      borderRadius: 8,
-      maxHeight: 260,
-      overflow: "auto",
-      marginTop: 8,
-    }}
-  >
-    {metadataLoading
-      ? "Loading metadata…"
-      : JSON.stringify(metadata, null, 2)}
-  </pre>
-) : null}
+    {showMetadata && (
+      <pre
+        style={{
+          whiteSpace: "pre-wrap",
+          wordBreak: "break-word",
+          border: "1px solid rgba(255,255,255,0.15)",
+          padding: 10,
+          borderRadius: 8,
+          maxHeight: 260,
+          overflow: "auto",
+          marginTop: 8,
+        }}
+      >
+        {metadataLoading
+          ? "Loading metadata…"
+          : JSON.stringify(metadata, null, 2)}
+      </pre>
+    )}
 
-              {showRaw ? (
-                <pre
-                  style={{
-                    whiteSpace: "pre-wrap",
-                    wordBreak: "break-word",
-                    border: "1px solid rgba(255,255,255,0.15)",
-                    padding: 10,
-                    borderRadius: 8,
-                    maxHeight: 260,
-                    overflow: "auto",
-                  }}
-                >
-                  {rawResponse}
-                </pre>
-              ) : null}
-            </div>
-          ) : null}
-        </div>
+    {showRaw && (
+      <pre
+        style={{
+          whiteSpace: "pre-wrap",
+          wordBreak: "break-word",
+          border: "1px solid rgba(255,255,255,0.15)",
+          padding: 10,
+          borderRadius: 8,
+          maxHeight: 260,
+          overflow: "auto",
+          marginTop: 8,
+        }}
+      >
+        {rawResponse}
+      </pre>
+    )}
+  </>
+)}
+
 
         {/* RIGHT */}
         <div className="mi-right">
