@@ -11,7 +11,6 @@ import items from "./schemas/items.v1";
 import encounters from "./schemas/encounters.v1";
 
 const openai = new OpenAI();
-
 const ADMIN_TENANT_ID = "1c6c314c-f33e-4f9f-bb6d-d547a23cbcf9";
 
 const SCHEMA_PIPELINE = [
@@ -24,36 +23,6 @@ const SCHEMA_PIPELINE = [
   encounters,
 ] as const;
 
-/* ───────────────────────────────────────────── */
-/* Types */
-/* ───────────────────────────────────────────── */
-
-export type IngestStage =
-  | "start"
-  | "schema_extract_start"
-  | "schema_extract_done"
-  | "schema_skipped"
-  | "db_insert_start"
-  | "db_insert_row"
-  | "db_insert_done"
-  | "root_campaign_captured"
-  | "resolve_relationships_start"
-  | "resolve_relationships_done"
-  | "completed"
-  | "error";
-
-export type IngestEvent = {
-  stage: IngestStage;
-  message: string;
-  meta?: Record<string, any>;
-};
-
-type EmitFn = (event: IngestEvent) => void;
-
-/* ───────────────────────────────────────────── */
-/* Orchestrator */
-/* ───────────────────────────────────────────── */
-
 export async function ingestAdventureCodex({
   openaiFileId,
   adminUserId,
@@ -61,20 +30,12 @@ export async function ingestAdventureCodex({
 }: {
   openaiFileId: string;
   adminUserId: string;
-  onEvent?: EmitFn;
+  onEvent?: (e: any) => void;
 }) {
-  const emit = (stage: IngestStage, message: string, meta?: any) => {
-    try {
-      onEvent?.({ stage, message, meta });
-    } catch (err) {
-      console.error("❌ INGEST EMIT ERROR", err);
-    }
-  };
+  const emit = (stage: string, message: string, meta?: any) =>
+    onEvent?.({ stage, message, meta });
 
-  emit("start", "Ingestion started", {
-    openaiFileId,
-    adminUserId,
-  });
+  emit("start", "Ingestion started", { openaiFileId, adminUserId });
 
   const context: Record<string, any[]> = {};
   let rootCampaignId: string | null = null;
@@ -83,11 +44,7 @@ export async function ingestAdventureCodex({
     for (const schemaDef of SCHEMA_PIPELINE) {
       const tableName = schemaDef.name;
 
-      emit(
-  "schema_extract_start",
-  `Extracting ${tableName} schema`,
-  { tableName }
-);
+      emit("schema_extract_start", `Extracting ${tableName}`, { tableName });
 
       const response = await openai.responses.create({
         model: "gpt-4.1-mini",
@@ -100,20 +57,14 @@ export async function ingestAdventureCodex({
           {
             role: "user",
             content: [
-              {
-                type: "input_text",
-                text: `Extract ${tableName} data from this RPG PDF.`,
-              },
-              {
-                type: "input_file",
-                file_id: openaiFileId,
-              },
+              { type: "input_text", text: `Extract ${tableName} data.` },
+              { type: "input_file", file_id: openaiFileId },
             ],
           },
         ],
         text: {
           format: {
-type: "json",
+            type: "json_schema",        // ✅ CORRECT
             name: schemaDef.schema.name,
             schema: schemaDef.schema.schema,
           },
@@ -121,48 +72,26 @@ type: "json",
       });
 
       const parsed = response.output_parsed;
-
       if (!parsed) {
-        emit("schema_skipped", `Skipped ${tableName}`, {
-          reason: "No structured output returned",
-        });
         context[tableName] = [];
+        emit("schema_skipped", `Skipped ${tableName}`);
         continue;
       }
 
       const rows = Array.isArray(parsed) ? parsed : [parsed];
-
-      if (!rows.length) {
-        emit("schema_skipped", `Skipped ${tableName}`, {
-          reason: "Empty result set",
-        });
-        context[tableName] = [];
-        continue;
-      }
+      context[tableName] = rows;
 
       emit("schema_extract_done", `Extracted ${tableName}`, {
         rows: rows.length,
       });
 
-      emit("db_insert_start", `Inserting ${tableName}`, {
-        rows: rows.length,
-      });
-
       const insertedRows: any[] = [];
-
       for (const row of rows) {
-        if (!row || typeof row !== "object") continue;
-
-        const insertData: Record<string, any> = {
+        const insertData = {
           ...row,
           tenant_id: ADMIN_TENANT_ID,
+          campaign_id: tableName === "campaigns" ? null : rootCampaignId,
         };
-
-        if (tableName === "campaigns") {
-          insertData.template_campaign_id = null;
-        } else {
-          insertData.campaign_id = rootCampaignId;
-        }
 
         const { sql, params } = buildInsert({
           table: tableName,
@@ -170,53 +99,33 @@ type: "json",
         });
 
         const result = await query(sql, params);
-        const inserted = result.rows[0];
-
-        insertedRows.push(inserted);
-
-        emit("db_insert_row", `Inserted ${tableName}`, {
-          tableName,
-          id: inserted?.id,
-        });
+        insertedRows.push(result.rows[0]);
       }
-
-      emit("db_insert_done", `Inserted ${tableName}`, {
-        inserted: insertedRows.length,
-      });
 
       context[tableName] = insertedRows;
 
       if (tableName === "campaigns" && insertedRows.length) {
         rootCampaignId = insertedRows[0].id;
-        emit("root_campaign_captured", "Captured root campaign id", {
+        emit("root_campaign_captured", "Captured root campaign", {
           rootCampaignId,
         });
       }
     }
 
     if (rootCampaignId) {
-      emit("resolve_relationships_start", "Resolving encounter relationships", {
-        campaignId: rootCampaignId,
-      });
-
+      emit("resolve_relationships_start", "Resolving relationships");
       await resolveEncounterRelationships({ campaignId: rootCampaignId });
-
-      emit("resolve_relationships_done", "Resolved encounter relationships");
+      emit("resolve_relationships_done", "Relationships resolved");
     }
 
-    emit("completed", "Ingestion complete", {
-  rootCampaignId,
-  schemasProcessed: SCHEMA_PIPELINE.length,
-});
-
+    emit("completed", "Ingestion complete", { rootCampaignId });
     return { success: true, campaignId: rootCampaignId };
   } catch (err: any) {
     emit("error", "Fatal ingest error", {
-      message: err?.message ?? String(err),
-      stack: err?.stack,
+      message: err.message,
+      stack: err.stack,
       rootCampaignId,
     });
-
     return { success: false, campaignId: rootCampaignId };
   }
 }

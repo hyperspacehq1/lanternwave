@@ -34,10 +34,7 @@ ${JSON.stringify(context, null, 2)}
   const response = await openai.responses.create({
     model: "gpt-4.1-mini",
     input: [
-      {
-        role: "system",
-        content: systemPrompt,
-      },
+      { role: "system", content: systemPrompt },
       {
         role: "user",
         content: [
@@ -48,7 +45,7 @@ ${JSON.stringify(context, null, 2)}
     ],
     text: {
       format: {
-type: "json", 
+        type: "json_schema",           // ✅ CORRECT
         name: schema.name,
         schema: schema.schema,
       },
@@ -56,7 +53,6 @@ type: "json",
   });
 
   const parsed = response.output_parsed;
-
   if (!parsed) return [];
 
   return Array.isArray(parsed) ? parsed : [parsed];
