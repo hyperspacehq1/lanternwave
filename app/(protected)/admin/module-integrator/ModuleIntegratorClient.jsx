@@ -83,6 +83,11 @@ export default function ModuleIntegratorClient() {
   const [error, setError] = useState("");
   const [warning, setWarning] = useState("");
 
+// metadata inspector
+const [showMetadata, setShowMetadata] = useState(false);
+const [metadata, setMetadata] = useState(null);
+const [metadataLoading, setMetadataLoading] = useState(false);
+
   // request state
   const [loading, setLoading] = useState(false);
   const [requestId, setRequestId] = useState("");
@@ -106,14 +111,41 @@ export default function ModuleIntegratorClient() {
   const pollWatchdogRef = useRef(null);
   const lastProgressAtRef = useRef(null);
 
+async function loadMetadata() {
+  if (!jobId) return;
+
+  setMetadataLoading(true);
+  try {
+    const res = await fetch(`/api/ingestion-jobs/${jobId}/metadata`);
+    const json = await res.json();
+    setMetadata(json?.metadata ?? {});
+  } catch {
+    setMetadata({ error: "Failed to load metadata" });
+  } finally {
+    setMetadataLoading(false);
+  }
+}
+
   /* ============================================================
      DERIVED: campaign status + fatal errors
   ============================================================ */
 
-  const fatalErrors = useMemo(
-    () => events.filter((e) => e.stage === "error"),
-    [events]
-  );
+ const fatalErrors = useMemo(() => {
+  const eventErrors = events.filter((e) => e.stage === "error");
+  if (eventErrors.length) return eventErrors;
+
+  // Fallback to job-level failure
+  if (phase === "failed" && phaseNotes?.includes("[error]")) {
+    return [
+      {
+        stage: "error",
+        meta: { message: phaseNotes },
+      },
+    ];
+  }
+
+  return [];
+}, [events, phase, phaseNotes]);
 
   const campaignEvents = useMemo(
     () => events.filter((e) => e?.meta?.tableName === "campaigns"),
@@ -135,21 +167,38 @@ export default function ModuleIntegratorClient() {
      DERIVED: job-level progress (from events)
   ============================================================ */
 
-  const jobProgress = useMemo(() => {
-    let max = 0;
-    let stage = "Pending";
+const jobProgress = useMemo(() => {
+  // Prefer event-driven progress
+  let max = 0;
+  let stage = "Pending";
 
-    for (const e of events) {
-      const def = STAGE_PROGRESS[e.stage];
-      if (!def) continue;
-      if (def.progress >= max) {
-        max = def.progress;
-        stage = def.label;
-      }
+  for (const e of events) {
+    const def = STAGE_PROGRESS[e.stage];
+    if (!def) continue;
+    if (def.progress >= max) {
+      max = def.progress;
+      stage = def.label;
     }
+  }
 
-    return { percent: max, stage };
-  }, [events]);
+  // Fallback: derive from job stage text if no events
+  if (max === 0 && phaseNotes) {
+    if (phaseNotes.includes("PDF uploaded")) {
+      return { percent: 30, stage: "PDF uploaded" };
+    }
+    if (phaseNotes.includes("schema")) {
+      return { percent: 60, stage: "Schema processing" };
+    }
+    if (phaseNotes.includes("completed")) {
+      return { percent: 100, stage: "Completed" };
+    }
+    if (phaseNotes.includes("[error]")) {
+      return { percent: 45, stage: "Error" };
+    }
+  }
+
+  return { percent: max, stage };
+}, [events, phaseNotes]);
 
   /* ============================================================
      DERIVED: pre-job pipeline (what user expects to see)
@@ -381,15 +430,23 @@ export default function ModuleIntegratorClient() {
         }
 
         if (status === "failed") {
-          setPhase("failed");
-          setWarning(
-            "Job failed. Check Raw Response / server logs. If orchestrator emits error events, they should appear in the inspector."
-          );
-          if (pollingRef.current) {
-            clearInterval(pollingRef.current);
-            pollingRef.current = null;
-          }
-        }
+  setPhase("failed");
+
+  // 🔎 Auto-open metadata on failure (QoL fix)
+  if (!showMetadata) {
+    loadMetadata();
+    setShowMetadata(true);
+  }
+
+  setWarning(
+    "Job failed. Metadata has been loaded with detailed error information."
+  );
+
+  if (pollingRef.current) {
+    clearInterval(pollingRef.current);
+    pollingRef.current = null;
+  }
+}
       } catch {
         // ignore transient polling failures
       }
@@ -518,16 +575,51 @@ export default function ModuleIntegratorClient() {
             </div>
           ) : null}
 
-          {/* RAW RESPONSE (collapsible) */}
-          {rawResponse ? (
-            <div style={{ marginTop: 12 }}>
-              <button
-                type="button"
-                onClick={() => setShowRaw((v) => !v)}
-                style={{ marginBottom: 8 }}
-              >
-                {showRaw ? "Hide" : "Show"} Raw Server Response
-              </button>
+          {/* RAW RESPONSE + METADATA */}
+{rawResponse ? (
+  <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
+    <button
+      type="button"
+      onClick={() => setShowRaw((v) => !v)}
+    >
+      {showRaw ? "Hide" : "Show"} Raw Server Response
+    </button>
+
+    <button
+      type="button"
+      onClick={() => {
+        if (showMetadata) {
+          setShowMetadata(false);
+        } else {
+          loadMetadata();
+          setShowMetadata(true);
+        }
+      }}
+      disabled={!jobId}
+    >
+      {showMetadata ? "Hide" : "View"} Metadata
+    </button>
+  </div>
+) : null}
+
+{showMetadata ? (
+  <pre
+    style={{
+      whiteSpace: "pre-wrap",
+      wordBreak: "break-word",
+      border: "1px solid rgba(255,255,255,0.15)",
+      padding: 10,
+      borderRadius: 8,
+      maxHeight: 260,
+      overflow: "auto",
+      marginTop: 8,
+    }}
+  >
+    {metadataLoading
+      ? "Loading metadata…"
+      : JSON.stringify(metadata, null, 2)}
+  </pre>
+) : null}
 
               {showRaw ? (
                 <pre
