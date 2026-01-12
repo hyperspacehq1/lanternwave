@@ -2,87 +2,66 @@ import OpenAI from "openai";
 
 const openai = new OpenAI();
 
-// conservative, safe size for structured extraction
-const MAX_CHARS = 12_000;
-
-function chunkText(text: string, maxChars = MAX_CHARS) {
-  const chunks: string[] = [];
-  let start = 0;
-
-  while (start < text.length) {
-    chunks.push(text.slice(start, start + maxChars));
-    start += maxChars;
-  }
-
-  return chunks;
-}
-
+/**
+ * 2025-grade structured extraction.
+ * We DO NOT send raw PDF text.
+ * We reference the uploaded file directly.
+ */
 export async function extractWithSchema({
   tableName,
   schema,
-  pdfText,
+  fileId,
   context,
 }: {
   tableName: string;
   schema: any;
-  pdfText: string;
+  fileId: string;
   context: Record<string, any>;
 }) {
   const systemPrompt = `
-You are extracting structured RPG data.
+You are extracting structured RPG data from a PDF.
 
-Return ONLY valid JSON matching the schema.
-Do not invent data.
-Do not repeat entities.
+Rules:
+- Return ONLY valid JSON matching the schema.
+- Do NOT invent data.
+- Do NOT repeat entities.
+- If data is not present, omit it.
 `;
 
-  const chunks = chunkText(pdfText);
-
-  const results: any[] = [];
-
-  for (let i = 0; i < chunks.length; i++) {
-    const userPrompt = `
-PDF CONTENT (PART ${i + 1} of ${chunks.length}):
-
-${chunks[i]}
+  const userPrompt = `
+TASK:
+Extract ${tableName} data from the attached PDF.
 
 EXISTING CONTEXT:
 ${JSON.stringify(context, null, 2)}
-
-TASK:
-Extract ${tableName} data.
 `;
 
-    const response = await openai.responses.create({
-      model: "gpt-4.1",
-      input: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      text: {
-        format: {
-          name: schema.name,
-          schema: schema.schema,
-        },
+  const response = await openai.responses.create({
+    model: "gpt-4.1-mini",
+    input: [
+      {
+        role: "system",
+        content: systemPrompt,
       },
-    });
-
-    const parsed = response.output_parsed;
-    if (parsed) {
-      if (Array.isArray(parsed)) {
-        results.push(...parsed);
-      } else {
-        results.push(parsed);
-      }
-    }
-  }
-
-  // dedupe by JSON identity (simple + safe)
-  const seen = new Set<string>();
-  return results.filter((r) => {
-    const key = JSON.stringify(r);
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
+      {
+        role: "user",
+        content: [
+          { type: "input_text", text: userPrompt },
+          { type: "input_file", file_id: fileId },
+        ],
+      },
+    ],
+    text: {
+      format: {
+        name: schema.name,
+        schema: schema.schema,
+      },
+    },
   });
+
+  const parsed = response.output_parsed;
+
+  if (!parsed) return [];
+
+  return Array.isArray(parsed) ? parsed : [parsed];
 }
