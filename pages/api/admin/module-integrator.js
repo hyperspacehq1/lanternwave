@@ -16,7 +16,14 @@ function log(stage, extra = {}) {
 async function extractPdfText(uint8Array) {
   const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
 
-  const loadingTask = pdfjsLib.getDocument({ data: uint8Array });
+  // REQUIRED for Next.js / server / standalone builds
+  pdfjsLib.GlobalWorkerOptions.workerSrc = null;
+
+  const loadingTask = pdfjsLib.getDocument({
+    data: uint8Array,
+    disableWorker: true,
+  });
+
   const pdf = await loadingTask.promise;
 
   let text = "";
