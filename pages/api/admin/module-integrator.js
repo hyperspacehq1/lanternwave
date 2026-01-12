@@ -2,6 +2,7 @@ import Busboy from "busboy";
 import { randomUUID } from "crypto";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { query } from "@/lib/db";
+import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.js";
 
 export const config = {
   api: { bodyParser: false },
@@ -10,6 +11,26 @@ export const config = {
 function log(stage, extra = {}) {
   console.log(`[module-integrator] ${stage}`, extra);
 }
+
+/* ---------------- PDF TEXT EXTRACTION ---------------- */
+
+async function extractPdfText(buffer) {
+  const loadingTask = pdfjsLib.getDocument({ data: buffer });
+  const pdf = await loadingTask.promise;
+
+  let text = "";
+
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    const strings = content.items.map(item => item.str);
+    text += strings.join(" ") + "\n";
+  }
+
+  return text;
+}
+
+/* ---------------- API HANDLER ---------------- */
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -33,7 +54,7 @@ export default async function handler(req, res) {
 
   const jobId = randomUUID();
 
-  // Create job row EARLY so UI can poll even if parsing fails
+  // Create job row early so UI can poll
   try {
     await query(
       `
@@ -44,17 +65,13 @@ export default async function handler(req, res) {
     );
     log("job_created", { jobId });
   } catch (err) {
-    log("job_create_failed", { message: err?.message });
     return res.status(500).json({
       ok: false,
       error: "Failed to create ingestion job",
-      detail: err?.message,
     });
   }
 
-  const events = [
-    { stage: "job_created", message: "Job row inserted" },
-  ];
+  const events = [{ stage: "job_created", message: "Job row inserted" }];
 
   const BusboyFactory = Busboy?.default ?? Busboy;
   const busboy = BusboyFactory({ headers: req.headers });
@@ -70,12 +87,7 @@ export default async function handler(req, res) {
     }
 
     fileSeen = true;
-
     log("busboy_file_detected", { filename: info?.filename });
-    events.push({
-      stage: "busboy_file_detected",
-      message: info?.filename ?? "unknown",
-    });
 
     file.on("data", (chunk) => {
       totalBytes += chunk.length;
@@ -95,22 +107,13 @@ export default async function handler(req, res) {
         `UPDATE ingestion_jobs SET status='failed', current_stage=$2 WHERE id=$1`,
         [jobId, "No file uploaded"]
       );
-
       return;
     }
 
-    events.push({
-      stage: "busboy_complete",
-      message: `Read ${totalBytes} bytes`,
-    });
-
     let pdfText = "";
+
     try {
-
-const pdfParse = (await import("pdf-parse/lib/pdf-parse.js")).default;
-
-const parsed = await pdfParse(Buffer.concat(fileBufferChunks));
-pdfText = parsed?.text ?? "";
+      pdfText = await extractPdfText(Buffer.concat(fileBufferChunks));
 
       log("pdf_parsed", { textLength: pdfText.length });
 
@@ -119,31 +122,22 @@ pdfText = parsed?.text ?? "";
         [jobId, 25, "PDF parsed"]
       );
     } catch (err) {
-      log("pdf_parse_failed", { message: err?.message });
-
       await query(
         `UPDATE ingestion_jobs SET status='failed', current_stage=$2 WHERE id=$1`,
-        [jobId, `PDF parse failed: ${err?.message}`]
+        [jobId, `PDF parse failed: ${err.message}`]
       );
-
       return;
     }
 
     if (!pdfText.trim()) {
-      log("pdf_empty_text");
-
       await query(
         `UPDATE ingestion_jobs SET status='failed', current_stage=$2 WHERE id=$1`,
         [jobId, "PDF contained no extractable text"]
       );
-
       return;
     }
 
-    // STOP HERE ON PURPOSE
-    // We are not calling orchestrator yet.
-    // This proves upload + parse + DB works.
-
+    // 🔴 DEBUG STOP ON PURPOSE
     await query(
       `UPDATE ingestion_jobs SET progress=$2, current_stage=$3 WHERE id=$1`,
       [jobId, 40, "Debug stop: PDF text extracted"]
@@ -153,11 +147,9 @@ pdfText = parsed?.text ?? "";
   });
 
   busboy.on("error", async (err) => {
-    log("busboy_error", { message: err?.message });
-
     await query(
       `UPDATE ingestion_jobs SET status='failed', current_stage=$2 WHERE id=$1`,
-      [jobId, `Busboy error: ${err?.message}`]
+      [jobId, `Busboy error: ${err.message}`]
     );
   });
 
