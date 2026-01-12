@@ -83,10 +83,11 @@ export async function ingestAdventureCodex({
     for (const schemaDef of SCHEMA_PIPELINE) {
       const tableName = schemaDef.name;
 
-      emit("schema_extract_start", `Extracting ${tableName}`, {
-        tableName,
-        source: "openai_file",
-      });
+      emit(
+  "schema_extract_start",
+  `Extracting ${tableName} schema`,
+  { tableName }
+);
 
       const response = await openai.responses.create({
         model: "gpt-4.1-mini",
@@ -203,8 +204,9 @@ export async function ingestAdventureCodex({
     }
 
     emit("completed", "Ingestion complete", {
-      rootCampaignId,
-    });
+  rootCampaignId,
+  schemasProcessed: SCHEMA_PIPELINE.length,
+});
 
     return { success: true, campaignId: rootCampaignId };
   } catch (err: any) {

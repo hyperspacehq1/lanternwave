@@ -6,6 +6,7 @@ import path from "path";
 import OpenAI from "openai";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { query } from "@/lib/db";
+import { ingestAdventureCodex } from "@/lib/ai/orchestrator";
 
 export const config = {
   api: { bodyParser: false },
@@ -109,11 +110,33 @@ export default async function handler(req, res) {
         ]
       );
 
-      log("pdf_uploaded_to_openai", {
-        jobId,
-        openai_file_id: openaiFile.id,
-      });
+  log("pdf_uploaded_to_openai", {
+  jobId,
+  openai_file_id: openaiFile.id,
+});
 
+// 🔁 START ORCHESTRATOR (ASYNC, NON-BLOCKING)
+ingestAdventureCodex({
+  openaiFileId: openaiFile.id,
+  adminUserId: "system", // or ctx.userId if you want
+  onEvent: async (event) => {
+    // Persist orchestrator progress for UI
+    await query(
+      `
+      UPDATE ingestion_jobs
+      SET
+        current_stage = $2,
+        progress = LEAST(progress + $3, 95)
+      WHERE id = $1
+      `,
+      [
+        jobId,
+        `[${event.stage}] ${event.message}`,
+        event.stage === "completed" ? 65 : 5,
+      ]
+    );
+  },
+});
       // ⬅️ No debug stop. Orchestrator can proceed from here.
 
     } catch (err) {
