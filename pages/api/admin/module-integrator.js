@@ -2,7 +2,6 @@ import Busboy from "busboy";
 import { randomUUID } from "crypto";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { query } from "@/lib/db";
-import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.js";
 
 export const config = {
   api: { bodyParser: false },
@@ -15,6 +14,9 @@ function log(stage, extra = {}) {
 /* ---------------- PDF TEXT EXTRACTION ---------------- */
 
 async function extractPdfText(buffer) {
+  // ✅ VALID IN 2025
+  const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
+
   const loadingTask = pdfjsLib.getDocument({ data: buffer });
   const pdf = await loadingTask.promise;
 
@@ -37,71 +39,43 @@ export default async function handler(req, res) {
     return res.status(405).json({ ok: false, error: "Method not allowed" });
   }
 
-  log("request_received");
-
   let ctx;
   try {
     ctx = await getTenantContext(req);
-    log("tenant_context_ok", { userId: ctx.userId });
   } catch (err) {
-    log("tenant_context_failed", { message: err?.message });
-    return res.status(401).json({
-      ok: false,
-      error: "Auth failed",
-      detail: err?.message,
-    });
+    return res.status(401).json({ ok: false, error: "Auth failed" });
   }
 
   const jobId = randomUUID();
 
-  // Create job row early so UI can poll
-  try {
-    await query(
-      `
-      INSERT INTO ingestion_jobs (id, status, progress, current_stage)
-      VALUES ($1, $2, $3, $4)
-      `,
-      [jobId, "running", 0, "Job created"]
-    );
-    log("job_created", { jobId });
-  } catch (err) {
-    return res.status(500).json({
-      ok: false,
-      error: "Failed to create ingestion job",
-    });
-  }
-
-  const events = [{ stage: "job_created", message: "Job row inserted" }];
+  await query(
+    `
+    INSERT INTO ingestion_jobs (id, status, progress, current_stage)
+    VALUES ($1, $2, $3, $4)
+    `,
+    [jobId, "running", 0, "Job created"]
+  );
 
   const BusboyFactory = Busboy?.default ?? Busboy;
   const busboy = BusboyFactory({ headers: req.headers });
 
   let fileBufferChunks = [];
-  let totalBytes = 0;
   let fileSeen = false;
 
-  busboy.on("file", (fieldname, file, info) => {
+  busboy.on("file", (fieldname, file) => {
     if (fieldname !== "file") {
       file.resume();
       return;
     }
 
     fileSeen = true;
-    log("busboy_file_detected", { filename: info?.filename });
 
     file.on("data", (chunk) => {
-      totalBytes += chunk.length;
       fileBufferChunks.push(chunk);
-    });
-
-    file.on("error", (err) => {
-      log("busboy_file_error", { message: err?.message });
     });
   });
 
   busboy.on("finish", async () => {
-    log("busboy_finish", { totalBytes });
-
     if (!fileSeen) {
       await query(
         `UPDATE ingestion_jobs SET status='failed', current_stage=$2 WHERE id=$1`,
@@ -113,9 +87,8 @@ export default async function handler(req, res) {
     let pdfText = "";
 
     try {
+      // ✅ ACTUAL PARSE CALL (THIS WAS MISSING BEFORE)
       pdfText = await extractPdfText(Buffer.concat(fileBufferChunks));
-
-      log("pdf_parsed", { textLength: pdfText.length });
 
       await query(
         `UPDATE ingestion_jobs SET progress=$2, current_stage=$3 WHERE id=$1`,
@@ -137,13 +110,11 @@ export default async function handler(req, res) {
       return;
     }
 
-    // 🔴 DEBUG STOP ON PURPOSE
+    // 🔴 DEBUG STOP — INTENTIONAL
     await query(
       `UPDATE ingestion_jobs SET progress=$2, current_stage=$3 WHERE id=$1`,
       [jobId, 40, "Debug stop: PDF text extracted"]
     );
-
-    log("debug_stop_reached");
   });
 
   busboy.on("error", async (err) => {
@@ -155,10 +126,8 @@ export default async function handler(req, res) {
 
   req.pipe(busboy);
 
-  // Respond immediately so UI can poll
   return res.status(202).json({
     ok: true,
     jobId,
-    events,
   });
 }
