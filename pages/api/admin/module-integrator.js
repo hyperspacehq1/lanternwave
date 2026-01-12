@@ -106,8 +106,8 @@ export default async function handler(req, res) {
 
     let pdfText = "";
     try {
-     const pdfParseModule = await import("pdf-parse");
-const pdfParse = pdfParseModule.default ?? pdfParseModule;
+
+const pdfParse = (await import("pdf-parse/lib/pdf-parse.js")).default;
 
 const parsed = await pdfParse(Buffer.concat(fileBufferChunks));
 pdfText = parsed?.text ?? "";
