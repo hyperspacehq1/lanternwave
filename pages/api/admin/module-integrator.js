@@ -13,11 +13,10 @@ function log(stage, extra = {}) {
 
 /* ---------------- PDF TEXT EXTRACTION ---------------- */
 
-async function extractPdfText(buffer) {
-  // ✅ VALID IN 2025
+async function extractPdfText(uint8Array) {
   const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
 
-  const loadingTask = pdfjsLib.getDocument({ data: buffer });
+  const loadingTask = pdfjsLib.getDocument({ data: uint8Array });
   const pdf = await loadingTask.promise;
 
   let text = "";
@@ -88,7 +87,10 @@ export default async function handler(req, res) {
 
     try {
       // ✅ ACTUAL PARSE CALL (THIS WAS MISSING BEFORE)
-      pdfText = await extractPdfText(Buffer.concat(fileBufferChunks));
+   const buffer = Buffer.concat(fileBufferChunks);
+const uint8 = new Uint8Array(buffer);
+
+pdfText = await extractPdfText(uint8);
 
       await query(
         `UPDATE ingestion_jobs SET progress=$2, current_stage=$3 WHERE id=$1`,
