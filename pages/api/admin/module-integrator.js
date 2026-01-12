@@ -1,5 +1,5 @@
 import Busboy from "busboy";
-import pdfParse from "pdf-parse";
+import * as pdfParse from "pdf-parse";
 import { randomUUID } from "crypto";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { query } from "@/lib/db";
@@ -107,7 +107,7 @@ export default async function handler(req, res) {
 
     let pdfText = "";
     try {
-      const parsed = await pdfParse(Buffer.concat(fileBufferChunks));
+      const parsed = await pdfParse.default(Buffer.concat(fileBufferChunks));
       pdfText = parsed?.text ?? "";
 
       log("pdf_parsed", { textLength: pdfText.length });
