@@ -1,4 +1,5 @@
 import Busboy from "busboy";
+import pdfParse from "pdf-parse";
 
 export const config = {
   api: { bodyParser: false },
