@@ -120,24 +120,47 @@ ingestAdventureCodex({
   openaiFileId: openaiFile.id,
   adminUserId: "system", // or ctx.userId if you want
   onEvent: async (event) => {
-    // Persist orchestrator progress for UI
+  if (event.stage === "error") {
+    // 🔴 Persist fatal error with details
     await query(
       `
       UPDATE ingestion_jobs
       SET
+        status = 'failed',
         current_stage = $2,
-        progress = LEAST(progress + $3, 95)
+        metadata = jsonb_set(
+          COALESCE(metadata, '{}'),
+          '{error}',
+          $3::jsonb
+        )
       WHERE id = $1
       `,
       [
         jobId,
-        `[${event.stage}] ${event.message}`,
-        event.stage === "completed" ? 65 : 5,
+        `[error] ${event.message}`,
+        JSON.stringify(event.meta ?? {}),
       ]
     );
-  },
+    return;
+  }
+
+  // 🟢 Normal progress updates
+  await query(
+    `
+    UPDATE ingestion_jobs
+    SET
+      current_stage = $2,
+      progress = LEAST(progress + $3, 95)
+    WHERE id = $1
+    `,
+    [
+      jobId,
+      `[${event.stage}] ${event.message}`,
+      event.stage === "completed" ? 65 : 5,
+    ]
+  );
+},
 });
-      // ⬅️ No debug stop. Orchestrator can proceed from here.
 
     } catch (err) {
       await query(
