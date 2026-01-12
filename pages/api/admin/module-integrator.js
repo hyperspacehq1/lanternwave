@@ -1,5 +1,6 @@
 import Busboy from "busboy";
 import { randomUUID } from "crypto";
+import OpenAI from "openai";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { query } from "@/lib/db";
 
@@ -7,33 +8,36 @@ export const config = {
   api: { bodyParser: false },
 };
 
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
 function log(stage, extra = {}) {
   console.log(`[module-integrator] ${stage}`, extra);
 }
 
-/* ---------------- PDF TEXT EXTRACTION ---------------- */
+/* ---------------- OPENAI PDF EXTRACTION ---------------- */
 
-async function extractPdfText(uint8Array) {
-  const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
+async function extractPdfTextWithOpenAI(buffer) {
+  const file = await openai.files.create({
+    file: buffer,
+    purpose: "assistants",
+  });
 
-  // REQUIRED for Next.js / server / standalone builds
-  const loadingTask = pdfjsLib.getDocument({
-  data: uint8Array,
-  disableWorker: true,
-});
+  const response = await openai.responses.create({
+    model: "gpt-4.1-mini",
+    input: [
+      {
+        role: "user",
+        content: [
+          { type: "input_text", text: "Extract all text from this PDF." },
+          { type: "input_file", file_id: file.id },
+        ],
+      },
+    ],
+  });
 
-  const pdf = await loadingTask.promise;
-
-  let text = "";
-
-  for (let i = 1; i <= pdf.numPages; i++) {
-    const page = await pdf.getPage(i);
-    const content = await page.getTextContent();
-    const strings = content.items.map(item => item.str);
-    text += strings.join(" ") + "\n";
-  }
-
-  return text;
+  return response.output_text ?? "";
 }
 
 /* ---------------- API HANDLER ---------------- */
@@ -91,15 +95,13 @@ export default async function handler(req, res) {
     let pdfText = "";
 
     try {
-      // ✅ ACTUAL PARSE CALL (THIS WAS MISSING BEFORE)
-   const buffer = Buffer.concat(fileBufferChunks);
-const uint8 = new Uint8Array(buffer);
+      const buffer = Buffer.concat(fileBufferChunks);
 
-pdfText = await extractPdfText(uint8);
+      pdfText = await extractPdfTextWithOpenAI(buffer);
 
       await query(
         `UPDATE ingestion_jobs SET progress=$2, current_stage=$3 WHERE id=$1`,
-        [jobId, 25, "PDF parsed"]
+        [jobId, 25, "PDF text extracted"]
       );
     } catch (err) {
       await query(
