@@ -113,6 +113,7 @@ export async function ingestAdventureCodex({
         ],
         text: {
           format: {
+type: "json",
             name: schemaDef.schema.name,
             schema: schemaDef.schema.schema,
           },
