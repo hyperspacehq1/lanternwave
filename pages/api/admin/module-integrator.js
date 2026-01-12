@@ -154,22 +154,39 @@ export default async function handler(req, res) {
             [jobId]
           );
 
-          // 🔥 Pass REAL text into orchestrator
-          const result = await ingestAdventureCodex({
-            pdfText,
-            adminUserId: userId,
-            onEvent: async (e) => {
-              await query(
-                `
-                UPDATE ingestion_jobs
-                   SET current_stage=$2,
-                       updated_at=NOW()
-                 WHERE id=$1
-                `,
-                [jobId, e.stage]
-              );
-            },
-          });
+         const result = await ingestAdventureCodex({
+  pdfText,
+  adminUserId: userId,
+  onEvent: async (e) => {
+    try {
+      await query(
+        `
+        UPDATE ingestion_jobs
+           SET current_stage=$2,
+               updated_at=NOW()
+         WHERE id=$1
+        `,
+        [jobId, e.stage]
+      );
+
+      // 🔍 DEBUG: persist error details if present
+      if (e.stage === "error" && e.meta?.message) {
+        await query(
+          `
+          UPDATE ingestion_jobs
+             SET status='failed',
+                 current_stage=$2,
+                 updated_at=NOW()
+           WHERE id=$1
+          `,
+          [jobId, `Error: ${e.meta.message}`]
+        );
+      }
+    } catch (err) {
+      console.error("[IngestionJob] Failed to persist event", err);
+    }
+  },
+});
 
           await query(
             `

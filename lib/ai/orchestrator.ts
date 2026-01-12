@@ -44,6 +44,10 @@ export type IngestEvent = {
 
 type EmitFn = (event: IngestEvent) => void;
 
+emit("start", "Ingestion started", {
+  pdfLength: pdfText?.length,
+});
+
 export async function ingestAdventureCodex({
   pdfText,
   adminUserId,
@@ -56,7 +60,16 @@ export async function ingestAdventureCodex({
   const emit = (stage: IngestStage, message: string, meta?: any) => {
     try {
       onEvent?.({ stage, message, meta });
-    } catch {}
+   } catch (err: any) {
+  console.error("❌ INGEST ORCHESTRATOR ERROR", err);
+
+  emit("error", "Fatal ingest error", {
+    message: err?.message ?? String(err),
+    stack: err?.stack,
+  });
+
+  return { success: false, campaignId: rootCampaignId };
+}
   };
 
   emit("start", "Ingestion started");
