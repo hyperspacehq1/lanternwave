@@ -87,32 +87,35 @@ export default async function handler(req, res) {
         purpose: "assistants",
       });
 
-      await query(
-        `UPDATE ingestion_jobs SET progress=$2, current_stage=$3 WHERE id=$1`,
-        [jobId, 25, "PDF uploaded to OpenAI"]
-      );
-
       // Save file_id for downstream orchestrator
       await query(
         `
         UPDATE ingestion_jobs
-        SET metadata = jsonb_set(
-          COALESCE(metadata, '{}'),
-          '{openai_file_id}',
-          to_jsonb($2::text)
-        )
+        SET
+          progress = $2,
+          current_stage = $3,
+          metadata = jsonb_set(
+            COALESCE(metadata, '{}'),
+            '{openai_file_id}',
+            to_jsonb($4::text)
+          )
         WHERE id = $1
         `,
-        [jobId, openaiFile.id]
+        [
+          jobId,
+          30,
+          "PDF uploaded to OpenAI",
+          openaiFile.id,
+        ]
       );
 
-      // ─────────────────────────────────────────────
-      // DEBUG STOP (INTENTIONAL)
-      // ─────────────────────────────────────────────
-      await query(
-        `UPDATE ingestion_jobs SET progress=$2, current_stage=$3 WHERE id=$1`,
-        [jobId, 40, "Debug stop: PDF uploaded"]
-      );
+      log("pdf_uploaded_to_openai", {
+        jobId,
+        openai_file_id: openaiFile.id,
+      });
+
+      // ⬅️ No debug stop. Orchestrator can proceed from here.
+
     } catch (err) {
       await query(
         `UPDATE ingestion_jobs SET status='failed', current_stage=$2 WHERE id=$1`,
