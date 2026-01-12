@@ -25,7 +25,8 @@ export default async function handler(req, res) {
         status,
         progress,
         current_stage,
-        updated_at
+        updated_at,
+        created_at
       FROM ingestion_jobs
       WHERE id = $1
       LIMIT 1
@@ -49,7 +50,7 @@ export default async function handler(req, res) {
     res.status(500).json({
       ok: false,
       error: "Failed to fetch ingestion job",
-      detail: err.message,
+      detail: err?.message,
     });
   }
 }
