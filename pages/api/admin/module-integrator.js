@@ -1,5 +1,8 @@
 import Busboy from "busboy";
 import { randomUUID } from "crypto";
+import fs from "fs";
+import os from "os";
+import path from "path";
 import OpenAI from "openai";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { query } from "@/lib/db";
@@ -16,41 +19,17 @@ function log(stage, extra = {}) {
   console.log(`[module-integrator] ${stage}`, extra);
 }
 
-/* ---------------- OPENAI PDF EXTRACTION ---------------- */
-
-async function extractPdfTextWithOpenAI(buffer) {
-  const file = await openai.files.create({
-    file: buffer,
-    purpose: "assistants",
-  });
-
-  const response = await openai.responses.create({
-    model: "gpt-4.1-mini",
-    input: [
-      {
-        role: "user",
-        content: [
-          { type: "input_text", text: "Extract all text from this PDF." },
-          { type: "input_file", file_id: file.id },
-        ],
-      },
-    ],
-  });
-
-  return response.output_text ?? "";
-}
-
-/* ---------------- API HANDLER ---------------- */
-
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ ok: false, error: "Method not allowed" });
   }
 
-  let ctx;
+  // ─────────────────────────────────────────────
+  // Auth
+  // ─────────────────────────────────────────────
   try {
-    ctx = await getTenantContext(req);
-  } catch (err) {
+    await getTenantContext(req);
+  } catch {
     return res.status(401).json({ ok: false, error: "Auth failed" });
   }
 
@@ -59,15 +38,20 @@ export default async function handler(req, res) {
   await query(
     `
     INSERT INTO ingestion_jobs (id, status, progress, current_stage)
-    VALUES ($1, $2, $3, $4)
+    VALUES ($1, 'running', 0, 'Job created')
     `,
-    [jobId, "running", 0, "Job created"]
+    [jobId]
   );
 
+  // ─────────────────────────────────────────────
+  // Streaming setup
+  // ─────────────────────────────────────────────
   const BusboyFactory = Busboy?.default ?? Busboy;
   const busboy = BusboyFactory({ headers: req.headers });
 
-  let fileBufferChunks = [];
+  const tmpDir = os.tmpdir();
+  const tempFilePath = path.join(tmpDir, `${jobId}.pdf`);
+
   let fileSeen = false;
 
   busboy.on("file", (fieldname, file) => {
@@ -77,9 +61,11 @@ export default async function handler(req, res) {
     }
 
     fileSeen = true;
+    const writeStream = fs.createWriteStream(tempFilePath);
+    file.pipe(writeStream);
 
-    file.on("data", (chunk) => {
-      fileBufferChunks.push(chunk);
+    writeStream.on("finish", () => {
+      log("file_written", { tempFilePath });
     });
   });
 
@@ -92,38 +78,49 @@ export default async function handler(req, res) {
       return;
     }
 
-    let pdfText = "";
-
     try {
-      const buffer = Buffer.concat(fileBufferChunks);
-
-      pdfText = await extractPdfTextWithOpenAI(buffer);
+      // ─────────────────────────────────────────────
+      // STREAM FILE TO OPENAI (NO BUFFERS)
+      // ─────────────────────────────────────────────
+      const openaiFile = await openai.files.create({
+        file: fs.createReadStream(tempFilePath),
+        purpose: "assistants",
+      });
 
       await query(
         `UPDATE ingestion_jobs SET progress=$2, current_stage=$3 WHERE id=$1`,
-        [jobId, 25, "PDF text extracted"]
+        [jobId, 25, "PDF uploaded to OpenAI"]
+      );
+
+      // Save file_id for downstream orchestrator
+      await query(
+        `
+        UPDATE ingestion_jobs
+        SET metadata = jsonb_set(
+          COALESCE(metadata, '{}'),
+          '{openai_file_id}',
+          to_jsonb($2::text)
+        )
+        WHERE id = $1
+        `,
+        [jobId, openaiFile.id]
+      );
+
+      // ─────────────────────────────────────────────
+      // DEBUG STOP (INTENTIONAL)
+      // ─────────────────────────────────────────────
+      await query(
+        `UPDATE ingestion_jobs SET progress=$2, current_stage=$3 WHERE id=$1`,
+        [jobId, 40, "Debug stop: PDF uploaded"]
       );
     } catch (err) {
       await query(
         `UPDATE ingestion_jobs SET status='failed', current_stage=$2 WHERE id=$1`,
-        [jobId, `PDF parse failed: ${err.message}`]
+        [jobId, `PDF ingest failed: ${err.message}`]
       );
-      return;
+    } finally {
+      fs.unlink(tempFilePath, () => {});
     }
-
-    if (!pdfText.trim()) {
-      await query(
-        `UPDATE ingestion_jobs SET status='failed', current_stage=$2 WHERE id=$1`,
-        [jobId, "PDF contained no extractable text"]
-      );
-      return;
-    }
-
-    // 🔴 DEBUG STOP — INTENTIONAL
-    await query(
-      `UPDATE ingestion_jobs SET progress=$2, current_stage=$3 WHERE id=$1`,
-      [jobId, 40, "Debug stop: PDF text extracted"]
-    );
   });
 
   busboy.on("error", async (err) => {
