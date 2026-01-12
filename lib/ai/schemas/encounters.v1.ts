@@ -1,5 +1,7 @@
 const encountersSchema = {
   name: "encounters",
+  strict: true,
+
   description:
     "Represents a structured encounter within an RPG campaign. Encounters define moments where characters interact with locations, NPCs, events, or challenges.",
   schema: {

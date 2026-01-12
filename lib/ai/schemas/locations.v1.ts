@@ -1,5 +1,6 @@
 const locationsSchema = {
   name: "locations",
+  strict: true,
 
   description:
     "Represents a physical or fictional place within an RPG campaign.",

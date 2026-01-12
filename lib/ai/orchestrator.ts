@@ -77,7 +77,7 @@ export async function ingestAdventureCodex({
           { role: "system", content: "Extract structured RPG data." },
           { role: "user", content: pdfText },
         ],
-        jsonSchema: { name: tableName, schema },
+        jsonSchema: schemaDef,
         temperature: 0.2,
       });
 

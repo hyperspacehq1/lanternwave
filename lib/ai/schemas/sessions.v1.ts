@@ -1,5 +1,7 @@
 const sessionsSchema = {
   name: "sessions",
+  strict: true,	
+
   description:
     "Represents an individual chapter or chapter-like segment within a larger RPG campaign. Sessions define the narrative structure and progression of the adventure.",
   schema: {

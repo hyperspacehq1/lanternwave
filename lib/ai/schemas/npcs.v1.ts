@@ -1,5 +1,7 @@
 const npcsSchema = {
   name: "npcs",
+  strict: true,
+
   description:
     "Represents a non-player character (NPC) that appears within an RPG campaign. NPCs may be allies, adversaries, or neutral figures who influence the story.",
   schema: {

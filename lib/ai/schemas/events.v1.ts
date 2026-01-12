@@ -1,5 +1,7 @@
 const eventsSchema = {
   name: "events",
+  strict: true,
+
   description:
     "Represents a discrete event that occurs within an RPG campaign. Events may happen with or without player involvement and define the unfolding of the narrative.",
   schema: {

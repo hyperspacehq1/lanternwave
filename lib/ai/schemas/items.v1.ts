@@ -1,5 +1,7 @@
 const itemsSchema = {
   name: "items",
+  strict: true,
+
   description:
     "Items, artifacts, weapons, or objects that appear within an RPG campaign.",
   schema: {

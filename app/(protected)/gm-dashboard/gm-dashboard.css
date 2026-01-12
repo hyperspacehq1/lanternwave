@@ -24,6 +24,9 @@
   --gm-green:  #3fa96b;
   --gm-purple: #8b5cf6;
   --gm-orange: #e38b29;
+
+  /* NEW: Action highlight */
+  --gm-action-blue: rgb(108, 197, 240);
 }
 
 /* =========================================================
@@ -114,32 +117,36 @@
 }
 
 /* =========================================================
-   FLOATING PANEL RAIL
+   CARD ACTION BUTTONS (EXPAND / POP-OUT / CLOSE)
 ========================================================= */
 
-.gm-panel-rail {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  width: 100vw;
-  max-height: 70vh;
+.gm-card-action-btn {
+  background: #000;
+  color: var(--gm-action-blue);
+  border: 1px solid var(--gm-action-blue);
+  border-radius: 4px;
+  width: 26px;
+  height: 26px;
 
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(30%, 1fr);
-  gap: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 
-  padding: 0.75rem;
-  background: linear-gradient(
-    to top,
-    rgba(0,0,0,0.85),
-    rgba(0,0,0,0.35)
-  );
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
 
-  overflow-x: auto;
-  overflow-y: hidden;
-  border-top: 1px solid var(--lw-border-muted);
-  z-index: 50;
+  transition:
+    box-shadow 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.gm-card-action-btn:hover {
+  box-shadow: 0 0 6px rgba(108, 197, 240, 0.75);
+}
+
+.gm-card-action-btn:active {
+  opacity: 0.85;
 }
 
 /* =========================================================
@@ -150,64 +157,31 @@
   background: rgba(0,0,0,0.9);
   border: 1px solid var(--lw-border-muted);
   border-radius: 6px;
-
   display: flex;
   flex-direction: column;
   min-width: 320px;
   max-width: 40vw;
-  width: calc(var(--panel-width) * 1%);
-
   position: relative;
   box-shadow: 0 0 18px rgba(0,0,0,0.6);
-  transition: box-shadow 0.2s ease, border-color 0.2s ease;
 }
-
-/* -------------------------
-   Active panel glow
--------------------------- */
-
-.gm-floating-panel.is-active {
-  box-shadow:
-    0 0 0 1px rgba(255,255,255,0.15),
-    0 0 18px currentColor,
-    0 0 32px rgba(0,0,0,0.8);
-  z-index: 60;
-}
-
-/* =========================================================
-   PANEL HEADERS (ENTITY-COLORED)
-========================================================= */
 
 .gm-floating-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-
   padding: 0.5rem 0.75rem;
   border-bottom: 1px solid currentColor;
-
   font-family: var(--font-terminal);
   font-size: 11px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-
-  background: linear-gradient(
-    to bottom,
-    rgba(255,255,255,0.06),
-    rgba(0,0,0,0)
-  );
 }
 
-/* Entity-specific header colors */
 .gm-panel-events     { color: var(--gm-red); }
 .gm-panel-npcs       { color: var(--gm-blue); }
 .gm-panel-encounters { color: var(--gm-green); }
 .gm-panel-locations  { color: var(--gm-purple); }
 .gm-panel-items      { color: var(--gm-orange); }
-
-/* =========================================================
-   PANEL BODY
-========================================================= */
 
 .gm-floating-body {
   padding: 0.75rem;
@@ -215,10 +189,6 @@
   font-size: 11px;
   color: var(--lw-green-muted);
 }
-
-/* =========================================================
-   PANEL RESIZE HANDLE
-========================================================= */
 
 .gm-panel-resize {
   position: absolute;
@@ -235,82 +205,51 @@
 }
 
 /* =========================================================
-   PANEL MINIMIZE TAB STRIP
+   TOOLBAR DROPDOWNS (CAMPAIGN / SESSION)
 ========================================================= */
 
-.gm-panel-tabs {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  width: 100vw;
+.gm-toolbar select {
+  background-color: #000;
+  color: #fff;
+  border: 1px solid #fff;
+  border-radius: 4px;
 
-  display: flex;
-  gap: 6px;
-  padding: 6px 10px;
+  padding: 6px 28px 6px 10px;
+  min-height: 30px;
 
-  background: rgba(0,0,0,0.85);
-  border-top: 1px solid var(--lw-border-muted);
-  z-index: 55;
-}
-
-.gm-panel-tab {
-  padding: 4px 10px;
-  font-family: var(--font-terminal);
-  font-size: 10px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-
-  border: 1px solid currentColor;
-  border-radius: 3px;
-  cursor: pointer;
-  opacity: 0.85;
-  transition: opacity 0.15s ease, box-shadow 0.15s ease;
-}
-
-.gm-panel-tab:hover {
-  opacity: 1;
-  box-shadow: 0 0 8px currentColor;
-}
-
-/* =========================================================
-   UTILITY
-========================================================= */
-
-.gm-loading {
-  margin-top: 1rem;
-  font-family: var(--font-terminal);
-  opacity: 0.6;
-}
-
-.gm-toolbar select,
-.gm-toolbar option {
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  font-weight: 400;
   font-size: 13px;
-  line-height: 1.4;
-  color: rgb(0, 0, 0);
+  font-weight: 500;
 
   -webkit-appearance: none;
   appearance: none;
-}
-
-/* Select-specific spacing + caret */
-.gm-toolbar select {
-  padding: 6px 28px 6px 10px; /* top/right/bottom/left */
-  min-height: 30px;
 
   background-image:
-    linear-gradient(45deg, transparent 50%, currentColor 50%),
-    linear-gradient(135deg, currentColor 50%, transparent 50%);
+    linear-gradient(45deg, transparent 50%, #fff 50%),
+    linear-gradient(135deg, #fff 50%, transparent 50%);
   background-position:
     calc(100% - 16px) 50%,
     calc(100% - 12px) 50%;
   background-size: 5px 5px;
   background-repeat: no-repeat;
+
+  transition:
+    box-shadow 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.gm-toolbar select:hover,
+.gm-toolbar select:focus {
+  box-shadow: 0 0 6px rgba(255,255,255,0.6);
+  outline: none;
+}
+
+.gm-toolbar option {
+  background: #000;
+  color: #fff;
 }
 
 /* =========================================================
-   GM TOOLBAR BUTTONS
+   TOOLBAR BUTTONS
 ========================================================= */
 
 .gm-toolbar-actions {
@@ -329,11 +268,6 @@
   border-radius: 4px;
   cursor: pointer;
   text-decoration: none;
-  transition:
-    border-color 0.15s ease,
-    color 0.15s ease,
-    box-shadow 0.15s ease,
-    opacity 0.15s ease;
 }
 
 .gm-toolbar-btn:hover:not(:disabled) {
@@ -345,16 +279,12 @@
   cursor: not-allowed;
 }
 
-/* ---------------------------------------------------------
-   Activate Beacons (highlight)
---------------------------------------------------------- */
+/* =========================================================
+   MISC
+========================================================= */
 
-.gm-toolbar-btn-beacons {
-  color: rgb(245, 197, 66);
-  border-color: rgb(245, 197, 66);
+.gm-loading {
+  margin-top: 1rem;
+  font-family: var(--font-terminal);
+  opacity: 0.6;
 }
-
-.gm-toolbar-btn-beacons:hover {
-  box-shadow: 0 0 8px rgba(245, 197, 66, 0.6);
-}
-

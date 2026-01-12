@@ -1,5 +1,6 @@
 const campaignsSchema = {
   name: "campaigns",
+  strict: true,
 
   description:
     "Top-level campaign metadata extracted from an RPG module.",
