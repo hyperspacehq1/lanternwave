@@ -1,11 +1,11 @@
-"use client";
-
+import { useRouter } from "next/router";
 import { useEffect, useRef, useState } from "react";
 
 const POLL_INTERVAL = 1500;
 
-export default function IngestionDebugPage({ params }) {
-  const { jobId } = params;
+export default function IngestionDebugPage() {
+  const router = useRouter();
+  const { jobId } = router.query;
 
   const [job, setJob] = useState(null);
   const [error, setError] = useState(null);
@@ -13,7 +13,8 @@ export default function IngestionDebugPage({ params }) {
   const lastUpdatedRef = useRef(null);
 
   useEffect(() => {
-    if (!jobId || !polling) return;
+    // ⛔ Router not ready during prerender
+    if (!router.isReady || !jobId || !polling) return;
 
     const poll = async () => {
       try {
@@ -38,26 +39,27 @@ export default function IngestionDebugPage({ params }) {
     poll();
     const id = setInterval(poll, POLL_INTERVAL);
     return () => clearInterval(id);
-  }, [jobId, polling]);
-
-  const statusColor =
-    job?.status === "failed"
-      ? "#b91c1c"
-      : job?.status === "completed"
-      ? "#166534"
-      : "#a16207";
+  }, [router.isReady, jobId, polling]);
 
   return (
     <div style={styles.page}>
       <h1 style={styles.title}>Ingestion Debug</h1>
 
-      <div style={styles.meta}>
-        <div><strong>Job ID:</strong> {jobId}</div>
-        <div>
-          <strong>Polling:</strong>{" "}
-          {polling ? "ACTIVE" : "STOPPED"}
+      {!jobId && (
+        <div style={styles.pending}>
+          Waiting for jobId from router…
         </div>
-      </div>
+      )}
+
+      {jobId && (
+        <div style={styles.meta}>
+          <div><strong>Job ID:</strong> {jobId}</div>
+          <div>
+            <strong>Polling:</strong>{" "}
+            {polling ? "ACTIVE" : "STOPPED"}
+          </div>
+        </div>
+      )}
 
       {error && (
         <div style={styles.error}>
@@ -65,16 +67,20 @@ export default function IngestionDebugPage({ params }) {
         </div>
       )}
 
-      {!job && !error && (
-        <div style={styles.pending}>Loading job state…</div>
-      )}
-
       {job && (
         <>
-          {/* Execution State */}
-          <div style={{ ...styles.card, borderColor: statusColor }}>
-            <h2 style={{ color: statusColor }}>Execution State</h2>
-
+          <div
+            style={{
+              ...styles.card,
+              borderColor:
+                job.status === "failed"
+                  ? "#b91c1c"
+                  : job.status === "completed"
+                  ? "#166534"
+                  : "#a16207",
+            }}
+          >
+            <h2>Execution State</h2>
             <div><strong>Status:</strong> {job.status}</div>
             <div><strong>Progress:</strong> {job.progress}%</div>
             <div>
@@ -89,21 +95,6 @@ export default function IngestionDebugPage({ params }) {
             )}
           </div>
 
-          {/* Derived Timeline */}
-          <div style={styles.card}>
-            <h2>Derived Timeline</h2>
-            <ul style={styles.timeline}>
-              <li>✔ Job created</li>
-              {job.current_stage?.startsWith("PDF parse failed") && (
-                <li style={styles.fail}>✖ PDF parse failed</li>
-              )}
-              {job.current_stage?.startsWith("Debug stop") && (
-                <li style={styles.success}>✔ Debug stop reached</li>
-              )}
-            </ul>
-          </div>
-
-          {/* Raw DB Payload */}
           <div style={styles.card}>
             <h2>Raw Job Record (DB)</h2>
             <pre style={styles.json}>
@@ -111,10 +102,8 @@ export default function IngestionDebugPage({ params }) {
             </pre>
           </div>
 
-          {/* Truth Banner */}
           <div style={styles.notice}>
-            <strong>Note:</strong> Request “events” only confirm receipt.
-            Execution state above is authoritative.
+            Execution state is authoritative. Request events are not.
           </div>
         </>
       )}
@@ -162,16 +151,6 @@ const styles = {
     borderRadius: 4,
     marginTop: 6,
     whiteSpace: "pre-wrap",
-  },
-  timeline: {
-    listStyle: "none",
-    paddingLeft: 0,
-  },
-  fail: {
-    color: "#f87171",
-  },
-  success: {
-    color: "#4ade80",
   },
   json: {
     background: "#020617",
