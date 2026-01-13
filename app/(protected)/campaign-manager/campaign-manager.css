@@ -377,3 +377,81 @@
 .cm-content {
   margin-top: 0;
 }
+
+/* ============================================================
+   CAMPAIGN MANAGER — ACTION BUTTON GLOW + PULSE
+   Applies to: .cm-main-actions .cm-btn
+   ============================================================ */
+
+/* Base button style override */
+.cm-main-actions .cm-btn {
+  background: #000;
+  color: #fff;
+  border: 1px solid #fff;
+  font-size: 12px;
+  padding: 0.45rem 0.9rem;
+  cursor: pointer;
+  position: relative;
+
+  /* Pulse animation */
+  animation: cm-action-pulse 3.8s ease-in-out infinite;
+
+  transition:
+    box-shadow 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease,
+    transform 0.15s ease;
+}
+
+/* Hover glow */
+.cm-main-actions .cm-btn:hover:not(:disabled) {
+  box-shadow:
+    0 0 10px rgba(255, 255, 255, 0.35),
+    0 0 22px rgba(255, 255, 255, 0.15);
+  transform: translateY(-1px);
+}
+
+/* Keyboard focus */
+.cm-main-actions .cm-btn:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px rgba(255, 255, 255, 0.6),
+    0 0 18px rgba(255, 255, 255, 0.35);
+}
+
+/* Disabled state */
+.cm-main-actions .cm-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  animation: none;
+  box-shadow: none;
+}
+
+/* Danger button variant */
+.cm-main-actions .cm-btn.danger {
+  border-color: #ff3b3b;
+  color: #ff3b3b;
+}
+
+.cm-main-actions .cm-btn.danger:hover:not(:disabled) {
+  box-shadow:
+    0 0 10px rgba(255, 59, 59, 0.45),
+    0 0 22px rgba(255, 59, 59, 0.25);
+}
+
+/* ------------------------------------------------------------
+   Pulse animation (subtle idle breathing glow)
+------------------------------------------------------------ */
+@keyframes cm-action-pulse {
+  0% {
+    box-shadow: 0 0 0 rgba(255, 255, 255, 0);
+  }
+  40% {
+    box-shadow:
+      0 0 8px rgba(255, 255, 255, 0.25),
+      0 0 14px rgba(255, 255, 255, 0.15);
+  }
+  100% {
+    box-shadow: 0 0 0 rgba(255, 255, 255, 0);
+  }
+}

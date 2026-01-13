@@ -3,9 +3,10 @@
 import React, { useEffect, useState } from "react";
 import { withContext } from "@/lib/forms/withContext";
 import { useCampaignContext } from "@/lib/campaign/campaignContext";
+import JoinPanel from "@/components/JoinPanel";
 
 export default function SessionForm({ record, onChange }) {
-  const { campaign, session } = useCampaignContext();
+  const { campaign } = useCampaignContext();
 
   /* ------------------------------------------------------------
      Guard: No campaign selected
@@ -31,6 +32,9 @@ export default function SessionForm({ record, onChange }) {
     );
   }
 
+  /* ------------------------------------------------------------
+     Update helper (UNCHANGED PATTERN)
+  ------------------------------------------------------------ */
   const update = (field, value) => {
     onChange(
       withContext(
@@ -69,7 +73,9 @@ export default function SessionForm({ record, onChange }) {
         </div>
       </div>
 
-      {/* FORM FIELDS */}
+      {/* -----------------------------
+          Core Session Fields
+      ------------------------------ */}
       <div className="cm-field">
         <label className="cm-label">Session Name</label>
         <input
@@ -97,6 +103,26 @@ export default function SessionForm({ record, onChange }) {
           onChange={(e) => update("notes", e.target.value)}
         />
       </div>
+
+      {/* -----------------------------
+          Related Entities (NEW)
+      ------------------------------ */}
+
+      <JoinPanel
+        title="Events"
+        sessionId={record.id}
+        campaignId={campaign.id}
+        joinPath="events"
+        idField="event_id"
+      />
+
+      <JoinPanel
+        title="Encounters"
+        sessionId={record.id}
+        campaignId={campaign.id}
+        joinPath="encounters"
+        idField="encounter_id"
+      />
     </div>
   );
 }

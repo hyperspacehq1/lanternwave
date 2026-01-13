@@ -49,3 +49,77 @@ export async function GET(req, { params }) {
     })
   );
 }
+
+/* -----------------------------------------------------------
+   POST /api/encounters/[id]/locations
+------------------------------------------------------------ */
+export async function POST(req, { params }) {
+  let ctx;
+  try {
+    ctx = await getTenantContext(req);
+  } catch {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const encounterId = params?.id;
+  const { location_id } = await req.json();
+
+  if (!encounterId || !location_id) {
+    return Response.json(
+      { error: "encounter_id and location_id required" },
+      { status: 400 }
+    );
+  }
+
+  await query(
+    `
+    INSERT INTO encounter_locations (
+      tenant_id,
+      encounter_id,
+      location_id
+    )
+    VALUES ($1, $2, $3)
+    ON CONFLICT (tenant_id, encounter_id, location_id)
+    DO NOTHING
+    `,
+    [ctx.tenantId, encounterId, location_id]
+  );
+
+  return Response.json({ ok: true });
+}
+
+/* -----------------------------------------------------------
+   DELETE /api/encounters/[id]/locations
+------------------------------------------------------------ */
+export async function DELETE(req, { params }) {
+  let ctx;
+  try {
+    ctx = await getTenantContext(req);
+  } catch {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const encounterId = params?.id;
+  const { location_id } = await req.json();
+
+  if (!encounterId || !location_id) {
+    return Response.json(
+      { error: "encounter_id and location_id required" },
+      { status: 400 }
+    );
+  }
+
+  await query(
+    `
+    UPDATE encounter_locations
+       SET deleted_at = now()
+     WHERE tenant_id = $1
+       AND encounter_id = $2
+       AND location_id = $3
+       AND deleted_at IS NULL
+    `,
+    [ctx.tenantId, encounterId, location_id]
+  );
+
+  return Response.json({ ok: true });
+}

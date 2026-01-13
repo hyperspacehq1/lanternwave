@@ -50,3 +50,125 @@ export async function GET(req, { params }) {
     })
   );
 }
+
+/* -----------------------------------------------------------
+   POST /api/encounters/[id]/items
+------------------------------------------------------------ */
+export async function POST(req, { params }) {
+  let ctx;
+  try {
+    ctx = await getTenantContext(req);
+  } catch {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const encounterId = params?.id;
+  const { item_id, quantity } = await req.json();
+
+  if (!encounterId || !item_id) {
+    return Response.json(
+      { error: "encounter_id and item_id required" },
+      { status: 400 }
+    );
+  }
+
+  await query(
+    `
+    INSERT INTO encounter_items (
+      tenant_id,
+      encounter_id,
+      item_id,
+      quantity
+    )
+    VALUES ($1, $2, $3, $4)
+    ON CONFLICT (tenant_id, encounter_id, item_id)
+    DO NOTHING
+    `,
+    [ctx.tenantId, encounterId, item_id, quantity ?? null]
+  );
+
+  return Response.json({ ok: true });
+}
+
+/* -----------------------------------------------------------
+   PATCH /api/encounters/[id]/items
+   Update quantity only
+------------------------------------------------------------ */
+export async function PATCH(req, { params }) {
+  let ctx;
+  try {
+    ctx = await getTenantContext(req);
+  } catch {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const encounterId = params?.id;
+  const { item_id, quantity } = await req.json();
+
+  if (!encounterId || !item_id) {
+    return Response.json(
+      { error: "encounter_id and item_id required" },
+      { status: 400 }
+    );
+  }
+
+  // quantity may be NULL (allowed)
+  if (quantity !== null && quantity !== undefined) {
+    if (!Number.isInteger(quantity) || quantity < 0) {
+      return Response.json(
+        { error: "quantity must be a non-negative integer or null" },
+        { status: 400 }
+      );
+    }
+  }
+
+  await query(
+    `
+    UPDATE encounter_items
+       SET quantity = $4
+     WHERE tenant_id = $1
+       AND encounter_id = $2
+       AND item_id = $3
+       AND deleted_at IS NULL
+    `,
+    [ctx.tenantId, encounterId, item_id, quantity ?? null]
+  );
+
+  return Response.json({ ok: true });
+}
+
+/* -----------------------------------------------------------
+   DELETE /api/encounters/[id]/items
+------------------------------------------------------------ */
+export async function DELETE(req, { params }) {
+  let ctx;
+  try {
+    ctx = await getTenantContext(req);
+  } catch {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const encounterId = params?.id;
+  const { item_id } = await req.json();
+
+  if (!encounterId || !item_id) {
+    return Response.json(
+      { error: "encounter_id and item_id required" },
+      { status: 400 }
+    );
+  }
+
+  await query(
+    `
+    UPDATE encounter_items
+       SET deleted_at = now()
+     WHERE tenant_id = $1
+       AND encounter_id = $2
+       AND item_id = $3
+       AND deleted_at IS NULL
+    `,
+    [ctx.tenantId, encounterId, item_id]
+  );
+
+  return Response.json({ ok: true });
+}

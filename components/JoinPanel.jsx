@@ -5,9 +5,10 @@ import { useEffect, useState } from "react";
 export default function JoinPanel({
   title,
   encounterId,
+  sessionId,
   campaignId,
-  joinPath,          // e.g. "npcs" | "items" | "locations"
-  idField,           // npc_id | item_id | location_id
+  joinPath,          // e.g. "npcs" | "items" | "locations" | "events" | "encounters"
+  idField,           // npc_id | item_id | location_id | event_id | encounter_id
   labelField = "name"
 }) {
   const [attached, setAttached] = useState([]);
@@ -16,12 +17,18 @@ export default function JoinPanel({
   const [loading, setLoading] = useState(false);
 
   /* ----------------------------------------------------------
-     Load attached (encounter scoped)
+     Resolve scope (encounter OR session)
+  ---------------------------------------------------------- */
+  const scopeId = encounterId || sessionId;
+  const scopeType = encounterId ? "encounters" : "sessions";
+
+  /* ----------------------------------------------------------
+     Load attached (scope scoped)
   ---------------------------------------------------------- */
   useEffect(() => {
-    if (!encounterId) return;
+    if (!scopeId) return;
 
-    fetch(`/api/encounters/${encounterId}/${joinPath}`, {
+    fetch(`/api/${scopeType}/${scopeId}/${joinPath}`, {
       credentials: "include",
     })
       .then((r) => r.json())
@@ -43,7 +50,7 @@ export default function JoinPanel({
         );
         setAttached([]);
       });
-  }, [encounterId, joinPath]);
+  }, [scopeId, scopeType, joinPath]);
 
   /* ----------------------------------------------------------
      Load available (campaign scoped)
@@ -79,12 +86,12 @@ export default function JoinPanel({
      Attach
   ---------------------------------------------------------- */
   async function attach() {
-    if (!selectedId || !encounterId) return;
+    if (!selectedId || !scopeId) return;
 
     setLoading(true);
 
     try {
-      await fetch(`/api/encounters/${encounterId}/${joinPath}`, {
+      await fetch(`/api/${scopeType}/${scopeId}/${joinPath}`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -92,7 +99,7 @@ export default function JoinPanel({
       });
 
       const refreshed = await fetch(
-        `/api/encounters/${encounterId}/${joinPath}`,
+        `/api/${scopeType}/${scopeId}/${joinPath}`,
         { credentials: "include" }
       ).then((r) => r.json());
 
@@ -109,11 +116,15 @@ export default function JoinPanel({
      Detach
   ---------------------------------------------------------- */
   async function detach(id) {
+    if (!scopeId) return;
+
     try {
-      await fetch(
-        `/api/encounters/${encounterId}/${joinPath}?${idField}=${id}`,
-        { method: "DELETE", credentials: "include" }
-      );
+      await fetch(`/api/${scopeType}/${scopeId}/${joinPath}`, {
+        method: "DELETE",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [idField]: id }),
+      });
 
       setAttached((prev) =>
         Array.isArray(prev)

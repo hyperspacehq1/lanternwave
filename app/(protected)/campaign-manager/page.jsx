@@ -181,7 +181,7 @@ if (!selectedId && first) {
               onClick={handleSave}
               disabled={!selectedRecord || loading}
             >
-              Save
+              Save/Update
             </button>
 
             <button

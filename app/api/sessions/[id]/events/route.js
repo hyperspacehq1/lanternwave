@@ -6,7 +6,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /* -----------------------------------------------------------
-   GET /api/encounters/[id]/npcs
+   GET /api/sessions/[id]/events
 ------------------------------------------------------------ */
 export async function GET(req, { params }) {
   let ctx;
@@ -16,42 +16,46 @@ export async function GET(req, { params }) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const encounterId = params?.id;
-  if (!encounterId) {
-    return Response.json({ error: "encounter id required" }, { status: 400 });
+  const sessionId = params?.id;
+  if (!sessionId) {
+    return Response.json({ error: "session id required" }, { status: 400 });
   }
 
   const { rows } = await query(
     `
-    SELECT en.id,
-           en.npc_id,
-           n.name,
-           n.description
-      FROM encounter_npcs en
-      JOIN encounters e
-        ON e.id = en.encounter_id
-       AND e.tenant_id = $1
+    SELECT se.id,
+           se.event_id,
+           e.name,
+           e.description,
+           e.event_type,
+           e.priority
+      FROM session_events se
+      JOIN sessions s
+        ON s.id = se.session_id
+       AND s.tenant_id = $1
+       AND s.deleted_at IS NULL
+      JOIN events e
+        ON e.id = se.event_id
        AND e.deleted_at IS NULL
-      JOIN npcs n
-        ON n.id = en.npc_id
-       AND n.deleted_at IS NULL
-     WHERE en.encounter_id = $2
-       AND en.deleted_at IS NULL
-     ORDER BY en.created_at ASC
+     WHERE se.session_id = $2
+       AND se.deleted_at IS NULL
+     ORDER BY se.created_at ASC
     `,
-    [ctx.tenantId, encounterId]
+    [ctx.tenantId, sessionId]
   );
 
   return Response.json(
     sanitizeRows(rows, {
       name: 120,
       description: 10000,
+      event_type: 50,
+      priority: 20,
     })
   );
 }
 
 /* -----------------------------------------------------------
-   POST /api/encounters/[id]/npcs
+   POST /api/sessions/[id]/events
 ------------------------------------------------------------ */
 export async function POST(req, { params }) {
   let ctx;
@@ -61,35 +65,35 @@ export async function POST(req, { params }) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const encounterId = params?.id;
-  const { npc_id } = await req.json();
+  const sessionId = params?.id;
+  const { event_id } = await req.json();
 
-  if (!encounterId || !npc_id) {
+  if (!sessionId || !event_id) {
     return Response.json(
-      { error: "encounter_id and npc_id required" },
+      { error: "session_id and event_id required" },
       { status: 400 }
     );
   }
 
   await query(
     `
-    INSERT INTO encounter_npcs (
+    INSERT INTO session_events (
       tenant_id,
-      encounter_id,
-      npc_id
+      session_id,
+      event_id
     )
     VALUES ($1, $2, $3)
-    ON CONFLICT (tenant_id, encounter_id, npc_id)
+    ON CONFLICT (tenant_id, session_id, event_id)
     DO NOTHING
     `,
-    [ctx.tenantId, encounterId, npc_id]
+    [ctx.tenantId, sessionId, event_id]
   );
 
   return Response.json({ ok: true });
 }
 
 /* -----------------------------------------------------------
-   DELETE /api/encounters/[id]/npcs
+   DELETE /api/sessions/[id]/events
 ------------------------------------------------------------ */
 export async function DELETE(req, { params }) {
   let ctx;
@@ -99,26 +103,26 @@ export async function DELETE(req, { params }) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const encounterId = params?.id;
-  const { npc_id } = await req.json();
+  const sessionId = params?.id;
+  const { event_id } = await req.json();
 
-  if (!encounterId || !npc_id) {
+  if (!sessionId || !event_id) {
     return Response.json(
-      { error: "encounter_id and npc_id required" },
+      { error: "session_id and event_id required" },
       { status: 400 }
     );
   }
 
   await query(
     `
-    UPDATE encounter_npcs
+    UPDATE session_events
        SET deleted_at = now()
      WHERE tenant_id = $1
-       AND encounter_id = $2
-       AND npc_id = $3
+       AND session_id = $2
+       AND event_id = $3
        AND deleted_at IS NULL
     `,
-    [ctx.tenantId, encounterId, npc_id]
+    [ctx.tenantId, sessionId, event_id]
   );
 
   return Response.json({ ok: true });
