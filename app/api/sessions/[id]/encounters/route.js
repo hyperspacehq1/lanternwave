@@ -16,10 +16,10 @@ export async function GET(req, { params }) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const sessionId = params?.id;
-  if (!sessionId) {
-    return Response.json({ error: "session id required" }, { status: 400 });
-  }
+ const sessionId = params?.id;
+if (!sessionId) {
+  return Response.json([]);
+}
 
   const { rows } = await query(
     `

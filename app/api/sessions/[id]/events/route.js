@@ -17,9 +17,9 @@ export async function GET(req, { params }) {
   }
 
   const sessionId = params?.id;
-  if (!sessionId) {
-    return Response.json({ error: "session id required" }, { status: 400 });
-  }
+if (!sessionId) {
+  return Response.json([]);
+}
 
   const { rows } = await query(
     `
