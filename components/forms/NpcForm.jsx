@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import Image from "next/image";
 import { withContext } from "@/lib/forms/withContext";
 import { useCampaignContext } from "@/lib/campaign/campaignContext";
 
@@ -64,6 +65,52 @@ export default function NpcForm({ record, onChange }) {
     return () => clearTimeout(t);
   }, [record?.id]);
 
+  /* ---------------------------------------------
+     NPC Image handling
+  --------------------------------------------- */
+  const [clips, setClips] = useState([]);
+  const [selectedClipId, setSelectedClipId] = useState(null);
+
+  // Load image clips
+  useEffect(() => {
+    fetch("/api/R2/list")
+      .then((r) => r.json())
+      .then((res) => {
+        if (!res?.ok) return;
+        const images = res.rows.filter((c) =>
+          ["image/jpeg", "image/png"].includes(c.mime_type)
+        );
+        setClips(images);
+      })
+      .catch(() => {});
+  }, []);
+
+  // Sync existing image (if provided by parent loader)
+  useEffect(() => {
+    if (record?.image_clip_id) {
+      setSelectedClipId(record.image_clip_id);
+    }
+  }, [record?.image_clip_id]);
+
+  const npcId = record?.id;
+
+  const attachImage = async (clipId) => {
+    if (!npcId) return;
+    await fetch(`/api/npcs/${npcId}/image`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ clip_id: clipId }),
+    });
+  };
+
+  const removeImage = async () => {
+    if (!npcId) return;
+    await fetch(`/api/npcs/${npcId}/image`, {
+      method: "DELETE",
+    });
+    setSelectedClipId(null);
+  };
+
   return (
     <div className="cm-detail-form">
       <div className={`cm-campaign-header ${pulse ? "pulse" : ""}`}>
@@ -98,6 +145,57 @@ export default function NpcForm({ record, onChange }) {
           ))}
         </select>
       </div>
+
+      {/* ---------------- NPC IMAGE ---------------- */}
+      <div className="cm-field">
+        <label className="cm-label">NPC Image</label>
+
+        <select
+          className="cm-input"
+          value={selectedClipId || ""}
+          onChange={async (e) => {
+            const clipId = e.target.value || null;
+            setSelectedClipId(clipId);
+
+            if (clipId) {
+              await attachImage(clipId);
+            }
+          }}
+        >
+          <option value="">— No image —</option>
+          {clips.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.title || c.object_key}
+            </option>
+          ))}
+        </select>
+
+        {selectedClipId && (
+          <div style={{ marginTop: 12 }}>
+            <Image
+              src={`/api/R2/object/${selectedClipId}`}
+              alt="NPC"
+              width={200}
+              height={200}
+              style={{
+                borderRadius: 6,
+                border: "1px solid rgba(255,255,255,0.15)",
+              }}
+            />
+
+            <div style={{ marginTop: 8 }}>
+              <button
+                type="button"
+                className="cm-button danger"
+                onClick={removeImage}
+              >
+                Remove Image
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+      {/* ------------------------------------------------ */}
 
       <div className="cm-field">
         <label className="cm-label">Description</label>
