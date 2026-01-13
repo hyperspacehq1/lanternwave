@@ -6,9 +6,9 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /* -----------------------------------------------------------
-   GET /api/sessions/[id]/events
+   GET /api/sessions/[id]/events?session_id=UUID
 ------------------------------------------------------------ */
-export async function GET(req, { params }) {
+export async function GET(req) {
   let ctx;
   try {
     ctx = await getTenantContext(req);
@@ -16,7 +16,10 @@ export async function GET(req, { params }) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const sessionId = params?.id;
+  const { searchParams } = new URL(req.url);
+  const sessionId = searchParams.get("session_id");
+
+  // Collection-style behavior (matches /api/locations)
   if (!sessionId) {
     return Response.json([]);
   }
@@ -55,9 +58,9 @@ export async function GET(req, { params }) {
 }
 
 /* -----------------------------------------------------------
-   POST /api/sessions/[id]/events
+   POST /api/sessions/[id]/events?session_id=UUID
 ------------------------------------------------------------ */
-export async function POST(req, { params }) {
+export async function POST(req) {
   let ctx;
   try {
     ctx = await getTenantContext(req);
@@ -65,10 +68,17 @@ export async function POST(req, { params }) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const sessionId = params?.id;
+  const { searchParams } = new URL(req.url);
+  const sessionId = searchParams.get("session_id");
   const { event_id } = await req.json();
 
-  // ✅ FIX: sessionId comes from URL, not body
+  if (!sessionId) {
+    return Response.json(
+      { error: "session_id required" },
+      { status: 400 }
+    );
+  }
+
   if (!event_id) {
     return Response.json(
       { error: "event_id required" },
@@ -94,9 +104,9 @@ export async function POST(req, { params }) {
 }
 
 /* -----------------------------------------------------------
-   DELETE /api/sessions/[id]/events
+   DELETE /api/sessions/[id]/events?session_id=UUID
 ------------------------------------------------------------ */
-export async function DELETE(req, { params }) {
+export async function DELETE(req) {
   let ctx;
   try {
     ctx = await getTenantContext(req);
@@ -104,10 +114,17 @@ export async function DELETE(req, { params }) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const sessionId = params?.id;
+  const { searchParams } = new URL(req.url);
+  const sessionId = searchParams.get("session_id");
   const { event_id } = await req.json();
 
-  // ✅ FIX: sessionId comes from URL, not body
+  if (!sessionId) {
+    return Response.json(
+      { error: "session_id required" },
+      { status: 400 }
+    );
+  }
+
   if (!event_id) {
     return Response.json(
       { error: "event_id required" },
