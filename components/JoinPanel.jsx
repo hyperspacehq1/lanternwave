@@ -22,9 +22,7 @@ export default function JoinPanel({
   const scopeId = encounterId || sessionId;
   const scopeType = encounterId ? "encounters" : "sessions";
 
-  if (!scopeId) {
-    return null;
-  }
+  if (!scopeId) return null;
 
   /* ----------------------------------------------------------
      Build base URL (FINAL CONTRACT)
@@ -43,24 +41,10 @@ export default function JoinPanel({
     fetch(baseUrl, { credentials: "include" })
       .then((r) => r.json())
       .then((data) => {
-        if (Array.isArray(data)) {
-          setAttached(data);
-        } else {
-          console.warn(
-            `JoinPanel (${joinPath}) attached returned non-array:`,
-            data
-          );
-          setAttached([]);
-        }
+        setAttached(Array.isArray(data) ? data : []);
       })
-      .catch((err) => {
-        console.error(
-          `JoinPanel (${joinPath}) attached fetch failed:`,
-          err
-        );
-        setAttached([]);
-      });
-  }, [baseUrl, joinPath]);
+      .catch(() => setAttached([]));
+  }, [baseUrl]);
 
   /* ----------------------------------------------------------
      Load available (campaign-scoped)
@@ -73,23 +57,9 @@ export default function JoinPanel({
     })
       .then((r) => r.json())
       .then((data) => {
-        if (Array.isArray(data)) {
-          setAvailable(data);
-        } else {
-          console.warn(
-            `JoinPanel (${joinPath}) available returned non-array:`,
-            data
-          );
-          setAvailable([]);
-        }
+        setAvailable(Array.isArray(data) ? data : []);
       })
-      .catch((err) => {
-        console.error(
-          `JoinPanel (${joinPath}) available fetch failed:`,
-          err
-        );
-        setAvailable([]);
-      });
+      .catch(() => setAvailable([]));
   }, [campaignId, joinPath]);
 
   /* ----------------------------------------------------------
@@ -112,8 +82,6 @@ export default function JoinPanel({
       }).then((r) => r.json());
 
       setAttached(Array.isArray(refreshed) ? refreshed : []);
-    } catch (err) {
-      console.error(`JoinPanel (${joinPath}) attach failed:`, err);
     } finally {
       setSelectedId("");
       setLoading(false);
@@ -124,22 +92,18 @@ export default function JoinPanel({
      Detach
   ---------------------------------------------------------- */
   async function detach(id) {
-    try {
-      await fetch(baseUrl, {
-        method: "DELETE",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ [idField]: id }),
-      });
+    await fetch(baseUrl, {
+      method: "DELETE",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ [idField]: id }),
+    });
 
-      setAttached((prev) =>
-        Array.isArray(prev)
-          ? prev.filter((r) => r[idField] !== id)
-          : []
-      );
-    } catch (err) {
-      console.error(`JoinPanel (${joinPath}) detach failed:`, err);
-    }
+    setAttached((prev) =>
+      Array.isArray(prev)
+        ? prev.filter((r) => r[idField] !== id)
+        : []
+    );
   }
 
   return (
