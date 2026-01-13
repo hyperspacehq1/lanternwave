@@ -63,7 +63,7 @@
 }
 
 /* ------------------------------
-   UPLOAD PROGRESS (FIXED)
+   UPLOAD PROGRESS
 ------------------------------ */
 .lw-upload-progress {
   margin-top: 6px;
@@ -82,19 +82,12 @@
 }
 
 /* ------------------------------
-   STATUS / ERROR TEXT
+   STATUS / ERROR
 ------------------------------ */
 .lw-upload-error {
   margin-top: 6px;
   font-size: 11px;
   color: #ff5a5a;
-  animation: pulseFade 4s ease-in-out;
-}
-
-.lw-upload-warning {
-  margin-top: 6px;
-  font-size: 11px;
-  color: #f5c26b;
   animation: pulseFade 4s ease-in-out;
 }
 
@@ -126,7 +119,6 @@
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  overflow: hidden;
 }
 
 .lw-main .lw-clip-type {
@@ -145,11 +137,6 @@
 /* ------------------------------
    CLIP ACTIONS
 ------------------------------ */
-.lw-main .lw-clip-actions {
-  display: flex;
-  gap: 0.3rem;
-}
-
 .lw-main .lw-btn {
   background: transparent;
   border: 1px solid var(--lw-border-muted);
@@ -167,17 +154,11 @@
   color: var(--lw-green-primary);
 }
 
-.lw-main .lw-btn-danger:hover {
-  border-color: red;
-  color: red;
-}
-
 /* ------------------------------
    PREVIEW
 ------------------------------ */
 .lw-main .lw-preview-frame {
   width: 100%;
-  height: 100%;
   min-height: 180px;
   border: 1px solid var(--lw-border-muted);
   background: #000;
@@ -186,120 +167,22 @@
   justify-content: center;
 }
 
-/* 🔒 PREVENT VIDEO FROM RESIZING PREVIEW FRAME */
 .lw-main .lw-preview-frame video,
 .lw-main .lw-preview-frame img {
   max-width: 100%;
   max-height: 100%;
-  width: auto;
-  height: auto;
-  display: block;
-}
-
-.lw-main .lw-preview-placeholder {
-  font-family: var(--font-terminal);
-  font-size: 10px;
-  letter-spacing: 0.12em;
-  color: var(--lw-green-muted);
-  opacity: 0.6;
 }
 
 /* ------------------------------
-   AUDIO VISUALIZER
+   AUDIO VISUAL
 ------------------------------ */
-.lw-audio-visual {
-  display: flex;
-  gap: 6px;
-  align-items: flex-end;
-  justify-content: center;
-  height: 80px;
-  width: 100%;
-}
-
 .lw-audio-bar {
-  width: 6px;
-  height: 16px;
   border: 1px solid rgba(108, 197, 240, 0.6);
   background: rgba(108, 197, 240, 0.15);
-  box-shadow: 0 0 12px rgba(108, 197, 240, 0.25);
-  animation: lwEqualize 1.15s infinite ease-in-out;
-}
-
-.lw-audio-bar:nth-child(2) { animation-delay: -1s; }
-.lw-audio-bar:nth-child(3) { animation-delay: -0.85s; }
-.lw-audio-bar:nth-child(4) { animation-delay: -0.7s; }
-.lw-audio-bar:nth-child(5) { animation-delay: -0.55s; }
-
-@keyframes lwEqualize {
-  0% { height: 12px; opacity: 0.45; }
-  50% { height: 72px; opacity: 1; }
-  100% { height: 12px; opacity: 0.45; }
-}
-
-@keyframes pulseFade {
-  0% { opacity: 0; }
-  10% { opacity: 1; }
-  80% { opacity: 1; }
-  100% { opacity: 0; }
-}
-
-/* === FORCE LOOP BUTTON COLOR + ACTIVE STATE === */
-.lw-btn.loop-btn {
-  color: #6cc5f0 !important;
-  border-color: #6cc5f0 !important;
-}
-
-.lw-btn.loop-btn:hover {
-  color: #6cc5f0;
-  border-color: #6cc5f0;
-}
-
-/* Active / playing state */
-.lw-btn.loop-btn.active {
-  color: #6cc5f0;
-  border-color: #6cc5f0;
-  box-shadow: 0 0 6px rgba(108, 197, 240, 0.6);
-}
-
-/* Fallback: if someone forgets lw-btn again */
-.loop-btn {
-  background: transparent;
-  border: 1px solid var(--lw-border-muted);
-  border-radius: 4px;
-  padding: 0.2rem 0.45rem;
-  font-family: var(--font-terminal);
-  font-size: 9px;
-  letter-spacing: 0.12em;
-  color: var(--lw-green-muted);
-  cursor: pointer;
-}
-
-.lw-btn.loop-btn.active {
-  animation: loopPulse 1.4s ease-in-out infinite;
-}
-
-@keyframes loopPulse {
-  0%   { box-shadow: 0 0 4px rgba(108,197,240,0.4); }
-  50%  { box-shadow: 0 0 10px rgba(108,197,240,0.9); }
-  100% { box-shadow: 0 0 4px rgba(108,197,240,0.4); }
-}
-
-/* Active / playing state (animate + glow) */
-.lw-btn.loop-btn.active {
-  color: #6cc5f0;
-  border-color: #6cc5f0;
-  box-shadow: 0 0 10px rgba(108, 197, 240, 0.8);
-  animation: loopPulse 1.4s ease-in-out infinite, loopSpin 1.2s linear infinite;
-  will-change: box-shadow, transform;
-}
-
-@keyframes loopSpin {
-  from { transform: rotate(0deg); }
-  to   { transform: rotate(360deg); }
 }
 
 /* ------------------------------
-   CLIP FILTERS
+   CLIP FILTERS (UPDATED – SMALL + CLEAN)
 ------------------------------ */
 .lw-main .lw-clip-filters {
   display: flex;
@@ -307,12 +190,27 @@
   margin-bottom: 0.5rem;
 }
 
-.lw-main .lw-clip-filters .lw-btn.active {
-  border-color: var(--lw-green-primary);
-  color: var(--lw-green-primary);
-  box-shadow: 0 0 6px rgba(108, 197, 240, 0.4);
+.lw-main .lw-clip-filters .lw-btn {
+  color: rgb(108, 197, 240);
+  border-color: rgb(108, 197, 240);
 }
 
+.lw-main .lw-clip-filters .lw-btn:hover {
+  box-shadow: 0 0 4px rgba(108, 197, 240, 0.35);
+}
 
+.lw-main .lw-clip-filters .lw-btn.active {
+  color: rgb(108, 197, 240);
+  border-color: rgb(108, 197, 240);
+  box-shadow: 0 0 6px rgba(108, 197, 240, 0.55);
+}
 
-
+/* ------------------------------
+   ANIMATIONS
+------------------------------ */
+@keyframes pulseFade {
+  0% { opacity: 0; }
+  10% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { opacity: 0; }
+}
