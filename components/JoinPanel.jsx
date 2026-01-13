@@ -16,7 +16,7 @@ export default function JoinPanel({
   const [loading, setLoading] = useState(false);
 
   /* ----------------------------------------------------------
-     Load attached
+     Load attached (encounter scoped)
   ---------------------------------------------------------- */
   useEffect(() => {
     if (!encounterId) return;
@@ -25,8 +25,24 @@ export default function JoinPanel({
       credentials: "include",
     })
       .then((r) => r.json())
-      .then(setAttached)
-      .catch(() => setAttached([]));
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setAttached(data);
+        } else {
+          console.warn(
+            `JoinPanel (${joinPath}) attached returned non-array:`,
+            data
+          );
+          setAttached([]);
+        }
+      })
+      .catch((err) => {
+        console.error(
+          `JoinPanel (${joinPath}) attached fetch failed:`,
+          err
+        );
+        setAttached([]);
+      });
   }, [encounterId, joinPath]);
 
   /* ----------------------------------------------------------
@@ -39,46 +55,74 @@ export default function JoinPanel({
       credentials: "include",
     })
       .then((r) => r.json())
-      .then(setAvailable)
-      .catch(() => setAvailable([]));
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setAvailable(data);
+        } else {
+          console.warn(
+            `JoinPanel (${joinPath}) available returned non-array:`,
+            data
+          );
+          setAvailable([]);
+        }
+      })
+      .catch((err) => {
+        console.error(
+          `JoinPanel (${joinPath}) available fetch failed:`,
+          err
+        );
+        setAvailable([]);
+      });
   }, [campaignId, joinPath]);
 
   /* ----------------------------------------------------------
      Attach
   ---------------------------------------------------------- */
   async function attach() {
-    if (!selectedId) return;
+    if (!selectedId || !encounterId) return;
 
     setLoading(true);
-    await fetch(`/api/encounters/${encounterId}/${joinPath}`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ [idField]: selectedId }),
-    });
 
-    const refreshed = await fetch(
-      `/api/encounters/${encounterId}/${joinPath}`,
-      { credentials: "include" }
-    ).then((r) => r.json());
+    try {
+      await fetch(`/api/encounters/${encounterId}/${joinPath}`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [idField]: selectedId }),
+      });
 
-    setAttached(refreshed);
-    setSelectedId("");
-    setLoading(false);
+      const refreshed = await fetch(
+        `/api/encounters/${encounterId}/${joinPath}`,
+        { credentials: "include" }
+      ).then((r) => r.json());
+
+      setAttached(Array.isArray(refreshed) ? refreshed : []);
+    } catch (err) {
+      console.error(`JoinPanel (${joinPath}) attach failed:`, err);
+    } finally {
+      setSelectedId("");
+      setLoading(false);
+    }
   }
 
   /* ----------------------------------------------------------
      Detach
   ---------------------------------------------------------- */
   async function detach(id) {
-    await fetch(
-      `/api/encounters/${encounterId}/${joinPath}?${idField}=${id}`,
-      { method: "DELETE", credentials: "include" }
-    );
+    try {
+      await fetch(
+        `/api/encounters/${encounterId}/${joinPath}?${idField}=${id}`,
+        { method: "DELETE", credentials: "include" }
+      );
 
-    setAttached((prev) =>
-      prev.filter((r) => r[idField] !== id)
-    );
+      setAttached((prev) =>
+        Array.isArray(prev)
+          ? prev.filter((r) => r[idField] !== id)
+          : []
+      );
+    } catch (err) {
+      console.error(`JoinPanel (${joinPath}) detach failed:`, err);
+    }
   }
 
   return (
