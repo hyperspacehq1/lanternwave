@@ -298,6 +298,20 @@
   to   { transform: rotate(360deg); }
 }
 
+/* ------------------------------
+   CLIP FILTERS
+------------------------------ */
+.lw-main .lw-clip-filters {
+  display: flex;
+  gap: 0.35rem;
+  margin-bottom: 0.5rem;
+}
+
+.lw-main .lw-clip-filters .lw-btn.active {
+  border-color: var(--lw-green-primary);
+  color: var(--lw-green-primary);
+  box-shadow: 0 0 6px rgba(108, 197, 240, 0.4);
+}
 
 
 

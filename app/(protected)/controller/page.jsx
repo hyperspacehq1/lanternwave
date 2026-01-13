@@ -17,7 +17,8 @@ function clipTypeFromKey(key) {
 }
 
 function displayNameFromKey(key) {
-  return key.replace(/^tenants\/[^/]+\/clips\//, "");
+  const parts = key.split("/");
+  return parts[parts.length - 1].replace(/^\d+-/, "");
 }
 
 function streamUrlForKey(key) {
@@ -136,13 +137,20 @@ export default function ControllerPage() {
   const [uploadProgress, setUploadProgress] = useState(null);
   const [uploadError, setUploadError] = useState(null);
   const [nowPlaying, setNowPlayingState] = useState(null);
+  const [mediaFilter, setMediaFilter] = useState("all"); // all | image | audio | video
+  const filteredClips = clips.filter((clip) => {
+  if (mediaFilter === "all") return true;
+  return clipTypeFromKey(clip.object_key) === mediaFilter;
+});
 
   async function refresh() {
     setLoading(true);
     try {
-      const rows = await listClips();
-      rows.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-      setClips(rows);
+const result = await listClips();
+const rows = Array.isArray(result) ? result : [];
+rows.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+setClips(rows);
+
       setNowPlayingState(await getNowPlaying());
     } finally {
       setLoading(false);
@@ -215,10 +223,27 @@ export default function ControllerPage() {
         <section className="lw-panel">
           <h2 className="lw-panel-title">CLIP LIBRARY</h2>
 
+<div className="lw-clip-filters">
+  {[
+    ["all", "ALL MEDIA"],
+    ["image", "IMAGES"],
+    ["audio", "MUSIC"],
+    ["video", "VIDEOS"],
+  ].map(([key, label]) => (
+    <button
+      key={key}
+      className={`lw-btn ${mediaFilter === key ? "active" : ""}`}
+      onClick={() => setMediaFilter(key)}
+    >
+      {label}
+    </button>
+  ))}
+</div>
+
           {loading && <div className="lw-loading">Loading clips…</div>}
 
           <div className="lw-clip-list">
-            {clips.map((clip) => {
+            {filteredClips.map((clip) => {
               const key = clip.object_key;
               const isNow = playingKey === key;
               const isBusy = busyKey === key || loading;
