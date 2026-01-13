@@ -20,22 +20,29 @@ export async function GET(req) {
   const { searchParams } = new URL(req.url);
   const sessionId = searchParams.get("session_id");
 
+  // JoinPanel-safe
   if (!sessionId) return Response.json([]);
 
   const { rows } = await query(
     `
-    SELECT se.id,
-           se.event_id,
-           e.name,
-           e.description,
-           e.event_type,
-           e.priority
-      FROM session_events se
-      JOIN events e ON e.id = se.event_id AND e.deleted_at IS NULL
-      JOIN sessions s ON s.id = se.session_id AND s.tenant_id = $1
-     WHERE se.session_id = $2
-       AND se.deleted_at IS NULL
-     ORDER BY se.created_at
+    SELECT
+      se.id,
+      se.event_id,
+      e.name,
+      e.description,
+      e.event_type,
+      e.priority
+    FROM session_events se
+    JOIN events e
+      ON e.id = se.event_id
+     AND e.deleted_at IS NULL
+    JOIN sessions s
+      ON s.id = se.session_id
+     AND s.tenant_id = $1
+     AND s.deleted_at IS NULL
+    WHERE se.session_id = $2
+      AND se.deleted_at IS NULL
+    ORDER BY se.created_at
     `,
     [ctx.tenantId, sessionId]
   );
@@ -75,9 +82,14 @@ export async function POST(req) {
 
   await query(
     `
-    INSERT INTO session_events (tenant_id, session_id, event_id)
+    INSERT INTO session_events (
+      tenant_id,
+      session_id,
+      event_id
+    )
     VALUES ($1, $2, $3)
-    ON CONFLICT (tenant_id, session_id, event_id) DO NOTHING
+    ON CONFLICT (tenant_id, session_id, event_id)
+    DO NOTHING
     `,
     [ctx.tenantId, sessionId, event_id]
   );
@@ -115,7 +127,7 @@ export async function DELETE(req) {
      WHERE tenant_id = $1
        AND session_id = $2
        AND event_id = $3
-       AND deleted_at IS NULL
+       AND se.deleted_at IS NULL
     `,
     [ctx.tenantId, sessionId, event_id]
   );
