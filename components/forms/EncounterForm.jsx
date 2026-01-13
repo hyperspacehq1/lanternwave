@@ -9,7 +9,7 @@ export default function EncounterForm({ record, onChange }) {
   const { campaign, session } = useCampaignContext();
 
   /* -----------------------------
-     Guards
+     Guards (UNCHANGED)
   ------------------------------ */
   if (!campaign) {
     return (
@@ -29,6 +29,9 @@ export default function EncounterForm({ record, onChange }) {
     );
   }
 
+  /* -----------------------------
+     Update helper (UNCHANGED)
+  ------------------------------ */
   const update = (field, value) => {
     onChange(
       withContext(
@@ -45,7 +48,7 @@ export default function EncounterForm({ record, onChange }) {
   };
 
   /* ---------------------------------------------
-     Pulse on record change
+     Pulse on record change (UNCHANGED)
   --------------------------------------------- */
   const [pulse, setPulse] = useState(false);
 
@@ -66,7 +69,9 @@ export default function EncounterForm({ record, onChange }) {
         </div>
       </div>
 
-      {/* Core fields */}
+      {/* -----------------------------
+          Core fields (UNCHANGED)
+      ------------------------------ */}
       <div className="cm-field">
         <label className="cm-label">Name</label>
         <input
@@ -85,26 +90,32 @@ export default function EncounterForm({ record, onChange }) {
         />
       </div>
 
-      {/* Related Entities */}
+      {/* -----------------------------
+          Related Entities (FIXED)
+      ------------------------------ */}
+
       <JoinPanel
         title="NPCs"
-        joinKey="npc_id"
-        joinType="npcs"
-        recordId={record.id}
+        encounterId={record.id}
+        campaignId={campaign.id}
+        joinPath="npcs"
+        idField="npc_id"
       />
 
       <JoinPanel
         title="Items"
-        joinKey="item_id"
-        joinType="items"
-        recordId={record.id}
+        encounterId={record.id}
+        campaignId={campaign.id}
+        joinPath="items"
+        idField="item_id"
       />
 
       <JoinPanel
         title="Locations"
-        joinKey="location_id"
-        joinType="locations"
-        recordId={record.id}
+        encounterId={record.id}
+        campaignId={campaign.id}
+        joinPath="locations"
+        idField="location_id"
       />
     </div>
   );
