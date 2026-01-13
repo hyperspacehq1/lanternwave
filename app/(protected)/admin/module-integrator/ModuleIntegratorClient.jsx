@@ -131,45 +131,36 @@ async function loadMetadata() {
      Rule: completed + rootCampaignId = READY
   ============================================================ */
 
-  const completedEvent = useMemo(
-    () => events.find((e) => e.stage === "completed" && e?.meta?.rootCampaignId),
-    [events]
-  );
+const campaignStatus = useMemo(() => {
+  // ✅ AUTHORITATIVE READY STATE
+  if (completedEvent) {
+    return {
+      state: "ready",
+      campaignId: completedEvent.meta.rootCampaignId,
+    };
+  }
 
-  const campaignEvents = useMemo(
-    () => events.filter((e) => e?.meta?.tableName === "campaigns"),
-    [events]
-  );
+  // Legacy / fallback signals
+  const created = campaignEvents.find((e) => e.stage === "db_insert_row");
+  const errored = campaignEvents.find((e) => e.stage === "error");
+  const skipped = campaignEvents.find((e) => e.stage === "schema_skipped");
 
-  const campaignStatus = useMemo(() => {
-    // ✅ AUTHORITATIVE READY STATE
-    if (completedEvent) {
-      return {
-        state: "ready",
-        campaignId: completedEvent.meta.rootCampaignId,
-      };
-    }
+  if (created) return { state: "created" };
 
-   // Legacy / fallback signals
-const created = campaignEvents.find((e) => e.stage === "db_insert_row");
-const errored = campaignEvents.find((e) => e.stage === "error");
-const skipped = campaignEvents.find((e) => e.stage === "schema_skipped");
+  if (errored)
+    return {
+      state: "error",
+      reason: errored?.meta?.message,
+    };
 
-if (created) return { state: "created" };
+  if (skipped)
+    return {
+      state: "no_data",
+      message: `No ${skipped?.meta?.tableName} found in source PDF`,
+    };
 
-if (errored)
-  return {
-    state: "error",
-    reason: errored?.meta?.message,
-  };
-
-if (skipped)
-  return {
-    state: "no_data",
-    message: `No ${skipped?.meta?.tableName} found in source PDF`,
-  };
-
-return { state: "pending" };
+  return { state: "pending" };
+}, [campaignEvents, completedEvent]);
 
   /* ============================================================
      DERIVED: job-level progress (from events)
@@ -569,8 +560,7 @@ const schemaStats = useMemo(() => {
   <b>Campaign:</b>{" "}
   {campaignStatus.state === "ready" && "Ready"}
   {campaignStatus.state === "created" && "Created"}
-  {campaignStatus.state === "skipped" &&
-    `Skipped — ${campaignStatus.reason}`}
+{campaignStatus.state === "no_data" && campaignStatus.message}
   {campaignStatus.state === "error" &&
     `Error — ${campaignStatus.reason}`}
   {campaignStatus.state === "pending" && "Pending"}
