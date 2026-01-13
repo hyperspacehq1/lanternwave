@@ -17,9 +17,9 @@ export async function GET(req, { params }) {
   }
 
   const sessionId = params?.id;
-if (!sessionId) {
-  return Response.json([]);
-}
+  if (!sessionId) {
+    return Response.json([]);
+  }
 
   const { rows } = await query(
     `
@@ -68,9 +68,10 @@ export async function POST(req, { params }) {
   const sessionId = params?.id;
   const { event_id } = await req.json();
 
-  if (!sessionId || !event_id) {
+  // ✅ FIX: sessionId comes from URL, not body
+  if (!event_id) {
     return Response.json(
-      { error: "session_id and event_id required" },
+      { error: "event_id required" },
       { status: 400 }
     );
   }
@@ -106,9 +107,10 @@ export async function DELETE(req, { params }) {
   const sessionId = params?.id;
   const { event_id } = await req.json();
 
-  if (!sessionId || !event_id) {
+  // ✅ FIX: sessionId comes from URL, not body
+  if (!event_id) {
     return Response.json(
-      { error: "session_id and event_id required" },
+      { error: "event_id required" },
       { status: 400 }
     );
   }
