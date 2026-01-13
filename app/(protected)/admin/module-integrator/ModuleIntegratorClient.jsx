@@ -83,10 +83,10 @@ export default function ModuleIntegratorClient() {
   const [error, setError] = useState("");
   const [warning, setWarning] = useState("");
 
-// metadata inspector
-const [showMetadata, setShowMetadata] = useState(false);
-const [metadata, setMetadata] = useState(null);
-const [metadataLoading, setMetadataLoading] = useState(false);
+  // metadata inspector
+  const [showMetadata, setShowMetadata] = useState(false);
+  const [metadata, setMetadata] = useState(null);
+  const [metadataLoading, setMetadataLoading] = useState(false);
 
   // request state
   const [loading, setLoading] = useState(false);
@@ -111,144 +111,152 @@ const [metadataLoading, setMetadataLoading] = useState(false);
   const pollWatchdogRef = useRef(null);
   const lastProgressAtRef = useRef(null);
 
-async function loadMetadata() {
-  if (!jobId) return;
+  async function loadMetadata() {
+    if (!jobId) return;
 
-  setMetadataLoading(true);
-  try {
-    const res = await fetch(`/api/ingestion-jobs/${jobId}/metadata`);
-    const json = await res.json();
-    setMetadata(json?.metadata ?? {});
-  } catch {
-    setMetadata({ error: "Failed to load metadata" });
-  } finally {
-    setMetadataLoading(false);
+    setMetadataLoading(true);
+    try {
+      const res = await fetch(`/api/ingestion-jobs/${jobId}/metadata`);
+      const json = await res.json();
+      setMetadata(json?.metadata ?? {});
+    } catch {
+      setMetadata({ error: "Failed to load metadata" });
+    } finally {
+      setMetadataLoading(false);
+    }
   }
-}
 
-/* ============================================================
-   DERIVED: campaign-related events
-============================================================ */
+  /* ============================================================
+     DERIVED: fatal errors
+     (Fixes runtime crash: fatalErrors referenced in multiple places)
+  ============================================================ */
+  const fatalErrors = useMemo(() => {
+    return events.filter((e) => e?.stage === "error");
+  }, [events]);
 
-const completedEvent = useMemo(
-  () => events.find((e) => e.stage === "completed" && e?.meta?.rootCampaignId),
-  [events]
-);
+  /* ============================================================
+     DERIVED: campaign-related events
+  ============================================================ */
+  const completedEvent = useMemo(() => {
+    return events.find(
+      (e) => e.stage === "completed" && e?.meta?.rootCampaignId
+    );
+  }, [events]);
 
-const campaignEvents = useMemo(
-  () => events.filter((e) => e?.meta?.tableName === "campaigns"),
-  [events]
-);
+  const campaignEvents = useMemo(() => {
+    return events.filter((e) => e?.meta?.tableName === "campaigns");
+  }, [events]);
 
   /* ============================================================
      DERIVED: campaign status (AUTHORITATIVE)
      Rule: completed + rootCampaignId = READY
   ============================================================ */
+  const campaignStatus = useMemo(() => {
+    // ✅ AUTHORITATIVE READY STATE
+    if (completedEvent) {
+      return {
+        state: "ready",
+        campaignId: completedEvent.meta.rootCampaignId,
+      };
+    }
 
-const campaignStatus = useMemo(() => {
-  // ✅ AUTHORITATIVE READY STATE
-  if (completedEvent) {
-    return {
-      state: "ready",
-      campaignId: completedEvent.meta.rootCampaignId,
-    };
-  }
+    // Legacy / fallback signals (campaign schema events only)
+    const created = campaignEvents.find((e) => e.stage === "db_insert_row");
+    const errored = campaignEvents.find((e) => e.stage === "error");
+    const skipped = campaignEvents.find((e) => e.stage === "schema_skipped");
 
-  // Legacy / fallback signals
-  const created = campaignEvents.find((e) => e.stage === "db_insert_row");
-  const errored = campaignEvents.find((e) => e.stage === "error");
-  const skipped = campaignEvents.find((e) => e.stage === "schema_skipped");
+    if (created) return { state: "created" };
 
-  if (created) return { state: "created" };
+    if (errored) {
+      return {
+        state: "error",
+        reason: errored?.meta?.message,
+      };
+    }
 
-  if (errored)
-    return {
-      state: "error",
-      reason: errored?.meta?.message,
-    };
+    // “Skipped” is normal: no extractable data in source PDF
+    if (skipped) {
+      const tn = skipped?.meta?.tableName || "records";
+      return {
+        state: "no_data",
+        message: `No ${tn} found in source PDF`,
+      };
+    }
 
-  if (skipped)
-    return {
-      state: "no_data",
-      message: `No ${skipped?.meta?.tableName} found in source PDF`,
-    };
-
-  return { state: "pending" };
-}, [campaignEvents, completedEvent]);
+    return { state: "pending" };
+  }, [campaignEvents, completedEvent]);
 
   /* ============================================================
      DERIVED: job-level progress (from events)
+     Rule: completed => 100%
   ============================================================ */
-
-const jobProgress = useMemo(() => {
-  // ✅ AUTHORITATIVE: completed event = 100%
-  const completedEvent = events.find((e) => e.stage === "completed");
-  if (completedEvent) {
-    return { percent: 100, stage: "Completed" };
-  }
-
-  // Existing event-driven progress
-  let max = 0;
-  let stage = "Pending";
-
-  for (const e of events) {
-    const def = STAGE_PROGRESS[e.stage];
-    if (!def) continue;
-    if (def.progress >= max) {
-      max = def.progress;
-      stage = def.label;
-    }
-  }
-
-  // Fallback: derive from job stage text if no events
-  if (max === 0 && phaseNotes) {
-    if (phaseNotes.includes("PDF uploaded")) {
-      return { percent: 30, stage: "PDF uploaded" };
-    }
-    if (phaseNotes.includes("schema")) {
-      return { percent: 60, stage: "Schema processing" };
-    }
-    if (phaseNotes.includes("completed")) {
+  const jobProgress = useMemo(() => {
+    // ✅ AUTHORITATIVE: completed event = 100%
+    const completedAny = events.find((e) => e.stage === "completed");
+    if (completedAny) {
       return { percent: 100, stage: "Completed" };
     }
-    if (phaseNotes.includes("[error]")) {
-      return { percent: 45, stage: "Error" };
+
+    // Existing event-driven progress
+    let max = 0;
+    let stage = "Pending";
+
+    for (const e of events) {
+      const def = STAGE_PROGRESS[e.stage];
+      if (!def) continue;
+      if (def.progress >= max) {
+        max = def.progress;
+        stage = def.label;
+      }
     }
-  }
 
-  return { percent: max, stage };
-}, [events, phaseNotes]);
+    // Fallback: derive from job stage text if no events
+    if (max === 0 && phaseNotes) {
+      if (phaseNotes.includes("PDF uploaded")) {
+        return { percent: 30, stage: "PDF uploaded" };
+      }
+      if (phaseNotes.includes("schema")) {
+        return { percent: 60, stage: "Schema processing" };
+      }
+      if (phaseNotes.includes("completed")) {
+        return { percent: 100, stage: "Completed" };
+      }
+      if (phaseNotes.includes("[error]")) {
+        return { percent: 45, stage: "Error" };
+      }
+    }
 
-/* ============================================================
-   DERIVED: schema data counts
-============================================================ */
-const schemaStats = useMemo(() => {
-  const schemaDoneEvents = events.filter(
-    (e) => e.stage === "schema_extract_done"
-  );
+    return { percent: max, stage };
+  }, [events, phaseNotes]);
 
-  const schemasWithData = schemaDoneEvents.filter(
-    (e) => Array.isArray(e.meta?.rows) ? e.meta.rows.length > 0 : e.meta?.rows > 0
-  ).length;
+  /* ============================================================
+     DERIVED: schema data counts
+     (“schemas with data” = schema_extract_done rows > 0)
+  ============================================================ */
+  const schemaStats = useMemo(() => {
+    const schemaDoneEvents = events.filter(
+      (e) => e.stage === "schema_extract_done"
+    );
 
-  const totalSchemas = SCHEMA_ORDER.length;
+    const schemasWithData = schemaDoneEvents.filter((e) => {
+      const r = e?.meta?.rows;
+      if (Array.isArray(r)) return r.length > 0;
+      return typeof r === "number" ? r > 0 : false;
+    }).length;
 
-  return {
-    schemasWithData,
-    totalSchemas,
-  };
-}, [events]);
+    const totalSchemas = SCHEMA_ORDER.length;
+
+    return { schemasWithData, totalSchemas };
+  }, [events]);
 
   /* ============================================================
      DERIVED: pre-job pipeline (what user expects to see)
   ============================================================ */
-
   const pipelineLines = useMemo(() => {
     const uploadMs = diffMs(uploadStartedAt, uploadFinishedAt);
     const requestMs = diffMs(requestStartedAt, requestFinishedAt);
 
-    // We model four human-readable phases that match your earlier UI:
-    // Upload, Server Request, Multipart Parsing, Schema Processing
+    // Upload
     const upload =
       phase === "uploading"
         ? { state: "In progress…", ms: null }
@@ -258,6 +266,7 @@ const schemaStats = useMemo(() => {
         ? { state: "Started…", ms: null }
         : { state: "Pending", ms: null };
 
+    // Server request
     const serverRequest =
       phase === "requesting"
         ? { state: "In progress…", ms: null }
@@ -300,7 +309,6 @@ const schemaStats = useMemo(() => {
   /* ============================================================
      SUBMIT
   ============================================================ */
-
   async function handleSubmit(e) {
     e.preventDefault();
 
@@ -421,15 +429,10 @@ const schemaStats = useMemo(() => {
 
   /* ============================================================
      POLLING (jobs)
-     Note: Polling endpoint returns job row, not schema events.
-     We keep polling even if events array is empty, because the
-     backend may be writing DB rows without emitting inspector events yet.
   ============================================================ */
-
   useEffect(() => {
     if (!jobId) return;
 
-    // poll job status
     pollingRef.current = setInterval(async () => {
       try {
         const res = await fetch(`/api/ingestion-jobs/${jobId}`);
@@ -440,7 +443,6 @@ const schemaStats = useMemo(() => {
         const progress = json?.job?.progress;
         const stage = json?.job?.current_stage;
 
-        // keep the UI from looking dead even if schema events aren’t flowing:
         setPhaseNotes(
           stage ? `Job stage: ${stage} • Progress: ${progress ?? "?"}` : ""
         );
@@ -448,7 +450,6 @@ const schemaStats = useMemo(() => {
         // watchdog “stuck” detection: if progress never changes, warn
         if (typeof progress === "number") {
           const now = Date.now();
-          // if we see any progress > 0 we consider that movement
           if (progress > 0) lastProgressAtRef.current = now;
 
           const last = lastProgressAtRef.current || now;
@@ -456,7 +457,7 @@ const schemaStats = useMemo(() => {
             setWarning(
               "Job progress has not advanced in ~45s. Check server logs, OpenAI calls, and DB inserts. (This warning does not stop the job.)"
             );
-            lastProgressAtRef.current = now; // prevent spamming
+            lastProgressAtRef.current = now;
           }
         }
 
@@ -469,23 +470,23 @@ const schemaStats = useMemo(() => {
         }
 
         if (status === "failed") {
-  setPhase("failed");
+          setPhase("failed");
 
-  // 🔎 Auto-open metadata on failure (QoL fix)
-  if (!showMetadata) {
-    loadMetadata();
-    setShowMetadata(true);
-  }
+          // Auto-open metadata on failure (QoL)
+          if (!showMetadata) {
+            loadMetadata();
+            setShowMetadata(true);
+          }
 
-  setWarning(
-    "Job failed. Metadata has been loaded with detailed error information."
-  );
+          setWarning(
+            "Job failed. Metadata has been loaded with detailed error information."
+          );
 
-  if (pollingRef.current) {
-    clearInterval(pollingRef.current);
-    pollingRef.current = null;
-  }
-}
+          if (pollingRef.current) {
+            clearInterval(pollingRef.current);
+            pollingRef.current = null;
+          }
+        }
       } catch {
         // ignore transient polling failures
       }
@@ -497,6 +498,7 @@ const schemaStats = useMemo(() => {
         pollingRef.current = null;
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jobId]);
 
   /* ============================================================
@@ -529,7 +531,7 @@ const schemaStats = useMemo(() => {
           <section className="mi-card">
             <h3>Import Pipeline</h3>
 
-            {/* PRE-JOB PHASES (this prevents “0% / pending” confusion) */}
+            {/* PRE-JOB PHASES */}
             <ul style={{ marginTop: 12 }}>
               <li>
                 <b>Upload:</b> {pipelineLines.upload.state}
@@ -563,22 +565,22 @@ const schemaStats = useMemo(() => {
               <div className="job-progress-percent">{jobProgress.percent}%</div>
             </div>
 
-{/* SCHEMA DATA SUMMARY */}
-<div style={{ marginTop: 6, fontSize: 12, opacity: 0.85 }}>
-  Schemas with data:{" "}
-  <b>{schemaStats.schemasWithData}</b> / {schemaStats.totalSchemas}
-</div>
+            {/* SCHEMA DATA SUMMARY */}
+            <div style={{ marginTop: 6, fontSize: 12, opacity: 0.85 }}>
+              Schemas with data: <b>{schemaStats.schemasWithData}</b> /{" "}
+              {schemaStats.totalSchemas}
+            </div>
 
             {/* CAMPAIGN DETECTION */}
             <div className="campaign-status" style={{ marginTop: 10 }}>
-  <b>Campaign:</b>{" "}
-  {campaignStatus.state === "ready" && "Ready"}
-  {campaignStatus.state === "created" && "Created"}
-{campaignStatus.state === "no_data" && campaignStatus.message}
-  {campaignStatus.state === "error" &&
-    `Error — ${campaignStatus.reason}`}
-  {campaignStatus.state === "pending" && "Pending"}
-</div>
+              <b>Campaign:</b>{" "}
+              {campaignStatus.state === "ready" && "Ready"}
+              {campaignStatus.state === "created" && "Created"}
+              {campaignStatus.state === "no_data" && campaignStatus.message}
+              {campaignStatus.state === "error" &&
+                `Error — ${campaignStatus.reason}`}
+              {campaignStatus.state === "pending" && "Pending"}
+            </div>
 
             {/* REQUEST DEBUG */}
             <div style={{ marginTop: 10, fontSize: 13, opacity: 0.9 }}>
@@ -620,72 +622,68 @@ const schemaStats = useMemo(() => {
             </div>
           ) : null}
 
-{/* RAW RESPONSE + METADATA */}
-{rawResponse && (
-  <>
-    <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
-      <button
-        type="button"
-        onClick={() => setShowRaw((v) => !v)}
-      >
-        {showRaw ? "Hide" : "Show"} Raw Server Response
-      </button>
+          {/* RAW RESPONSE + METADATA */}
+          {rawResponse ? (
+            <>
+              <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
+                <button type="button" onClick={() => setShowRaw((v) => !v)}>
+                  {showRaw ? "Hide" : "Show"} Raw Server Response
+                </button>
 
-      <button
-        type="button"
-        onClick={() => {
-          if (showMetadata) {
-            setShowMetadata(false);
-          } else {
-            loadMetadata();
-            setShowMetadata(true);
-          }
-        }}
-        disabled={!jobId}
-      >
-        {showMetadata ? "Hide" : "View"} Metadata
-      </button>
-    </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (showMetadata) {
+                      setShowMetadata(false);
+                    } else {
+                      loadMetadata();
+                      setShowMetadata(true);
+                    }
+                  }}
+                  disabled={!jobId}
+                >
+                  {showMetadata ? "Hide" : "View"} Metadata
+                </button>
+              </div>
 
-    {showMetadata && (
-      <pre
-        style={{
-          whiteSpace: "pre-wrap",
-          wordBreak: "break-word",
-          border: "1px solid rgba(255,255,255,0.15)",
-          padding: 10,
-          borderRadius: 8,
-          maxHeight: 260,
-          overflow: "auto",
-          marginTop: 8,
-        }}
-      >
-        {metadataLoading
-          ? "Loading metadata…"
-          : JSON.stringify(metadata, null, 2)}
-      </pre>
-    )}
+              {showMetadata ? (
+                <pre
+                  style={{
+                    whiteSpace: "pre-wrap",
+                    wordBreak: "break-word",
+                    border: "1px solid rgba(255,255,255,0.15)",
+                    padding: 10,
+                    borderRadius: 8,
+                    maxHeight: 260,
+                    overflow: "auto",
+                    marginTop: 8,
+                  }}
+                >
+                  {metadataLoading
+                    ? "Loading metadata…"
+                    : JSON.stringify(metadata, null, 2)}
+                </pre>
+              ) : null}
 
-    {showRaw && (
-      <pre
-        style={{
-          whiteSpace: "pre-wrap",
-          wordBreak: "break-word",
-          border: "1px solid rgba(255,255,255,0.15)",
-          padding: 10,
-          borderRadius: 8,
-          maxHeight: 260,
-          overflow: "auto",
-          marginTop: 8,
-        }}
-      >
-        {rawResponse}
-      </pre>
-                )}
+              {showRaw ? (
+                <pre
+                  style={{
+                    whiteSpace: "pre-wrap",
+                    wordBreak: "break-word",
+                    border: "1px solid rgba(255,255,255,0.15)",
+                    padding: 10,
+                    borderRadius: 8,
+                    maxHeight: 260,
+                    overflow: "auto",
+                    marginTop: 8,
+                  }}
+                >
+                  {rawResponse}
+                </pre>
+              ) : null}
             </>
-          )}
-        </div> 
-
+          ) : null}
+        </div>
 
         {/* RIGHT */}
         <div className="mi-right">
@@ -706,7 +704,6 @@ const schemaStats = useMemo(() => {
             <div className="mi-inspector">
               <h3>{titleCase(expandedSchema)} Events</h3>
 
-              {/* Helpful empty state */}
               {events.filter((e) => e?.meta?.tableName === expandedSchema)
                 .length === 0 ? (
                 <div style={{ opacity: 0.85 }}>
