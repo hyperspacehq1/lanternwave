@@ -23,13 +23,19 @@ const SCHEMA_PIPELINE = [
   encounters,
 ] as const;
 
+function campaignNameFromFilename(filename: string) {
+  return filename.replace(/\.[^/.]+$/, "").trim();
+}
+
 export async function ingestAdventureCodex({
   openaiFileId,
   adminUserId,
+  originalFilename,
   onEvent,
 }: {
   openaiFileId: string;
   adminUserId: string;
+  originalFilename: string;
   onEvent?: (e: any) => void;
 }) {
   const emit = (stage: string, message: string, meta?: any) =>
@@ -42,15 +48,15 @@ export async function ingestAdventureCodex({
 
   try {
     for (const schemaDef of SCHEMA_PIPELINE) {
+      // 🔒 HARD ASSERT — schema identity must exist
+      if (!schemaDef.name) {
+        throw new Error(`Schema missing name: ${schemaDef}`);
+      }
+
       const tableName = schemaDef.name;
 
       emit("schema_extract_start", `Extracting ${tableName}`, { tableName });
 
-if (!schemaDef.schema?.name) {
-  throw new Error(
-    `Schema missing name: ${schemaDef.name}`
-  );
-}
       const response = await openai.responses.create({
         model: "gpt-4.1-mini",
         input: [
@@ -69,9 +75,9 @@ if (!schemaDef.schema?.name) {
         ],
         text: {
           format: {
-            type: "json_schema",        // ✅ CORRECT
-            name: schemaDef.schema.name,
-            schema: schemaDef.schema.schema,
+            type: "json_schema",
+            name: schemaDef.name,          // ✅ FIXED
+            schema: schemaDef.schema,      // ✅ FIXED
           },
         },
       });
@@ -91,12 +97,18 @@ if (!schemaDef.schema?.name) {
       });
 
       const insertedRows: any[] = [];
+
       for (const row of rows) {
         const insertData = {
           ...row,
           tenant_id: ADMIN_TENANT_ID,
           campaign_id: tableName === "campaigns" ? null : rootCampaignId,
         };
+
+        // ✅ Campaign name fallback rule (HERE is the right place)
+        if (tableName === "campaigns" && !insertData.name) {
+          insertData.name = campaignNameFromFilename(originalFilename);
+        }
 
         const { sql, params } = buildInsert({
           table: tableName,
