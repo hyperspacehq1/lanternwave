@@ -7,7 +7,7 @@ export default function JoinPanel({
   encounterId,
   sessionId,
   campaignId,
-  joinPath,          // e.g. "npcs" | "items" | "locations" | "events" | "encounters"
+  joinPath,          // "npcs" | "items" | "locations" | "events" | "encounters"
   idField,           // npc_id | item_id | location_id | event_id | encounter_id
   labelField = "name"
 }) {
@@ -22,8 +22,14 @@ export default function JoinPanel({
   const scopeId = encounterId || sessionId;
   const scopeType = encounterId ? "encounters" : "sessions";
 
+  if (!scopeId) {
+    return null;
+  }
+
   /* ----------------------------------------------------------
-     Build base URL (CRITICAL FIX)
+     Build base URL (FINAL CONTRACT)
+     - sessions → query-param identity
+     - encounters → path-param identity
   ---------------------------------------------------------- */
   const baseUrl =
     scopeType === "sessions"
@@ -31,11 +37,9 @@ export default function JoinPanel({
       : `/api/${scopeType}/${scopeId}/${joinPath}`;
 
   /* ----------------------------------------------------------
-     Load attached (scope scoped)
+     Load attached (scope-scoped)
   ---------------------------------------------------------- */
   useEffect(() => {
-    if (!scopeId) return;
-
     fetch(baseUrl, { credentials: "include" })
       .then((r) => r.json())
       .then((data) => {
@@ -56,10 +60,10 @@ export default function JoinPanel({
         );
         setAttached([]);
       });
-  }, [baseUrl, joinPath, scopeId]);
+  }, [baseUrl, joinPath]);
 
   /* ----------------------------------------------------------
-     Load available (campaign scoped)
+     Load available (campaign-scoped)
   ---------------------------------------------------------- */
   useEffect(() => {
     if (!campaignId) return;
@@ -92,10 +96,9 @@ export default function JoinPanel({
      Attach
   ---------------------------------------------------------- */
   async function attach() {
-    if (!selectedId || !scopeId) return;
+    if (!selectedId) return;
 
     setLoading(true);
-
     try {
       await fetch(baseUrl, {
         method: "POST",
@@ -121,8 +124,6 @@ export default function JoinPanel({
      Detach
   ---------------------------------------------------------- */
   async function detach(id) {
-    if (!scopeId) return;
-
     try {
       await fetch(baseUrl, {
         method: "DELETE",

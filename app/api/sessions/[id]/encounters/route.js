@@ -6,9 +6,10 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /* -----------------------------------------------------------
-   GET /api/sessions/[id]/encounters
+   GET /api/sessions/[id]/encounters?session_id=UUID
+   Collection-style: returns [] if no session_id
 ------------------------------------------------------------ */
-export async function GET(req, { params }) {
+export async function GET(req) {
   let ctx;
   try {
     ctx = await getTenantContext(req);
@@ -16,10 +17,13 @@ export async function GET(req, { params }) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
- const sessionId = params?.id;
-if (!sessionId) {
-  return Response.json([]);
-}
+  const { searchParams } = new URL(req.url);
+  const sessionId = searchParams.get("session_id");
+
+  // IMPORTANT: JoinPanel expects array, never 400
+  if (!sessionId) {
+    return Response.json([]);
+  }
 
   const { rows } = await query(
     `
@@ -55,9 +59,9 @@ if (!sessionId) {
 }
 
 /* -----------------------------------------------------------
-   POST /api/sessions/[id]/encounters
+   POST /api/sessions/[id]/encounters?session_id=UUID
 ------------------------------------------------------------ */
-export async function POST(req, { params }) {
+export async function POST(req) {
   let ctx;
   try {
     ctx = await getTenantContext(req);
@@ -65,12 +69,20 @@ export async function POST(req, { params }) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const sessionId = params?.id;
+  const { searchParams } = new URL(req.url);
+  const sessionId = searchParams.get("session_id");
   const { encounter_id } = await req.json();
 
-  if (!sessionId || !encounter_id) {
+  if (!sessionId) {
     return Response.json(
-      { error: "session_id and encounter_id required" },
+      { error: "session_id required" },
+      { status: 400 }
+    );
+  }
+
+  if (!encounter_id) {
+    return Response.json(
+      { error: "encounter_id required" },
       { status: 400 }
     );
   }
@@ -93,9 +105,9 @@ export async function POST(req, { params }) {
 }
 
 /* -----------------------------------------------------------
-   DELETE /api/sessions/[id]/encounters
+   DELETE /api/sessions/[id]/encounters?session_id=UUID
 ------------------------------------------------------------ */
-export async function DELETE(req, { params }) {
+export async function DELETE(req) {
   let ctx;
   try {
     ctx = await getTenantContext(req);
@@ -103,12 +115,20 @@ export async function DELETE(req, { params }) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const sessionId = params?.id;
+  const { searchParams } = new URL(req.url);
+  const sessionId = searchParams.get("session_id");
   const { encounter_id } = await req.json();
 
-  if (!sessionId || !encounter_id) {
+  if (!sessionId) {
     return Response.json(
-      { error: "session_id and encounter_id required" },
+      { error: "session_id required" },
+      { status: 400 }
+    );
+  }
+
+  if (!encounter_id) {
+    return Response.json(
+      { error: "encounter_id required" },
       { status: 400 }
     );
   }
