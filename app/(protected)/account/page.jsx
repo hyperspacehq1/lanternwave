@@ -110,7 +110,7 @@ export default function AccountPage() {
                       }
                     />
                   </span>
-                  Player Characters
+                  Player Characters Beacon (GM Dashboard)
                 </label>
               </div>
             </div>

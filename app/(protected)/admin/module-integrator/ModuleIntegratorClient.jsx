@@ -127,25 +127,14 @@ async function loadMetadata() {
 }
 
   /* ============================================================
-     DERIVED: campaign status + fatal errors
+     DERIVED: campaign status (AUTHORITATIVE)
+     Rule: completed + rootCampaignId = READY
   ============================================================ */
 
- const fatalErrors = useMemo(() => {
-  const eventErrors = events.filter((e) => e.stage === "error");
-  if (eventErrors.length) return eventErrors;
-
-  // Fallback to job-level failure
-  if (phase === "failed" && phaseNotes?.includes("[error]")) {
-    return [
-      {
-        stage: "error",
-        meta: { message: phaseNotes },
-      },
-    ];
-  }
-
-  return [];
-}, [events, phase, phaseNotes]);
+  const completedEvent = useMemo(
+    () => events.find((e) => e.stage === "completed" && e?.meta?.rootCampaignId),
+    [events]
+  );
 
   const campaignEvents = useMemo(
     () => events.filter((e) => e?.meta?.tableName === "campaigns"),
@@ -153,22 +142,47 @@ async function loadMetadata() {
   );
 
   const campaignStatus = useMemo(() => {
-    const created = campaignEvents.find((e) => e.stage === "db_insert_row");
-    const skipped = campaignEvents.find((e) => e.stage === "schema_skipped");
-    const errored = campaignEvents.find((e) => e.stage === "error");
+    // ✅ AUTHORITATIVE READY STATE
+    if (completedEvent) {
+      return {
+        state: "ready",
+        campaignId: completedEvent.meta.rootCampaignId,
+      };
+    }
 
-    if (created) return { state: "created" };
-    if (errored) return { state: "error", reason: errored?.meta?.message };
-    if (skipped) return { state: "skipped", reason: skipped?.meta?.reason };
-    return { state: "pending" };
-  }, [campaignEvents]);
+   // Legacy / fallback signals
+const created = campaignEvents.find((e) => e.stage === "db_insert_row");
+const errored = campaignEvents.find((e) => e.stage === "error");
+const skipped = campaignEvents.find((e) => e.stage === "schema_skipped");
+
+if (created) return { state: "created" };
+
+if (errored)
+  return {
+    state: "error",
+    reason: errored?.meta?.message,
+  };
+
+if (skipped)
+  return {
+    state: "no_data",
+    message: `No ${skipped?.meta?.tableName} found in source PDF`,
+  };
+
+return { state: "pending" };
 
   /* ============================================================
      DERIVED: job-level progress (from events)
   ============================================================ */
 
 const jobProgress = useMemo(() => {
-  // Prefer event-driven progress
+  // ✅ AUTHORITATIVE: completed event = 100%
+  const completedEvent = events.find((e) => e.stage === "completed");
+  if (completedEvent) {
+    return { percent: 100, stage: "Completed" };
+  }
+
+  // Existing event-driven progress
   let max = 0;
   let stage = "Pending";
 
@@ -199,6 +213,26 @@ const jobProgress = useMemo(() => {
 
   return { percent: max, stage };
 }, [events, phaseNotes]);
+
+/* ============================================================
+   DERIVED: schema data counts
+============================================================ */
+const schemaStats = useMemo(() => {
+  const schemaDoneEvents = events.filter(
+    (e) => e.stage === "schema_extract_done"
+  );
+
+  const schemasWithData = schemaDoneEvents.filter(
+    (e) => Array.isArray(e.meta?.rows) ? e.meta.rows.length > 0 : e.meta?.rows > 0
+  ).length;
+
+  const totalSchemas = SCHEMA_ORDER.length;
+
+  return {
+    schemasWithData,
+    totalSchemas,
+  };
+}, [events]);
 
   /* ============================================================
      DERIVED: pre-job pipeline (what user expects to see)
@@ -524,16 +558,23 @@ const jobProgress = useMemo(() => {
               <div className="job-progress-percent">{jobProgress.percent}%</div>
             </div>
 
+{/* SCHEMA DATA SUMMARY */}
+<div style={{ marginTop: 6, fontSize: 12, opacity: 0.85 }}>
+  Schemas with data:{" "}
+  <b>{schemaStats.schemasWithData}</b> / {schemaStats.totalSchemas}
+</div>
+
             {/* CAMPAIGN DETECTION */}
             <div className="campaign-status" style={{ marginTop: 10 }}>
-              <b>Campaign:</b>{" "}
-              {campaignStatus.state === "created" && "Created"}
-              {campaignStatus.state === "skipped" &&
-                `Skipped — ${campaignStatus.reason}`}
-              {campaignStatus.state === "error" &&
-                `Error — ${campaignStatus.reason}`}
-              {campaignStatus.state === "pending" && "Pending"}
-            </div>
+  <b>Campaign:</b>{" "}
+  {campaignStatus.state === "ready" && "Ready"}
+  {campaignStatus.state === "created" && "Created"}
+  {campaignStatus.state === "skipped" &&
+    `Skipped — ${campaignStatus.reason}`}
+  {campaignStatus.state === "error" &&
+    `Error — ${campaignStatus.reason}`}
+  {campaignStatus.state === "pending" && "Pending"}
+</div>
 
             {/* REQUEST DEBUG */}
             <div style={{ marginTop: 10, fontSize: 13, opacity: 0.9 }}>
