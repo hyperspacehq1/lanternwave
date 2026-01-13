@@ -9,7 +9,14 @@ export const dynamic = "force-dynamic";
    GET ?session_id=
 -------------------------------- */
 export async function GET(req) {
-  const ctx = await getTenantContext(req);
+  let ctx;
+  try {
+    ctx = await getTenantContext(req);
+  } catch (err) {
+    console.error("getTenantContext failed (GET encounters)", err);
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { searchParams } = new URL(req.url);
   const sessionId = searchParams.get("session_id");
 
@@ -47,13 +54,23 @@ export async function GET(req) {
    POST ?session_id=
 -------------------------------- */
 export async function POST(req) {
-  const ctx = await getTenantContext(req);
+  let ctx;
+  try {
+    ctx = await getTenantContext(req);
+  } catch (err) {
+    console.error("getTenantContext failed (POST encounters)", err);
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { searchParams } = new URL(req.url);
   const sessionId = searchParams.get("session_id");
   const { encounter_id } = await req.json();
 
   if (!sessionId || !encounter_id) {
-    return Response.json({ error: "session_id and encounter_id required" }, { status: 400 });
+    return Response.json(
+      { error: "session_id and encounter_id required" },
+      { status: 400 }
+    );
   }
 
   await query(
@@ -72,13 +89,23 @@ export async function POST(req) {
    DELETE ?session_id=
 -------------------------------- */
 export async function DELETE(req) {
-  const ctx = await getTenantContext(req);
+  let ctx;
+  try {
+    ctx = await getTenantContext(req);
+  } catch (err) {
+    console.error("getTenantContext failed (DELETE encounters)", err);
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { searchParams } = new URL(req.url);
   const sessionId = searchParams.get("session_id");
   const { encounter_id } = await req.json();
 
   if (!sessionId || !encounter_id) {
-    return Response.json({ error: "session_id and encounter_id required" }, { status: 400 });
+    return Response.json(
+      { error: "session_id and encounter_id required" },
+      { status: 400 }
+    );
   }
 
   await query(
