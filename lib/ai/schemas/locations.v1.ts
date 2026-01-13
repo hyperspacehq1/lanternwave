@@ -1,4 +1,6 @@
-const locationsSchema = {
+import { JsonSchema2026, assertSchemaName } from "@/lib/ai/schemaTypes";
+
+const locationsSchema: JsonSchema2026 = {
   name: "locations",
   strict: true,
 
@@ -17,52 +19,35 @@ const locationsSchema = {
 
       world: {
         type: ["string", "null"],
-        description:
-          "World, realm, or plane where the location exists.",
+        description: "World, realm, or plane.",
       },
 
       description: {
         type: ["string", "null"],
-        description:
-          "Narrative description of the location.",
+        description: "Narrative description of the location.",
       },
 
       address_street: {
         type: ["string", "null"],
-        description:
-          "Street address if applicable (usually null).",
       },
 
       address_city: {
         type: ["string", "null"],
-        description:
-          "City or settlement name if applicable.",
       },
 
       address_state: {
         type: ["string", "null"],
-        description:
-          "State or region if applicable.",
       },
 
       address_zip: {
         type: ["string", "null"],
-        description:
-          "Postal or ZIP code if applicable.",
       },
 
       address_country: {
         type: ["string", "null"],
-        description:
-          "Country if applicable.",
       },
     },
 
-    /*
-      OPENAI RULE:
-      Every property must be listed in `required`
-      even if its value is allowed to be null.
-    */
     required: [
       "name",
       "world",
@@ -76,4 +61,5 @@ const locationsSchema = {
   },
 };
 
+assertSchemaName(locationsSchema);
 export default locationsSchema;

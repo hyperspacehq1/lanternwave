@@ -1,4 +1,6 @@
-const campaignsSchema = {
+import { JsonSchema2026, assertSchemaName } from "@/lib/ai/schemaTypes";
+
+const campaignsSchema: JsonSchema2026 = {
   name: "campaigns",
   strict: true,
 
@@ -104,4 +106,5 @@ const campaignsSchema = {
   },
 };
 
+assertSchemaName(campaignsSchema);
 export default campaignsSchema;

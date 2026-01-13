@@ -1,33 +1,39 @@
-const sessionsSchema = {
+import { JsonSchema2026, assertSchemaName } from "@/lib/ai/schemaTypes";
+
+const sessionsSchema: JsonSchema2026 = {
   name: "sessions",
-  strict: true,	
+  strict: true,
 
   description:
-    "Represents an individual chapter or chapter-like segment within a larger RPG campaign. Sessions define the narrative structure and progression of the adventure.",
+    "Represents an individual chapter or session within a larger RPG campaign.",
+
   schema: {
     type: "object",
     additionalProperties: false,
+
     properties: {
       name: {
         type: "string",
         description:
-          "The title of the chapter or session. This functions like a chapter name in a book and represents a distinct portion of the overall campaign narrative. Less than 20 words.",
+          "Title of the chapter or session. Less than 20 words.",
       },
 
       description: {
         type: "string",
         description:
-          "A concise summary of the session’s story events, themes, or objectives. This should describe what happens during this chapter in 100 words or fewer.",
+          "Summary of the session’s story events. Under 100 words.",
       },
 
       notes: {
         type: "string",
         description:
-          "Additional notes, context, or guidance for running the session. This may include expected outcomes, optional story beats, pacing notes, or special considerations not covered in the main description. Maximum 400 words.",
+          "Additional guidance or context. Maximum 400 words.",
       },
     },
+
     required: ["name", "description", "notes"],
   },
 };
 
+assertSchemaName(sessionsSchema);
 export default sessionsSchema;

@@ -46,6 +46,11 @@ export async function ingestAdventureCodex({
 
       emit("schema_extract_start", `Extracting ${tableName}`, { tableName });
 
+if (!schemaDef.schema?.name) {
+  throw new Error(
+    `Schema missing name: ${schemaDef.name}`
+  );
+}
       const response = await openai.responses.create({
         model: "gpt-4.1-mini",
         input: [

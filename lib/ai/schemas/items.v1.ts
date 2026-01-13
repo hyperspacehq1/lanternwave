@@ -1,17 +1,20 @@
-const itemsSchema = {
+import { JsonSchema2026, assertSchemaName } from "@/lib/ai/schemaTypes";
+
+const itemsSchema: JsonSchema2026 = {
   name: "items",
   strict: true,
 
   description:
     "Items, artifacts, weapons, or objects that appear within an RPG campaign.",
+
   schema: {
     type: "object",
     additionalProperties: false,
+
     properties: {
       name: {
         type: "string",
-        description:
-          "Name of the item or artifact. Less than 20 words.",
+        description: "Name of the item or artifact. Less than 20 words.",
       },
 
       item_type: {
@@ -38,8 +41,10 @@ const itemsSchema = {
           "Special traits, magical effects, or unique behaviors of the item.",
       },
     },
+
     required: ["name", "item_type", "description", "notes", "properties"],
   },
 };
 
+assertSchemaName(itemsSchema);
 export default itemsSchema;
