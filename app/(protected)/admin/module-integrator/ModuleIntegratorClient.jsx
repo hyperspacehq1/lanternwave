@@ -126,6 +126,20 @@ async function loadMetadata() {
   }
 }
 
+/* ============================================================
+   DERIVED: campaign-related events
+============================================================ */
+
+const completedEvent = useMemo(
+  () => events.find((e) => e.stage === "completed" && e?.meta?.rootCampaignId),
+  [events]
+);
+
+const campaignEvents = useMemo(
+  () => events.filter((e) => e?.meta?.tableName === "campaigns"),
+  [events]
+);
+
   /* ============================================================
      DERIVED: campaign status (AUTHORITATIVE)
      Rule: completed + rootCampaignId = READY
