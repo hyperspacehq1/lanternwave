@@ -72,18 +72,25 @@ export default function NpcForm({ record, onChange }) {
   const [selectedClipId, setSelectedClipId] = useState(null);
 
   // Load image clips
-  useEffect(() => {
-    fetch("/api/R2/list")
-      .then((r) => r.json())
-      .then((res) => {
-        if (!res?.ok) return;
-        const images = res.rows.filter((c) =>
-          ["image/jpeg", "image/png"].includes(c.mime_type)
-        );
-        setClips(images);
-      })
-      .catch(() => {});
-  }, []);
+ useEffect(() => {
+  fetch("/api/r2/list", {
+    cache: "no-store",
+    credentials: "include",
+  })
+    .then((r) => r.json())
+    .then((res) => {
+      if (!res?.ok || !Array.isArray(res.rows)) return;
+
+      const images = res.rows.filter((c) =>
+        ["image/jpeg", "image/png"].includes(c.mime_type)
+      );
+
+      setClips(images);
+    })
+    .catch((err) => {
+      console.error("[NpcForm] failed to load clips", err);
+    });
+}, []);
 
   // Sync existing image (if provided by parent loader)
   useEffect(() => {
