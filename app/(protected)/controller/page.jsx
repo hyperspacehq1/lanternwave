@@ -26,7 +26,7 @@ function streamUrlForKey(key) {
 }
 
 /* ================================
-   Image size enforcement (OPTION A)
+   Image size enforcement (ONLY ADDITION)
 ================================ */
 const MAX_IMAGE_DIMENSION = 2048;
 
@@ -38,10 +38,7 @@ function validateImageDimensions(file) {
     img.onload = () => {
       URL.revokeObjectURL(objectUrl);
 
-      if (
-        img.width > MAX_IMAGE_DIMENSION ||
-        img.height > MAX_IMAGE_DIMENSION
-      ) {
+      if (img.width > MAX_IMAGE_DIMENSION || img.height > MAX_IMAGE_DIMENSION) {
         reject(
           new Error(
             "Your image is too large. Please compress it or resize dimensions to under 2048 × 2048 pixels before uploading."
@@ -134,6 +131,28 @@ async function uploadClip(file, onProgress) {
   return key;
 }
 
+async function getNowPlaying() {
+  const res = await fetch("/api/r2/now-playing", {
+    cache: "no-store",
+    credentials: "include",
+  });
+  if (!res.ok) return null;
+  const data = await res.json();
+  return data.nowPlaying || null;
+}
+
+async function setNowPlaying(key) {
+  const res = await fetch("/api/r2/now-playing", {
+    method: "POST",
+    credentials: "include",
+    body: JSON.stringify({ key }),
+    headers: { "Content-Type": "application/json" },
+  });
+  if (!res.ok) throw new Error("Not authenticated");
+  const data = await res.json();
+  return data.nowPlaying || null;
+}
+
 /* ================================
    Controller Page
 ================================ */
@@ -148,20 +167,19 @@ export default function ControllerPage() {
   const [nowPlaying, setNowPlayingState] = useState(null);
   const [mediaFilter, setMediaFilter] = useState("all");
 
-  const filteredClips = clips.filter((clip) =>
-    mediaFilter === "all"
-      ? true
-      : clipTypeFromKey(clip.object_key) === mediaFilter
-  );
+  const filteredClips = clips.filter((clip) => {
+    if (mediaFilter === "all") return true;
+    return clipTypeFromKey(clip.object_key) === mediaFilter;
+  });
 
   async function refresh() {
     setLoading(true);
     try {
-      const rows = Array.isArray(await listClips())
-        ? await listClips()
-        : [];
+      const result = await listClips();
+      const rows = Array.isArray(result) ? result : [];
       rows.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
       setClips(rows);
+      setNowPlayingState(await getNowPlaying());
     } finally {
       setLoading(false);
     }
@@ -170,6 +188,11 @@ export default function ControllerPage() {
   useEffect(() => {
     refresh();
   }, []);
+
+  const playingKey = nowPlaying?.key || audio?.currentKey || null;
+  const previewKey = playingKey;
+  const previewType = previewKey ? clipTypeFromKey(previewKey) : null;
+  const previewUrl = previewKey ? streamUrlForKey(previewKey) : null;
 
   return (
     <div className="lw-main">
@@ -182,8 +205,8 @@ export default function ControllerPage() {
             SELECT FILE
             <input
               type="file"
-              accept=".mp3,.mp4,.jpg,.jpeg,.png"
               disabled={loading}
+              accept=".mp3,.mp4,.jpg,.jpeg,.png"
               onChange={async (e) => {
                 const file = e.target.files?.[0];
                 if (!file || loading) return;
@@ -193,7 +216,7 @@ export default function ControllerPage() {
                 setLoading(true);
 
                 try {
-                  // ✅ Image size enforcement
+                  // ✅ ONLY NEW CALL
                   if (file.type.startsWith("image/")) {
                     await validateImageDimensions(file);
                   }
@@ -223,6 +246,169 @@ export default function ControllerPage() {
           )}
 
           {uploadError && <div className="lw-upload-error">{uploadError}</div>}
+        </section>
+
+        {/* CLIP LIBRARY */}
+        <section className="lw-panel">
+          <h2 className="lw-panel-title">CLIP LIBRARY</h2>
+
+          <div className="lw-clip-filters">
+            {[
+              ["all", "ALL MEDIA"],
+              ["image", "IMAGES"],
+              ["audio", "MUSIC"],
+              ["video", "VIDEOS"],
+            ].map(([key, label]) => (
+              <button
+                key={key}
+                className={`lw-btn ${mediaFilter === key ? "active" : ""}`}
+                onClick={() => setMediaFilter(key)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {loading && <div className="lw-loading">Loading clips…</div>}
+
+          <div className="lw-clip-list">
+            {filteredClips.map((clip) => {
+              const key = clip.object_key;
+              const isNow = playingKey === key;
+              const isBusy = busyKey === key || loading;
+
+              return (
+                <div
+                  key={key}
+                  className={`lw-clip-row ${
+                    isNow ? "lw-clip-row-active" : ""
+                  }`}
+                >
+                  <div className="lw-clip-main">
+                    <span className="lw-clip-type">
+                      {clipTypeFromKey(key).toUpperCase()}
+                    </span>
+                    <span className="lw-clip-name">
+                      {displayNameFromKey(key)}
+                    </span>
+                  </div>
+
+                  <div className="lw-clip-actions">
+                    <button
+                      className={`lw-btn loop-btn ${
+                        audio?.loop && isNow ? "active" : ""
+                      }`}
+                      disabled={isBusy}
+                      onClick={() => {
+                        if (!audio?.setLoop) return;
+                        audio.setLoop(!audio.loop);
+                      }}
+                    >
+                      ⟳
+                    </button>
+
+                    <button
+                      className="lw-btn"
+                      disabled={isBusy}
+                      onClick={async () => {
+                        setBusyKey(key);
+                        try {
+                          await setNowPlaying(key);
+                          setNowPlayingState({ key });
+
+                          const type = clipTypeFromKey(key);
+                          if (type === "audio") {
+                            if (audio?.setLoop)
+                              audio.setLoop(!!audio.loop);
+                            audio.play(streamUrlForKey(key), key);
+                          } else {
+                            audio.stop();
+                          }
+                        } finally {
+                          setBusyKey(null);
+                        }
+                      }}
+                    >
+                      PLAY
+                    </button>
+
+                    <button
+                      className="lw-btn"
+                      disabled={isBusy}
+                      onClick={async () => {
+                        setBusyKey(key);
+                        try {
+                          await setNowPlaying(null);
+                          setNowPlayingState(null);
+                          audio.stop();
+                        } finally {
+                          setBusyKey(null);
+                        }
+                      }}
+                    >
+                      STOP
+                    </button>
+
+                    <button
+                      className="lw-btn lw-btn-danger"
+                      disabled={isBusy}
+                      onClick={async () => {
+                        setBusyKey(key);
+                        try {
+                          await deleteClip(key);
+                          await refresh();
+                        } finally {
+                          setBusyKey(null);
+                        }
+                      }}
+                    >
+                      DELETE
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* PLAYER PREVIEW */}
+        <section className="lw-panel">
+          <h2 className="lw-panel-title">PLAYER PREVIEW</h2>
+
+          <div className="lw-preview-frame">
+            {!previewKey && (
+              <div className="lw-preview-placeholder">NO CLIP</div>
+            )}
+
+            {previewKey && previewType === "image" && (
+              <img
+                src={previewUrl}
+                className="lw-preview-media"
+                alt="preview"
+              />
+            )}
+
+            {previewKey && previewType === "video" && (
+              <video
+                className="lw-preview-media"
+                src={previewUrl}
+                muted
+                autoPlay
+                loop={!!audio?.loop}
+                playsInline
+              />
+            )}
+
+            {previewKey && previewType === "audio" && (
+              <div className="lw-audio-visual">
+                <div className="lw-audio-bar" />
+                <div className="lw-audio-bar" />
+                <div className="lw-audio-bar" />
+                <div className="lw-audio-bar" />
+                <div className="lw-audio-bar" />
+              </div>
+            )}
+          </div>
         </section>
       </div>
     </div>
