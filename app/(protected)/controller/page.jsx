@@ -46,6 +46,27 @@ async function deleteClip(key) {
   if (!res.ok) throw new Error("Delete failed");
 }
 
+async function handleDeleteClip(key) {
+  if (!confirm("Delete this clip?")) return;
+
+  // Snapshot current state for rollback
+  const previousClips = clips;
+
+  // Optimistically remove from UI
+  setClips((prev) => prev.filter((c) => c.object_key !== key));
+  setBusyKey(key);
+
+  try {
+    await deleteClip(key);
+  } catch (err) {
+    console.error(err);
+    alert("Delete failed. Restoring clip.");
+    setClips(previousClips); // rollback
+  } finally {
+    setBusyKey(null);
+  }
+}
+
 async function uploadClip(file, onProgress) {
   const urlRes = await fetch("/api/r2/upload-url", {
     method: "POST",
