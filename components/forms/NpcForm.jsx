@@ -5,6 +5,15 @@ import Image from "next/image";
 import { withContext } from "@/lib/forms/withContext";
 import { useCampaignContext } from "@/lib/campaign/campaignContext";
 
+/* ------------------------------------------------------------
+   Helpers
+------------------------------------------------------------ */
+function displayFilename(objectKey) {
+  if (!objectKey) return "";
+  const base = objectKey.split("/").pop();
+  return base.replace(/^\d+-/, "");
+}
+
 const NPC_TYPES = [
   { value: "", label: "— Select type —" },
   { value: "ally", label: "Ally" },
@@ -69,42 +78,45 @@ export default function NpcForm({ record, onChange }) {
      NPC Image handling
   --------------------------------------------- */
   const [clips, setClips] = useState([]);
-  const [selectedClipId, setSelectedClipId] = useState(null);
+  const [selectedClip, setSelectedClip] = useState(null);
+
+  const npcId = record?.id || null;
 
   // Load image clips
- useEffect(() => {
-  fetch("/api/r2/list", {
-    cache: "no-store",
-    credentials: "include",
-  })
-    .then((r) => r.json())
-    .then((res) => {
-      if (!res?.ok || !Array.isArray(res.rows)) return;
-
-      const images = res.rows.filter((c) =>
-        ["image/jpeg", "image/png"].includes(c.mime_type)
-      );
-
-      setClips(images);
-    })
-    .catch((err) => {
-      console.error("[NpcForm] failed to load clips", err);
-    });
-}, []);
-
-  // Sync existing image (if provided by parent loader)
   useEffect(() => {
-    if (record?.image_clip_id) {
-      setSelectedClipId(record.image_clip_id);
-    }
-  }, [record?.image_clip_id]);
+    fetch("/api/r2/list", {
+      cache: "no-store",
+      credentials: "include",
+    })
+      .then((r) => r.json())
+      .then((res) => {
+        if (!res?.ok || !Array.isArray(res.rows)) return;
 
-  const npcId = record?.id;
+        const images = res.rows.filter((c) =>
+          ["image/jpeg", "image/png"].includes(c.mime_type)
+        );
+
+        setClips(images);
+      })
+      .catch((err) => {
+        console.error("[NpcForm] failed to load clips", err);
+      });
+  }, []);
+
+  // Sync existing image (if parent provided it)
+  useEffect(() => {
+    if (!record?.image_clip_id || !clips.length) return;
+
+    const clip = clips.find((c) => c.id === record.image_clip_id) || null;
+    setSelectedClip(clip);
+  }, [record?.image_clip_id, clips]);
 
   const attachImage = async (clipId) => {
-    if (!npcId) return;
+    if (!npcId || !clipId) return;
+
     await fetch(`/api/npcs/${npcId}/image`, {
       method: "POST",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ clip_id: clipId }),
     });
@@ -112,10 +124,13 @@ export default function NpcForm({ record, onChange }) {
 
   const removeImage = async () => {
     if (!npcId) return;
+
     await fetch(`/api/npcs/${npcId}/image`, {
       method: "DELETE",
+      credentials: "include",
     });
-    setSelectedClipId(null);
+
+    setSelectedClip(null);
   };
 
   return (
@@ -159,28 +174,32 @@ export default function NpcForm({ record, onChange }) {
 
         <select
           className="cm-input"
-          value={selectedClipId || ""}
-          onChange={async (e) => {
-            const clipId = e.target.value || null;
-            setSelectedClipId(clipId);
+          value={selectedClip?.id || ""}
+          onChange={(e) => {
+            const clip =
+              clips.find((c) => c.id === e.target.value) || null;
 
-            if (clipId) {
-              await attachImage(clipId);
+            setSelectedClip(clip);
+
+            if (clip) {
+              attachImage(clip.id);
             }
           }}
         >
           <option value="">— No image —</option>
           {clips.map((c) => (
             <option key={c.id} value={c.id}>
-              {c.title || c.object_key}
+              {c.title || displayFilename(c.object_key)}
             </option>
           ))}
         </select>
 
-        {selectedClipId && (
+        {selectedClip && (
           <div style={{ marginTop: 12 }}>
             <Image
-              src={`/api/R2/object/${selectedClipId}`}
+              src={`/api/r2/object/${encodeURIComponent(
+                selectedClip.object_key
+              )}`}
               alt="NPC"
               width={200}
               height={200}
