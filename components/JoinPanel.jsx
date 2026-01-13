@@ -23,14 +23,20 @@ export default function JoinPanel({
   const scopeType = encounterId ? "encounters" : "sessions";
 
   /* ----------------------------------------------------------
+     Build base URL (CRITICAL FIX)
+  ---------------------------------------------------------- */
+  const baseUrl =
+    scopeType === "sessions"
+      ? `/api/sessions/${joinPath}?session_id=${scopeId}`
+      : `/api/${scopeType}/${scopeId}/${joinPath}`;
+
+  /* ----------------------------------------------------------
      Load attached (scope scoped)
   ---------------------------------------------------------- */
   useEffect(() => {
     if (!scopeId) return;
 
-    fetch(`/api/${scopeType}/${scopeId}/${joinPath}`, {
-      credentials: "include",
-    })
+    fetch(baseUrl, { credentials: "include" })
       .then((r) => r.json())
       .then((data) => {
         if (Array.isArray(data)) {
@@ -50,7 +56,7 @@ export default function JoinPanel({
         );
         setAttached([]);
       });
-  }, [scopeId, scopeType, joinPath]);
+  }, [baseUrl, joinPath, scopeId]);
 
   /* ----------------------------------------------------------
      Load available (campaign scoped)
@@ -91,17 +97,16 @@ export default function JoinPanel({
     setLoading(true);
 
     try {
-      await fetch(`/api/${scopeType}/${scopeId}/${joinPath}`, {
+      await fetch(baseUrl, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ [idField]: selectedId }),
       });
 
-      const refreshed = await fetch(
-        `/api/${scopeType}/${scopeId}/${joinPath}`,
-        { credentials: "include" }
-      ).then((r) => r.json());
+      const refreshed = await fetch(baseUrl, {
+        credentials: "include",
+      }).then((r) => r.json());
 
       setAttached(Array.isArray(refreshed) ? refreshed : []);
     } catch (err) {
@@ -119,7 +124,7 @@ export default function JoinPanel({
     if (!scopeId) return;
 
     try {
-      await fetch(`/api/${scopeType}/${scopeId}/${joinPath}`, {
+      await fetch(baseUrl, {
         method: "DELETE",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
