@@ -105,24 +105,34 @@ export default function SessionForm({ record, onChange }) {
       </div>
 
       {/* -----------------------------
-          Related Entities (NEW)
+          Related Entities
       ------------------------------ */}
 
-      <JoinPanel
-        title="Events"
-        sessionId={record.id}
-        campaignId={campaign.id}
-        joinPath="events"
-        idField="event_id"
-      />
+      {record?._isNew && (
+        <div className="cm-muted">
+          Save the session before adding events or encounters.
+        </div>
+      )}
 
-      <JoinPanel
-        title="Encounters"
-        sessionId={record.id}
-        campaignId={campaign.id}
-        joinPath="encounters"
-        idField="encounter_id"
-      />
-    </div>
+      {!record?._isNew && (
+        <JoinPanel
+          title="Events"
+          sessionId={record.id}
+          campaignId={campaign.id}
+          joinPath="events"
+          idField="event_id"
+        />
+      )}
+
+      {!record?._isNew && (
+        <JoinPanel
+          title="Encounters"
+          sessionId={record.id}
+          campaignId={campaign.id}
+          joinPath="encounters"
+          idField="encounter_id"
+        />
+      )}
+  </div>
   );
 }
