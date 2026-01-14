@@ -13,34 +13,34 @@ export default function DebugNpcClipsPage() {
   const [loading, setLoading] = useState(false);
 
   /* -------------------------------------------------------
-     Load campaigns
+     Load campaigns (REAL prod contract: array)
   ------------------------------------------------------- */
-useEffect(() => {
-  fetch("/api/campaigns", {
-    credentials: "include",
-    cache: "no-store",
-  })
-    .then(async (r) => {
-      const json = await r.json();
-
-      if (!r.ok) {
-        throw new Error(
-          `/api/campaigns failed (${r.status}): ${JSON.stringify(json)}`
-        );
-      }
-
-      if (!Array.isArray(json)) {
-        throw new Error(
-          `/api/campaigns unexpected response: ${JSON.stringify(json)}`
-        );
-      }
-
-      setCampaigns(json);
+  useEffect(() => {
+    fetch("/api/campaigns", {
+      credentials: "include",
+      cache: "no-store",
     })
-    .catch((err) => {
-      setErrors((e) => [...e, `Campaign load error: ${err.message}`]);
-    });
-}, []);
+      .then(async (r) => {
+        const json = await r.json();
+
+        if (!r.ok) {
+          throw new Error(
+            `/api/campaigns failed (${r.status}): ${JSON.stringify(json)}`
+          );
+        }
+
+        if (!Array.isArray(json)) {
+          throw new Error(
+            `/api/campaigns unexpected response: ${JSON.stringify(json)}`
+          );
+        }
+
+        setCampaigns(json);
+      })
+      .catch((err) => {
+        setErrors((e) => [...e, `Campaign load error: ${err.message}`]);
+      });
+  }, []);
 
   /* -------------------------------------------------------
      Load NPCs + NPCs-with-clips when campaign changes
@@ -54,53 +54,55 @@ useEffect(() => {
     setNpcsWithClips(null);
 
     Promise.all([
-  fetch(`/api/npcs?campaign_id=${campaignId}`, {
-    credentials: "include",
-    cache: "no-store",
-  }).then(async (r) => {
-    const json = await r.json();
+      fetch(`/api/npcs?campaign_id=${campaignId}`, {
+        credentials: "include",
+        cache: "no-store",
+      }).then(async (r) => {
+        const json = await r.json();
 
-    if (!r.ok) {
-      throw new Error(
-        `/api/npcs failed (${r.status}): ${JSON.stringify(json)}`
-      );
-    }
+        if (!r.ok) {
+          throw new Error(
+            `/api/npcs failed (${r.status}): ${JSON.stringify(json)}`
+          );
+        }
 
-    if (!Array.isArray(json)) {
-      throw new Error(
-        `/api/npcs unexpected response: ${JSON.stringify(json)}`
-      );
-    }
+        if (!Array.isArray(json)) {
+          throw new Error(
+            `/api/npcs unexpected response: ${JSON.stringify(json)}`
+          );
+        }
 
-    return json;
-  }), // ✅ COMMA WAS MISSING HERE
+        return json;
+      }),
 
-  fetch(`/api/debug/npcs-with-clips?campaign_id=${campaignId}`, {
-    credentials: "include",
-  }).then(async (r) => {
-    const json = await r.json();
+      fetch(`/api/debug/npcs-with-clips?campaign_id=${campaignId}`, {
+        credentials: "include",
+        cache: "no-store",
+      }).then(async (r) => {
+        const json = await r.json();
 
-    if (!r.ok || !json?.ok) {
-      throw new Error(
-        `/api/debug/npcs-with-clips failed (${r.status}): ${JSON.stringify(
-          json
-        )}`
-      );
-    }
+        if (!r.ok || !json?.ok) {
+          throw new Error(
+            `/api/debug/npcs-with-clips failed (${r.status}): ${JSON.stringify(
+              json
+            )}`
+          );
+        }
 
-    return json.npcIds || [];
-  }),
-])
-  .then(([npcs, npcIdsWithClips]) => {
-    setAllNpcs(npcs);
-    setNpcsWithClips(npcIdsWithClips);
-  })
-  .catch((err) => {
-    setErrors((e) => [...e, err.message]);
-  })
-  .finally(() => {
-    setLoading(false);
-  });
+        return Array.isArray(json.npcIds) ? json.npcIds : [];
+      }),
+    ])
+      .then(([npcs, npcIdsWithClips]) => {
+        setAllNpcs(npcs);
+        setNpcsWithClips(npcIdsWithClips);
+      })
+      .catch((err) => {
+        setErrors((e) => [...e, err.message]);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, [campaignId]);
 
   /* -------------------------------------------------------
      Derived comparison
