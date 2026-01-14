@@ -74,10 +74,11 @@ export default function NpcForm({ record, onChange }) {
   }, [record?.id]);
 
   /* ---------------------------------------------
-     NPC Image handling
+     NPC Image handling (Option A)
   --------------------------------------------- */
   const [clips, setClips] = useState([]);
   const [selectedClip, setSelectedClip] = useState(null);
+  const [pendingClipId, setPendingClipId] = useState(null);
 
   const npcId = record?.id ?? null;
   const isNewNpc = !npcId;
@@ -103,22 +104,24 @@ export default function NpcForm({ record, onChange }) {
       });
   }, []);
 
-  // Sync existing image
+  // Sync existing image from record
   useEffect(() => {
     if (!record?.image_clip_id || !clips.length) return;
 
     const clip = clips.find((c) => c.id === record.image_clip_id) || null;
     setSelectedClip(clip);
+    setPendingClipId(null); // no pending change
   }, [record?.image_clip_id, clips]);
 
-  const attachImage = async (clipId) => {
-    if (!npcId || !clipId) return;
+  // Attach image ONLY on save (called externally)
+  const attachImageOnSave = async () => {
+    if (!npcId || !pendingClipId) return;
 
     await fetch(`/api/npcs/${npcId}/image`, {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ clip_id: clipId }),
+      body: JSON.stringify({ clip_id: pendingClipId }),
     });
   };
 
@@ -131,7 +134,30 @@ export default function NpcForm({ record, onChange }) {
     });
 
     setSelectedClip(null);
+    setPendingClipId(null);
   };
+
+  /* ------------------------------------------------------------
+     IMPORTANT:
+     Expose attachImageOnSave so parent SAVE can call it
+  ------------------------------------------------------------ */
+  useEffect(() => {
+    if (typeof onChange === "function") {
+      onChange(
+        withContext(
+          {
+            ...record,
+            __attachImageOnSave: attachImageOnSave,
+          },
+          {
+            campaign_id: campaign.id,
+            session_id: session.id,
+          }
+        )
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingClipId]);
 
   return (
     <div className="cm-detail-form">
@@ -183,17 +209,14 @@ export default function NpcForm({ record, onChange }) {
               clips.find((c) => c.id === e.target.value) || null;
 
             setSelectedClip(clip);
-
-            if (clip) {
-              attachImage(clip.id);
-            }
+            setPendingClipId(clip ? clip.id : null); // 🔴 store only
           }}
         >
           <option value="">— No image —</option>
           {clips.map((c) => (
             <option key={c.id} value={c.id}>
-  {displayFilename(c.object_key)}
-</option>
+              {displayFilename(c.object_key)}
+            </option>
           ))}
         </select>
 
@@ -205,18 +228,31 @@ export default function NpcForm({ record, onChange }) {
 
         {selectedClip && !isNewNpc && (
           <div style={{ marginTop: 12 }}>
-            <img
-              src={`/api/r2/stream?key=${encodeURIComponent(
-                selectedClip.object_key
-              )}`}
-              alt="NPC"
-              width={200}
-              height={200}
-              style={{
-                borderRadius: 6,
-                border: "1px solid rgba(255,255,255,0.15)",
-              }}
-            />
+
+ <div
+  style={{
+    width: 240,
+    height: 240,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    background: "rgba(0,0,0,0.25)",
+    borderRadius: 6,
+    border: "1px solid rgba(255,255,255,0.15)",
+  }}
+>
+  <img
+    src={`/api/r2/stream?key=${encodeURIComponent(
+      selectedClip.object_key
+    )}`}
+    alt="NPC"
+    style={{
+      maxWidth: "100%",
+      maxHeight: "100%",
+      objectFit: "contain",
+    }}
+  />
+</div>
 
             <div style={{ marginTop: 8 }}>
               <button
