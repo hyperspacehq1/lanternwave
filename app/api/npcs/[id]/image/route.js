@@ -4,18 +4,11 @@ import { getTenantContext } from "@/lib/tenant/getTenantContext";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function POST(req, ctx) {
+export async function POST(req, { params }) {
   try {
-    const tenantCtx = await getTenantContext(req);
-    const tenantId = tenantCtx?.tenantId;
-
-    const body = await req.json().catch(() => ({}));
-
-    const npcId =
-      ctx?.params?.id ||
-      body?.npc_id;
-
-    const clipId = body?.clip_id;
+    const ctx = await getTenantContext(req);
+    const tenantId = ctx?.tenantId;
+    const npcId = params?.id;
 
     if (!tenantId) {
       return Response.json(
@@ -31,6 +24,9 @@ export async function POST(req, ctx) {
       );
     }
 
+    const body = await req.json();
+    const clipId = body?.clip_id;
+
     if (!clipId) {
       return Response.json(
         { error: "clip_id required" },
@@ -44,10 +40,8 @@ export async function POST(req, ctx) {
     );
 
     await query(
-      `
-      INSERT INTO npc_clips (npc_id, clip_id)
-      VALUES ($1, $2)
-      `,
+      `INSERT INTO npc_clips (npc_id, clip_id)
+       VALUES ($1, $2)`,
       [npcId, clipId]
     );
 
@@ -61,15 +55,11 @@ export async function POST(req, ctx) {
   }
 }
 
-export async function DELETE(req, ctx) {
+export async function DELETE(req, { params }) {
   try {
-    const tenantCtx = await getTenantContext(req);
-    const tenantId = tenantCtx?.tenantId;
-
-    const body = await req.json().catch(() => ({}));
-    const npcId =
-      ctx?.params?.id ||
-      body?.npc_id;
+    const ctx = await getTenantContext(req);
+    const tenantId = ctx?.tenantId;
+    const npcId = params?.id;
 
     if (!tenantId || !npcId) {
       return Response.json(
