@@ -198,8 +198,8 @@ export default function GMDashboardPage() {
   /* =========================
      Load Records
   ========================= */
-  useEffect(() => {
-    if (!selectedCampaign?.id || !selectedSession?.id) return;
+useEffect(() => {
+  if (!selectedCampaign?.id) return;
 
     setLoading(true);
 
