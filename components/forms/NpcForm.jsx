@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import Image from "next/image";
 import { withContext } from "@/lib/forms/withContext";
 import { useCampaignContext } from "@/lib/campaign/campaignContext";
 
@@ -103,7 +102,7 @@ export default function NpcForm({ record, onChange }) {
       });
   }, []);
 
-  // Sync existing image (if parent provided it)
+  // Sync existing image
   useEffect(() => {
     if (!record?.image_clip_id || !clips.length) return;
 
@@ -196,16 +195,18 @@ export default function NpcForm({ record, onChange }) {
 
         {selectedClip && (
           <div style={{ marginTop: 12 }}>
-            <Image
-  src={`/api/r2/object/${selectedClip.object_key}`}
-  alt="NPC"
-  width={200}
-  height={200}
-  style={{
-    borderRadius: 6,
-    border: "1px solid rgba(255,255,255,0.15)",
-  }}
-/>
+            <img
+              src={`/api/r2/stream?key=${encodeURIComponent(
+                selectedClip.object_key
+              )}`}
+              alt="NPC"
+              width={200}
+              height={200}
+              style={{
+                borderRadius: 6,
+                border: "1px solid rgba(255,255,255,0.15)",
+              }}
+            />
 
             <div style={{ marginTop: 8 }}>
               <button
