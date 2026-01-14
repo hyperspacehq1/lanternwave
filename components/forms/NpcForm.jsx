@@ -197,16 +197,15 @@ export default function NpcForm({ record, onChange }) {
         {selectedClip && (
           <div style={{ marginTop: 12 }}>
             <Image
-src={`/api/r2/object/${selectedClip.object_key}`}
-              )}`}
-              alt="NPC"
-              width={200}
-              height={200}
-              style={{
-                borderRadius: 6,
-                border: "1px solid rgba(255,255,255,0.15)",
-              }}
-            />
+  src={`/api/r2/object/${selectedClip.object_key}`}
+  alt="NPC"
+  width={200}
+  height={200}
+  style={{
+    borderRadius: 6,
+    border: "1px solid rgba(255,255,255,0.15)",
+  }}
+/>
 
             <div style={{ marginTop: 8 }}>
               <button
