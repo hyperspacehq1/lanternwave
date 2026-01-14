@@ -5,27 +5,18 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /* -----------------------------------------------------------
-   POST → attach image (existing NPCs only)
+   POST → attach image
 ------------------------------------------------------------ */
-export async function POST(req, { params }) {
+export async function POST(req, ctx) {
   try {
-    const ctx = await getTenantContext(req);
-
-    // 🔧 FIX: allow cmApi header fallback
+    const tenantCtx = await getTenantContext(req);
     const tenantId =
-      ctx?.tenantId || req.headers.get("x-tenant-id");
+      tenantCtx?.tenantId || req.headers.get("x-tenant-id");
 
-    const npcId = params?.id;
-
-    const body = await req.json().catch(() => null);
-    const clipId = body?.clip_id;
-
-    if (!npcId) {
-      return Response.json(
-        { error: "Missing NPC id" },
-        { status: 400 }
-      );
-    }
+    const npcId =
+      ctx?.params?.npcId ||
+      ctx?.params?.id ||
+      (await req.json().catch(() => null))?.npc_id;
 
     if (!tenantId) {
       return Response.json(
@@ -34,6 +25,16 @@ export async function POST(req, { params }) {
       );
     }
 
+    if (!npcId) {
+      return Response.json(
+        { error: "Missing NPC id" },
+        { status: 400 }
+      );
+    }
+
+    const body = await req.json().catch(() => null);
+    const clipId = body?.clip_id;
+
     if (!clipId) {
       return Response.json(
         { error: "clip_id required" },
@@ -41,7 +42,7 @@ export async function POST(req, { params }) {
       );
     }
 
-    // Validate NPC ownership
+    // Validate NPC
     const npcCheck = await query(
       `
       SELECT id
@@ -60,7 +61,7 @@ export async function POST(req, { params }) {
       );
     }
 
-    // Validate clip ownership
+    // Validate clip
     const clipCheck = await query(
       `
       SELECT id
@@ -79,16 +80,12 @@ export async function POST(req, { params }) {
       );
     }
 
-    // Remove existing links
+    // Replace existing image
     await query(
-      `
-      DELETE FROM npc_clips
-      WHERE npc_id = $1
-      `,
+      `DELETE FROM npc_clips WHERE npc_id = $1`,
       [npcId]
     );
 
-    // Attach new image
     await query(
       `
       INSERT INTO npc_clips (npc_id, clip_id)
@@ -110,38 +107,19 @@ export async function POST(req, { params }) {
 /* -----------------------------------------------------------
    DELETE → detach image
 ------------------------------------------------------------ */
-export async function DELETE(req, { params }) {
+export async function DELETE(req, ctx) {
   try {
-    const ctx = await getTenantContext(req);
-
-    // 🔧 FIX: allow cmApi header fallback
+    const tenantCtx = await getTenantContext(req);
     const tenantId =
-      ctx?.tenantId || req.headers.get("x-tenant-id");
+      tenantCtx?.tenantId || req.headers.get("x-tenant-id");
 
-    const npcId = params?.id;
+    const npcId =
+      ctx?.params?.npcId || ctx?.params?.id;
 
-    if (!npcId || !tenantId) {
+    if (!tenantId || !npcId) {
       return Response.json(
-        { error: "Invalid tenant or NPC" },
+        { error: "Missing tenant or NPC id" },
         { status: 400 }
-      );
-    }
-
-    const npcCheck = await query(
-      `
-      SELECT id
-      FROM npcs
-      WHERE id = $1
-        AND tenant_id = $2
-        AND deleted_at IS NULL
-      `,
-      [npcId, tenantId]
-    );
-
-    if (!npcCheck.rowCount) {
-      return Response.json(
-        { error: "NPC not found for tenant" },
-        { status: 404 }
       );
     }
 
