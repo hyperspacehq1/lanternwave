@@ -54,6 +54,51 @@ export default function CampaignManagerPage() {
 
         setRecords((p) => ({ ...p, [activeType]: list }));
 
+/* ---------------------------------------------
+   Restore session for campaign (REQUIRED)
+--------------------------------------------- */
+useEffect(() => {
+  if (!campaign) return;
+  if (session) return; // already restored
+
+  const storedSessionId = localStorage.getItem(LS_SESSION);
+  if (!storedSessionId) return;
+
+  let cancelled = false;
+
+  (async () => {
+    try {
+      // IMPORTANT: explicitly load SESSIONS
+      const sessions = await cmApi.list("sessions", {
+        campaign_id: campaign.id,
+      });
+
+      if (cancelled) return;
+
+      const restored = sessions.find(
+        (s) => s.id === storedSessionId
+      );
+
+      if (restored) {
+        setCampaignContext({
+          campaign,
+          session: restored,
+        });
+      } else {
+        // stale session id
+        localStorage.removeItem(LS_SESSION);
+      }
+    } catch {
+      // fail silently by design
+    }
+  })();
+
+  return () => {
+    cancelled = true;
+  };
+}, [campaign?.id]);
+
+
         // ---- CAMPAIGN AUTO-SELECT ----
         if (activeType === "campaigns") {
           const storedId = localStorage.getItem(LS_CAMPAIGN);
