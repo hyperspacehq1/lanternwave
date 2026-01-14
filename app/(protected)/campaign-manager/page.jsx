@@ -108,38 +108,42 @@ export default function CampaignManagerPage() {
       : await cmApi.update(activeType, id, payload);
 
     // 2) Update state
-   setRecords((p) => ({
-  ...p,
-  [activeType]: (p[activeType] || []).map((r) => {
-    if (!r) return r;               // 🔴 guard nulls
-    return r.id === (_isNew ? id : saved.id)
-      ? saved
-      : r;
-  }),
-}));
+    setRecords((p) => ({
+      ...p,
+      [activeType]: (p[activeType] || []).map((r) => {
+        if (!r) return r;
+        return r.id === (_isNew ? id : saved.id) ? saved : r;
+      }),
+    }));
 
     setSelectedId(saved.id);
     setSelectedRecord(saved);
 
- // 3) Attach image AFTER save (NPCs only)
-if (activeType === "npcs" && __pendingImageClipId) {
-  try {
-    await fetch("/api/npc-image", {
-      method: "POST",
-      credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        npc_id: saved.id,
-        clip_id: __pendingImageClipId,
-      }),
-    });
+    // 3) Attach image AFTER save (NPCs only)
+    if (activeType === "npcs" && __pendingImageClipId) {
+      try {
+        await fetch("/api/npc-image", {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            npc_id: saved.id,
+            clip_id: __pendingImageClipId,
+          }),
+        });
+      } catch (err) {
+        console.error("[NPC image attach failed]", err);
+        // DO NOT throw
+      }
+    }
+
   } catch (err) {
-    console.error("[NPC image attach failed]", err);
+    console.error("[handleSave failed]", err);
     // DO NOT throw
   }
-}
+};
 
   const handleDelete = async () => {
     if (!selectedRecord) return;
