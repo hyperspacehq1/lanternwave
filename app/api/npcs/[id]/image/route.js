@@ -10,18 +10,10 @@ export async function POST(req, { params }) {
 
   try {
     const ctx = await getTenantContext(req);
-    console.log("[NPC IMAGE POST] ctx", trace, ctx);
-
     const tenantId = ctx?.tenantId;
     const npcId = params?.id;
 
     if (!tenantId || !npcId) {
-      console.error("[NPC IMAGE POST] missing ids", {
-        trace,
-        tenantId,
-        npcId,
-      });
-
       return Response.json(
         { error: "Missing tenant or NPC id", trace },
         { status: 400 }
@@ -31,15 +23,12 @@ export async function POST(req, { params }) {
     let body;
     try {
       body = await req.json();
-    } catch (e) {
-      console.error("[NPC IMAGE POST] invalid json", trace, e);
+    } catch {
       return Response.json(
         { error: "Invalid JSON body", trace },
         { status: 400 }
       );
     }
-
-    console.log("[NPC IMAGE POST] body", trace, body);
 
     const clipId = body?.clip_id;
     if (!clipId) {
@@ -60,34 +49,11 @@ export async function POST(req, { params }) {
       [npcId, clipId]
     );
 
-    console.log("[NPC IMAGE POST] success", trace);
-
     return Response.json({ ok: true, trace });
   } catch (err) {
     console.error("[NPC IMAGE POST] fatal", err);
     return Response.json(
       { error: "Failed to attach image", trace },
-      { status: 500 }
-    );
-  }
-}
-
-    await query(
-      `DELETE FROM npc_clips WHERE npc_id = $1`,
-      [npcId]
-    );
-
-    await query(
-      `INSERT INTO npc_clips (npc_id, clip_id)
-       VALUES ($1, $2)`,
-      [npcId, clipId]
-    );
-
-    return Response.json({ ok: true });
-  } catch (err) {
-    console.error("[NPC IMAGE POST]", err);
-    return Response.json(
-      { error: "Failed to attach image" },
       { status: 500 }
     );
   }
