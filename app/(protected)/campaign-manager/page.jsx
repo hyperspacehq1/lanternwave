@@ -130,7 +130,7 @@ if (!selectedId && first) {
   }));
 
   setSelectedRecord(saved);
-  await selectedRecord.__attachImageOnSave?.();
+  await saved.__attachImageOnSave?.();
 };
 
   const handleDelete = async () => {
