@@ -224,25 +224,44 @@ export default function GMDashboardPage() {
      NPCs With Clips
   ========================= */
   useEffect(() => {
-    if (!selectedCampaign?.id || !selectedSession?.id) {
-      setNpcIdsWithClips(new Set());
-      return;
-    }
+  if (!selectedCampaign?.id) {
+    setNpcIdsWithClips(new Set());
+    return;
+  }
 
-    fetch(
-      `/api/npcs/with-clips?campaign_id=${selectedCampaign.id}&session_id=${selectedSession.id}`,
-      { credentials: "include", cache: "no-store" }
-    )
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (!d?.npcIds) {
-          setNpcIdsWithClips(new Set());
-          return;
-        }
-        setNpcIdsWithClips(new Set(d.npcIds.map(String)));
-      })
-      .catch(() => setNpcIdsWithClips(new Set()));
-  }, [selectedCampaign?.id, selectedSession?.id]);
+  fetch(
+    `/api/npcs/with-clips?campaign_id=${selectedCampaign.id}`,
+    { credentials: "include", cache: "no-store" }
+  )
+    .then((r) => (r.ok ? r.json() : null))
+    .then((d) => {
+      if (!Array.isArray(d?.npcIds)) {
+        setNpcIdsWithClips(new Set());
+        return;
+      }
+      setNpcIdsWithClips(new Set(d.npcIds.map(String)));
+    })
+    .catch(() => setNpcIdsWithClips(new Set()));
+}, [selectedCampaign?.id]);useEffect(() => {
+  if (!selectedCampaign?.id) {
+    setNpcIdsWithClips(new Set());
+    return;
+  }
+
+  fetch(
+    `/api/npcs/with-clips?campaign_id=${selectedCampaign.id}`,
+    { credentials: "include", cache: "no-store" }
+  )
+    .then((r) => (r.ok ? r.json() : null))
+    .then((d) => {
+      if (!Array.isArray(d?.npcIds)) {
+        setNpcIdsWithClips(new Set());
+        return;
+      }
+      setNpcIdsWithClips(new Set(d.npcIds.map(String)));
+    })
+    .catch(() => setNpcIdsWithClips(new Set()));
+}, [selectedCampaign?.id]);
 
   /* =========================
      Render
