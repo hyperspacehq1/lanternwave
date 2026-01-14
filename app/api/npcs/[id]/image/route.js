@@ -4,16 +4,17 @@ import { getTenantContext } from "@/lib/tenant/getTenantContext";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/* -----------------------------------------------------------
-   POST → attach image to NPC
------------------------------------------------------------- */
-export async function POST(req) {
+export async function POST(req, ctx) {
   try {
-    const ctx = await getTenantContext(req);
-    const tenantId = ctx?.tenantId;
+    const tenantCtx = await getTenantContext(req);
+    const tenantId = tenantCtx?.tenantId;
 
-    const body = await req.json().catch(() => null);
-    const npcId = body?.npc_id;
+    const body = await req.json().catch(() => ({}));
+
+    const npcId =
+      ctx?.params?.id ||
+      body?.npc_id;
+
     const clipId = body?.clip_id;
 
     if (!tenantId) {
@@ -37,13 +38,11 @@ export async function POST(req) {
       );
     }
 
-    // Remove existing image
     await query(
       `DELETE FROM npc_clips WHERE npc_id = $1`,
       [npcId]
     );
 
-    // Attach new image
     await query(
       `
       INSERT INTO npc_clips (npc_id, clip_id)
@@ -54,7 +53,7 @@ export async function POST(req) {
 
     return Response.json({ ok: true });
   } catch (err) {
-    console.error("[npc image POST]", err);
+    console.error("[NPC IMAGE POST]", err);
     return Response.json(
       { error: "Failed to attach image" },
       { status: 500 }
@@ -62,16 +61,15 @@ export async function POST(req) {
   }
 }
 
-/* -----------------------------------------------------------
-   DELETE → detach image
------------------------------------------------------------- */
-export async function DELETE(req) {
+export async function DELETE(req, ctx) {
   try {
-    const ctx = await getTenantContext(req);
-    const tenantId = ctx?.tenantId;
+    const tenantCtx = await getTenantContext(req);
+    const tenantId = tenantCtx?.tenantId;
 
-    const body = await req.json().catch(() => null);
-    const npcId = body?.npc_id;
+    const body = await req.json().catch(() => ({}));
+    const npcId =
+      ctx?.params?.id ||
+      body?.npc_id;
 
     if (!tenantId || !npcId) {
       return Response.json(
@@ -87,7 +85,7 @@ export async function DELETE(req) {
 
     return Response.json({ ok: true });
   } catch (err) {
-    console.error("[npc image DELETE]", err);
+    console.error("[NPC IMAGE DELETE]", err);
     return Response.json(
       { error: "Failed to detach image" },
       { status: 500 }
