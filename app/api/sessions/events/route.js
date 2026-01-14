@@ -20,8 +20,10 @@ export async function GET(req) {
   const { searchParams } = new URL(req.url);
   const sessionId = searchParams.get("session_id");
 
-  // JoinPanel-safe
-  if (!sessionId) return Response.json([]);
+  // HARD GUARD — never run a query without binds
+  if (!ctx?.tenantId || !sessionId) {
+    return Response.json([]);
+  }
 
   const { rows } = await query(
     `
@@ -42,7 +44,7 @@ export async function GET(req) {
      AND s.deleted_at IS NULL
     WHERE se.session_id = $2
       AND se.deleted_at IS NULL
-    ORDER BY se.created_at
+    ORDER BY se.created_at NULLS LAST, se.id
     `,
     [ctx.tenantId, sessionId]
   );
@@ -73,7 +75,7 @@ export async function POST(req) {
   const sessionId = searchParams.get("session_id");
   const { event_id } = await req.json();
 
-  if (!sessionId || !event_id) {
+  if (!ctx?.tenantId || !sessionId || !event_id) {
     return Response.json(
       { error: "session_id and event_id required" },
       { status: 400 }
@@ -98,7 +100,7 @@ export async function POST(req) {
 }
 
 /* -------------------------------
-   DELETE ?session_id=
+   DELETE ?session_id=&event_id=
 -------------------------------- */
 export async function DELETE(req) {
   let ctx;
@@ -111,9 +113,9 @@ export async function DELETE(req) {
 
   const { searchParams } = new URL(req.url);
   const sessionId = searchParams.get("session_id");
-  const { event_id } = await req.json();
+  const eventId = searchParams.get("event_id");
 
-  if (!sessionId || !event_id) {
+  if (!ctx?.tenantId || !sessionId || !eventId) {
     return Response.json(
       { error: "session_id and event_id required" },
       { status: 400 }
@@ -127,11 +129,10 @@ export async function DELETE(req) {
      WHERE tenant_id = $1
        AND session_id = $2
        AND event_id = $3
-       AND se.deleted_at IS NULL
+       AND deleted_at IS NULL
     `,
-    [ctx.tenantId, sessionId, event_id]
+    [ctx.tenantId, sessionId, eventId]
   );
 
   return Response.json({ ok: true });
 }
-
