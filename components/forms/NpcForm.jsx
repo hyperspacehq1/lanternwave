@@ -74,7 +74,7 @@ export default function NpcForm({ record, onChange }) {
   }, [record?.id]);
 
   /* ---------------------------------------------
-     NPC Image handling (Option A)
+     NPC Image handling (Option A, fixed)
   --------------------------------------------- */
   const [clips, setClips] = useState([]);
   const [selectedClip, setSelectedClip] = useState(null);
@@ -83,7 +83,18 @@ export default function NpcForm({ record, onChange }) {
   const npcId = record?.id ?? null;
   const isNewNpc = !npcId;
 
-  // Load image clips
+  /* ------------------------------------------------------------
+     RESET image UI state when switching NPCs
+     (prevents image bleed across records)
+  ------------------------------------------------------------ */
+  useEffect(() => {
+    setSelectedClip(null);
+    setPendingClipId(null);
+  }, [record?.id]);
+
+  /* ------------------------------------------------------------
+     Load available image clips (tenant scoped)
+  ------------------------------------------------------------ */
   useEffect(() => {
     fetch("/api/r2/list", {
       cache: "no-store",
@@ -104,16 +115,20 @@ export default function NpcForm({ record, onChange }) {
       });
   }, []);
 
-  // Sync existing image from record
+  /* ------------------------------------------------------------
+     Sync persisted image from DB (if one exists)
+  ------------------------------------------------------------ */
   useEffect(() => {
     if (!record?.image_clip_id || !clips.length) return;
 
     const clip = clips.find((c) => c.id === record.image_clip_id) || null;
     setSelectedClip(clip);
-    setPendingClipId(null); // no pending change
+    setPendingClipId(null);
   }, [record?.image_clip_id, clips]);
 
-  // Attach image ONLY on save (called externally)
+  /* ------------------------------------------------------------
+     Attach image ONLY on SAVE (called by parent)
+  ------------------------------------------------------------ */
   const attachImageOnSave = async () => {
     if (!npcId || !pendingClipId) return;
 
@@ -138,8 +153,7 @@ export default function NpcForm({ record, onChange }) {
   };
 
   /* ------------------------------------------------------------
-     IMPORTANT:
-     Expose attachImageOnSave so parent SAVE can call it
+     Expose attach hook for parent SAVE handler
   ------------------------------------------------------------ */
   useEffect(() => {
     if (typeof onChange === "function") {
@@ -209,7 +223,7 @@ export default function NpcForm({ record, onChange }) {
               clips.find((c) => c.id === e.target.value) || null;
 
             setSelectedClip(clip);
-            setPendingClipId(clip ? clip.id : null); // 🔴 store only
+            setPendingClipId(clip ? clip.id : null);
           }}
         >
           <option value="">— No image —</option>
@@ -228,31 +242,32 @@ export default function NpcForm({ record, onChange }) {
 
         {selectedClip && !isNewNpc && (
           <div style={{ marginTop: 12 }}>
-
- <div
-  style={{
-    width: 240,
-    height: 240,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    background: "rgba(0,0,0,0.25)",
-    borderRadius: 6,
-    border: "1px solid rgba(255,255,255,0.15)",
-  }}
->
-  <img
-    src={`/api/r2/stream?key=${encodeURIComponent(
-      selectedClip.object_key
-    )}`}
-    alt="NPC"
-    style={{
-      maxWidth: "100%",
-      maxHeight: "100%",
-      objectFit: "contain",
-    }}
-  />
-</div>
+            <div
+              style={{
+                width: 240,
+                height: 240,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                background: "rgba(0,0,0,0.25)",
+                borderRadius: 6,
+                border: "1px solid rgba(255,255,255,0.15)",
+              }}
+            >
+              <img
+                src={`/api/r2/stream?key=${encodeURIComponent(
+                  selectedClip.object_key
+                )}`}
+                alt="NPC"
+                loading="lazy"
+                decoding="async"
+                style={{
+                  maxWidth: "100%",
+                  maxHeight: "100%",
+                  objectFit: "contain",
+                }}
+              />
+            </div>
 
             <div style={{ marginTop: 8 }}>
               <button
