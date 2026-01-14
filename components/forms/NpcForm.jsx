@@ -74,7 +74,7 @@ export default function NpcForm({ record, onChange }) {
   }, [record?.id]);
 
   /* ---------------------------------------------
-     NPC Image handling (Option A, fixed)
+     NPC Image (UI only — no POSTs here)
   --------------------------------------------- */
   const [clips, setClips] = useState([]);
   const [selectedClip, setSelectedClip] = useState(null);
@@ -84,8 +84,7 @@ export default function NpcForm({ record, onChange }) {
   const isNewNpc = !npcId;
 
   /* ------------------------------------------------------------
-     RESET image UI state when switching NPCs
-     (prevents image bleed across records)
+     Reset image UI when switching NPCs
   ------------------------------------------------------------ */
   useEffect(() => {
     setSelectedClip(null);
@@ -116,7 +115,7 @@ export default function NpcForm({ record, onChange }) {
   }, []);
 
   /* ------------------------------------------------------------
-     Sync persisted image from DB (if one exists)
+     Sync persisted image from DB (display only)
   ------------------------------------------------------------ */
   useEffect(() => {
     if (!record?.image_clip_id || !clips.length) return;
@@ -127,49 +126,23 @@ export default function NpcForm({ record, onChange }) {
   }, [record?.image_clip_id, clips]);
 
   /* ------------------------------------------------------------
-     Attach image ONLY on SAVE (called by parent)
-  ------------------------------------------------------------ */
-  const attachImageOnSave = async () => {
-    if (!npcId || !pendingClipId) return;
-
-    await fetch(`/api/npcs/${npcId}/image`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ clip_id: pendingClipId }),
-    });
-  };
-
-  const removeImage = async () => {
-    if (!npcId) return;
-
-    await fetch(`/api/npcs/${npcId}/image`, {
-      method: "DELETE",
-      credentials: "include",
-    });
-
-    setSelectedClip(null);
-    setPendingClipId(null);
-  };
-
-  /* ------------------------------------------------------------
-     Expose attach hook for parent SAVE handler
+     EXPOSE DATA ONLY (no functions)
   ------------------------------------------------------------ */
   useEffect(() => {
-    if (typeof onChange === "function") {
-      onChange(
-        withContext(
-          {
-            ...record,
-            __attachImageOnSave: attachImageOnSave,
-          },
-          {
-            campaign_id: campaign.id,
-            session_id: session.id,
-          }
-        )
-      );
-    }
+    if (typeof onChange !== "function") return;
+
+    onChange(
+      withContext(
+        {
+          ...record,
+          __pendingImageClipId: pendingClipId || null,
+        },
+        {
+          campaign_id: campaign.id,
+          session_id: session.id,
+        }
+      )
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingClipId]);
 
@@ -268,20 +241,9 @@ export default function NpcForm({ record, onChange }) {
                 }}
               />
             </div>
-
-            <div style={{ marginTop: 8 }}>
-              <button
-                type="button"
-                className="cm-button danger"
-                onClick={removeImage}
-              >
-                Remove Image
-              </button>
-            </div>
           </div>
         )}
       </div>
-      {/* ------------------------------------------------ */}
 
       <div className="cm-field">
         <label className="cm-label">Description</label>
