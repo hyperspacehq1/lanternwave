@@ -10,54 +10,107 @@ export const dynamic = "force-dynamic";
 
 /* -----------------------------------------------------------
    POST → attach image
-   body: { clip_id }
 ------------------------------------------------------------ */
 export async function POST(req, { params }) {
-  const ctx = await getTenantContext(req);
-  const tenantId = ctx.tenantId;
-  const npcId = params.id;
-  const { clip_id } = await req.json();
+  try {
+    const ctx = await getTenantContext(req);
+    const tenantId = ctx?.tenantId;
+    const npcId = params?.id;
 
-  if (!clip_id) {
-    return Response.json({ error: "clip_id required" }, { status: 400 });
+    if (!tenantId || !npcId) {
+      return Response.json(
+        { error: "Invalid tenant or NPC" },
+        { status: 400 }
+      );
+    }
+
+    const body = await req.json().catch(() => null);
+    const clip_id = body?.clip_id;
+
+    if (!clip_id) {
+      return Response.json(
+        { error: "clip_id required" },
+        { status: 400 }
+      );
+    }
+
+    // Ensure NPC belongs to tenant (PREVENT FK / silent 500)
+    const npcCheck = await query(
+      `
+      SELECT id
+      FROM npcs
+      WHERE id = $1 AND tenant_id = $2
+      `,
+      [npcId, tenantId]
+    );
+
+    if (!npcCheck.rowCount) {
+      return Response.json(
+        { error: "NPC not found for tenant" },
+        { status: 404 }
+      );
+    }
+
+    // Clear existing image
+    await query(
+      `
+      DELETE FROM npc_clips
+      WHERE tenant_id = $1
+        AND npc_id = $2
+      `,
+      [tenantId, npcId]
+    );
+
+    // Attach new image
+    await query(
+      `
+      INSERT INTO npc_clips (tenant_id, npc_id, clip_id)
+      VALUES ($1, $2, $3)
+      `,
+      [tenantId, npcId, clip_id]
+    );
+
+    return Response.json({ ok: true });
+  } catch (err) {
+    console.error("[npc image POST]", err);
+    return Response.json(
+      { error: "Failed to attach image" },
+      { status: 500 }
+    );
   }
-
-  await query(
-    `
-    DELETE FROM npc_clips
-     WHERE tenant_id = $1
-       AND npc_id = $2
-    `,
-    [tenantId, npcId]
-  );
-
-  await query(
-    `
-    INSERT INTO npc_clips (tenant_id, npc_id, clip_id)
-    VALUES ($1, $2, $3)
-    `,
-    [tenantId, npcId, clip_id]
-  );
-
-  return Response.json({ ok: true });
 }
 
 /* -----------------------------------------------------------
    DELETE → detach image
 ------------------------------------------------------------ */
 export async function DELETE(req, { params }) {
-  const ctx = await getTenantContext(req);
-  const tenantId = ctx.tenantId;
-  const npcId = params.id;
+  try {
+    const ctx = await getTenantContext(req);
+    const tenantId = ctx?.tenantId;
+    const npcId = params?.id;
 
-  await query(
-    `
-    DELETE FROM npc_clips
-     WHERE tenant_id = $1
-       AND npc_id = $2
-    `,
-    [tenantId, npcId]
-  );
+    if (!tenantId || !npcId) {
+      return Response.json(
+        { error: "Invalid tenant or NPC" },
+        { status: 400 }
+      );
+    }
 
-  return Response.json({ ok: true });
+    await query(
+      `
+      DELETE FROM npc_clips
+      WHERE tenant_id = $1
+        AND npc_id = $2
+      `,
+      [tenantId, npcId]
+    );
+
+    return Response.json({ ok: true });
+  } catch (err) {
+    console.error("[npc image DELETE]", err);
+    return Response.json(
+      { error: "Failed to detach image" },
+      { status: 500 }
+    );
+  }
 }
