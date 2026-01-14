@@ -55,16 +55,25 @@ useEffect(() => {
 
     Promise.all([
       fetch(`/api/npcs?campaign_id=${campaignId}`, {
-        credentials: "include",
-      }).then(async (r) => {
-        const json = await r.json();
-        if (!r.ok || !json?.ok) {
-          throw new Error(
-            `/api/npcs failed (${r.status}): ${JSON.stringify(json)}`
-          );
-        }
-        return json.rows || [];
-      }),
+  credentials: "include",
+  cache: "no-store",
+}).then(async (r) => {
+  const json = await r.json();
+
+  if (!r.ok) {
+    throw new Error(
+      `/api/npcs failed (${r.status}): ${JSON.stringify(json)}`
+    );
+  }
+
+  if (!Array.isArray(json)) {
+    throw new Error(
+      `/api/npcs unexpected response: ${JSON.stringify(json)}`
+    );
+  }
+
+  return json;
+});
 
       fetch(`/api/debug/npcs-with-clips?campaign_id=${campaignId}`, {
         credentials: "include",
