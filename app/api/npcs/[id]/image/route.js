@@ -7,16 +7,12 @@ export const dynamic = "force-dynamic";
 /* -----------------------------------------------------------
    POST → attach image
 ------------------------------------------------------------ */
-export async function POST(req, ctx) {
+export async function POST(req, { params }) {
   try {
-    const tenantCtx = await getTenantContext(req);
-    const tenantId =
-      tenantCtx?.tenantId || req.headers.get("x-tenant-id");
+    const ctx = await getTenantContext(req);
+    const tenantId = ctx?.tenantId;
 
-    const npcId =
-      ctx?.params?.npcId ||
-      ctx?.params?.id ||
-      (await req.json().catch(() => null))?.npc_id;
+    const npcId = params?.id;
 
     if (!tenantId) {
       return Response.json(
@@ -32,7 +28,7 @@ export async function POST(req, ctx) {
       );
     }
 
-    const body = await req.json().catch(() => null);
+    const body = await req.json();
     const clipId = body?.clip_id;
 
     if (!clipId) {
@@ -42,47 +38,11 @@ export async function POST(req, ctx) {
       );
     }
 
-    // Validate NPC
-    const npcCheck = await query(
-      `
-      SELECT id
-      FROM npcs
-      WHERE id = $1
-        AND tenant_id = $2
-        AND deleted_at IS NULL
-      `,
-      [npcId, tenantId]
-    );
-
-    if (!npcCheck.rowCount) {
-      return Response.json(
-        { error: "NPC not found for tenant" },
-        { status: 404 }
-      );
-    }
-
-    // Validate clip
-    const clipCheck = await query(
-      `
-      SELECT id
-      FROM clips
-      WHERE id = $1
-        AND tenant_id = $2
-        AND deleted_at IS NULL
-      `,
-      [clipId, tenantId]
-    );
-
-    if (!clipCheck.rowCount) {
-      return Response.json(
-        { error: "Clip not found for tenant" },
-        { status: 404 }
-      );
-    }
-
-    // Replace existing image
     await query(
-      `DELETE FROM npc_clips WHERE npc_id = $1`,
+      `
+      DELETE FROM npc_clips
+      WHERE npc_id = $1
+      `,
       [npcId]
     );
 
@@ -107,14 +67,12 @@ export async function POST(req, ctx) {
 /* -----------------------------------------------------------
    DELETE → detach image
 ------------------------------------------------------------ */
-export async function DELETE(req, ctx) {
+export async function DELETE(req, { params }) {
   try {
-    const tenantCtx = await getTenantContext(req);
-    const tenantId =
-      tenantCtx?.tenantId || req.headers.get("x-tenant-id");
+    const ctx = await getTenantContext(req);
+    const tenantId = ctx?.tenantId;
 
-    const npcId =
-      ctx?.params?.npcId || ctx?.params?.id;
+    const npcId = params?.id;
 
     if (!tenantId || !npcId) {
       return Response.json(
