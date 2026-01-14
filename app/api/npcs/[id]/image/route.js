@@ -7,14 +7,17 @@ export const dynamic = "force-dynamic";
 /* -----------------------------------------------------------
    POST → attach image (existing NPCs only)
 ------------------------------------------------------------ */
-
-console.log("🔥 NPC IMAGE POST HIT", { npcId, clipId });
-
 export async function POST(req, { params }) {
   try {
     const ctx = await getTenantContext(req);
     const tenantId = ctx?.tenantId;
     const npcId = params?.id;
+
+    const body = await req.json().catch(() => null);
+    const clipId = body?.clip_id;
+
+    // ✅ SAFE logging — variables now exist
+    console.log("🔥 NPC IMAGE POST HIT", { tenantId, npcId, clipId });
 
     if (!tenantId || !npcId) {
       return Response.json(
@@ -22,9 +25,6 @@ export async function POST(req, { params }) {
         { status: 400 }
       );
     }
-
-    const body = await req.json().catch(() => null);
-    const clipId = body?.clip_id;
 
     if (!clipId) {
       return Response.json(
@@ -116,6 +116,8 @@ export async function DELETE(req, { params }) {
     const tenantId = ctx?.tenantId;
     const npcId = params?.id;
 
+    console.log("🔥 NPC IMAGE DELETE HIT", { tenantId, npcId });
+
     if (!tenantId || !npcId) {
       return Response.json(
         { error: "Invalid tenant or NPC" },
@@ -123,7 +125,6 @@ export async function DELETE(req, { params }) {
       );
     }
 
-    // Ensure NPC belongs to tenant
     const npcCheck = await query(
       `
       SELECT id
