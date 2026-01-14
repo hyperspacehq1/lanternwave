@@ -54,52 +54,53 @@ useEffect(() => {
     setNpcsWithClips(null);
 
     Promise.all([
-      fetch(`/api/npcs?campaign_id=${campaignId}`, {
-  credentials: "include",
-  cache: "no-store",
-}).then(async (r) => {
-  const json = await r.json();
+  fetch(`/api/npcs?campaign_id=${campaignId}`, {
+    credentials: "include",
+    cache: "no-store",
+  }).then(async (r) => {
+    const json = await r.json();
 
-  if (!r.ok) {
-    throw new Error(
-      `/api/npcs failed (${r.status}): ${JSON.stringify(json)}`
-    );
-  }
+    if (!r.ok) {
+      throw new Error(
+        `/api/npcs failed (${r.status}): ${JSON.stringify(json)}`
+      );
+    }
 
-  if (!Array.isArray(json)) {
-    throw new Error(
-      `/api/npcs unexpected response: ${JSON.stringify(json)}`
-    );
-  }
+    if (!Array.isArray(json)) {
+      throw new Error(
+        `/api/npcs unexpected response: ${JSON.stringify(json)}`
+      );
+    }
 
-  return json;
-});
+    return json;
+  }), // ✅ COMMA WAS MISSING HERE
 
-      fetch(`/api/debug/npcs-with-clips?campaign_id=${campaignId}`, {
-        credentials: "include",
-      }).then(async (r) => {
-        const json = await r.json();
-        if (!r.ok || !json?.ok) {
-          throw new Error(
-            `/api/debug/npcs-with-clips failed (${r.status}): ${JSON.stringify(
-              json
-            )}`
-          );
-        }
-        return json.npcIds || [];
-      }),
-    ])
-      .then(([npcs, npcIdsWithClips]) => {
-        setAllNpcs(npcs);
-        setNpcsWithClips(npcIdsWithClips);
-      })
-      .catch((err) => {
-        setErrors((e) => [...e, err.message]);
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-  }, [campaignId]);
+  fetch(`/api/debug/npcs-with-clips?campaign_id=${campaignId}`, {
+    credentials: "include",
+  }).then(async (r) => {
+    const json = await r.json();
+
+    if (!r.ok || !json?.ok) {
+      throw new Error(
+        `/api/debug/npcs-with-clips failed (${r.status}): ${JSON.stringify(
+          json
+        )}`
+      );
+    }
+
+    return json.npcIds || [];
+  }),
+])
+  .then(([npcs, npcIdsWithClips]) => {
+    setAllNpcs(npcs);
+    setNpcsWithClips(npcIdsWithClips);
+  })
+  .catch((err) => {
+    setErrors((e) => [...e, err.message]);
+  })
+  .finally(() => {
+    setLoading(false);
+  });
 
   /* -------------------------------------------------------
      Derived comparison
