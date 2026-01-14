@@ -15,17 +15,32 @@ export default function DebugNpcClipsPage() {
   /* -------------------------------------------------------
      Load campaigns
   ------------------------------------------------------- */
-  useEffect(() => {
-    fetch("/api/campaigns", { credentials: "include" })
-      .then((r) => r.json())
-      .then((res) => {
-        if (!res?.ok) throw new Error("Failed to load campaigns");
-        setCampaigns(res.rows || []);
-      })
-      .catch((err) => {
-        setErrors((e) => [...e, `Campaign load error: ${err.message}`]);
-      });
-  }, []);
+useEffect(() => {
+  fetch("/api/campaigns", {
+    credentials: "include",
+    cache: "no-store",
+  })
+    .then(async (r) => {
+      const json = await r.json();
+
+      if (!r.ok) {
+        throw new Error(
+          `/api/campaigns failed (${r.status}): ${JSON.stringify(json)}`
+        );
+      }
+
+      if (!Array.isArray(json)) {
+        throw new Error(
+          `/api/campaigns unexpected response: ${JSON.stringify(json)}`
+        );
+      }
+
+      setCampaigns(json);
+    })
+    .catch((err) => {
+      setErrors((e) => [...e, `Campaign load error: ${err.message}`]);
+    });
+}, []);
 
   /* -------------------------------------------------------
      Load NPCs + NPCs-with-clips when campaign changes
