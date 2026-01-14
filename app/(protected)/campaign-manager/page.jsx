@@ -35,7 +35,6 @@ const REQUIRES_SESSION = new Set([
 
 function newestByCreatedAt(list) {
   if (!Array.isArray(list) || list.length === 0) return null;
-  // created_at is expected; if missing, fallback to stable-ish sort by id
   const sorted = [...list].sort((a, b) => {
     const ad = a?.created_at ? new Date(a.created_at).getTime() : 0;
     const bd = b?.created_at ? new Date(b.created_at).getTime() : 0;
@@ -60,15 +59,24 @@ export default function CampaignManagerPage() {
   // Helps avoid re-running session auto-select multiple times for same campaign load
   const ensuredSessionForCampaignRef = useRef(null);
 
+  // ✅ Critical: prevents auto-select effects from overriding a user's click
+  const userSelectedRef = useRef(false);
+
   // Convenience: current list for active tab
-  const activeList = useMemo(() => records?.[activeType] || [], [records, activeType]);
+  const activeList = useMemo(
+    () => records?.[activeType] || [],
+    [records, activeType]
+  );
 
   /* ------------------------------------------------------------
-     1) Load campaigns list on mount / when activeType is campaigns
+     1) Load campaigns list when activeType is campaigns
         and auto-select newest (or stored) campaign
   ------------------------------------------------------------ */
   useEffect(() => {
     if (activeType !== "campaigns") return;
+
+    // On tab change into campaigns, allow auto-select again
+    userSelectedRef.current = false;
 
     let cancelled = false;
 
@@ -81,7 +89,9 @@ export default function CampaignManagerPage() {
         setRecords((p) => ({ ...p, campaigns: list }));
 
         const storedId = localStorage.getItem(LS_CAMPAIGN);
-        const stored = Array.isArray(list) ? list.find((c) => c.id === storedId) : null;
+        const stored = Array.isArray(list)
+          ? list.find((c) => c.id === storedId)
+          : null;
 
         const chosen = stored ?? newestByCreatedAt(list) ?? null;
 
@@ -89,10 +99,11 @@ export default function CampaignManagerPage() {
           setSelectedId(chosen.id);
           setSelectedRecord(chosen);
 
-          // Important: set campaign immediately; session will be ensured by the next effect
           setCampaignContext({ campaign: chosen, session: null });
-
           localStorage.setItem(LS_CAMPAIGN, chosen.id);
+
+          // campaign selection is "system" selection, not user selection
+          userSelectedRef.current = false;
         } else {
           // Rule #1: no campaigns => do nothing
           localStorage.removeItem(LS_CAMPAIGN);
@@ -100,6 +111,8 @@ export default function CampaignManagerPage() {
           setSelectedId(null);
           setSelectedRecord(null);
           setCampaignContext({ campaign: null, session: null });
+
+          userSelectedRef.current = false;
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -114,17 +127,15 @@ export default function CampaignManagerPage() {
   /* ------------------------------------------------------------
      2) Ensure a session is selected whenever a campaign is selected
         (even if user never clicks Sessions tab)
-
-     This is the critical fix that prevents:
-       - "No Session Selected"
-       - "Select a session" flicker
-       - Non-session tabs forgetting after reload
   ------------------------------------------------------------ */
   useEffect(() => {
     if (!activeCampaignId) return;
 
     // Avoid re-ensuring for same campaign repeatedly
-    if (ensuredSessionForCampaignRef.current === activeCampaignId && activeSessionId) {
+    if (
+      ensuredSessionForCampaignRef.current === activeCampaignId &&
+      activeSessionId
+    ) {
       return;
     }
 
@@ -132,13 +143,17 @@ export default function CampaignManagerPage() {
 
     (async () => {
       try {
-        const list = await cmApi.list("sessions", { campaign_id: activeCampaignId });
+        const list = await cmApi.list("sessions", {
+          campaign_id: activeCampaignId,
+        });
         if (cancelled) return;
 
         setRecords((p) => ({ ...p, sessions: list }));
 
         const storedSessionId = localStorage.getItem(LS_SESSION);
-        const stored = Array.isArray(list) ? list.find((s) => s.id === storedSessionId) : null;
+        const stored = Array.isArray(list)
+          ? list.find((s) => s.id === storedSessionId)
+          : null;
 
         const chosen = stored ?? newestByCreatedAt(list) ?? null;
 
@@ -159,7 +174,7 @@ export default function CampaignManagerPage() {
           }
         }
       } catch {
-        // If sessions list fails, don't hard-crash; leave state as-is
+        // leave state as-is
       }
     })();
 
@@ -169,20 +184,20 @@ export default function CampaignManagerPage() {
   }, [activeCampaignId, activeSessionId, campaign, setCampaignContext]);
 
   /* ------------------------------------------------------------
-     3) Load lists for ALL tabs (except campaigns handled above),
-        and auto-select newest record.
+     3) Load lists for ALL tabs (except campaigns handled above)
+        and auto-select newest record
 
-     For session-scoped tabs, prefer newest record WHERE record.session_id
-     matches the selected session, if that field exists.
+     ✅ FIX: Only auto-select if the user has not manually selected a record.
   ------------------------------------------------------------ */
   useEffect(() => {
     if (activeType === "campaigns") return;
-
-    // For anything other than campaigns, we need a campaign selected
     if (!activeCampaignId) return;
 
     // For tabs that require a session, do not load/select until session exists
     if (REQUIRES_SESSION.has(activeType) && !activeSessionId) return;
+
+    // When the list criteria changes (tab/campaign/session), allow auto-select again
+    userSelectedRef.current = false;
 
     let cancelled = false;
 
@@ -194,7 +209,6 @@ export default function CampaignManagerPage() {
             ? { campaign_id: activeCampaignId }
             : {
                 campaign_id: activeCampaignId,
-                // Pass session_id if available; safe even if backend ignores it
                 ...(activeSessionId ? { session_id: activeSessionId } : {}),
               };
 
@@ -203,17 +217,24 @@ export default function CampaignManagerPage() {
 
         setRecords((p) => ({ ...p, [activeType]: list }));
 
-        // Always auto-select newest for this tab (no per-entity persistence).
+        // If there are no records, show "Select a record."
+        if (!Array.isArray(list) || list.length === 0) {
+          setSelectedId(null);
+          setSelectedRecord(null);
+          return;
+        }
+
+        // ✅ If user already clicked something, do NOT override it.
+        if (userSelectedRef.current) return;
+
         let chosen = null;
 
         if (activeType === "sessions") {
-          // Newest session (or stored already handled in ensure-session effect)
           chosen = newestByCreatedAt(list);
           if (chosen) {
             setSelectedId(chosen.id);
             setSelectedRecord(chosen);
 
-            // Keep context in sync if user is viewing sessions tab
             localStorage.setItem(LS_SESSION, chosen.id);
             setCampaignContext({ campaign, session: chosen });
           } else {
@@ -221,9 +242,10 @@ export default function CampaignManagerPage() {
             setSelectedRecord(null);
           }
         } else {
-          // Session-scoped selection: if records include session_id, filter by current session
           const hasSessionField =
-            Array.isArray(list) && list.length > 0 && Object.prototype.hasOwnProperty.call(list[0], "session_id");
+            Array.isArray(list) &&
+            list.length > 0 &&
+            Object.prototype.hasOwnProperty.call(list[0], "session_id");
 
           const scopedList =
             hasSessionField && activeSessionId
@@ -263,6 +285,7 @@ export default function CampaignManagerPage() {
       ...(activeSessionId ? { session_id: activeSessionId } : {}),
     };
 
+    userSelectedRef.current = true; // user-initiated selection
     setSelectedId(id);
     setSelectedRecord(base);
     setRecords((p) => ({
@@ -282,8 +305,11 @@ export default function CampaignManagerPage() {
 
     setRecords((p) => ({
       ...p,
-      [activeType]: (p[activeType] || []).map((r) => (r.id === saved.id ? saved : r)),
+      [activeType]: (p[activeType] || []).map((r) =>
+        r.id === saved.id ? saved : r
+      ),
     }));
+    userSelectedRef.current = true;
     setSelectedRecord(saved);
     setSelectedId(saved.id);
   };
@@ -295,12 +321,18 @@ export default function CampaignManagerPage() {
 
     setRecords((p) => ({
       ...p,
-      [activeType]: (p[activeType] || []).filter((r) => r.id !== selectedRecord.id),
+      [activeType]: (p[activeType] || []).filter(
+        (r) => r.id !== selectedRecord.id
+      ),
     }));
 
-    // After delete, auto-select newest remaining
-    const remaining = (activeList || []).filter((r) => r.id !== selectedRecord.id);
+    const remaining = (activeList || []).filter(
+      (r) => r.id !== selectedRecord.id
+    );
     const chosen = newestByCreatedAt(remaining);
+
+    // After delete, auto-select newest remaining (system selection)
+    userSelectedRef.current = false;
 
     if (chosen) {
       setSelectedId(chosen.id);
@@ -323,8 +355,16 @@ export default function CampaignManagerPage() {
           {CONTAINER_TYPES.map((c) => (
             <button
               key={c.id}
-              className={`cm-container-btn ${c.id === activeType ? "active" : ""}`}
-              onClick={() => setActiveType(c.id)}
+              className={`cm-container-btn ${
+                c.id === activeType ? "active" : ""
+              }`}
+              onClick={() => {
+                // Reset selection when switching tabs (system-driven)
+                userSelectedRef.current = false;
+                setSelectedId(null);
+                setSelectedRecord(null);
+                setActiveType(c.id);
+              }}
             >
               {c.label}
             </button>
@@ -337,15 +377,27 @@ export default function CampaignManagerPage() {
               + New
             </button>
 
-            <button className="cm-btn" onClick={handleSave} disabled={!selectedRecord}>
+            <button
+              className="cm-btn"
+              onClick={handleSave}
+              disabled={!selectedRecord}
+            >
               Save / Update
             </button>
 
-            <button className="cm-btn danger" onClick={handleDelete} disabled={!selectedRecord}>
+            <button
+              className="cm-btn danger"
+              onClick={handleDelete}
+              disabled={!selectedRecord}
+            >
               Delete
             </button>
 
-            {loading && <div className="cm-muted" style={{ marginLeft: "auto" }}>Loading…</div>}
+            {loading && (
+              <div className="cm-muted" style={{ marginLeft: "auto" }}>
+                Loading…
+              </div>
+            )}
           </div>
 
           <div className="cm-content">
@@ -353,8 +405,13 @@ export default function CampaignManagerPage() {
               {(activeList || []).map((r) => (
                 <div
                   key={r.id}
-                  className={`cm-list-item ${r.id === selectedId ? "selected" : ""}`}
+                  className={`cm-list-item ${
+                    r.id === selectedId ? "selected" : ""
+                  }`}
                   onClick={() => {
+                    // ✅ Mark as user selection so auto-select effect never overrides it
+                    userSelectedRef.current = true;
+
                     setSelectedId(r.id);
                     setSelectedRecord(r);
 
@@ -382,11 +439,12 @@ export default function CampaignManagerPage() {
               {selectedRecord ? (
                 (() => {
                   const Form = getFormComponent(activeType);
-                  return <Form record={selectedRecord} onChange={setSelectedRecord} />;
+                  return (
+                    <Form record={selectedRecord} onChange={setSelectedRecord} />
+                  );
                 })()
               ) : (
                 <div className="cm-detail-empty">
-                  {/* This should only happen when the active list is truly empty (Rule #1) */}
                   <div>Select a record.</div>
                 </div>
               )}
