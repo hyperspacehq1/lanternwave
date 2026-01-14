@@ -127,21 +127,17 @@ if (
   __pendingImageClipId
 ) {
   try {
-    await fetch(`/api/npcs/${saved.id}/image`, {
-      method: "POST",
-      credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        clip_id: __pendingImageClipId,
-      }),
-    });
-  } catch (err) {
-    console.error("[NPC image attach failed]", err);
-    // DO NOT throw
-  }
-}
+   await fetch("/api/npc-image", {
+  method: "POST",
+  credentials: "include",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    npc_id: saved.id,
+    clip_id: __pendingImageClipId,
+  }),
+});
 
   } catch (err) {
     console.error("[handleSave failed]", err);
