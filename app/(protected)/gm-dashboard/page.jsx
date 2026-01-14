@@ -223,7 +223,7 @@ export default function GMDashboardPage() {
   /* =========================
      NPCs With Clips
   ========================= */
-  useEffect(() => {
+useEffect(() => {
   if (!selectedCampaign?.id) {
     setNpcIdsWithClips(new Set());
     return;
@@ -242,7 +242,9 @@ export default function GMDashboardPage() {
       setNpcIdsWithClips(new Set(d.npcIds.map(String)));
     })
     .catch(() => setNpcIdsWithClips(new Set()));
-}, [selectedCampaign?.id]);useEffect(() => {
+}, [selectedCampaign?.id]);
+
+;useEffect(() => {
   if (!selectedCampaign?.id) {
     setNpcIdsWithClips(new Set());
     return;
