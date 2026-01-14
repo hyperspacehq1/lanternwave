@@ -63,7 +63,7 @@ function GenericFallbackForm({ record, onChange }) {
 }
 
 /* -------------------------------------------------
-   ✅ REQUIRED EXPORT (this fixes the build)
+   Required export
 -------------------------------------------------- */
 export function getFormComponent(type) {
   return FORM_REGISTRY[type] || GenericFallbackForm;

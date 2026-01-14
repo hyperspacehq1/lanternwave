@@ -5,7 +5,7 @@ import { withContext } from "@/lib/forms/withContext";
 import { useCampaignContext } from "@/lib/campaign/campaignContext";
 
 export default function ItemForm({ record, onChange }) {
-  const { campaign, session } = useCampaignContext();
+  const { campaign } = useCampaignContext();
 
   /* ------------------------------------------------------------
      Guard: No campaign selected
@@ -13,20 +13,7 @@ export default function ItemForm({ record, onChange }) {
   if (!campaign) {
     return (
       <div className="cm-detail-empty">
-        <h3>No Campaign Selected</h3>
-        <p>Please select or create a campaign to manage items.</p>
-      </div>
-    );
-  }
-
-  /* ------------------------------------------------------------
-     Guard: No session selected
-  ------------------------------------------------------------ */
-  if (!session) {
-    return (
-      <div className="cm-detail-empty">
-        <h3>No Session Selected</h3>
-        <p>Please select or create a session to manage items.</p>
+        Select a Campaign from the Campaign tab
       </div>
     );
   }
@@ -40,7 +27,6 @@ export default function ItemForm({ record, onChange }) {
         },
         {
           campaign_id: campaign.id,
-          session_id: session.id,
         }
       )
     );
@@ -57,18 +43,7 @@ export default function ItemForm({ record, onChange }) {
   }, [record?.id]);
 
   return (
-    <div className="cm-detail-form">
-      {/* Header */}
-      <div className={`cm-campaign-header ${pulse ? "pulse" : ""}`}>
-        <div className="cm-context-line">
-          <strong>Campaign:</strong> {campaign.name}
-        </div>
-        <div className="cm-context-line">
-          <strong>Session:</strong> {session.name}
-        </div>
-      </div>
-
-      {/* Fields */}
+    <div className={`cm-detail-form ${pulse ? "pulse" : ""}`}>
       <div className="cm-field">
         <label className="cm-label">Name</label>
         <input

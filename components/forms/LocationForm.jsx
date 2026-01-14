@@ -5,7 +5,7 @@ import { withContext } from "@/lib/forms/withContext";
 import { useCampaignContext } from "@/lib/campaign/campaignContext";
 
 export default function LocationForm({ record, onChange }) {
-  const { campaign, session } = useCampaignContext();
+  const { campaign } = useCampaignContext();
 
   /* ---------------------------------------------
      Guards
@@ -13,22 +13,18 @@ export default function LocationForm({ record, onChange }) {
   if (!campaign) {
     return (
       <div className="cm-detail-empty">
-        <h3>No Campaign Selected</h3>
-        <p>Please select or create a campaign.</p>
+        Select a Campaign from the Campaign tab
       </div>
     );
   }
 
-  if (!session) {
+  if (!record) {
     return (
       <div className="cm-detail-empty">
-        <h3>No Session Selected</h3>
-        <p>Please select a session.</p>
+        Select a Record from the List to view Details
       </div>
     );
   }
-
-  if (!record) return null;
 
   const update = (field, value) => {
     onChange(
@@ -39,24 +35,23 @@ export default function LocationForm({ record, onChange }) {
         },
         {
           campaign_id: campaign.id,
-          session_id: session.id,
         }
       )
     );
   };
 
   /* ---------------------------------------------
-     Campaign pulse (restored)
+     Campaign pulse
   --------------------------------------------- */
   const [pulse, setPulse] = useState(false);
   useEffect(() => {
     setPulse(true);
     const t = setTimeout(() => setPulse(false), 1200);
     return () => clearTimeout(t);
-  }, [campaign.id]);
+  }, [record.id]);
 
   /* ---------------------------------------------
-     Address toggle (restored)
+     Address toggle
   --------------------------------------------- */
   const [hasAddress, setHasAddress] = useState(false);
 
@@ -73,7 +68,7 @@ export default function LocationForm({ record, onChange }) {
   }, [record]);
 
   /* ---------------------------------------------
-     Sensory AI helpers (restored)
+     Sensory AI helpers
   --------------------------------------------- */
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState("");
@@ -86,12 +81,9 @@ export default function LocationForm({ record, onChange }) {
     if (!sensory) return "";
 
     if (typeof sensory === "object") {
-      if (sensory.hear != null || sensory.smell != null) {
-        return `Hear:\n${sensory.hear || ""}\n\nSmell:\n${sensory.smell || ""}`.trim();
+      if (sensory.hear || sensory.smell) {
+        return `Hear:\n${sensory.hear || ""}\n\nSmell:\n${sensory.smell || ""}`;
       }
-
-      if (sensory.text != null) return String(sensory.text);
-
       try {
         return JSON.stringify(sensory, null, 2);
       } catch {
@@ -105,7 +97,7 @@ export default function LocationForm({ record, onChange }) {
   async function generateSensory() {
     setAiError("");
     if (!canUseAI) {
-      setAiError("Select a campaign and location first.");
+      setAiError("Save the location first.");
       return;
     }
 
@@ -128,20 +120,7 @@ export default function LocationForm({ record, onChange }) {
         return;
       }
 
-      const saveRes = await fetch(`/api/locations?id=${record.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sensory: data.sensory }),
-      });
-
-      const saved = await saveRes.json().catch(() => null);
-
-      if (!saveRes.ok || !saved) {
-        setAiError("Generated sensory, but failed to save.");
-        return;
-      }
-
-      update("sensory", saved.sensory);
+      update("sensory", data.sensory);
     } catch (e) {
       setAiError(String(e?.message || e));
     } finally {
@@ -153,16 +132,7 @@ export default function LocationForm({ record, onChange }) {
      Render
   --------------------------------------------- */
   return (
-    <div className="cm-detail-form">
-      <div className={`cm-campaign-header ${pulse ? "pulse" : ""}`}>
-        <div className="cm-context-line">
-          <strong>Campaign:</strong> {campaign.name}
-        </div>
-        <div className="cm-context-line">
-          <strong>Session:</strong> {session.name}
-        </div>
-      </div>
-
+    <div className={`cm-detail-form ${pulse ? "pulse" : ""}`}>
       <div className="cm-field">
         <label className="cm-label">Name *</label>
         <input
@@ -236,11 +206,13 @@ export default function LocationForm({ record, onChange }) {
               const checked = e.target.checked;
               setHasAddress(checked);
               if (!checked) {
-                update("address_street", null);
-                update("address_city", null);
-                update("address_state", null);
-                update("address_zip", null);
-                update("address_country", null);
+                [
+                  "street",
+                  "city",
+                  "state",
+                  "zip",
+                  "country",
+                ].forEach((f) => update(`address_${f}`, null));
               }
             }}
           />
@@ -248,24 +220,21 @@ export default function LocationForm({ record, onChange }) {
         </label>
       </div>
 
-      {hasAddress && (
-        <>
-          {["street", "city", "state", "zip", "country"].map((field) => (
-            <div className="cm-field" key={field}>
-              <label className="cm-label">
-                {field.charAt(0).toUpperCase() + field.slice(1)}
-              </label>
-              <input
-                className="cm-input"
-                value={record[`address_${field}`] || ""}
-                onChange={(e) =>
-                  update(`address_${field}`, e.target.value)
-                }
-              />
-            </div>
-          ))}
-        </>
-      )}
+      {hasAddress &&
+        ["street", "city", "state", "zip", "country"].map((field) => (
+          <div className="cm-field" key={field}>
+            <label className="cm-label">
+              {field.charAt(0).toUpperCase() + field.slice(1)}
+            </label>
+            <input
+              className="cm-input"
+              value={record[`address_${field}`] || ""}
+              onChange={(e) =>
+                update(`address_${field}`, e.target.value)
+              }
+            />
+          </div>
+        ))}
     </div>
   );
 }

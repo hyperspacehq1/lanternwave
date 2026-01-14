@@ -7,14 +7,10 @@ import { useCampaignContext } from "@/lib/campaign/campaignContext";
 export default function CampaignForm({ record, onChange }) {
   const { campaign } = useCampaignContext();
 
-  // --------------------------------------------------
-  // Guard: no campaign selected
-  // --------------------------------------------------
   if (!campaign) {
     return (
       <div className="cm-detail-empty">
-        <h3>No Campaign Selected</h3>
-        <p>Please create or select a campaign to continue.</p>
+        Select a Campaign from the Campaign tab
       </div>
     );
   }
@@ -33,34 +29,21 @@ export default function CampaignForm({ record, onChange }) {
     );
   };
 
-  // --------------------------------------------------
-  // Pulse animation on campaign change
-  // --------------------------------------------------
   const [pulse, setPulse] = useState(false);
-
   useEffect(() => {
     setPulse(true);
     const t = setTimeout(() => setPulse(false), 800);
     return () => clearTimeout(t);
   }, [record?.id]);
 
-  // --------------------------------------------------
-  // Ensure campaign package always exists
-  // --------------------------------------------------
   useEffect(() => {
     if (!record?.campaignPackage) {
       update("campaignPackage", "standard");
     }
-  }, [record?.campaignPackage]); // ← FIXED: properly closed
+  }, [record?.campaignPackage]);
 
   return (
-    <div className="cm-detail-form">
-      <div className={`cm-campaign-header ${pulse ? "pulse" : ""}`}>
-        <div className="cm-context-line">
-          <strong>Campaign:</strong> {record?.name || "Unnamed Campaign"}
-        </div>
-      </div>
-
+    <div className={`cm-detail-form ${pulse ? "pulse" : ""}`}>
       <div className="cm-field">
         <label className="cm-label">Campaign Name</label>
         <input

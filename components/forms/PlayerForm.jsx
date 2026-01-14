@@ -13,8 +13,7 @@ export default function PlayerForm({ record, onChange }) {
   if (!campaign) {
     return (
       <div className="cm-detail-empty">
-        <h3>No Campaign Selected</h3>
-        <p>Please select or create a campaign to manage players.</p>
+        Select a Campaign from the Campaign tab
       </div>
     );
   }
@@ -44,15 +43,7 @@ export default function PlayerForm({ record, onChange }) {
   }, [record?.id]);
 
   return (
-    <div className="cm-detail-form">
-      {/* Header */}
-      <div className={`cm-campaign-header ${pulse ? "pulse" : ""}`}>
-        <div className="cm-context-line">
-          <strong>Campaign:</strong> {campaign.name}
-        </div>
-      </div>
-
-      {/* First Name */}
+    <div className={`cm-detail-form ${pulse ? "pulse" : ""}`}>
       <div className="cm-field">
         <label className="cm-label">First Name</label>
         <input
@@ -62,7 +53,6 @@ export default function PlayerForm({ record, onChange }) {
         />
       </div>
 
-      {/* Last Name */}
       <div className="cm-field">
         <label className="cm-label">Last Name</label>
         <input
@@ -72,7 +62,6 @@ export default function PlayerForm({ record, onChange }) {
         />
       </div>
 
-      {/* Character Name */}
       <div className="cm-field">
         <label className="cm-label">Character Name</label>
         <input
@@ -82,7 +71,6 @@ export default function PlayerForm({ record, onChange }) {
         />
       </div>
 
-      {/* Notes */}
       <div className="cm-field">
         <label className="cm-label">Notes</label>
         <textarea
@@ -92,7 +80,6 @@ export default function PlayerForm({ record, onChange }) {
         />
       </div>
 
-      {/* Phone */}
       <div className="cm-field">
         <label className="cm-label">Phone</label>
         <input
@@ -102,7 +89,6 @@ export default function PlayerForm({ record, onChange }) {
         />
       </div>
 
-      {/* Email */}
       <div className="cm-field">
         <label className="cm-label">Email</label>
         <input
@@ -113,7 +99,6 @@ export default function PlayerForm({ record, onChange }) {
         />
       </div>
 
-      {/* Initiative Score */}
       <div className="cm-field">
         <label className="cm-label">Initiative Score</label>
         <input
@@ -133,7 +118,6 @@ export default function PlayerForm({ record, onChange }) {
         />
       </div>
 
-      {/* Initiative Bonus */}
       <div className="cm-field">
         <label className="cm-label">Initiative Bonus</label>
         <input

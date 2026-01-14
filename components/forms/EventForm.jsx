@@ -5,7 +5,7 @@ import { withContext } from "@/lib/forms/withContext";
 import { useCampaignContext } from "@/lib/campaign/campaignContext";
 
 export default function EventForm({ record, onChange }) {
-  const { campaign, session } = useCampaignContext();
+  const { campaign } = useCampaignContext();
 
   /* ------------------------------------------------------------
      Guard: No campaign selected
@@ -13,32 +13,18 @@ export default function EventForm({ record, onChange }) {
   if (!campaign) {
     return (
       <div className="cm-detail-empty">
-        <h3>No Campaign Selected</h3>
-        <p>Please select or create a campaign to manage events.</p>
+        Select a Campaign from the Campaign tab
       </div>
     );
   }
 
   /* ------------------------------------------------------------
-     Guard: No session selected
-  ------------------------------------------------------------ */
-  if (!session) {
-    return (
-      <div className="cm-detail-empty">
-        <h3>No Session Selected</h3>
-        <p>Please select or create a session to manage events.</p>
-      </div>
-    );
-  }
-
-  /* ------------------------------------------------------------
-     ✅ MISSING GUARD (THIS FIX)
+     Guard: No record selected
   ------------------------------------------------------------ */
   if (!record) {
     return (
       <div className="cm-detail-empty">
-        <h3>No Event Selected</h3>
-        <p>Select an event or create a new one.</p>
+        Select a Record from the List to view Details
       </div>
     );
   }
@@ -52,7 +38,6 @@ export default function EventForm({ record, onChange }) {
         },
         {
           campaign_id: campaign.id,
-          session_id: session.id,
         }
       )
     );
@@ -69,16 +54,7 @@ export default function EventForm({ record, onChange }) {
   }, [record.id]);
 
   return (
-    <div className="cm-detail-form">
-      <div className={`cm-campaign-header ${pulse ? "pulse" : ""}`}>
-        <div className="cm-context-line">
-          <strong>Campaign:</strong> {campaign.name}
-        </div>
-        <div className="cm-context-line">
-          <strong>Session:</strong> {session.name}
-        </div>
-      </div>
-
+    <div className={`cm-detail-form ${pulse ? "pulse" : ""}`}>
       <div className="cm-field">
         <label className="cm-label">Name</label>
         <input
