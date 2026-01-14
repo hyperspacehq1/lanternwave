@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
 
 import { cmApi } from "@/lib/cm/api";
@@ -9,19 +9,8 @@ import { useCampaignContext } from "@/lib/campaign/campaignContext";
 
 import "./campaign-manager.css";
 
-/* ------------------------------------------------------------
-   Entity rules
------------------------------------------------------------- */
-const ENTITY_RULES = {
-  campaigns: {},
-  sessions: { campaign: true },
-  events: { campaign: true },
-  encounters: { campaign: true },
-  locations: { campaign: true },
-  npcs: { campaign: true },
-  items: { campaign: true },
-  players: { campaign: true },
-};
+const LS_CAMPAIGN = "lw:selectedCampaignId";
+const LS_SESSION = "lw:selectedSessionId";
 
 const CONTAINER_TYPES = [
   { id: "campaigns", label: "Campaigns" },
@@ -41,13 +30,12 @@ export default function CampaignManagerPage() {
   const [records, setRecords] = useState({});
   const [selectedId, setSelectedId] = useState(null);
   const [selectedRecord, setSelectedRecord] = useState(null);
-  const [saveStatus, setSaveStatus] = useState("idle");
   const [loading, setLoading] = useState(false);
 
   const activeCampaignId = campaign?.id;
 
   /* ---------------------------------------------
-     Load data
+     Load lists
   --------------------------------------------- */
   useEffect(() => {
     if (activeType !== "campaigns" && !activeCampaignId) return;
@@ -62,28 +50,51 @@ export default function CampaignManagerPage() {
             ? await cmApi.list("campaigns")
             : await cmApi.list(activeType, { campaign_id: activeCampaignId });
 
-        if (!cancelled) {
-          setRecords((p) => ({ ...p, [activeType]: list }));
+        if (cancelled) return;
 
-         const first = [...list]
-  .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0] ?? null;
+        setRecords((p) => ({ ...p, [activeType]: list }));
 
-// 🔒 Do NOT overwrite existing selection
-if (!selectedId && first) {
-  setSelectedId(first.id);
-  setSelectedRecord(first);
+        // ---- CAMPAIGN AUTO-SELECT ----
+        if (activeType === "campaigns") {
+          const storedId = localStorage.getItem(LS_CAMPAIGN);
+          const stored = list.find((c) => c.id === storedId);
 
-  if (activeType === "campaigns" && !campaign) {
-    setCampaignContext({ campaign: first, session: null });
-  }
+          const chosen =
+            stored ??
+            [...list].sort(
+              (a, b) => new Date(b.created_at) - new Date(a.created_at)
+            )[0] ??
+            null;
 
-  if (activeType === "sessions" && !session) {
-    setCampaignContext({ campaign, session: first });
-  }
-}
+          if (chosen) {
+            setSelectedId(chosen.id);
+            setSelectedRecord(chosen);
+            setCampaignContext({ campaign: chosen, session: null });
+            localStorage.setItem(LS_CAMPAIGN, chosen.id);
+          }
+        }
 
-          if (activeType === "campaigns" && list?.length) {
-            setCampaignContext({ campaign: list[0], session: null });
+        // ---- SESSION AUTO-SELECT ----
+        if (activeType === "sessions") {
+          const storedSessionId = localStorage.getItem(LS_SESSION);
+          const storedSession = list.find(
+            (s) => s.id === storedSessionId
+          );
+
+          const chosen =
+            storedSession ??
+            [...list].sort(
+              (a, b) => new Date(b.created_at) - new Date(a.created_at)
+            )[0] ??
+            null;
+
+          if (chosen) {
+            setSelectedId(chosen.id);
+            setSelectedRecord(chosen);
+            setCampaignContext({ campaign, session: chosen });
+            localStorage.setItem(LS_SESSION, chosen.id);
+          } else {
+            localStorage.removeItem(LS_SESSION);
           }
         }
       } finally {
@@ -94,10 +105,10 @@ if (!selectedId && first) {
     return () => {
       cancelled = true;
     };
-  }, [activeType]);
+  }, [activeType, activeCampaignId]);
 
   /* ---------------------------------------------
-     CRUD Actions
+     CRUD
   --------------------------------------------- */
   const handleCreate = () => {
     const id = uuidv4();
@@ -140,9 +151,9 @@ if (!selectedId && first) {
     setSelectedRecord(null);
   };
 
-  /* ------------------------------------------------------------
+  /* ---------------------------------------------
      RENDER
-  ------------------------------------------------------------ */
+  --------------------------------------------- */
   return (
     <div className="cm-root">
       <div className="cm-layout">
@@ -163,31 +174,21 @@ if (!selectedId && first) {
         </aside>
 
         <section className="cm-main">
-          <div className="cm-main-header">
-            <div className="cm-main-title">{activeType}</div>
-          </div>
-
           <div className="cm-main-actions">
-            <button
-              className="cm-btn"
-              onClick={handleCreate}
-              disabled={loading}
-            >
+            <button className="cm-btn" onClick={handleCreate}>
               + New
             </button>
-
             <button
               className="cm-btn"
               onClick={handleSave}
-              disabled={!selectedRecord || loading}
+              disabled={!selectedRecord}
             >
-              Save/Update
+              Save / Update
             </button>
-
             <button
               className="cm-btn danger"
               onClick={handleDelete}
-              disabled={!selectedRecord || loading}
+              disabled={!selectedRecord}
             >
               Delete
             </button>
@@ -206,6 +207,8 @@ if (!selectedId && first) {
                     setSelectedRecord(r);
 
                     if (activeType === "campaigns") {
+                      localStorage.setItem(LS_CAMPAIGN, r.id);
+                      localStorage.removeItem(LS_SESSION);
                       setCampaignContext({
                         campaign: r,
                         session: null,
@@ -213,6 +216,7 @@ if (!selectedId && first) {
                     }
 
                     if (activeType === "sessions") {
+                      localStorage.setItem(LS_SESSION, r.id);
                       setCampaignContext({
                         campaign,
                         session: r,
@@ -234,9 +238,7 @@ if (!selectedId && first) {
                   return (
                     <Form
                       record={selectedRecord}
-                      onChange={(next) =>
-                        setSelectedRecord(next)
-                      }
+                      onChange={setSelectedRecord}
                     />
                   );
                 })()
