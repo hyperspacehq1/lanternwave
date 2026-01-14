@@ -74,29 +74,32 @@ export default function CampaignManagerPage() {
           }
         }
 
-        // ---- SESSION AUTO-SELECT ----
-        if (activeType === "sessions") {
-          const storedSessionId = localStorage.getItem(LS_SESSION);
-          const storedSession = list.find(
-            (s) => s.id === storedSessionId
-          );
+       // ---- SESSION RESTORE / AUTO-SELECT (campaign-scoped) ----
+if (activeType === "sessions" || !session) {
+  const storedSessionId = localStorage.getItem(LS_SESSION);
+  const storedSession = list.find(
+    (s) => s.id === storedSessionId
+  );
 
-          const chosen =
-            storedSession ??
-            [...list].sort(
-              (a, b) => new Date(b.created_at) - new Date(a.created_at)
-            )[0] ??
-            null;
+  const chosen =
+    storedSession ??
+    (activeType === "sessions"
+      ? [...list].sort(
+          (a, b) => new Date(b.created_at) - new Date(a.created_at)
+        )[0]
+      : null);
 
-          if (chosen) {
-            setSelectedId(chosen.id);
-            setSelectedRecord(chosen);
-            setCampaignContext({ campaign, session: chosen });
-            localStorage.setItem(LS_SESSION, chosen.id);
-          } else {
-            localStorage.removeItem(LS_SESSION);
-          }
-        }
+  if (chosen) {
+    setCampaignContext({ campaign, session: chosen });
+
+    if (activeType === "sessions") {
+      setSelectedId(chosen.id);
+      setSelectedRecord(chosen);
+    }
+
+    localStorage.setItem(LS_SESSION, chosen.id);
+  }
+}
       } finally {
         if (!cancelled) setLoading(false);
       }
