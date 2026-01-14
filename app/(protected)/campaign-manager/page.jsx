@@ -122,23 +122,26 @@ export default function CampaignManagerPage() {
     setSelectedRecord(saved);
 
     // 3) Attach image AFTER save (NPCs only)
-    if (
-      activeType === "npcs" &&
-      __pendingImageClipId
-    ) {
-      try {
-        await cmApi.post(
-          `npcs/${saved.id}/image`,
-          { clip_id: __pendingImageClipId }
-        );
-      } catch (err) {
-        console.error(
-          "[NPC image attach failed]",
-          err
-        );
-        // DO NOT throw
-      }
-    }
+if (
+  activeType === "npcs" &&
+  __pendingImageClipId
+) {
+  try {
+    await fetch(`/api/npcs/${saved.id}/image`, {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        clip_id: __pendingImageClipId,
+      }),
+    });
+  } catch (err) {
+    console.error("[NPC image attach failed]", err);
+    // DO NOT throw
+  }
+}
 
   } catch (err) {
     console.error("[handleSave failed]", err);
