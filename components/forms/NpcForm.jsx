@@ -197,8 +197,7 @@ export default function NpcForm({ record, onChange }) {
         {selectedClip && (
           <div style={{ marginTop: 12 }}>
             <Image
-              src={`/api/r2/object/${encodeURIComponent(
-                selectedClip.object_key
+src={`/api/r2/object/${selectedClip.object_key}`}
               )}`}
               alt="NPC"
               width={200}
