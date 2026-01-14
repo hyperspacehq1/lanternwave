@@ -114,23 +114,65 @@ if (!selectedId && first) {
   const handleSave = async () => {
   if (!selectedRecord) return;
 
-  const { _isNew, id, ...payload } = selectedRecord;
+  setSaveStatus("saving");
 
-  // 1️⃣ Save or update the NPC
+  const {
+    _isNew,
+    id: tempId,
+    __pendingImageClipId,
+    ...payload
+  } = selectedRecord;
+
+  // 1️⃣ Save or update the record
   const saved = _isNew
     ? await cmApi.create(activeType, payload)
-    : await cmApi.update(activeType, id, payload);
+    : await cmApi.update(activeType, tempId, payload);
 
-  // 2️⃣ Update state
-  setRecords((p) => ({
-    ...p,
-    [activeType]: p[activeType].map((r) =>
-      r.id === saved.id ? saved : r
-    ),
-  }));
+  // 2️⃣ Replace record correctly (temp id vs real id)
+  setRecords((p) => {
+    const list = p[activeType] || [];
+    const next = list.map((r) => {
+      if (_isNew) return r.id === tempId ? saved : r;
+      return r.id === saved.id ? saved : r;
+    });
+    return { ...p, [activeType]: next };
+  });
 
+  setSelectedId(saved.id);
   setSelectedRecord(saved);
-  await saved.__attachImageOnSave?.();
+
+  // 3️⃣ ATTACH IMAGE — NPCs ONLY, AFTER SAVE
+  if (
+    activeType === "npcs" &&
+    __pendingImageClipId
+  ) {
+    const res = await fetch(
+      `/api/npcs/${saved.id}/image`,
+      {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clip_id: __pendingImageClipId,
+        }),
+      }
+    );
+
+    const out = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      console.error(
+        "[NPC image attach failed]",
+        res.status,
+        out
+      );
+      throw new Error(
+        out?.error || "NPC image attach failed"
+      );
+    }
+  }
+
+  setSaveStatus("saved");
 };
 
   const handleDelete = async () => {
