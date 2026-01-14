@@ -108,12 +108,15 @@ export default function CampaignManagerPage() {
       : await cmApi.update(activeType, id, payload);
 
     // 2) Update state
-    setRecords((p) => ({
-      ...p,
-      [activeType]: (p[activeType] || []).map((r) =>
-        r.id === (_isNew ? id : saved.id) ? saved : r
-      ),
-    }));
+   setRecords((p) => ({
+  ...p,
+  [activeType]: (p[activeType] || []).map((r) => {
+    if (!r) return r;               // 🔴 guard nulls
+    return r.id === (_isNew ? id : saved.id)
+      ? saved
+      : r;
+  }),
+}));
 
     setSelectedId(saved.id);
     setSelectedRecord(saved);
