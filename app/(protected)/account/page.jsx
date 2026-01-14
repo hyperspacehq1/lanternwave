@@ -94,31 +94,42 @@ export default function AccountPage() {
             </div>
 
             {/* ---------------- Beacons ---------------- */}
-            <h2 className="account-section-title">Beacons</h2>
-            <div className="account-panel beacons-panel">
-              <div className="account-row">
-                <label className="account-label">
-                  <span className="beacon-checkbox">
-                    <input
-                      type="checkbox"
-                      checked={!!beacons.player_characters}
-                      onChange={(e) =>
-                        updateBeacon(
-                          "player_characters",
-                          e.target.checked
-                        )
-                      }
-                    />
-                  </span>
-                  Player Characters Beacon (GM Dashboard)
-                </label>
-              </div>
-            </div>
-          </>
-        )}
+<h2 className="account-section-title">Beacons</h2>
+<div className="account-panel beacons-panel">
+  <div className="account-row">
+    <label className="account-label">
+      <span className="beacon-checkbox">
+        <input
+          type="checkbox"
+          checked={!!beacons.player_characters}
+          onChange={(e) =>
+            updateBeacon(
+              "player_characters",
+              e.target.checked
+            )
+          }
+        />
+      </span>
+      Player Characters Beacon (GM Dashboard)
+    </label>
+  </div>
 
-        {error && <div className="account-error">{error}</div>}
-      </main>
-    </div>
-  );
-}
+  {/* NPC Pulse Beacon */}
+  <div className="account-row">
+    <label className="account-label">
+      <span className="beacon-checkbox">
+        <input
+          type="checkbox"
+          checked={!!beacons.npc_pulse}
+          onChange={(e) =>
+            updateBeacon(
+              "npc_pulse",
+              e.target.checked
+            )
+          }
+        />
+      </span>
+      NPC Pulse Beacon (GM Dashboard)
+    </label>
+  </div>
+</div>

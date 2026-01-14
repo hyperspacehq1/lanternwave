@@ -35,6 +35,44 @@ function mostRecentByCreatedAt(list) {
   return withDates[0].x || null;
 }
 
+async function pulseNpcClip({ npcId, durationMs }) {
+  // 1. resolve NPC → clip key
+  const clipRes = await fetch(`/api/npcs/pulse?npc_id=${npcId}`, {
+    credentials: "include",
+  });
+  if (!clipRes.ok) return;
+
+  const { key } = await clipRes.json();
+  if (!key) return;
+
+  // 2. stash current now-playing
+  const nowRes = await fetch("/api/r2/now-playing", {
+    credentials: "include",
+    cache: "no-store",
+  });
+  const nowData = nowRes.ok ? await nowRes.json() : null;
+  const previousKey = nowData?.nowPlaying?.key ?? null;
+
+  // 3. set NPC clip
+  await fetch("/api/r2/now-playing", {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ key }),
+  });
+
+  // 4. restore after duration
+  setTimeout(async () => {
+    await fetch("/api/r2/now-playing", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key: previousKey }),
+    });
+  }, durationMs);
+}
+
+
 /* =========================
    Record Rendering (Field View)
 ========================= */
@@ -99,7 +137,8 @@ const floatingHydratedRef = useRef(false);
 
   /* -------- Beacons -------- */
   const [beacons, setBeacons] = useState({});
-  const showPlayersBeacon = !!beacons?.player_characters;
+ const showPlayersBeacon = !!beacons?.player_characters;
+ const showNpcPulseBeacon = !!beacons?.npc_pulse;
 
   /* -------- Schemas -------- */
   const DISPLAY_SCHEMAS = useMemo(() => {
@@ -534,18 +573,18 @@ if (allRecords.length === 0) return;
     />
 
     <GMColumn
-      title="NPCs"
-      color="blue"
-      entityKey="npcs"
-      items={npcs}
-      forceOpen={expandAll}
-      campaignId={selectedCampaign.id}   // ✅ ADD
-      sessionId={selectedSession.id}
-      schema={DISPLAY_SCHEMAS.npcs}
-      onOpenPanel={openPanel}
-      onOpenEditor={(id) => router.push(editorPathFor("npcs", id))}
-    />
-
+  title="NPCs"
+  color="blue"
+  entityKey="npcs"
+  items={npcs}
+  forceOpen={expandAll}
+  campaignId={selectedCampaign.id}
+  sessionId={selectedSession.id}
+  schema={DISPLAY_SCHEMAS.npcs}
+  onOpenPanel={openPanel}
+  onOpenEditor={(id) => router.push(editorPathFor("npcs", id))}
+  showNpcPulseBeacon={showNpcPulseBeacon}
+/>
     <GMColumn
       title="Encounters"
       color="green"
@@ -636,12 +675,13 @@ function GMColumn({
   color,
   entityKey,
   items,
-  campaignId,   // ✅ REQUIRED
+  campaignId,
   forceOpen,
   sessionId,
-  onOpenEditor, // keep for future pop-out pages
-  onOpenPanel,  // ✅ NEW
+  onOpenEditor,
+  onOpenPanel,
   schema,
+  showNpcPulseBeacon,
 }) {
   const stableStorageKeyRef = useRef(null);
   const hydratedRef = useRef(false);
@@ -794,14 +834,15 @@ useEffect(() => {
   onDrop={(e) => onDrop(e, index)}
 >
   <GMCard
-    item={item}
-    entityKey={entityKey}
-    forceOpen={forceOpen}
-    onOpenEditor={onOpenEditor}
-    onOpenPanel={onOpenPanel}
-    sessionId={sessionId}
-    schema={schema}
-  />
+  item={item}
+  entityKey={entityKey}
+  forceOpen={forceOpen}
+  onOpenEditor={onOpenEditor}
+  onOpenPanel={onOpenPanel}
+  sessionId={sessionId}
+  schema={schema}
+  showNpcPulseBeacon={showNpcPulseBeacon}
+/>
 </div>
         ))}
       </div>
@@ -821,6 +862,7 @@ function GMCard({
   onOpenPanel,
   sessionId,
   schema,
+  showNpcPulseBeacon,
 }) {
   const hydratedRef = useRef(false);  
   const [open, setOpen] = useState(false);
@@ -869,6 +911,43 @@ function GMCard({
         onClick={toggle}
       >
         <span className="gm-card-title">{item?.name || "Untitled"}</span>
+
+{entityKey === "npcs" && showNpcPulseBeacon && (
+  <span
+    className="npc-pulse-actions"
+    style={{ marginLeft: "auto", display: "inline-flex", gap: 6 }}
+  >
+   <button
+  type="button"
+  className="npc-pulse-btn small"
+  title="NPC Pulse (short)"
+  onClick={(e) => {
+    e.stopPropagation();
+    pulseNpcClip({
+      npcId: item.id,
+      durationMs: 2500,
+    });
+  }}
+>
+  ★
+</button>
+
+   <button
+  type="button"
+  className="npc-pulse-btn large"
+  title="NPC Pulse (long)"
+  onClick={(e) => {
+    e.stopPropagation();
+    pulseNpcClip({
+      npcId: item.id,
+      durationMs: 30000,
+    });
+  }}
+>
+  ★
+</button>
+  </span>
+)}
 
         <span className="gm-card-actions" style={{ display: "inline-flex", gap: 6 }}>
           <button

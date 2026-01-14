@@ -192,8 +192,8 @@ export default function NpcForm({ record, onChange }) {
           <option value="">— No image —</option>
           {clips.map((c) => (
             <option key={c.id} value={c.id}>
-              {c.title || displayFilename(c.object_key)}
-            </option>
+  {displayFilename(c.object_key)}
+</option>
           ))}
         </select>
 
