@@ -91,29 +91,57 @@ export default function CampaignManagerPage() {
     setSelectedRecord(record);
   };
 
-  const handleSave = async () => {
-    if (!selectedRecord) return;
+ const handleSave = async () => {
+  if (!selectedRecord) return;
 
-    const { _isNew, id, ...payload } = selectedRecord;
+  try {
+    const {
+      _isNew,
+      id,
+      __pendingImageClipId,
+      ...payload
+    } = selectedRecord;
 
+    // 1) Save NPC
     const saved = _isNew
       ? await cmApi.create(activeType, payload)
       : await cmApi.update(activeType, id, payload);
 
+    // 2) Update state
     setRecords((p) => ({
       ...p,
       [activeType]: (p[activeType] || []).map((r) =>
-        r.id === id ? saved : r
+        r.id === (_isNew ? id : saved.id) ? saved : r
       ),
     }));
 
     setSelectedId(saved.id);
     setSelectedRecord(saved);
 
-    if (activeType === "campaigns") {
-      setCampaignContext({ campaign: saved, session: null });
+    // 3) Attach image AFTER save (NPCs only)
+    if (
+      activeType === "npcs" &&
+      __pendingImageClipId
+    ) {
+      try {
+        await cmApi.post(
+          `npcs/${saved.id}/image`,
+          { clip_id: __pendingImageClipId }
+        );
+      } catch (err) {
+        console.error(
+          "[NPC image attach failed]",
+          err
+        );
+        // DO NOT throw
+      }
     }
-  };
+
+  } catch (err) {
+    console.error("[handleSave failed]", err);
+    // DO NOT throw
+  }
+};
 
   const handleDelete = async () => {
     if (!selectedRecord) return;
