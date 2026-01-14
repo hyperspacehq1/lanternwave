@@ -5,14 +5,16 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /* -----------------------------------------------------------
-   POST → attach image
+   POST → attach image to NPC
 ------------------------------------------------------------ */
-export async function POST(req, { params }) {
+export async function POST(req) {
   try {
     const ctx = await getTenantContext(req);
     const tenantId = ctx?.tenantId;
 
-    const npcId = params?.id;
+    const body = await req.json().catch(() => null);
+    const npcId = body?.npc_id;
+    const clipId = body?.clip_id;
 
     if (!tenantId) {
       return Response.json(
@@ -28,9 +30,6 @@ export async function POST(req, { params }) {
       );
     }
 
-    const body = await req.json();
-    const clipId = body?.clip_id;
-
     if (!clipId) {
       return Response.json(
         { error: "clip_id required" },
@@ -38,14 +37,13 @@ export async function POST(req, { params }) {
       );
     }
 
+    // Remove existing image
     await query(
-      `
-      DELETE FROM npc_clips
-      WHERE npc_id = $1
-      `,
+      `DELETE FROM npc_clips WHERE npc_id = $1`,
       [npcId]
     );
 
+    // Attach new image
     await query(
       `
       INSERT INTO npc_clips (npc_id, clip_id)
@@ -67,12 +65,13 @@ export async function POST(req, { params }) {
 /* -----------------------------------------------------------
    DELETE → detach image
 ------------------------------------------------------------ */
-export async function DELETE(req, { params }) {
+export async function DELETE(req) {
   try {
     const ctx = await getTenantContext(req);
     const tenantId = ctx?.tenantId;
 
-    const npcId = params?.id;
+    const body = await req.json().catch(() => null);
+    const npcId = body?.npc_id;
 
     if (!tenantId || !npcId) {
       return Response.json(
@@ -82,10 +81,7 @@ export async function DELETE(req, { params }) {
     }
 
     await query(
-      `
-      DELETE FROM npc_clips
-      WHERE npc_id = $1
-      `,
+      `DELETE FROM npc_clips WHERE npc_id = $1`,
       [npcId]
     );
 
