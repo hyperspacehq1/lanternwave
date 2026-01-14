@@ -9,7 +9,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /* -----------------------------------------------------------
-   POST → attach image
+   POST → attach image (existing NPCs only)
 ------------------------------------------------------------ */
 export async function POST(req, { params }) {
   try {
@@ -19,7 +19,7 @@ export async function POST(req, { params }) {
 
     if (!tenantId || !npcId) {
       return Response.json(
-        { error: "Invalid tenant or NPC" },
+        { error: "NPC must be saved before attaching an image" },
         { status: 400 }
       );
     }
@@ -34,7 +34,7 @@ export async function POST(req, { params }) {
       );
     }
 
-    // Ensure NPC belongs to tenant (PREVENT FK / silent 500)
+    // Ensure NPC exists and belongs to tenant
     const npcCheck = await query(
       `
       SELECT id
@@ -51,7 +51,7 @@ export async function POST(req, { params }) {
       );
     }
 
-    // Clear existing image
+    // Remove any existing image
     await query(
       `
       DELETE FROM npc_clips

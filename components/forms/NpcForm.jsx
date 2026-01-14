@@ -79,7 +79,8 @@ export default function NpcForm({ record, onChange }) {
   const [clips, setClips] = useState([]);
   const [selectedClip, setSelectedClip] = useState(null);
 
-  const npcId = record?.id || null;
+  const npcId = record?.id ?? null;
+  const isNewNpc = !npcId;
 
   // Load image clips
   useEffect(() => {
@@ -173,8 +174,11 @@ export default function NpcForm({ record, onChange }) {
 
         <select
           className="cm-input"
+          disabled={isNewNpc}
           value={selectedClip?.id || ""}
           onChange={(e) => {
+            if (isNewNpc) return;
+
             const clip =
               clips.find((c) => c.id === e.target.value) || null;
 
@@ -193,7 +197,13 @@ export default function NpcForm({ record, onChange }) {
           ))}
         </select>
 
-        {selectedClip && (
+        {isNewNpc && (
+          <div className="cm-hint">
+            Save the NPC before assigning an image.
+          </div>
+        )}
+
+        {selectedClip && !isNewNpc && (
           <div style={{ marginTop: 12 }}>
             <img
               src={`/api/r2/stream?key=${encodeURIComponent(
