@@ -1,11 +1,3 @@
-/* ============================================================
-   AUTH PAGES STYLES (SCOPED)
-   IMPORTANT:
-   - NO body / html / :root styles
-   - NO header / nav styles
-   - NO font-face declarations
-   - EVERYTHING scoped under .lw-main
-   ============================================================ */
 
 /* ------------------------------
    AUTH PAGE WRAPPER
@@ -17,6 +9,7 @@
   align-items: center;
   justify-content: center;
   padding: 1.25rem;
+  flex-direction: column;
 }
 
 /* ------------------------------
@@ -96,11 +89,13 @@
 }
 
 /* ------------------------------
-   SECONDARY LINKS
+   SECONDARY LINKS (FIXED)
 ------------------------------ */
 .lw-main .lw-auth-links {
   display: flex;
-  justify-content: space-between;
+  justify-content: center; /* FIX: prevents floating separator */
+  align-items: center;
+  gap: 1.25rem;            /* FIX: spacing instead of space-between */
   margin-top: 0.5rem;
 }
 
@@ -114,6 +109,18 @@
 .lw-main .lw-auth-link:hover {
   opacity: 1;
   color: var(--lw-green-primary);
+}
+
+/* Optional separator (safe if present in JSX) */
+.lw-main .lw-auth-separator {
+  color: var(--lw-green-muted);
+  font-size: 10px;
+  opacity: 0.6;
+}
+
+/* Hide separator if it's alone */
+.lw-main .lw-auth-separator:only-child {
+  display: none;
 }
 
 /* ------------------------------
@@ -132,22 +139,9 @@
   text-align: center;
 }
 
-/* Auth logo 
-.lw-main .lw-auth-logo-wrap {
-  margin-bottom: 1.25rem;
-  display: flex;
-  justify-content: center;
-  pointer-events: none;
-}
-
-.lw-main .lw-auth-logo {
-  width: 160px;
-  height: auto;
-  transform: none !important;
-  rotate: 0deg !important;
-}
-
-/* Brand container */
+/* ------------------------------
+   BRANDING
+------------------------------ */
 .lw-main .lw-brand {
   display: flex;
   flex-direction: column;
@@ -165,10 +159,6 @@
   opacity: 0.9;
 }
 
-.lw-main .lw-auth {
-  flex-direction: column;
-}
-
 .lw-main .lw-brand-logo {
   width: 180px;
   height: auto;
@@ -178,6 +168,10 @@
     drop-shadow(0 0 14px rgba(108, 196, 23, 0.45))
     drop-shadow(0 0 34px rgba(108, 196, 23, 0.25));
 }
+
+/* ------------------------------
+   LEGAL PAGES
+------------------------------ */
 .lw-legal {
   max-width: 860px;
   margin: 0 auto;
