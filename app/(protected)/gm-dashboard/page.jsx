@@ -917,34 +917,28 @@ function GMCard({
     className="npc-pulse-actions"
     style={{ marginLeft: "auto", display: "inline-flex", gap: 6 }}
   >
-   <button
+  <button
   type="button"
-  className="npc-pulse-btn small"
+  className="gm-card-action-btn npc-pulse-btn npc-pulse-short"
   title="NPC Pulse (short)"
   onClick={(e) => {
     e.stopPropagation();
-    pulseNpcClip({
-      npcId: item.id,
-      durationMs: 2500,
-    });
+    pulseNpcClip({ npcId: item.id, durationMs: 2500 });
   }}
 >
-  ★
+  ◉
 </button>
 
-   <button
+<button
   type="button"
-  className="npc-pulse-btn large"
+  className="gm-card-action-btn npc-pulse-btn npc-pulse-long"
   title="NPC Pulse (long)"
   onClick={(e) => {
     e.stopPropagation();
-    pulseNpcClip({
-      npcId: item.id,
-      durationMs: 30000,
-    });
+    pulseNpcClip({ npcId: item.id, durationMs: 30000 });
   }}
 >
-  ★
+  ◎
 </button>
   </span>
 )}
