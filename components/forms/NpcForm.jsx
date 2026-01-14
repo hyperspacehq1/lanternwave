@@ -24,7 +24,7 @@ const NPC_TYPES = [
 ];
 
 export default function NpcForm({ record, onChange }) {
-  const { campaign, session } = useCampaignContext();
+  const { campaign } = useCampaignContext();
 
   /* ------------------------------------------------------------
      Guards
@@ -32,17 +32,15 @@ export default function NpcForm({ record, onChange }) {
   if (!campaign) {
     return (
       <div className="cm-detail-empty">
-        <h3>No Campaign Selected</h3>
-        <p>Please select or create a campaign.</p>
+        Select a Campaign from the Campaign tab
       </div>
     );
   }
 
-  if (!session) {
+  if (!record) {
     return (
       <div className="cm-detail-empty">
-        <h3>No Session Selected</h3>
-        <p>Please select a session.</p>
+        Select a Record from the List to view Details
       </div>
     );
   }
@@ -56,7 +54,6 @@ export default function NpcForm({ record, onChange }) {
         },
         {
           campaign_id: campaign.id,
-          session_id: session.id,
         }
       )
     );
@@ -126,7 +123,7 @@ export default function NpcForm({ record, onChange }) {
   }, [record?.image_clip_id, clips]);
 
   /* ------------------------------------------------------------
-     EXPOSE DATA ONLY (no functions)
+     Expose pending image clip id (no save here)
   ------------------------------------------------------------ */
   useEffect(() => {
     if (typeof onChange !== "function") return;
@@ -139,7 +136,6 @@ export default function NpcForm({ record, onChange }) {
         },
         {
           campaign_id: campaign.id,
-          session_id: session.id,
         }
       )
     );
@@ -147,16 +143,7 @@ export default function NpcForm({ record, onChange }) {
   }, [pendingClipId]);
 
   return (
-    <div className="cm-detail-form">
-      <div className={`cm-campaign-header ${pulse ? "pulse" : ""}`}>
-        <div className="cm-context-line">
-          <strong>Campaign:</strong> {campaign.name}
-        </div>
-        <div className="cm-context-line">
-          <strong>Session:</strong> {session.name}
-        </div>
-      </div>
-
+    <div className={`cm-detail-form ${pulse ? "pulse" : ""}`}>
       <div className="cm-field">
         <label className="cm-label">Name</label>
         <input
