@@ -31,6 +31,18 @@ export default function EventForm({ record, onChange }) {
     );
   }
 
+  /* ------------------------------------------------------------
+     ✅ MISSING GUARD (THIS FIX)
+  ------------------------------------------------------------ */
+  if (!record) {
+    return (
+      <div className="cm-detail-empty">
+        <h3>No Event Selected</h3>
+        <p>Select an event or create a new one.</p>
+      </div>
+    );
+  }
+
   const update = (field, value) => {
     onChange(
       withContext(
@@ -54,11 +66,10 @@ export default function EventForm({ record, onChange }) {
     setPulse(true);
     const t = setTimeout(() => setPulse(false), 800);
     return () => clearTimeout(t);
-  }, [record?.id]);
+  }, [record.id]);
 
   return (
     <div className="cm-detail-form">
-      {/* Header */}
       <div className={`cm-campaign-header ${pulse ? "pulse" : ""}`}>
         <div className="cm-context-line">
           <strong>Campaign:</strong> {campaign.name}
@@ -68,43 +79,39 @@ export default function EventForm({ record, onChange }) {
         </div>
       </div>
 
-      {/* Name */}
       <div className="cm-field">
         <label className="cm-label">Name</label>
         <input
           className="cm-input"
-          value={record?.name || ""}
+          value={record.name || ""}
           onChange={(e) => update("name", e.target.value)}
         />
       </div>
 
-      {/* Description */}
       <div className="cm-field">
         <label className="cm-label">Description</label>
         <textarea
           className="cm-textarea"
-          value={record?.description || ""}
+          value={record.description || ""}
           onChange={(e) => update("description", e.target.value)}
         />
       </div>
 
-      {/* Event Type */}
       <div className="cm-field">
         <label className="cm-label">Event Type</label>
         <input
           className="cm-input"
-          value={record?.event_type || ""}
+          value={record.event_type || ""}
           onChange={(e) => update("event_type", e.target.value)}
         />
       </div>
 
-      {/* Priority */}
       <div className="cm-field">
         <label className="cm-label">Priority</label>
         <input
           type="number"
           className="cm-input"
-          value={record?.priority ?? 0}
+          value={record.priority ?? 0}
           onChange={(e) =>
             update("priority", parseInt(e.target.value, 10) || 0)
           }
