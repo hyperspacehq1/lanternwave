@@ -195,30 +195,51 @@ export default function GMDashboardPage() {
       });
   }, [selectedCampaign]);
 
-  /* =========================
-     Load Records
-  ========================= */
+/* =========================
+   Load Records
+========================= */
 useEffect(() => {
   if (!selectedCampaign?.id) return;
 
-    setLoading(true);
+  // NPCs are campaign-scoped
+  setLoading(true);
 
-    Promise.all([
-      fetch(`/api/events?campaign_id=${selectedCampaign.id}&session_id=${selectedSession.id}`, { credentials: "include" }).then(r => r.json()),
-      fetch(`/api/npcs?campaign_id=${selectedCampaign.id}&session_id=${selectedSession.id}`, { credentials: "include" }).then(r => r.json()),
-      fetch(`/api/encounters?campaign_id=${selectedCampaign.id}&session_id=${selectedSession.id}`, { credentials: "include" }).then(r => r.json()),
-      fetch(`/api/locations?campaign_id=${selectedCampaign.id}&session_id=${selectedSession.id}`, { credentials: "include" }).then(r => r.json()),
-      fetch(`/api/items?campaign_id=${selectedCampaign.id}&session_id=${selectedSession.id}`, { credentials: "include" }).then(r => r.json()),
-    ])
-      .then(([eventsRes, npcsRes, encountersRes, locationsRes, itemsRes]) => {
-        setEvents(Array.isArray(eventsRes) ? eventsRes : []);
-        setNpcs(Array.isArray(npcsRes) ? npcsRes : []);
-        setEncounters(Array.isArray(encountersRes) ? encountersRes : []);
-        setLocations(Array.isArray(locationsRes) ? locationsRes : []);
-        setItems(Array.isArray(itemsRes) ? itemsRes : []);
-      })
-      .finally(() => setLoading(false));
-  }, [selectedCampaign?.id, selectedSession?.id]);
+  fetch(`/api/npcs?campaign_id=${selectedCampaign.id}`, {
+    credentials: "include",
+  })
+    .then((r) => r.json())
+    .then((res) => setNpcs(Array.isArray(res) ? res : []))
+    .finally(() => setLoading(false));
+}, [selectedCampaign?.id]);
+
+useEffect(() => {
+  if (!selectedCampaign?.id || !selectedSession?.id) return;
+
+  // Everything else is session-scoped
+  Promise.all([
+    fetch(
+      `/api/events?campaign_id=${selectedCampaign.id}&session_id=${selectedSession.id}`,
+      { credentials: "include" }
+    ).then((r) => r.json()),
+    fetch(
+      `/api/encounters?campaign_id=${selectedCampaign.id}&session_id=${selectedSession.id}`,
+      { credentials: "include" }
+    ).then((r) => r.json()),
+    fetch(
+      `/api/locations?campaign_id=${selectedCampaign.id}&session_id=${selectedSession.id}`,
+      { credentials: "include" }
+    ).then((r) => r.json()),
+    fetch(
+      `/api/items?campaign_id=${selectedCampaign.id}&session_id=${selectedSession.id}`,
+      { credentials: "include" }
+    ).then((r) => r.json()),
+  ]).then(([eventsRes, encountersRes, locationsRes, itemsRes]) => {
+    setEvents(Array.isArray(eventsRes) ? eventsRes : []);
+    setEncounters(Array.isArray(encountersRes) ? encountersRes : []);
+    setLocations(Array.isArray(locationsRes) ? locationsRes : []);
+    setItems(Array.isArray(itemsRes) ? itemsRes : []);
+  });
+}, [selectedCampaign?.id, selectedSession?.id]);
 
   /* =========================
      NPCs With Clips
