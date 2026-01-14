@@ -7,6 +7,9 @@ export const dynamic = "force-dynamic";
 /* -----------------------------------------------------------
    POST → attach image (existing NPCs only)
 ------------------------------------------------------------ */
+
+console.log("🔥 NPC IMAGE POST HIT", { npcId, clipId });
+
 export async function POST(req, { params }) {
   try {
     const ctx = await getTenantContext(req);

@@ -112,21 +112,26 @@ if (!selectedId && first) {
   };
 
   const handleSave = async () => {
-    if (!selectedRecord) return;
+  if (!selectedRecord) return;
 
-    const { _isNew, id, ...payload } = selectedRecord;
-    const saved = _isNew
-      ? await cmApi.create(activeType, payload)
-      : await cmApi.update(activeType, id, payload);
+  const { _isNew, id, ...payload } = selectedRecord;
 
-    setRecords((p) => ({
-      ...p,
-      [activeType]: p[activeType].map((r) =>
-        r.id === saved.id ? saved : r
-      ),
-    }));
-    setSelectedRecord(saved);
-  };
+  // 1️⃣ Save or update the NPC
+  const saved = _isNew
+    ? await cmApi.create(activeType, payload)
+    : await cmApi.update(activeType, id, payload);
+
+  // 2️⃣ Update state
+  setRecords((p) => ({
+    ...p,
+    [activeType]: p[activeType].map((r) =>
+      r.id === saved.id ? saved : r
+    ),
+  }));
+
+  setSelectedRecord(saved);
+  await selectedRecord.__attachImageOnSave?.();
+};
 
   const handleDelete = async () => {
     if (!selectedRecord) return;
