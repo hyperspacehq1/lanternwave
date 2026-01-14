@@ -1,7 +1,3 @@
-// ==============================
-// /api/npcs/[id]/image/route.js
-// ==============================
-
 import { query } from "@/lib/db";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 
@@ -25,21 +21,25 @@ export async function POST(req, { params }) {
     }
 
     const body = await req.json().catch(() => null);
-    const clip_id = body?.clip_id;
+    const clipId = body?.clip_id;
 
-    if (!clip_id) {
+    if (!clipId) {
       return Response.json(
         { error: "clip_id required" },
         { status: 400 }
       );
     }
 
-    // Ensure NPC exists and belongs to tenant
+    /* -------------------------------------------------------
+       Validate NPC ownership
+    ------------------------------------------------------- */
     const npcCheck = await query(
       `
       SELECT id
       FROM npcs
-      WHERE id = $1 AND tenant_id = $2
+      WHERE id = $1
+        AND tenant_id = $2
+        AND deleted_at IS NULL
       `,
       [npcId, tenantId]
     );
@@ -51,30 +51,54 @@ export async function POST(req, { params }) {
       );
     }
 
-    // Remove any existing image
+    /* -------------------------------------------------------
+       Validate clip ownership
+    ------------------------------------------------------- */
+    const clipCheck = await query(
+      `
+      SELECT id
+      FROM clips
+      WHERE id = $1
+        AND tenant_id = $2
+        AND deleted_at IS NULL
+      `,
+      [clipId, tenantId]
+    );
+
+    if (!clipCheck.rowCount) {
+      return Response.json(
+        { error: "Clip not found for tenant" },
+        { status: 404 }
+      );
+    }
+
+    /* -------------------------------------------------------
+       Remove existing NPC ↔ clip links
+    ------------------------------------------------------- */
     await query(
       `
       DELETE FROM npc_clips
-      WHERE tenant_id = $1
-        AND npc_id = $2
+      WHERE npc_id = $1
       `,
-      [tenantId, npcId]
+      [npcId]
     );
 
-    // Attach new image
+    /* -------------------------------------------------------
+       Attach new image
+    ------------------------------------------------------- */
     await query(
       `
-      INSERT INTO npc_clips (tenant_id, npc_id, clip_id)
-      VALUES ($1, $2, $3)
+      INSERT INTO npc_clips (npc_id, clip_id)
+      VALUES ($1, $2)
       `,
-      [tenantId, npcId, clip_id]
+      [npcId, clipId]
     );
 
     return Response.json({ ok: true });
   } catch (err) {
     console.error("[npc image POST]", err);
     return Response.json(
-      { error: "Failed to attach image" },
+      { error: "Failed to attach image", detail: err?.message },
       { status: 500 }
     );
   }
@@ -96,20 +120,38 @@ export async function DELETE(req, { params }) {
       );
     }
 
+    // Ensure NPC belongs to tenant
+    const npcCheck = await query(
+      `
+      SELECT id
+      FROM npcs
+      WHERE id = $1
+        AND tenant_id = $2
+        AND deleted_at IS NULL
+      `,
+      [npcId, tenantId]
+    );
+
+    if (!npcCheck.rowCount) {
+      return Response.json(
+        { error: "NPC not found for tenant" },
+        { status: 404 }
+      );
+    }
+
     await query(
       `
       DELETE FROM npc_clips
-      WHERE tenant_id = $1
-        AND npc_id = $2
+      WHERE npc_id = $1
       `,
-      [tenantId, npcId]
+      [npcId]
     );
 
     return Response.json({ ok: true });
   } catch (err) {
     console.error("[npc image DELETE]", err);
     return Response.json(
-      { error: "Failed to detach image" },
+      { error: "Failed to detach image", detail: err?.message },
       { status: 500 }
     );
   }
