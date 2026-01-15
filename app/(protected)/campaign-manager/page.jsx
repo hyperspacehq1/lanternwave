@@ -120,24 +120,38 @@ export default function CampaignManagerPage() {
     setSelectedRecord(saved);
 
     // 3) Attach image AFTER save (NPCs only)
-    if (activeType === "npcs" && __pendingImageClipId) {
-      try {
-        await fetch("/api/npc-image", {
-          method: "POST",
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            npc_id: saved.id,
-            clip_id: __pendingImageClipId,
-          }),
-        });
-      } catch (err) {
-        console.error("[NPC image attach failed]", err);
-        // DO NOT throw
-      }
-    }
+if (activeType === "npcs" && __pendingImageClipId) {
+  try {
+    await fetch("/api/npc-image", {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        npc_id: saved.id,
+        clip_id: __pendingImageClipId,
+      }),
+    });
+
+    // ✅ IMPORTANT: rehydrate local state
+    const updated = {
+      ...saved,
+      image_clip_id: __pendingImageClipId,
+    };
+
+    setRecords((p) => ({
+      ...p,
+      [activeType]: (p[activeType] || []).map((r) =>
+        r.id === updated.id ? updated : r
+      ),
+    }));
+
+    setSelectedRecord(updated);
+  } catch (err) {
+    console.error("[NPC image attach failed]", err);
+  }
+}
 
   } catch (err) {
     console.error("[handleSave failed]", err);
