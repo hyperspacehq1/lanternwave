@@ -3,8 +3,10 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
 
-import { cmApi } from "@/lib/cm/api";
-import { getFormComponent } from "@/components/forms";
+// ❌ TEMP DISABLED FOR DEBUGGING
+// import { cmApi } from "@/lib/cm/api";
+// import { getFormComponent } from "@/components/forms";
+
 import { useCampaignContext } from "@/lib/campaign/campaignContext";
 
 import "./campaign-manager.css";
@@ -20,17 +22,6 @@ const CONTAINER_TYPES = [
   { id: "players", label: "Players" },
 ];
 
-function isProbablyReactComponent(v) {
-  // Accept function components + forwardRef/memo objects (best-effort)
-  if (!v) return false;
-  if (typeof v === "function") return true;
-  if (typeof v === "object") {
-    // React.memo / forwardRef have $$typeof
-    return !!v.$$typeof;
-  }
-  return false;
-}
-
 function getRecordLabel(type, r) {
   if (!r) return "(unnamed)";
   if (type === "players") {
@@ -42,15 +33,15 @@ function getRecordLabel(type, r) {
 }
 
 /* ------------------------------------------------------------
-   Error Boundary (prevents whole page from crashing)
+   Error Boundary
 ------------------------------------------------------------ */
 class DetailErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false, err: null };
+    this.state = { hasError: false };
   }
-  static getDerivedStateFromError(err) {
-    return { hasError: true, err };
+  static getDerivedStateFromError() {
+    return { hasError: true };
   }
   componentDidCatch(err, info) {
     console.error("[CampaignManager] Detail pane crashed:", err, info);
@@ -59,7 +50,7 @@ class DetailErrorBoundary extends React.Component {
     if (this.state.hasError) {
       return (
         <div className="cm-detail-empty">
-          Detail pane failed to render. Check console for the actual component/line.
+          Detail pane failed to render.
         </div>
       );
     }
@@ -78,61 +69,22 @@ export default function CampaignManagerPage() {
 
   const campaignId = campaign?.id;
 
-  // Safe setter (NO DOM inspection)
   const safeSetSelectedRecord = (next) => {
     setSelectedRecord(next);
   };
 
   /* ---------------------------------------------
-     Load records
+     Load records (DISABLED)
   --------------------------------------------- */
   useEffect(() => {
-    if (activeType !== "campaigns" && !campaignId) return;
-
-    let cancelled = false;
-
-    (async () => {
-      setLoading(true);
-      try {
-        const list =
-          activeType === "campaigns"
-            ? await cmApi.list("campaigns")
-            : await cmApi.list(activeType, { campaign_id: campaignId });
-
-        if (cancelled) return;
-
-        const safeList = Array.isArray(list) ? list : [];
-        setRecords((p) => ({ ...p, [activeType]: safeList }));
-
-        // Auto-select first record only if none selected yet
-        if (!selectedId && safeList.length) {
-          const first = safeList[0];
-          setSelectedId(first?.id ?? null);
-          safeSetSelectedRecord(first ?? null);
-
-          if (activeType === "campaigns") {
-            setCampaignContext({ campaign: first, session: null });
-          }
-        }
-      } catch (err) {
-        console.error("[CampaignManager] load failed:", err);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-    // Intentionally NOT depending on selectedId to avoid re-load loops
-  }, [activeType, campaignId]); // eslint-disable-line react-hooks/exhaustive-deps
+    // ❌ cmApi intentionally disabled
+    // This effect is preserved structurally but does nothing
+  }, [activeType, campaignId]);
 
   /* ---------------------------------------------
-     CRUD
+     CRUD (DISABLED)
   --------------------------------------------- */
   const handleCreate = () => {
-    if (activeType !== "campaigns" && !campaignId) return;
-
     const id = uuidv4();
     const record = {
       id,
@@ -150,94 +102,20 @@ export default function CampaignManagerPage() {
   };
 
   const handleSave = async () => {
-    if (!selectedRecord) return;
-
-    try {
-      const { _isNew, id, __pendingImageClipId, ...payload } = selectedRecord;
-
-      const saved = _isNew
-        ? await cmApi.create(activeType, payload)
-        : await cmApi.update(activeType, id, payload);
-
-      setRecords((p) => ({
-        ...p,
-        [activeType]: (p[activeType] || []).map((r) => {
-          if (!r) return r;
-          return r.id === (_isNew ? id : saved.id) ? saved : r;
-        }),
-      }));
-
-      setSelectedId(saved.id);
-      safeSetSelectedRecord(saved);
-
-      // Attach image AFTER save (NPCs only)
-      if (activeType === "npcs" && __pendingImageClipId) {
-        try {
-          await fetch("/api/npc-image", {
-            method: "POST",
-            credentials: "include",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              npc_id: saved.id,
-              clip_id: __pendingImageClipId,
-            }),
-          });
-        } catch (err) {
-          console.error("[NPC image attach failed]", err);
-          // DO NOT throw
-        }
-      }
-    } catch (err) {
-      console.error("[handleSave failed]", err);
-      // DO NOT throw
-    }
+    // ❌ cmApi disabled
   };
 
   const handleDelete = async () => {
-    if (!selectedRecord) return;
-
-    try {
-      await cmApi.remove(activeType, selectedRecord.id);
-
-      setRecords((p) => ({
-        ...p,
-        [activeType]: (p[activeType] || []).filter(
-          (r) => r.id !== selectedRecord.id
-        ),
-      }));
-
-      safeSetSelectedRecord(null);
-      setSelectedId(null);
-    } catch (err) {
-      console.error("[handleDelete failed]", err);
-    }
+    // ❌ cmApi disabled
+    safeSetSelectedRecord(null);
+    setSelectedId(null);
   };
 
   /* ---------------------------------------------
-     Form resolution (guarded)
+     Form resolution (DISABLED)
   --------------------------------------------- */
- const Form = null;
+  const Form = null;
 
-  console.log(
-    "[CampaignManager] getFormComponent()",
-    {
-      activeType,
-      candidate,
-      typeofCandidate: typeof candidate,
-      hasDollarType: !!candidate?.$$typeof,
-    }
-  );
-
-  if (!isProbablyReactComponent(candidate)) {
-    console.error(
-      "[CampaignManager] Invalid form component returned from getFormComponent:",
-      { activeType, candidate }
-    );
-    return null;
-  }
-
-  return candidate;
-}, [activeType]);
   /* ---------------------------------------------
      Render
   --------------------------------------------- */
@@ -273,7 +151,12 @@ export default function CampaignManagerPage() {
           </div>
 
           <div className="cm-main-actions">
-            <button className="cm-btn" onClick={handleCreate} disabled={loading} type="button">
+            <button
+              className="cm-btn"
+              onClick={handleCreate}
+              disabled={loading}
+              type="button"
+            >
               + New
             </button>
             <button
@@ -328,13 +211,16 @@ export default function CampaignManagerPage() {
                 </div>
               ) : !Form ? (
                 <div className="cm-detail-empty">
-                  No valid form registered for "{activeType}". Check console.
+                  Form disabled for debugging
                 </div>
-             ) : (
-  <div className="cm-detail-empty">
-    Form temporarily disabled for debugging
-  </div>
-)
+              ) : (
+                <DetailErrorBoundary>
+                  <Form
+                    record={selectedRecord}
+                    onChange={safeSetSelectedRecord}
+                  />
+                </DetailErrorBoundary>
+              )}
             </section>
           </div>
         </section>
