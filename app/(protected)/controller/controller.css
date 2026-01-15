@@ -1,9 +1,5 @@
 /* ============================================================
    CONTROLLER PAGE STYLES (SCOPED)
-   IMPORTANT:
-   - NO body / html / :root styles
-   - NO header / nav styles
-   - Everything scoped under .lw-main
 ============================================================ */
 
 .lw-main .lw-console {
@@ -160,21 +156,20 @@
   color: var(--lw-green-primary);
 }
 
-/* 🔴 DELETE / DANGER */
+/* DELETE / DANGER */
 .lw-main .lw-btn-danger {
   color: #ff5a5a;
   border-color: #ff5a5a;
 }
 
-.lw-main .lw-btn-danger:hover {
+.lw-main .lw-btn-danger:not(:disabled):hover {
   background: rgba(255, 90, 90, 0.15);
   box-shadow: 0 0 6px rgba(255, 90, 90, 0.6);
 }
 
-/* ============================================================
+/* ------------------------------
    PREVIEW FRAME
-============================================================ */
-
+------------------------------ */
 .lw-main .lw-preview-frame {
   position: relative;
   width: 100%;
@@ -207,7 +202,7 @@
 }
 
 /* ------------------------------
-   AUDIO VISUALIZER (RESTORED)
+   AUDIO VISUALIZER
 ------------------------------ */
 .lw-audio-visual {
   display: flex;
@@ -220,10 +215,14 @@
 
 .lw-audio-bar {
   width: 6px;
-  height: 16px;
+  height: 12px;
   border: 1px solid rgba(108, 197, 240, 0.6);
   background: rgba(108, 197, 240, 0.15);
   box-shadow: 0 0 12px rgba(108, 197, 240, 0.25);
+  animation: none;
+}
+
+.lw-audio-visual.playing .lw-audio-bar {
   animation: lwEqualize 1.15s infinite ease-in-out;
 }
 
@@ -239,11 +238,10 @@
 }
 
 /* ------------------------------
-   LOOP ICON (RESTORED)
+   LOOP ICON
 ------------------------------ */
-.loop-btn.active {
-  color: var(--lw-green-primary);
-  border-color: var(--lw-green-primary);
+.loop-btn.active .loop-icon {
+  display: inline-block;
   animation: lwSpin 1.2s linear infinite;
 }
 
