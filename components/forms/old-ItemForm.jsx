@@ -1,53 +1,60 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { withContext } from "@/lib/forms/withContext";
 import { useCampaignContext } from "@/lib/campaign/campaignContext";
 
 export default function ItemForm({ record, onChange }) {
-  const { campaign } = useCampaignContext();
+  const { campaign, session } = useCampaignContext();
 
   /* ------------------------------------------------------------
-     Guards
+     Guard: No campaign selected
   ------------------------------------------------------------ */
   if (!campaign) {
     return (
       <div className="cm-detail-empty">
         <h3>No Campaign Selected</h3>
-        <p>Please select or create a campaign.</p>
+        <p>Please select or create a campaign to manage items.</p>
       </div>
     );
   }
 
-  if (!record) {
+  /* ------------------------------------------------------------
+     Guard: No session selected
+  ------------------------------------------------------------ */
+  if (!session) {
     return (
       <div className="cm-detail-empty">
-        <h3>No Item Selected</h3>
-        <p>Select an item or create a new one.</p>
+        <h3>No Session Selected</h3>
+        <p>Please select or create a session to manage items.</p>
       </div>
     );
   }
 
-  /* ------------------------------------------------------------
-     Campaign-scoped update helper
-  ------------------------------------------------------------ */
   const update = (field, value) => {
-    onChange({
-      ...record,
-      [field]: value,
-      campaign_id: campaign.id,
-    });
+    onChange(
+      withContext(
+        {
+          ...record,
+          [field]: value,
+        },
+        {
+          campaign_id: campaign.id,
+          session_id: session.id,
+        }
+      )
+    );
   };
 
-  /* ------------------------------------------------------------
-     Visual pulse on record change
-  ------------------------------------------------------------ */
+  /* ---------------------------------------------
+     Visual pulse when record changes
+  --------------------------------------------- */
   const [pulse, setPulse] = useState(false);
-
   useEffect(() => {
     setPulse(true);
     const t = setTimeout(() => setPulse(false), 800);
     return () => clearTimeout(t);
-  }, [record.id]);
+  }, [record?.id]);
 
   return (
     <div className="cm-detail-form">
@@ -57,57 +64,53 @@ export default function ItemForm({ record, onChange }) {
           <strong>Campaign:</strong> {campaign.name}
         </div>
         <div className="cm-context-line">
-          <strong>Item:</strong> {record.name || "Unnamed Item"}
+          <strong>Session:</strong> {session.name}
         </div>
       </div>
 
-      {/* Name */}
+      {/* Fields */}
       <div className="cm-field">
         <label className="cm-label">Name</label>
         <input
           className="cm-input"
-          value={record.name || ""}
+          value={record?.name || ""}
           onChange={(e) => update("name", e.target.value)}
         />
       </div>
 
-      {/* Item Type */}
       <div className="cm-field">
         <label className="cm-label">Item Type</label>
         <input
           className="cm-input"
-          value={record.item_type || ""}
+          value={record?.item_type || ""}
           onChange={(e) => update("item_type", e.target.value)}
         />
       </div>
 
-      {/* Description */}
       <div className="cm-field">
         <label className="cm-label">Description</label>
         <textarea
           className="cm-textarea"
-          value={record.description || ""}
+          value={record?.description || ""}
           onChange={(e) => update("description", e.target.value)}
         />
       </div>
 
-      {/* Notes */}
       <div className="cm-field">
         <label className="cm-label">Notes</label>
         <textarea
           className="cm-textarea"
-          value={record.notes || ""}
+          value={record?.notes || ""}
           onChange={(e) => update("notes", e.target.value)}
         />
       </div>
 
-      {/* Properties */}
       <div className="cm-field">
         <label className="cm-label">Properties (JSON)</label>
         <textarea
           className="cm-textarea"
           value={
-            record.properties
+            record?.properties
               ? JSON.stringify(record.properties, null, 2)
               : ""
           }
@@ -118,7 +121,7 @@ export default function ItemForm({ record, onChange }) {
                 e.target.value ? JSON.parse(e.target.value) : null
               );
             } catch {
-              // allow partial JSON while typing
+              /* allow partial JSON while typing */
             }
           }}
         />

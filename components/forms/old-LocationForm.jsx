@@ -1,10 +1,11 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
+import { withContext } from "@/lib/forms/withContext";
 import { useCampaignContext } from "@/lib/campaign/campaignContext";
 
 export default function LocationForm({ record, onChange }) {
-  const { campaign } = useCampaignContext();
+  const { campaign, session } = useCampaignContext();
 
   /* ---------------------------------------------
      Guards
@@ -18,38 +19,44 @@ export default function LocationForm({ record, onChange }) {
     );
   }
 
-  if (!record) {
+  if (!session) {
     return (
       <div className="cm-detail-empty">
-        <h3>No Location Selected</h3>
-        <p>Select a location or create a new one.</p>
+        <h3>No Session Selected</h3>
+        <p>Please select a session.</p>
       </div>
     );
   }
 
-  /* ---------------------------------------------
-     Campaign-scoped update helper
-  --------------------------------------------- */
+  if (!record) return null;
+
   const update = (field, value) => {
-    onChange({
-      ...record,
-      [field]: value,
-      campaign_id: campaign.id,
-    });
+    onChange(
+      withContext(
+        {
+          ...record,
+          [field]: value,
+        },
+        {
+          campaign_id: campaign.id,
+          session_id: session.id,
+        }
+      )
+    );
   };
 
   /* ---------------------------------------------
-     Visual pulse on record change
+     Campaign pulse (restored)
   --------------------------------------------- */
   const [pulse, setPulse] = useState(false);
   useEffect(() => {
     setPulse(true);
     const t = setTimeout(() => setPulse(false), 1200);
     return () => clearTimeout(t);
-  }, [record.id]);
+  }, [campaign.id]);
 
   /* ---------------------------------------------
-     Address toggle
+     Address toggle (restored)
   --------------------------------------------- */
   const [hasAddress, setHasAddress] = useState(false);
 
@@ -66,15 +73,14 @@ export default function LocationForm({ record, onChange }) {
   }, [record]);
 
   /* ---------------------------------------------
-     AI helpers
+     Sensory AI helpers (restored)
   --------------------------------------------- */
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState("");
 
-  const canUseAI = useMemo(
-    () => !!(record.id && campaign.id),
-    [record.id, campaign.id]
-  );
+  const canUseAI = useMemo(() => {
+    return !!(record.id && campaign.id);
+  }, [record.id, campaign.id]);
 
   function sensoryToTextareaValue(sensory) {
     if (!sensory) return "";
@@ -98,9 +104,8 @@ export default function LocationForm({ record, onChange }) {
 
   async function generateSensory() {
     setAiError("");
-
     if (!canUseAI) {
-      setAiError("Save the location before generating sensory data.");
+      setAiError("Select a campaign and location first.");
       return;
     }
 
@@ -149,18 +154,15 @@ export default function LocationForm({ record, onChange }) {
   --------------------------------------------- */
   return (
     <div className="cm-detail-form">
-      {/* Header */}
       <div className={`cm-campaign-header ${pulse ? "pulse" : ""}`}>
         <div className="cm-context-line">
           <strong>Campaign:</strong> {campaign.name}
         </div>
         <div className="cm-context-line">
-          <strong>Location:</strong>{" "}
-          {record.name || "Unnamed Location"}
+          <strong>Session:</strong> {session.name}
         </div>
       </div>
 
-      {/* Name */}
       <div className="cm-field">
         <label className="cm-label">Name *</label>
         <input
@@ -170,7 +172,6 @@ export default function LocationForm({ record, onChange }) {
         />
       </div>
 
-      {/* World */}
       <div className="cm-field">
         <label className="cm-label">World</label>
         <input
@@ -180,7 +181,6 @@ export default function LocationForm({ record, onChange }) {
         />
       </div>
 
-      {/* Description */}
       <div className="cm-field">
         <label className="cm-label">Description</label>
         <textarea
@@ -190,7 +190,6 @@ export default function LocationForm({ record, onChange }) {
         />
       </div>
 
-      {/* Notes */}
       <div className="cm-field">
         <label className="cm-label">Notes</label>
         <textarea
@@ -227,7 +226,7 @@ export default function LocationForm({ record, onChange }) {
         )}
       </div>
 
-      {/* Address toggle */}
+      {/* Address */}
       <div className="cm-field">
         <label className="cm-label">
           <input
@@ -236,7 +235,6 @@ export default function LocationForm({ record, onChange }) {
             onChange={(e) => {
               const checked = e.target.checked;
               setHasAddress(checked);
-
               if (!checked) {
                 update("address_street", null);
                 update("address_city", null);
@@ -250,21 +248,24 @@ export default function LocationForm({ record, onChange }) {
         </label>
       </div>
 
-      {hasAddress &&
-        ["street", "city", "state", "zip", "country"].map((field) => (
-          <div className="cm-field" key={field}>
-            <label className="cm-label">
-              {field.charAt(0).toUpperCase() + field.slice(1)}
-            </label>
-            <input
-              className="cm-input"
-              value={record[`address_${field}`] || ""}
-              onChange={(e) =>
-                update(`address_${field}`, e.target.value)
-              }
-            />
-          </div>
-        ))}
+      {hasAddress && (
+        <>
+          {["street", "city", "state", "zip", "country"].map((field) => (
+            <div className="cm-field" key={field}>
+              <label className="cm-label">
+                {field.charAt(0).toUpperCase() + field.slice(1)}
+              </label>
+              <input
+                className="cm-input"
+                value={record[`address_${field}`] || ""}
+                onChange={(e) =>
+                  update(`address_${field}`, e.target.value)
+                }
+              />
+            </div>
+          ))}
+        </>
+      )}
     </div>
   );
 }

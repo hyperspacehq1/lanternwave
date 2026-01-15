@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { withContext } from "@/lib/forms/withContext";
 import { useCampaignContext } from "@/lib/campaign/campaignContext";
 
 /* ------------------------------------------------------------
@@ -23,7 +24,7 @@ const NPC_TYPES = [
 ];
 
 export default function NpcForm({ record, onChange }) {
-  const { campaign } = useCampaignContext();
+  const { campaign, session } = useCampaignContext();
 
   /* ------------------------------------------------------------
      Guards
@@ -37,30 +38,32 @@ export default function NpcForm({ record, onChange }) {
     );
   }
 
-  if (!record) {
+  if (!session) {
     return (
       <div className="cm-detail-empty">
-        <h3>No NPC Selected</h3>
-        <p>Select an NPC or create a new one.</p>
+        <h3>No Session Selected</h3>
+        <p>Please select a session.</p>
       </div>
     );
   }
 
-  /* ------------------------------------------------------------
-     Campaign-scoped update helper (plain data)
-  ------------------------------------------------------------ */
   const update = (field, value) => {
-    if (typeof onChange !== "function") return;
-
-    onChange({
-      ...record,
-      [field]: value,
-      campaign_id: campaign.id,
-    });
+    onChange(
+      withContext(
+        {
+          ...record,
+          [field]: value,
+        },
+        {
+          campaign_id: campaign.id,
+          session_id: session.id,
+        }
+      )
+    );
   };
 
   /* ---------------------------------------------
-     Visual pulse on record change
+     Visual pulse when record changes
   --------------------------------------------- */
   const [pulse, setPulse] = useState(false);
 
@@ -68,28 +71,29 @@ export default function NpcForm({ record, onChange }) {
     setPulse(true);
     const t = setTimeout(() => setPulse(false), 800);
     return () => clearTimeout(t);
-  }, [record.id]);
+  }, [record?.id]);
 
   /* ---------------------------------------------
-     NPC Image state
+     NPC Image handling (Option A, fixed)
   --------------------------------------------- */
   const [clips, setClips] = useState([]);
   const [selectedClip, setSelectedClip] = useState(null);
   const [pendingClipId, setPendingClipId] = useState(null);
 
-  const npcId = record.id ?? null;
+  const npcId = record?.id ?? null;
   const isNewNpc = !npcId;
 
   /* ------------------------------------------------------------
-     Reset image UI when switching NPCs
+     RESET image UI state when switching NPCs
+     (prevents image bleed across records)
   ------------------------------------------------------------ */
   useEffect(() => {
     setSelectedClip(null);
     setPendingClipId(null);
-  }, [record.id]);
+  }, [record?.id]);
 
   /* ------------------------------------------------------------
-     Load available image clips
+     Load available image clips (tenant scoped)
   ------------------------------------------------------------ */
   useEffect(() => {
     fetch("/api/r2/list", {
@@ -112,68 +116,88 @@ export default function NpcForm({ record, onChange }) {
   }, []);
 
   /* ------------------------------------------------------------
-     Load existing NPC image from join table
+     Sync persisted image from DB (if one exists)
   ------------------------------------------------------------ */
   useEffect(() => {
-    if (!record.id || !clips.length) return;
+    if (!record?.image_clip_id || !clips.length) return;
 
-    fetch(`/api/npc-image?npc_id=${record.id}`, {
-      cache: "no-store",
-      credentials: "include",
-    })
-      .then((r) => r.json())
-      .then((res) => {
-        if (!res?.ok || !res.clip_id) return;
-
-        const clip = clips.find((c) => c.id === res.clip_id) || null;
-        setSelectedClip(clip);
-        setPendingClipId(res.clip_id);
-      })
-      .catch(() => {});
-  }, [record.id, clips]);
+    const clip = clips.find((c) => c.id === record.image_clip_id) || null;
+    setSelectedClip(clip);
+    setPendingClipId(null);
+  }, [record?.image_clip_id, clips]);
 
   /* ------------------------------------------------------------
-     Expose pending image clip id to parent (NO SIDE EFFECTS)
+     Attach image ONLY on SAVE (called by parent)
+  ------------------------------------------------------------ */
+  const attachImageOnSave = async () => {
+    if (!npcId || !pendingClipId) return;
+
+    await fetch(`/api/npcs/${npcId}/image`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ clip_id: pendingClipId }),
+    });
+  };
+
+  const removeImage = async () => {
+    if (!npcId) return;
+
+    await fetch(`/api/npcs/${npcId}/image`, {
+      method: "DELETE",
+      credentials: "include",
+    });
+
+    setSelectedClip(null);
+    setPendingClipId(null);
+  };
+
+  /* ------------------------------------------------------------
+     Expose attach hook for parent SAVE handler
   ------------------------------------------------------------ */
   useEffect(() => {
-    if (typeof onChange !== "function") return;
-
-    onChange({
-      ...record,
-      __pendingImageClipId: pendingClipId || null,
-      campaign_id: campaign.id,
-    });
+    if (typeof onChange === "function") {
+      onChange(
+        withContext(
+          {
+            ...record,
+            __attachImageOnSave: attachImageOnSave,
+          },
+          {
+            campaign_id: campaign.id,
+            session_id: session.id,
+          }
+        )
+      );
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingClipId]);
 
   return (
-    <div className={`cm-detail-form ${pulse ? "pulse" : ""}`}>
-      {/* Header */}
-      <div className="cm-campaign-header">
+    <div className="cm-detail-form">
+      <div className={`cm-campaign-header ${pulse ? "pulse" : ""}`}>
         <div className="cm-context-line">
           <strong>Campaign:</strong> {campaign.name}
         </div>
         <div className="cm-context-line">
-          <strong>NPC:</strong> {record.name || "Unnamed NPC"}
+          <strong>Session:</strong> {session.name}
         </div>
       </div>
 
-      {/* Name */}
       <div className="cm-field">
         <label className="cm-label">Name</label>
         <input
           className="cm-input"
-          value={record.name || ""}
+          value={record?.name || ""}
           onChange={(e) => update("name", e.target.value)}
         />
       </div>
 
-      {/* NPC Type */}
       <div className="cm-field">
         <label className="cm-label">NPC Type</label>
         <select
           className="cm-input"
-          value={record.npc_type || ""}
+          value={record?.npc_type || ""}
           onChange={(e) => update("npc_type", e.target.value)}
         >
           {NPC_TYPES.map((t) => (
@@ -184,7 +208,7 @@ export default function NpcForm({ record, onChange }) {
         </select>
       </div>
 
-      {/* NPC Image */}
+      {/* ---------------- NPC IMAGE ---------------- */}
       <div className="cm-field">
         <label className="cm-label">NPC Image</label>
 
@@ -244,36 +268,44 @@ export default function NpcForm({ record, onChange }) {
                 }}
               />
             </div>
+
+            <div style={{ marginTop: 8 }}>
+              <button
+                type="button"
+                className="cm-button danger"
+                onClick={removeImage}
+              >
+                Remove Image
+              </button>
+            </div>
           </div>
         )}
       </div>
+      {/* ------------------------------------------------ */}
 
-      {/* Description */}
       <div className="cm-field">
         <label className="cm-label">Description</label>
         <textarea
           className="cm-textarea"
-          value={record.description || ""}
+          value={record?.description || ""}
           onChange={(e) => update("description", e.target.value)}
         />
       </div>
 
-      {/* Goals */}
       <div className="cm-field">
         <label className="cm-label">Goals</label>
         <textarea
           className="cm-textarea"
-          value={record.goals || ""}
+          value={record?.goals || ""}
           onChange={(e) => update("goals", e.target.value)}
         />
       </div>
 
-      {/* Secrets */}
       <div className="cm-field">
         <label className="cm-label">Secrets</label>
         <textarea
           className="cm-textarea"
-          value={record.secrets || ""}
+          value={record?.secrets || ""}
           onChange={(e) => update("secrets", e.target.value)}
         />
       </div>

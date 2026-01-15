@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { withContext } from "@/lib/forms/withContext";
 import { useCampaignContext } from "@/lib/campaign/campaignContext";
 
 export default function PlayerForm({ record, onChange }) {
@@ -18,140 +19,108 @@ export default function PlayerForm({ record, onChange }) {
     );
   }
 
-  /* ------------------------------------------------------------
-     Guard: No player selected
-  ------------------------------------------------------------ */
-  if (!record) {
-    return (
-      <div className="cm-detail-empty">
-        <h3>No Player Selected</h3>
-        <p>Select a player or create a new one.</p>
-      </div>
-    );
-  }
-
-  /* ------------------------------------------------------------
-     Campaign-scoped update helper (explicit)
-  ------------------------------------------------------------ */
   const update = (field, value) => {
-    onChange({
-      ...record,
-      [field]: value,
-      campaign_id: campaign.id,
-    });
+    onChange(
+      withContext(
+        {
+          ...record,
+          [field]: value,
+        },
+        {
+          campaign_id: campaign.id,
+        }
+      )
+    );
   };
 
-  /* ------------------------------------------------------------
+  /* ---------------------------------------------
      Visual pulse when record changes
-  ------------------------------------------------------------ */
+  --------------------------------------------- */
   const [pulse, setPulse] = useState(false);
-
   useEffect(() => {
     setPulse(true);
     const t = setTimeout(() => setPulse(false), 800);
     return () => clearTimeout(t);
-  }, [record.id]);
+  }, [record?.id]);
 
   return (
     <div className="cm-detail-form">
-      {/* ---------------------------------------------
-          Header / Context
-      --------------------------------------------- */}
+      {/* Header */}
       <div className={`cm-campaign-header ${pulse ? "pulse" : ""}`}>
         <div className="cm-context-line">
           <strong>Campaign:</strong> {campaign.name}
         </div>
-        <div className="cm-context-line">
-          <strong>Player:</strong>{" "}
-          {record.character_name ||
-            `${record.first_name || ""} ${record.last_name || ""}`.trim() ||
-            "Unnamed Player"}
-        </div>
       </div>
 
-      {/* ---------------------------------------------
-          First Name
-      --------------------------------------------- */}
+      {/* First Name */}
       <div className="cm-field">
         <label className="cm-label">First Name</label>
         <input
           className="cm-input"
-          value={record.first_name || ""}
+          value={record?.first_name || ""}
           onChange={(e) => update("first_name", e.target.value)}
         />
       </div>
 
-      {/* ---------------------------------------------
-          Last Name
-      --------------------------------------------- */}
+      {/* Last Name */}
       <div className="cm-field">
         <label className="cm-label">Last Name</label>
         <input
           className="cm-input"
-          value={record.last_name || ""}
+          value={record?.last_name || ""}
           onChange={(e) => update("last_name", e.target.value)}
         />
       </div>
 
-      {/* ---------------------------------------------
-          Character Name
-      --------------------------------------------- */}
+      {/* Character Name */}
       <div className="cm-field">
         <label className="cm-label">Character Name</label>
         <input
           className="cm-input"
-          value={record.character_name || ""}
+          value={record?.character_name || ""}
           onChange={(e) => update("character_name", e.target.value)}
         />
       </div>
 
-      {/* ---------------------------------------------
-          Notes
-      --------------------------------------------- */}
+      {/* Notes */}
       <div className="cm-field">
         <label className="cm-label">Notes</label>
         <textarea
           className="cm-textarea"
-          value={record.notes || ""}
+          value={record?.notes || ""}
           onChange={(e) => update("notes", e.target.value)}
         />
       </div>
 
-      {/* ---------------------------------------------
-          Phone
-      --------------------------------------------- */}
+      {/* Phone */}
       <div className="cm-field">
         <label className="cm-label">Phone</label>
         <input
           className="cm-input"
-          value={record.phone || ""}
+          value={record?.phone || ""}
           onChange={(e) => update("phone", e.target.value)}
         />
       </div>
 
-      {/* ---------------------------------------------
-          Email
-      --------------------------------------------- */}
+      {/* Email */}
       <div className="cm-field">
         <label className="cm-label">Email</label>
         <input
           type="email"
           className="cm-input"
-          value={record.email || ""}
+          value={record?.email || ""}
           onChange={(e) => update("email", e.target.value)}
         />
       </div>
 
-      {/* ---------------------------------------------
-          Initiative Score
-      --------------------------------------------- */}
+      {/* Initiative Score */}
       <div className="cm-field">
         <label className="cm-label">Initiative Score</label>
         <input
           type="number"
           className="cm-input"
           value={
-            Number.isInteger(record.initiative_score)
+            Number.isInteger(record?.initiative_score)
               ? record.initiative_score
               : ""
           }
@@ -164,16 +133,14 @@ export default function PlayerForm({ record, onChange }) {
         />
       </div>
 
-      {/* ---------------------------------------------
-          Initiative Bonus
-      --------------------------------------------- */}
+      {/* Initiative Bonus */}
       <div className="cm-field">
         <label className="cm-label">Initiative Bonus</label>
         <input
           type="number"
           className="cm-input"
           value={
-            Number.isInteger(record.initiative_bonus)
+            Number.isInteger(record?.initiative_bonus)
               ? record.initiative_bonus
               : ""
           }
