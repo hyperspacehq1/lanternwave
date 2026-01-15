@@ -142,3 +142,14 @@
     transform: scale(1.02);
   }
 }
+
+.fade-pulse-short {
+  animation: npcPulseFlash 0.6s ease-out forwards;
+}
+
+@keyframes npcPulseFlash {
+  0%   { opacity: 0 }
+  20%  { opacity: 1 }
+  80%  { opacity: 1 }
+  100% { opacity: 0 }
+}
