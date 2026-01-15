@@ -39,7 +39,7 @@ export default function CampaignManagerPage() {
   useEffect(() => {
   let cancelled = false;
 
-  const load = async () => {
+  (async () => {
     setLoading(true);
 
     try {
@@ -121,13 +121,10 @@ if (list.length) {
     }
   })();
 
-   };
-
-  load();
-
   return () => {
     cancelled = true;
-  }; [activeType, campaignId, campaign]);
+  };
+}, [activeType, campaignId, campaign]);
 
   /* ------------------------------------------------------------
      CRUD
