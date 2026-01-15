@@ -26,8 +26,17 @@ async function getNowPlaying() {
   return data.nowPlaying || null;
 }
 
+async function getNpcPulse() {
+  const res = await fetch("/api/npc-pulse/now-playing", {
+    cache: "no-store",
+  });
+  if (!res.ok) return null;
+  const data = await res.json();
+  return data.pulse || null;
+}
+
 /* ================================
-   🔑 TIMING SYNC (NEW)
+   🔑 TIMING SYNC
 ================================ */
 function syncMediaToNowPlaying(mediaEl, updatedAt) {
   if (!mediaEl || !updatedAt || mediaEl.__synced) return;
@@ -46,8 +55,13 @@ function syncMediaToNowPlaying(mediaEl, updatedAt) {
 ================================ */
 export default function PlayerPage() {
   const [nowPlaying, setNowPlaying] = useState(null);
+  const [npcPulse, setNpcPulse] = useState(null);
+
   const mediaRef = useRef(null);
 
+  /* -------------------------------
+     Poll: Now Playing (background)
+  -------------------------------- */
   useEffect(() => {
     let cancelled = false;
 
@@ -63,14 +77,38 @@ export default function PlayerPage() {
     return () => (cancelled = true);
   }, []);
 
+  /* -------------------------------
+     Poll: NPC Pulse (overlay)
+  -------------------------------- */
+  useEffect(() => {
+    let cancelled = false;
+
+    async function pollPulse() {
+      try {
+        const data = await getNpcPulse();
+        if (!cancelled) setNpcPulse(data);
+      } catch {}
+      if (!cancelled) setTimeout(pollPulse, 500);
+    }
+
+    pollPulse();
+    return () => (cancelled = true);
+  }, []);
+
   const key = nowPlaying?.key || null;
   const type = key ? clipTypeFromKey(key) : null;
   const url = key ? streamUrlForKey(key) : null;
+
+  const pulseKey = npcPulse?.key || null;
+  const pulseUrl = pulseKey ? streamUrlForKey(pulseKey) : null;
 
   return (
     <div className="lw-player">
       {!key && <div className="lw-player-idle">NO SIGNAL</div>}
 
+      {/* -------------------------------
+          Background Media (unchanged)
+      -------------------------------- */}
       {key && type === "image" && (
         <div className="lw-preview-frame">
           <img src={url} className="lw-preview-media" />
@@ -92,6 +130,19 @@ export default function PlayerPage() {
             onLoadedMetadata={() =>
               syncMediaToNowPlaying(mediaRef.current, nowPlaying?.updatedAt)
             }
+          />
+        </div>
+      )}
+
+      {/* -------------------------------
+          NPC Pulse Overlay (NEW)
+      -------------------------------- */}
+      {pulseUrl && (
+        <div className="npc-pulse-overlay">
+          <img
+            src={pulseUrl}
+            className="npc-pulse-image fade-pulse"
+            alt=""
           />
         </div>
       )}

@@ -923,7 +923,7 @@ function GMCard({
   title="NPC Pulse (short)"
   onClick={(e) => {
     e.stopPropagation();
-    pulseNpcClip({ npcId: item.id, durationMs: 2500 });
+    pulseNpcClip({ npcId: item.id, durationMs: 600 });
   }}
 >
   ◉
