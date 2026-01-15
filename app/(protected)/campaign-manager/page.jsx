@@ -331,11 +331,11 @@ export default function CampaignManagerPage() {
                 <div className="cm-detail-empty">
                   No valid form registered for "{activeType}". Check console.
                 </div>
-              ) : (
-                <DetailErrorBoundary>
-                  <Form record={selectedRecord} onChange={safeSetSelectedRecord} />
-                </DetailErrorBoundary>
-              )}
+             ) : (
+  <div className="cm-detail-empty">
+    Form temporarily disabled for debugging
+  </div>
+)
             </section>
           </div>
         </section>
