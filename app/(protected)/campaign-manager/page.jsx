@@ -220,7 +220,12 @@ export default function CampaignManagerPage() {
                     }
                   }}
                 >
-                  {r.name || "(unnamed)"}
+
+             {activeType === "players"
+  ? `${r.first_name ?? ""} ${r.last_name ?? ""}`.trim() || "(unnamed)"
+  : typeof r.name === "string"
+    ? r.name
+    : "(unnamed)"}
                 </div>
               ))}
             </section>
