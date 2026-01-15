@@ -37,7 +37,7 @@ function mostRecentByCreatedAt(list) {
 
 async function pulseNpcClip({ npcId, durationMs }) {
   // 1. resolve NPC → clip key
-  const clipRes = await fetch(`/api/npcs/pulse?npc_id=${npcId}`, {
+  const clipRes = await fetch(`/api/npc-pulse?npc_id=${npcId}`, {
     credentials: "include",
   });
   if (!clipRes.ok) return;
