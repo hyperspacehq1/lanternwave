@@ -39,7 +39,7 @@ export default function CampaignManagerPage() {
   useEffect(() => {
   let cancelled = false;
 
-  (async () => {
+  const load = async () => {
     setLoading(true);
 
     try {
@@ -79,23 +79,25 @@ if (list.length) {
       // ALL OTHER TYPES (campaign-scoped)
       // -------------------------------
       else {
-  if (!campaignId) {
-    setRecordsByType((p) => ({ ...p, [activeType]: [] }));
-  } else {
-    if (activeType === "npcs") {
-      const res = await fetch(
-        `/api/npcs-with-images?campaign_id=${campaignId}`,
-        { credentials: "include" }
-      );
-      const data = await res.json();
-      list = data.rows || [];
-    } else {
-      list = await cmApi.list(activeType, {
-        campaign_id: campaignId,
-      });
-    }
-  }
-}
+        if (!campaignId) {
+          setRecordsByType((p) => ({ ...p, [activeType]: [] }));
+          return;
+        }
+
+        if (activeType === "npcs") {
+          const res = await fetch(
+            `/api/npcs-with-images?campaign_id=${campaignId}`,
+            { credentials: "include" }
+          );
+          const data = await res.json();
+          list = data.rows || [];
+        } else {
+          list = await cmApi.list(activeType, {
+            campaign_id: campaignId,
+          });
+        }
+      }
+
       if (cancelled) return;
 
       setRecordsByType((p) => ({
@@ -119,10 +121,13 @@ if (list.length) {
     }
   })();
 
+   };
+
+  load();
+
   return () => {
     cancelled = true;
-  };
-}, [activeType, campaignId, campaign]);
+  }; [activeType, campaignId, campaign]);
 
   /* ------------------------------------------------------------
      CRUD
