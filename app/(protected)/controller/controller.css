@@ -163,6 +163,8 @@
 }
 
 .lw-main .lw-btn-danger:not(:disabled):hover {
+  color: #ff5a5a;                /* FIX */
+  border-color: #ff5a5a;         /* FIX */
   background: rgba(255, 90, 90, 0.15);
   box-shadow: 0 0 6px rgba(255, 90, 90, 0.6);
 }

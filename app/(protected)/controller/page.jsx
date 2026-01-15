@@ -63,10 +63,11 @@ export default function ControllerPage() {
   const previewKey = playingKey;
   const previewType = previewKey ? clipTypeFromKey(previewKey) : null;
   const previewUrl = previewKey ? streamUrlForKey(previewKey) : null;
+
+  /* FIX: drive animation from actual playback */
   const isPlayingAudio =
     previewKey &&
     previewType === "audio" &&
-    audio?.currentKey === previewKey &&
     audio?.isPlaying;
 
   return (
@@ -100,7 +101,7 @@ export default function ControllerPage() {
                   <div className="lw-clip-actions">
                     <button
                       className={`lw-btn loop-btn ${
-                        audio?.loop && isNow ? "active" : ""
+                        audio?.loop ? "active" : ""
                       }`}
                       disabled={isBusy}
                       onClick={() => audio?.setLoop?.(!audio.loop)}
