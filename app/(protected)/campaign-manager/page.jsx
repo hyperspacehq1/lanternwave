@@ -20,6 +20,8 @@ const CONTAINER_TYPES = [
   { id: "players", label: "Players" },
 ];
 
+const LS_KEY = "cm:selectedCampaignId";
+
 export default function CampaignManagerPage() {
   const { campaign, setCampaignContext } = useCampaignContext();
 
@@ -31,44 +33,72 @@ export default function CampaignManagerPage() {
 
   const campaignId = campaign?.id;
 
-  /* ---------------------------------------------
-     Load records
-  --------------------------------------------- */
+  /* --------------------------------------------------
+     Restore selected campaign from localStorage
+  -------------------------------------------------- */
   useEffect(() => {
-    if (activeType !== "campaigns" && !campaignId) return;
+    const stored = localStorage.getItem(LS_KEY);
+    if (stored && !campaign) {
+      cmApi.get("campaigns", stored).then((c) => {
+        if (c) setCampaignContext({ campaign: c, session: null });
+      });
+    }
+  }, []);
 
+  /* --------------------------------------------------
+     Load records
+  -------------------------------------------------- */
+  useEffect(() => {
     let cancelled = false;
 
     (async () => {
       setLoading(true);
       try {
-        let list;
+        let list = [];
 
         if (activeType === "campaigns") {
           list = await cmApi.list("campaigns");
-        } else if (activeType === "npcs") {
-          // ✅ NPCs come from VIEW-backed route
-          const res = await fetch(
-            `/api/npcs-with-images?campaign_id=${campaignId}`,
-            { credentials: "include" }
+
+          // ✅ newest first
+          list = [...list].sort(
+            (a, b) => new Date(b.created_at) - new Date(a.created_at)
           );
-          const data = await res.json();
-          list = data.rows || [];
         } else {
-          list = await cmApi.list(activeType, { campaign_id: campaignId });
+          if (!campaignId) return;
+
+          if (activeType === "npcs") {
+            const res = await fetch(
+              `/api/npcs-with-images?campaign_id=${campaignId}`,
+              { credentials: "include" }
+            );
+            const data = await res.json();
+            list = data.rows || [];
+          } else {
+            list = await cmApi.list(activeType, { campaign_id: campaignId });
+          }
         }
 
         if (cancelled) return;
 
         setRecords((p) => ({ ...p, [activeType]: list }));
 
-        if (!selectedId && list?.length) {
-          setSelectedId(list[0].id);
-          setSelectedRecord(list[0]);
+        // ----------------------------------
+        // Auto-select logic
+        // ----------------------------------
+        if (activeType === "campaigns") {
+          const stored = localStorage.getItem(LS_KEY);
+          const selected =
+            list.find((c) => c.id === stored) || list[0];
 
-          if (activeType === "campaigns") {
-            setCampaignContext({ campaign: list[0], session: null });
+          if (selected) {
+            setSelectedId(selected.id);
+            setSelectedRecord(selected);
+            setCampaignContext({ campaign: selected, session: null });
+            localStorage.setItem(LS_KEY, selected.id);
           }
+        } else {
+          setSelectedId(null);
+          setSelectedRecord(null);
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -80,9 +110,9 @@ export default function CampaignManagerPage() {
     };
   }, [activeType, campaignId]);
 
-  /* ---------------------------------------------
+  /* --------------------------------------------------
      CRUD
-  --------------------------------------------- */
+  -------------------------------------------------- */
   const handleCreate = () => {
     if (activeType !== "campaigns" && !campaignId) return;
 
@@ -105,36 +135,38 @@ export default function CampaignManagerPage() {
   const handleSave = async () => {
     if (!selectedRecord) return;
 
-    try {
-      const { _isNew, id, __pendingImageClipId, ...payload } = selectedRecord;
+    const { _isNew, id, __pendingImageClipId, ...payload } =
+      selectedRecord;
 
-      const saved = _isNew
-        ? await cmApi.create(activeType, payload)
-        : await cmApi.update(activeType, id, payload);
+    const saved = _isNew
+      ? await cmApi.create(activeType, payload)
+      : await cmApi.update(activeType, id, payload);
 
-      setRecords((p) => ({
-        ...p,
-        [activeType]: (p[activeType] || []).map((r) =>
-          r.id === (_isNew ? id : saved.id) ? saved : r
-        ),
-      }));
+    setRecords((p) => ({
+      ...p,
+      [activeType]: p[activeType].map((r) =>
+        r.id === (_isNew ? id : saved.id) ? saved : r
+      ),
+    }));
 
-      setSelectedId(saved.id);
-      setSelectedRecord(saved);
+    setSelectedId(saved.id);
+    setSelectedRecord(saved);
 
-      if (activeType === "npcs" && __pendingImageClipId) {
-        await fetch("/api/npc-image", {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            npc_id: saved.id,
-            clip_id: __pendingImageClipId,
-          }),
-        });
-      }
-    } catch (err) {
-      console.error("[handleSave failed]", err);
+    if (activeType === "campaigns") {
+      setCampaignContext({ campaign: saved, session: null });
+      localStorage.setItem(LS_KEY, saved.id);
+    }
+
+    if (activeType === "npcs" && __pendingImageClipId) {
+      await fetch("/api/npc-image", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          npc_id: saved.id,
+          clip_id: __pendingImageClipId,
+        }),
+      });
     }
   };
 
@@ -150,13 +182,13 @@ export default function CampaignManagerPage() {
       ),
     }));
 
-    setSelectedRecord(null);
     setSelectedId(null);
+    setSelectedRecord(null);
   };
 
-  /* ---------------------------------------------
+  /* --------------------------------------------------
      Render
-  --------------------------------------------- */
+  -------------------------------------------------- */
   return (
     <div className="cm-root">
       <div className="cm-layout">
@@ -169,7 +201,11 @@ export default function CampaignManagerPage() {
               className={`cm-container-btn ${
                 c.id === activeType ? "active" : ""
               }`}
-              onClick={() => setActiveType(c.id)}
+              onClick={() => {
+                setActiveType(c.id);
+                setSelectedId(null);
+                setSelectedRecord(null);
+              }}
             >
               {c.label}
             </button>
@@ -211,7 +247,12 @@ export default function CampaignManagerPage() {
               {selectedRecord ? (
                 (() => {
                   const Form = getFormComponent(activeType);
-                  return <Form record={selectedRecord} onChange={setSelectedRecord} />;
+                  return (
+                    <Form
+                      record={selectedRecord}
+                      onChange={setSelectedRecord}
+                    />
+                  );
                 })()
               ) : (
                 <div className="cm-detail-empty">
