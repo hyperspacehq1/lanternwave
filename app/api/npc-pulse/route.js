@@ -11,7 +11,7 @@ export async function GET(req) {
 
   if (!npcId) {
     return NextResponse.json(
-      { ok: false, error: "missing npc_id" },
+      { error: "npc_id required" },
       { status: 400 }
     );
   }
@@ -19,11 +19,12 @@ export async function GET(req) {
   const ctx = await getTenantContext(req);
   if (!ctx?.tenantId) {
     return NextResponse.json(
-      { ok: false, error: "unauthorized" },
+      { error: "unauthorized" },
       { status: 401 }
     );
   }
 
+  // 1. Resolve NPC → clip via npc_clips
   const { rows } = await query(
     `
     select c.object_key
@@ -42,11 +43,12 @@ export async function GET(req) {
 
   if (!rows.length) {
     return NextResponse.json(
-      { ok: false, error: "no clip found" },
+      { error: "no clip found for npc" },
       { status: 404 }
     );
   }
 
+  // 2. Return resolved clip key
   return NextResponse.json({
     ok: true,
     key: rows[0].object_key,
