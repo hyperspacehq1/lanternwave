@@ -1,66 +1,79 @@
+import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function POST(req) {
-  const trace = crypto.randomUUID();
+/* ============================================================
+   GET — fetch existing NPC image (by npc_id)
+============================================================ */
+export async function GET(req) {
+  const { searchParams } = new URL(req.url);
+  const npcId = searchParams.get("npc_id");
 
-  try {
-    const ctx = await getTenantContext(req);
-    const tenantId = ctx?.tenantId;
-
-    const body = await req.json().catch(() => null);
-    const npcId = body?.npc_id;
-    const clipId = body?.clip_id;
-
-    // 🔎 HIGH-SIGNAL DIAGNOSTIC BLOCK
-    if (!tenantId || !npcId || !clipId) {
-      return Response.json(
-        {
-          error: "Invalid NPC image attach request",
-          trace,
-          missing: {
-            tenantId: !tenantId,
-            npcId: !npcId,
-            clipId: !clipId,
-          },
-          received: {
-            tenantId: tenantId ?? null,
-            npcId: npcId ?? null,
-            clipId: clipId ?? null,
-          },
-          context: {
-            hasCookies: !!req.headers.get("cookie"),
-            contentType: req.headers.get("content-type"),
-          },
-        },
-        { status: 400 }
-      );
-    }
-
-    await query(
-      `DELETE FROM npc_clips WHERE npc_id = $1`,
-      [npcId]
-    );
-
-    await query(
-      `INSERT INTO npc_clips (npc_id, clip_id)
-       VALUES ($1, $2)`,
-      [npcId, clipId]
-    );
-
-    return Response.json({ ok: true, trace });
-
-  } catch (err) {
-    console.error("[NPC IMAGE ATTACH]", trace, err);
-    return Response.json(
-      {
-        error: "Failed to attach image",
-        trace,
-      },
-      { status: 500 }
+  if (!npcId) {
+    return NextResponse.json(
+      { ok: false, error: "missing npc_id" },
+      { status: 400 }
     );
   }
+
+  const ctx = await getTenantContext(req);
+  if (!ctx?.tenantId) {
+    return NextResponse.json(
+      { ok: false, error: "unauthorized" },
+      { status: 401 }
+    );
+  }
+
+  const { rows } = await query(
+    `
+    SELECT clip_id
+    FROM npc_clips
+    WHERE npc_id = $1
+      AND deleted_at IS NULL
+    ORDER BY created_at DESC
+    LIMIT 1
+    `,
+    [npcId]
+  );
+
+  return NextResponse.json({
+    ok: true,
+    clip_id: rows[0]?.clip_id ?? null,
+  });
+}
+
+/* ============================================================
+   POST — attach image to NPC
+============================================================ */
+export async function POST(req) {
+  const body = await req.json();
+  const { npc_id, clip_id } = body || {};
+
+  if (!npc_id || !clip_id) {
+    return NextResponse.json(
+      { ok: false, error: "missing npc_id or clip_id" },
+      { status: 400 }
+    );
+  }
+
+  const ctx = await getTenantContext(req);
+  if (!ctx?.tenantId) {
+    return NextResponse.json(
+      { ok: false, error: "unauthorized" },
+      { status: 401 }
+    );
+  }
+
+  await query(
+    `
+    INSERT INTO npc_clips (npc_id, clip_id)
+    VALUES ($1, $2)
+    `,
+    [npc_id, clip_id]
+  );
+
+  return NextResponse.json({ ok: true });
 }
