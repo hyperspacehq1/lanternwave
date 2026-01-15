@@ -32,7 +32,7 @@ export default function CampaignManagerPage() {
   const campaignId = campaign?.id;
 
   /* ---------------------------------------------
-     Load records (CAMPAIGN ONLY)
+     Load records
   --------------------------------------------- */
   useEffect(() => {
     if (activeType !== "campaigns" && !campaignId) return;
@@ -42,10 +42,21 @@ export default function CampaignManagerPage() {
     (async () => {
       setLoading(true);
       try {
-        const list =
-          activeType === "campaigns"
-            ? await cmApi.list("campaigns")
-            : await cmApi.list(activeType, { campaign_id: campaignId });
+        let list;
+
+        if (activeType === "campaigns") {
+          list = await cmApi.list("campaigns");
+        } else if (activeType === "npcs") {
+          // ✅ NPCs come from VIEW-backed route
+          const res = await fetch(
+            `/api/npcs-with-images?campaign_id=${campaignId}`,
+            { credentials: "include" }
+          );
+          const data = await res.json();
+          list = data.rows || [];
+        } else {
+          list = await cmApi.list(activeType, { campaign_id: campaignId });
+        }
 
         if (cancelled) return;
 
@@ -91,73 +102,41 @@ export default function CampaignManagerPage() {
     setSelectedRecord(record);
   };
 
- const handleSave = async () => {
-  if (!selectedRecord) return;
+  const handleSave = async () => {
+    if (!selectedRecord) return;
 
-  try {
-    const {
-      _isNew,
-      id,
-      __pendingImageClipId,
-      ...payload
-    } = selectedRecord;
+    try {
+      const { _isNew, id, __pendingImageClipId, ...payload } = selectedRecord;
 
-    // 1) Save NPC
-    const saved = _isNew
-      ? await cmApi.create(activeType, payload)
-      : await cmApi.update(activeType, id, payload);
+      const saved = _isNew
+        ? await cmApi.create(activeType, payload)
+        : await cmApi.update(activeType, id, payload);
 
-    // 2) Update state
-    setRecords((p) => ({
-      ...p,
-      [activeType]: (p[activeType] || []).map((r) => {
-        if (!r) return r;
-        return r.id === (_isNew ? id : saved.id) ? saved : r;
-      }),
-    }));
+      setRecords((p) => ({
+        ...p,
+        [activeType]: (p[activeType] || []).map((r) =>
+          r.id === (_isNew ? id : saved.id) ? saved : r
+        ),
+      }));
 
-    setSelectedId(saved.id);
-    setSelectedRecord(saved);
+      setSelectedId(saved.id);
+      setSelectedRecord(saved);
 
-    // 3) Attach image AFTER save (NPCs only)
-if (activeType === "npcs" && __pendingImageClipId) {
-  try {
-    await fetch("/api/npc-image", {
-      method: "POST",
-      credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        npc_id: saved.id,
-        clip_id: __pendingImageClipId,
-      }),
-    });
-
-    // ✅ IMPORTANT: rehydrate local state
-    const updated = {
-      ...saved,
-      image_clip_id: __pendingImageClipId,
-    };
-
-    setRecords((p) => ({
-      ...p,
-      [activeType]: (p[activeType] || []).map((r) =>
-        r.id === updated.id ? updated : r
-      ),
-    }));
-
-    setSelectedRecord(updated);
-  } catch (err) {
-    console.error("[NPC image attach failed]", err);
-  }
-}
-
-  } catch (err) {
-    console.error("[handleSave failed]", err);
-    // DO NOT throw
-  }
-};
+      if (activeType === "npcs" && __pendingImageClipId) {
+        await fetch("/api/npc-image", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            npc_id: saved.id,
+            clip_id: __pendingImageClipId,
+          }),
+        });
+      }
+    } catch (err) {
+      console.error("[handleSave failed]", err);
+    }
+  };
 
   const handleDelete = async () => {
     if (!selectedRecord) return;
@@ -198,23 +177,14 @@ if (activeType === "npcs" && __pendingImageClipId) {
         </aside>
 
         <section className="cm-main">
-          <div className="cm-main-header">
-            <div className="cm-main-title">{activeType}</div>
-            {campaign && (
-              <div className="cm-context-line">
-                <strong>Campaign:</strong> {campaign.name}
-              </div>
-            )}
-          </div>
-
           <div className="cm-main-actions">
-            <button className="cm-btn" onClick={handleCreate} disabled={loading}>
+            <button className="cm-btn" onClick={handleCreate}>
               + New
             </button>
-            <button className="cm-btn" onClick={handleSave} disabled={!selectedRecord}>
+            <button className="cm-btn" onClick={handleSave}>
               Save
             </button>
-            <button className="cm-btn danger" onClick={handleDelete} disabled={!selectedRecord}>
+            <button className="cm-btn danger" onClick={handleDelete}>
               Delete
             </button>
           </div>
@@ -224,44 +194,28 @@ if (activeType === "npcs" && __pendingImageClipId) {
               {(records[activeType] || []).map((r) => (
                 <div
                   key={r.id}
-                  className={`cm-list-item ${r.id === selectedId ? "selected" : ""}`}
+                  className={`cm-list-item ${
+                    r.id === selectedId ? "selected" : ""
+                  }`}
                   onClick={() => {
                     setSelectedId(r.id);
                     setSelectedRecord(r);
-
-                    if (activeType === "campaigns") {
-                      setCampaignContext({ campaign: r, session: null });
-                    }
                   }}
                 >
-
-             {activeType === "players"
-  ? `${r.first_name ?? ""} ${r.last_name ?? ""}`.trim() || "(unnamed)"
-  : typeof r.name === "string"
-    ? r.name
-    : "(unnamed)"}
+                  {r.name || "(unnamed)"}
                 </div>
               ))}
             </section>
 
             <section className="cm-detail">
-              {!campaign && activeType !== "campaigns" ? (
-                <div className="cm-detail-empty">
-                  Select a Campaign from the Campaign tab
-                </div>
-              ) : selectedRecord ? (
+              {selectedRecord ? (
                 (() => {
                   const Form = getFormComponent(activeType);
-                  return (
-                    <Form
-                      record={selectedRecord}
-                      onChange={setSelectedRecord}
-                    />
-                  );
+                  return <Form record={selectedRecord} onChange={setSelectedRecord} />;
                 })()
               ) : (
                 <div className="cm-detail-empty">
-                  Select a Record from the List to view Details
+                  Select a Record from the List
                 </div>
               )}
             </section>
