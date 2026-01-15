@@ -216,8 +216,7 @@ export default function CampaignManagerPage() {
   /* ---------------------------------------------
      Form resolution (guarded)
   --------------------------------------------- */
-  const Form = useMemo(() => {
-  const candidate = getFormComponent(activeType);
+ const Form = null;
 
   console.log(
     "[CampaignManager] getFormComponent()",
