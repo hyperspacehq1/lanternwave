@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { v4 as uuidv4 } from "uuid";
+// import { v4 as uuidv4 } from "uuid";
 
 // ❌ TEMP DISABLED FOR DEBUGGING
 // import { cmApi } from "@/lib/cm/api";
