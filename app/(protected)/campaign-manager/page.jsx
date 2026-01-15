@@ -21,7 +21,6 @@ const CONTAINER_TYPES = [
 ];
 
 const PAGE_VERSION = "1.01";
-const LS_CAMPAIGN_KEY = "lw:selectedCampaignId";
 
 export default function CampaignManagerPage() {
   const { campaign, setCampaignContext } = useCampaignContext();
@@ -35,83 +34,83 @@ export default function CampaignManagerPage() {
   const selectedRecord = selectedByType[activeType] || null;
 
   /* ------------------------------------------------------------
-     Restore campaign on first load
-  ------------------------------------------------------------ */
-  useEffect(() => {
-    const storedId = localStorage.getItem(LS_CAMPAIGN_KEY);
-    if (storedId && !campaign) {
-      cmApi.get("campaigns", storedId).then((c) => {
-        if (c) {
-          setCampaignContext({ campaign: c, session: null });
-        }
-      });
-    }
-  }, []);
-
-  /* ------------------------------------------------------------
      Load records for active type
   ------------------------------------------------------------ */
   useEffect(() => {
-    let cancelled = false;
+  let cancelled = false;
 
-    (async () => {
-      setLoading(true);
+  (async () => {
+    setLoading(true);
 
-      try {
-        let list = [];
+    try {
+      let list = [];
 
-        if (activeType === "campaigns") {
-          list = await cmApi.list("campaigns");
+      // -------------------------------
+      // CAMPAIGNS
+      // -------------------------------
+      if (activeType === "campaigns") {
+        list = await cmApi.list("campaigns");
 
-          list = [...list].sort(
-            (a, b) => new Date(b.created_at) - new Date(a.created_at)
-          );
+        list = [...list].sort(
+          (a, b) => new Date(b.created_at) - new Date(a.created_at)
+        );
 
-          if (!campaign && list.length) {
-            const storedId = localStorage.getItem(LS_CAMPAIGN_KEY);
-            const selected =
-              list.find((c) => c.id === storedId) || list[0];
-
-            setCampaignContext({ campaign: selected, session: null });
-            localStorage.setItem(LS_CAMPAIGN_KEY, selected.id);
-          }
-        } else {
-          if (!campaignId) {
-            setRecordsByType((p) => ({ ...p, [activeType]: [] }));
-            return;
-          }
-
-          if (activeType === "npcs") {
-            const res = await fetch(
-              `/api/npcs-with-images?campaign_id=${campaignId}`,
-              { credentials: "include" }
-            );
-            const data = await res.json();
-            list = data.rows || [];
-          } else {
-            list = await cmApi.list(activeType, { campaign_id: campaignId });
-          }
+        // Auto-select newest campaign ONLY if context is empty
+        if (!campaign && list.length) {
+          setCampaignContext({ campaign: list[0] });
         }
-
-        if (cancelled) return;
-
-        setRecordsByType((p) => ({ ...p, [activeType]: list }));
-
-        if (!selectedByType[activeType] && list.length) {
-          setSelectedByType((p) => ({
-            ...p,
-            [activeType]: list[0],
-          }));
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
       }
-    })();
 
-    return () => {
-      cancelled = true;
-    };
-  }, [activeType, campaignId]);
+      // -------------------------------
+      // ALL OTHER TYPES (campaign-scoped)
+      // -------------------------------
+      else {
+        if (!campaignId) {
+          setRecordsByType((p) => ({ ...p, [activeType]: [] }));
+          return;
+        }
+
+        if (activeType === "npcs") {
+          const res = await fetch(
+            `/api/npcs-with-images?campaign_id=${campaignId}`,
+            { credentials: "include" }
+          );
+          const data = await res.json();
+          list = data.rows || [];
+        } else {
+          list = await cmApi.list(activeType, {
+            campaign_id: campaignId,
+          });
+        }
+      }
+
+      if (cancelled) return;
+
+      setRecordsByType((p) => ({
+        ...p,
+        [activeType]: list,
+      }));
+
+      // Auto-select first record per tab (not campaigns)
+      if (
+        activeType !== "campaigns" &&
+        !selectedByType[activeType] &&
+        list.length
+      ) {
+        setSelectedByType((p) => ({
+          ...p,
+          [activeType]: list[0],
+        }));
+      }
+    } finally {
+      if (!cancelled) setLoading(false);
+    }
+  })();
+
+  return () => {
+    cancelled = true;
+  };
+}, [activeType, campaignId, campaign]);
 
   /* ------------------------------------------------------------
      CRUD
@@ -157,11 +156,6 @@ export default function CampaignManagerPage() {
       ...p,
       [activeType]: saved,
     }));
-
-    if (activeType === "campaigns") {
-      setCampaignContext({ campaign: saved, session: null });
-      localStorage.setItem(LS_CAMPAIGN_KEY, saved.id);
-    }
 
     if (activeType === "npcs" && __pendingImageClipId) {
       await fetch("/api/npc-image", {
@@ -252,12 +246,16 @@ export default function CampaignManagerPage() {
                   className={`cm-list-item ${
                     selectedRecord?.id === r.id ? "selected" : ""
                   }`}
-                  onClick={() =>
-                    setSelectedByType((p) => ({
-                      ...p,
-                      [activeType]: r,
-                    }))
-                  }
+                  onClick={() => {
+  setSelectedByType((p) => ({
+    ...p,
+    [activeType]: r,
+  }));
+
+  if (activeType === "campaigns") {
+    setCampaignContext({ campaign: r });
+  }
+}}
                 >
                   {r.name || "(unnamed)"}
                 </div>
