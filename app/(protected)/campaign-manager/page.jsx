@@ -20,51 +20,65 @@ const CONTAINER_TYPES = [
   { id: "players", label: "Players" },
 ];
 
-const LS_KEY = "cm:selectedCampaignId";
+const LS_CAMPAIGN_KEY = "lw:selectedCampaignId";
 
 export default function CampaignManagerPage() {
   const { campaign, setCampaignContext } = useCampaignContext();
 
   const [activeType, setActiveType] = useState("campaigns");
-  const [records, setRecords] = useState({});
-  const [selectedId, setSelectedId] = useState(null);
-  const [selectedRecord, setSelectedRecord] = useState(null);
+  const [recordsByType, setRecordsByType] = useState({});
+  const [selectedByType, setSelectedByType] = useState({});
   const [loading, setLoading] = useState(false);
 
   const campaignId = campaign?.id;
+  const selectedRecord = selectedByType[activeType] || null;
 
-  /* --------------------------------------------------
-     Restore selected campaign from localStorage
-  -------------------------------------------------- */
+  /* ------------------------------------------------------------
+     Restore campaign on first load
+  ------------------------------------------------------------ */
   useEffect(() => {
-    const stored = localStorage.getItem(LS_KEY);
-    if (stored && !campaign) {
-      cmApi.get("campaigns", stored).then((c) => {
-        if (c) setCampaignContext({ campaign: c, session: null });
+    const storedId = localStorage.getItem(LS_CAMPAIGN_KEY);
+    if (storedId && !campaign) {
+      cmApi.get("campaigns", storedId).then((c) => {
+        if (c) {
+          setCampaignContext({ campaign: c, session: null });
+        }
       });
     }
   }, []);
 
-  /* --------------------------------------------------
-     Load records
-  -------------------------------------------------- */
+  /* ------------------------------------------------------------
+     Load records for active type
+  ------------------------------------------------------------ */
   useEffect(() => {
     let cancelled = false;
 
     (async () => {
       setLoading(true);
+
       try {
         let list = [];
 
         if (activeType === "campaigns") {
           list = await cmApi.list("campaigns");
 
-          // ✅ newest first
           list = [...list].sort(
             (a, b) => new Date(b.created_at) - new Date(a.created_at)
           );
+
+          if (!campaign && list.length) {
+            const storedId = localStorage.getItem(LS_CAMPAIGN_KEY);
+            const selected =
+              list.find((c) => c.id === storedId) || list[0];
+
+            setCampaignContext({ campaign: selected, session: null });
+            localStorage.setItem(LS_CAMPAIGN_KEY, selected.id);
+          }
         } else {
-          if (!campaignId) return;
+          if (!campaignId) {
+            setRecordsByType((p) => ({ ...p, [activeType]: [] }));
+            return;
+          }
 
           if (activeType === "npcs") {
             const res = await fetch(
@@ -80,25 +94,13 @@ export default function CampaignManagerPage() {
 
         if (cancelled) return;
 
-        setRecords((p) => ({ ...p, [activeType]: list }));
+        setRecordsByType((p) => ({ ...p, [activeType]: list }));
 
-        // ----------------------------------
-        // Auto-select logic
-        // ----------------------------------
-        if (activeType === "campaigns") {
-          const stored = localStorage.getItem(LS_KEY);
-          const selected =
-            list.find((c) => c.id === stored) || list[0];
-
-          if (selected) {
-            setSelectedId(selected.id);
-            setSelectedRecord(selected);
-            setCampaignContext({ campaign: selected, session: null });
-            localStorage.setItem(LS_KEY, selected.id);
-          }
-        } else {
-          setSelectedId(null);
-          setSelectedRecord(null);
+        if (!selectedByType[activeType] && list.length) {
+          setSelectedByType((p) => ({
+            ...p,
+            [activeType]: list[0],
+          }));
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -110,9 +112,9 @@ export default function CampaignManagerPage() {
     };
   }, [activeType, campaignId]);
 
-  /* --------------------------------------------------
+  /* ------------------------------------------------------------
      CRUD
-  -------------------------------------------------- */
+  ------------------------------------------------------------ */
   const handleCreate = () => {
     if (activeType !== "campaigns" && !campaignId) return;
 
@@ -123,38 +125,41 @@ export default function CampaignManagerPage() {
       campaign_id: campaignId,
     };
 
-    setRecords((p) => ({
+    setRecordsByType((p) => ({
       ...p,
       [activeType]: [record, ...(p[activeType] || [])],
     }));
 
-    setSelectedId(id);
-    setSelectedRecord(record);
+    setSelectedByType((p) => ({
+      ...p,
+      [activeType]: record,
+    }));
   };
 
   const handleSave = async () => {
     if (!selectedRecord) return;
 
-    const { _isNew, id, __pendingImageClipId, ...payload } =
-      selectedRecord;
+    const { _isNew, id, __pendingImageClipId, ...payload } = selectedRecord;
 
     const saved = _isNew
       ? await cmApi.create(activeType, payload)
       : await cmApi.update(activeType, id, payload);
 
-    setRecords((p) => ({
+    setRecordsByType((p) => ({
       ...p,
       [activeType]: p[activeType].map((r) =>
         r.id === (_isNew ? id : saved.id) ? saved : r
       ),
     }));
 
-    setSelectedId(saved.id);
-    setSelectedRecord(saved);
+    setSelectedByType((p) => ({
+      ...p,
+      [activeType]: saved,
+    }));
 
     if (activeType === "campaigns") {
       setCampaignContext({ campaign: saved, session: null });
-      localStorage.setItem(LS_KEY, saved.id);
+      localStorage.setItem(LS_CAMPAIGN_KEY, saved.id);
     }
 
     if (activeType === "npcs" && __pendingImageClipId) {
@@ -175,23 +180,26 @@ export default function CampaignManagerPage() {
 
     await cmApi.remove(activeType, selectedRecord.id);
 
-    setRecords((p) => ({
+    setRecordsByType((p) => ({
       ...p,
       [activeType]: p[activeType].filter(
         (r) => r.id !== selectedRecord.id
       ),
     }));
 
-    setSelectedId(null);
-    setSelectedRecord(null);
+    setSelectedByType((p) => ({
+      ...p,
+      [activeType]: null,
+    }));
   };
 
-  /* --------------------------------------------------
+  /* ------------------------------------------------------------
      Render
-  -------------------------------------------------- */
+  ------------------------------------------------------------ */
   return (
     <div className="cm-root">
       <div className="cm-layout">
+        {/* LEFT COLUMN — TABS */}
         <aside className="cm-sidebar">
           <h1 className="cm-title">Campaign Manager</h1>
 
@@ -201,17 +209,14 @@ export default function CampaignManagerPage() {
               className={`cm-container-btn ${
                 c.id === activeType ? "active" : ""
               }`}
-              onClick={() => {
-                setActiveType(c.id);
-                setSelectedId(null);
-                setSelectedRecord(null);
-              }}
+              onClick={() => setActiveType(c.id)}
             >
               {c.label}
             </button>
           ))}
         </aside>
 
+        {/* CENTER + RIGHT */}
         <section className="cm-main">
           <div className="cm-main-actions">
             <button className="cm-btn" onClick={handleCreate}>
@@ -226,23 +231,27 @@ export default function CampaignManagerPage() {
           </div>
 
           <div className="cm-content">
+            {/* MIDDLE COLUMN — LIST */}
             <section className="cm-list">
-              {(records[activeType] || []).map((r) => (
+              {(recordsByType[activeType] || []).map((r) => (
                 <div
                   key={r.id}
                   className={`cm-list-item ${
-                    r.id === selectedId ? "selected" : ""
+                    selectedRecord?.id === r.id ? "selected" : ""
                   }`}
-                  onClick={() => {
-                    setSelectedId(r.id);
-                    setSelectedRecord(r);
-                  }}
+                  onClick={() =>
+                    setSelectedByType((p) => ({
+                      ...p,
+                      [activeType]: r,
+                    }))
+                  }
                 >
                   {r.name || "(unnamed)"}
                 </div>
               ))}
             </section>
 
+            {/* RIGHT COLUMN — DETAIL */}
             <section className="cm-detail">
               {selectedRecord ? (
                 (() => {
@@ -250,7 +259,12 @@ export default function CampaignManagerPage() {
                   return (
                     <Form
                       record={selectedRecord}
-                      onChange={setSelectedRecord}
+                      onChange={(r) =>
+                        setSelectedByType((p) => ({
+                          ...p,
+                          [activeType]: r,
+                        }))
+                      }
                     />
                   );
                 })()
