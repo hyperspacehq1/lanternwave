@@ -36,10 +36,10 @@ export default function CampaignManagerPage() {
   /* ------------------------------------------------------------
      Load records for active type
   ------------------------------------------------------------ */
-  useEffect(() => {
+useEffect(() => {
   let cancelled = false;
 
-  (async () => {
+  ;(async () => {
     setLoading(true);
 
     try {
@@ -55,28 +55,26 @@ export default function CampaignManagerPage() {
           (a, b) => new Date(b.created_at) - new Date(a.created_at)
         );
 
-        // Ensure campaign is selected in BOTH context and list
-if (list.length) {
-  const selected = campaign
-    ? list.find((c) => c.id === campaign.id)
-    : list[0];
+        if (list.length) {
+          const selected = campaign
+            ? list.find((c) => c.id === campaign.id)
+            : list[0];
 
-  if (selected) {
-    // Set context only if missing
-    if (!campaign) {
-      setCampaignContext({ campaign: selected });
-    }
+          if (selected) {
+            if (!campaign) {
+              setCampaignContext({ campaign: selected });
+            }
 
-    // Always select the campaign record for the form
-    setSelectedByType((p) => ({
-      ...p,
-      campaigns: selected,
-    }));
-  }
-}
+            setSelectedByType((p) => ({
+              ...p,
+              campaigns: selected,
+            }));
+          }
+        }
+      }
 
       // -------------------------------
-      // ALL OTHER TYPES (campaign-scoped)
+      // ALL OTHER TYPES
       // -------------------------------
       else {
         if (!campaignId) {
@@ -105,7 +103,6 @@ if (list.length) {
         [activeType]: list,
       }));
 
-      // Auto-select first record per tab (not campaigns)
       if (
         activeType !== "campaigns" &&
         !selectedByType[activeType] &&
