@@ -79,25 +79,23 @@ if (list.length) {
       // ALL OTHER TYPES (campaign-scoped)
       // -------------------------------
       else {
-        if (!campaignId) {
-          setRecordsByType((p) => ({ ...p, [activeType]: [] }));
-          return;
-        }
-
-        if (activeType === "npcs") {
-          const res = await fetch(
-            `/api/npcs-with-images?campaign_id=${campaignId}`,
-            { credentials: "include" }
-          );
-          const data = await res.json();
-          list = data.rows || [];
-        } else {
-          list = await cmApi.list(activeType, {
-            campaign_id: campaignId,
-          });
-        }
-      }
-
+  if (!campaignId) {
+    setRecordsByType((p) => ({ ...p, [activeType]: [] }));
+  } else {
+    if (activeType === "npcs") {
+      const res = await fetch(
+        `/api/npcs-with-images?campaign_id=${campaignId}`,
+        { credentials: "include" }
+      );
+      const data = await res.json();
+      list = data.rows || [];
+    } else {
+      list = await cmApi.list(activeType, {
+        campaign_id: campaignId,
+      });
+    }
+  }
+}
       if (cancelled) return;
 
       setRecordsByType((p) => ({
