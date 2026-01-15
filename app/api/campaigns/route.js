@@ -56,17 +56,6 @@ function pick(body, camel, snake) {
   return undefined;
 }
 
-function normalizeDateOnlyStrict(value) {
-  if (value === undefined) return undefined;
-  if (value === null || value === "") return null;
-
-  const s = String(value).trim();
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) {
-    throw new Error("Invalid date format");
-  }
-  return s;
-}
-
 /* -----------------------------
    GET /api/campaigns
 ----------------------------- */
@@ -122,40 +111,9 @@ export async function POST(req) {
   const campaignPackage =
     body.campaignPackage || body.campaign_package || "standard";
 
-  if (campaignPackage !== "standard") {
-    const exists = await query(
-      `
-      SELECT 1
-        FROM campaigns
-       WHERE campaign_package = $1
-         AND tenant_id IS NULL
-         AND template_campaign_id IS NULL
-         AND deleted_at IS NULL
-       LIMIT 1
-      `,
-      [campaignPackage]
-    );
-
-    if (!exists.rows.length) {
-      return Response.json({ error: "Invalid Adventure Codex" }, { status: 400 });
-    }
-  }
-
   const rpgGame = pick(body, "rpgGame", "rpg_game");
   if (rpgGame && !ALLOWED_RPG_GAMES.has(rpgGame)) {
     return Response.json({ error: "Invalid RPG game" }, { status: 400 });
-  }
-
-  let campaignDate;
-  try {
-    campaignDate = normalizeDateOnlyStrict(
-      pick(body, "campaignDate", "campaign_date")
-    );
-  } catch {
-    return Response.json(
-      { error: "Invalid campaignDate format (YYYY-MM-DD)" },
-      { status: 400 }
-    );
   }
 
   const { rows } = await query(
@@ -177,7 +135,7 @@ export async function POST(req) {
       name,
       body.description ?? null,
       pick(body, "worldSetting", "world_setting"),
-      campaignDate,
+      pick(body, "campaignDate", "campaign_date"),
       campaignPackage,
       rpgGame ?? null,
     ]
@@ -227,6 +185,26 @@ export async function PUT(req) {
     values.push(body.description ?? null);
   }
 
+  if (hasOwn(body, "worldSetting") || hasOwn(body, "world_setting")) {
+    sets.push(`world_setting = $${i++}`);
+    values.push(pick(body, "worldSetting", "world_setting"));
+  }
+
+  if (hasOwn(body, "campaignDate") || hasOwn(body, "campaign_date")) {
+    sets.push(`campaign_date = $${i++}`);
+    values.push(pick(body, "campaignDate", "campaign_date"));
+  }
+
+  if (hasOwn(body, "campaignPackage") || hasOwn(body, "campaign_package")) {
+    sets.push(`campaign_package = $${i++}`);
+    values.push(pick(body, "campaignPackage", "campaign_package"));
+  }
+
+  if (hasOwn(body, "rpgGame") || hasOwn(body, "rpg_game")) {
+    sets.push(`rpg_game = $${i++}`);
+    values.push(pick(body, "rpgGame", "rpg_game"));
+  }
+
   if (!sets.length) {
     return Response.json({ error: "No valid fields provided" }, { status: 400 });
   }
@@ -248,6 +226,10 @@ export async function PUT(req) {
     sanitizeRow(fromDb(rows[0]), {
       name: 120,
       description: 10000,
+      worldSetting: 10000,
+      campaignDate: 50,
+      campaignPackage: 50,
+      rpgGame: 120,
     })
   );
 }

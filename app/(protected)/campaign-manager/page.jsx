@@ -55,11 +55,25 @@ export default function CampaignManagerPage() {
           (a, b) => new Date(b.created_at) - new Date(a.created_at)
         );
 
-        // Auto-select newest campaign ONLY if context is empty
-        if (!campaign && list.length) {
-          setCampaignContext({ campaign: list[0] });
-        }
-      }
+        // Ensure campaign is selected in BOTH context and list
+if (list.length) {
+  const selected = campaign
+    ? list.find((c) => c.id === campaign.id)
+    : list[0];
+
+  if (selected) {
+    // Set context only if missing
+    if (!campaign) {
+      setCampaignContext({ campaign: selected });
+    }
+
+    // Always select the campaign record for the form
+    setSelectedByType((p) => ({
+      ...p,
+      campaigns: selected,
+    }));
+  }
+}
 
       // -------------------------------
       // ALL OTHER TYPES (campaign-scoped)

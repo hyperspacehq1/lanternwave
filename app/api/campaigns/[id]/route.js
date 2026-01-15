@@ -79,6 +79,26 @@ export async function PUT(req, { params }) {
     values.push(body.description ?? null);
   }
 
+  if (body.worldSetting !== undefined || body.world_setting !== undefined) {
+    sets.push(`world_setting = $${i++}`);
+    values.push(body.worldSetting ?? body.world_setting ?? null);
+  }
+
+  if (body.campaignPackage !== undefined || body.campaign_package !== undefined) {
+    sets.push(`campaign_package = $${i++}`);
+    values.push(body.campaignPackage ?? body.campaign_package ?? null);
+  }
+
+  if (body.campaignDate !== undefined || body.campaign_date !== undefined) {
+    sets.push(`campaign_date = $${i++}`);
+    values.push(body.campaignDate ?? body.campaign_date ?? null);
+  }
+
+  if (body.rpgGame !== undefined || body.rpg_game !== undefined) {
+    sets.push(`rpg_game = $${i++}`);
+    values.push(body.rpgGame ?? body.rpg_game ?? null);
+  }
+
   if (!sets.length) {
     return Response.json({ error: "No valid fields provided" }, { status: 400 });
   }
@@ -104,13 +124,16 @@ export async function PUT(req, { params }) {
     sanitizeRow(fromDb(rows[0]), {
       name: 120,
       description: 10000,
+      worldSetting: 10000,
+      campaignDate: 50,
+      campaignPackage: 50,
+      rpgGame: 120,
     })
   );
 }
 
 /* -----------------------------
    DELETE /api/campaigns/[id]
-   Soft delete
 ----------------------------- */
 export async function DELETE(req, { params }) {
   let ctx;

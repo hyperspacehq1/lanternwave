@@ -10,21 +10,29 @@ export async function GET(req) {
   const npcId = searchParams.get("npc_id");
 
   if (!npcId) {
-    return NextResponse.json({ ok: false, error: "missing npc_id" }, { status: 400 });
+    return NextResponse.json(
+      { ok: false, error: "missing npc_id" },
+      { status: 400 }
+    );
   }
 
   const ctx = await getTenantContext(req);
   if (!ctx?.tenantId) {
-    return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
+    return NextResponse.json(
+      { ok: false, error: "unauthorized" },
+      { status: 401 }
+    );
   }
 
   const { rows } = await query(
     `
     select c.object_key
-    from npcs_clips nc
+    from npc_clips nc
+    join npcs n on n.id = nc.npc_id
     join clips c on c.id = nc.clip_id
     where nc.npc_id = $1
-      and c.tenant_id = $2
+      and n.tenant_id = $2
+      and nc.deleted_at is null
       and c.deleted_at is null
     order by nc.created_at desc
     limit 1
@@ -33,8 +41,14 @@ export async function GET(req) {
   );
 
   if (!rows.length) {
-    return NextResponse.json({ ok: false, error: "no clip found" }, { status: 404 });
+    return NextResponse.json(
+      { ok: false, error: "no clip found" },
+      { status: 404 }
+    );
   }
 
-  return NextResponse.json({ ok: true, key: rows[0].object_key });
+  return NextResponse.json({
+    ok: true,
+    key: rows[0].object_key,
+  });
 }
