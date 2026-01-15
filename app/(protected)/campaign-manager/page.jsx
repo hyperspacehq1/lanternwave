@@ -20,14 +20,6 @@ const CONTAINER_TYPES = [
   { id: "players", label: "Players" },
 ];
 
-/* ------------------------------------------------------------
-   Hard guards to prevent React #418 (HTML node rendered)
------------------------------------------------------------- */
-function isDomNode(v) {
-  // Element node
-  return !!v && typeof v === "object" && v.nodeType === 1 && typeof v.nodeName === "string";
-}
-
 function isProbablyReactComponent(v) {
   // Accept function components + forwardRef/memo objects (best-effort)
   if (!v) return false;
@@ -46,7 +38,6 @@ function getRecordLabel(type, r) {
     return s || "(unnamed)";
   }
   if (typeof r.name === "string" && r.name.trim()) return r.name;
-  // Never let objects/elements become children
   return "(unnamed)";
 }
 
@@ -87,17 +78,8 @@ export default function CampaignManagerPage() {
 
   const campaignId = campaign?.id;
 
-  // Defensive setter: never allow HTML nodes into state (fixes args[]=HTML crash cause)
+  // Safe setter (NO DOM inspection)
   const safeSetSelectedRecord = (next) => {
-    if (isDomNode(next)) {
-      console.error("[CampaignManager] BLOCKED: attempted to set selectedRecord to a DOM node:", next);
-      return;
-    }
-    // Also block accidental window/document
-    if (next === window || next === document) {
-      console.error("[CampaignManager] BLOCKED: attempted to set selectedRecord to window/document:", next);
-      return;
-    }
     setSelectedRecord(next);
   };
 
@@ -143,7 +125,7 @@ export default function CampaignManagerPage() {
       cancelled = true;
     };
     // Intentionally NOT depending on selectedId to avoid re-load loops
-  }, [activeType, campaignId]); // based on :contentReference[oaicite:0]{index=0}
+  }, [activeType, campaignId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ---------------------------------------------
      CRUD
@@ -219,7 +201,9 @@ export default function CampaignManagerPage() {
 
       setRecords((p) => ({
         ...p,
-        [activeType]: (p[activeType] || []).filter((r) => r.id !== selectedRecord.id),
+        [activeType]: (p[activeType] || []).filter(
+          (r) => r.id !== selectedRecord.id
+        ),
       }));
 
       safeSetSelectedRecord(null);
@@ -256,8 +240,11 @@ export default function CampaignManagerPage() {
           {CONTAINER_TYPES.map((c) => (
             <button
               key={c.id}
-              className={`cm-container-btn ${c.id === activeType ? "active" : ""}`}
+              className={`cm-container-btn ${
+                c.id === activeType ? "active" : ""
+              }`}
               onClick={() => setActiveType(c.id)}
+              type="button"
             >
               {c.label}
             </button>
@@ -269,19 +256,30 @@ export default function CampaignManagerPage() {
             <div className="cm-main-title">{activeType}</div>
             {campaign && (
               <div className="cm-context-line">
-                <strong>Campaign:</strong> {typeof campaign.name === "string" ? campaign.name : "—"}
+                <strong>Campaign:</strong>{" "}
+                {typeof campaign.name === "string" ? campaign.name : "—"}
               </div>
             )}
           </div>
 
           <div className="cm-main-actions">
-            <button className="cm-btn" onClick={handleCreate} disabled={loading}>
+            <button className="cm-btn" onClick={handleCreate} disabled={loading} type="button">
               + New
             </button>
-            <button className="cm-btn" onClick={handleSave} disabled={!selectedRecord || loading}>
+            <button
+              className="cm-btn"
+              onClick={handleSave}
+              disabled={!selectedRecord || loading}
+              type="button"
+            >
               Save
             </button>
-            <button className="cm-btn danger" onClick={handleDelete} disabled={!selectedRecord || loading}>
+            <button
+              className="cm-btn danger"
+              onClick={handleDelete}
+              disabled={!selectedRecord || loading}
+              type="button"
+            >
               Delete
             </button>
           </div>
@@ -291,7 +289,9 @@ export default function CampaignManagerPage() {
               {(records[activeType] || []).map((r) => (
                 <div
                   key={r?.id ?? uuidv4()}
-                  className={`cm-list-item ${r?.id === selectedId ? "selected" : ""}`}
+                  className={`cm-list-item ${
+                    r?.id === selectedId ? "selected" : ""
+                  }`}
                   onClick={() => {
                     if (!r?.id) return;
                     setSelectedId(r.id);
@@ -309,13 +309,17 @@ export default function CampaignManagerPage() {
 
             <section className="cm-detail">
               {!campaign && activeType !== "campaigns" ? (
-                <div className="cm-detail-empty">Select a Campaign from the Campaign tab</div>
+                <div className="cm-detail-empty">
+                  Select a Campaign from the Campaign tab
+                </div>
               ) : !selectedRecord ? (
-                <div className="cm-detail-empty">Select a Record from the List to view Details</div>
-              ) : isDomNode(selectedRecord) ? (
-                <div className="cm-detail-empty">Invalid record state detected (DOM node blocked). Check console.</div>
+                <div className="cm-detail-empty">
+                  Select a Record from the List to view Details
+                </div>
               ) : !Form ? (
-                <div className="cm-detail-empty">No valid form registered for "{activeType}". Check console.</div>
+                <div className="cm-detail-empty">
+                  No valid form registered for "{activeType}". Check console.
+                </div>
               ) : (
                 <DetailErrorBoundary>
                   <Form record={selectedRecord} onChange={safeSetSelectedRecord} />
