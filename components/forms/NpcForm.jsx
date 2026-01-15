@@ -69,7 +69,7 @@ export default function NpcForm({ record, onChange }) {
   }, [record?.id]);
 
   /* ---------------------------------------------
-     NPC Image (UI only)
+     NPC Image (UI state)
   --------------------------------------------- */
   const [clips, setClips] = useState([]);
   const [selectedClip, setSelectedClip] = useState(null);
@@ -77,14 +77,6 @@ export default function NpcForm({ record, onChange }) {
 
   const npcId = record?.id ?? null;
   const isNewNpc = !npcId;
-
-  /* ------------------------------------------------------------
-     Reset image UI when switching NPCs
-  ------------------------------------------------------------ */
-  useEffect(() => {
-    setSelectedClip(null);
-    setPendingClipId(null);
-  }, [record?.id]);
 
   /* ------------------------------------------------------------
      Load available image clips
@@ -110,18 +102,27 @@ export default function NpcForm({ record, onChange }) {
   }, []);
 
   /* ------------------------------------------------------------
-     Sync persisted image from DB
+     Sync image display from BOTH:
+     - pending UI selection
+     - persisted DB state
   ------------------------------------------------------------ */
   useEffect(() => {
-    if (!record?.image_clip_id || !clips.length) return;
+    if (!clips.length) return;
 
-    const clip = clips.find((c) => c.id === record.image_clip_id) || null;
+    const clipId =
+      pendingClipId || record?.image_clip_id || null;
+
+    if (!clipId) {
+      setSelectedClip(null);
+      return;
+    }
+
+    const clip = clips.find((c) => c.id === clipId) || null;
     setSelectedClip(clip);
-    setPendingClipId(null);
-  }, [record?.image_clip_id, clips]);
+  }, [pendingClipId, record?.image_clip_id, clips]);
 
   /* ------------------------------------------------------------
-     Expose pending image clip id (plain data)
+     Expose pending image clip id to parent (plain data)
   ------------------------------------------------------------ */
   useEffect(() => {
     if (typeof onChange !== "function") return;
@@ -174,7 +175,6 @@ export default function NpcForm({ record, onChange }) {
             const clip =
               clips.find((c) => c.id === e.target.value) || null;
 
-            setSelectedClip(clip);
             setPendingClipId(clip ? clip.id : null);
           }}
         >
