@@ -13,6 +13,10 @@ function clipTypeFromKey(key) {
   return "unknown";
 }
 
+/* ============================================================
+   CONTROLLER PAGE
+============================================================ */
+
 function displayNameFromKey(key) {
   const parts = key.split("/");
   return parts[parts.length - 1].replace(/^\d+-/, "");
