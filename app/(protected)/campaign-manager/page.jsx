@@ -22,7 +22,6 @@ const CONTAINER_TYPES = [
 
 const PAGE_VERSION = "1.01";
 const LS_CAMPAIGN_KEY = "lw:selectedCampaignId";
-const LS_CAMPAIGN_KEY = "lw:selectedCampaignId";
 
 export default function CampaignManagerPage() {
   const { campaign, setCampaignContext } = useCampaignContext();
