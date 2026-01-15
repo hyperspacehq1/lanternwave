@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { withContext } from "@/lib/forms/withContext";
 import { useCampaignContext } from "@/lib/campaign/campaignContext";
 
 /* ------------------------------------------------------------
@@ -45,18 +44,17 @@ export default function NpcForm({ record, onChange }) {
     );
   }
 
+  /* ------------------------------------------------------------
+     Local update helper (PLAIN DATA ONLY)
+  ------------------------------------------------------------ */
   const update = (field, value) => {
-    onChange(
-      withContext(
-        {
-          ...record,
-          [field]: value,
-        },
-        {
-          campaign_id: campaign.id,
-        }
-      )
-    );
+    if (typeof onChange !== "function") return;
+
+    onChange({
+      ...record,
+      [field]: value,
+      campaign_id: campaign.id,
+    });
   };
 
   /* ---------------------------------------------
@@ -71,7 +69,7 @@ export default function NpcForm({ record, onChange }) {
   }, [record?.id]);
 
   /* ---------------------------------------------
-     NPC Image (UI only — no POSTs here)
+     NPC Image (UI only)
   --------------------------------------------- */
   const [clips, setClips] = useState([]);
   const [selectedClip, setSelectedClip] = useState(null);
@@ -89,7 +87,7 @@ export default function NpcForm({ record, onChange }) {
   }, [record?.id]);
 
   /* ------------------------------------------------------------
-     Load available image clips (tenant scoped)
+     Load available image clips
   ------------------------------------------------------------ */
   useEffect(() => {
     fetch("/api/r2/list", {
@@ -112,7 +110,7 @@ export default function NpcForm({ record, onChange }) {
   }, []);
 
   /* ------------------------------------------------------------
-     Sync persisted image from DB (display only)
+     Sync persisted image from DB
   ------------------------------------------------------------ */
   useEffect(() => {
     if (!record?.image_clip_id || !clips.length) return;
@@ -123,22 +121,16 @@ export default function NpcForm({ record, onChange }) {
   }, [record?.image_clip_id, clips]);
 
   /* ------------------------------------------------------------
-     Expose pending image clip id (no save here)
+     Expose pending image clip id (plain data)
   ------------------------------------------------------------ */
   useEffect(() => {
     if (typeof onChange !== "function") return;
 
-    onChange(
-      withContext(
-        {
-          ...record,
-          __pendingImageClipId: pendingClipId || null,
-        },
-        {
-          campaign_id: campaign.id,
-        }
-      )
-    );
+    onChange({
+      ...record,
+      __pendingImageClipId: pendingClipId || null,
+      campaign_id: campaign.id,
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingClipId]);
 
