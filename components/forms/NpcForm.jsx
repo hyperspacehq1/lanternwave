@@ -121,6 +121,30 @@ export default function NpcForm({ record, onChange }) {
     setSelectedClip(clip);
   }, [pendingClipId, record?.image_clip_id, clips]);
 
+/* ------------------------------------------------------------
+   Load existing NPC image from join table (fast workaround)
+------------------------------------------------------------ */
+useEffect(() => {
+  if (!record?.id) return;
+
+  fetch(`/api/npc-image?npc_id=${record.id}`, {
+    cache: "no-store",
+    credentials: "include",
+  })
+    .then((r) => r.json())
+    .then((res) => {
+      if (!res?.ok || !res.clip_id) return;
+
+      // prefer DB-linked image on load
+      setPendingClipId(res.clip_id);
+
+      // if clips already loaded, select immediately
+      const clip = clips.find((c) => c.id === res.clip_id) || null;
+      if (clip) setSelectedClip(clip);
+    })
+    .catch(() => {});
+}, [record?.id, clips]);
+
   /* ------------------------------------------------------------
      Expose pending image clip id to parent (plain data)
   ------------------------------------------------------------ */
