@@ -20,6 +20,8 @@ const CONTAINER_TYPES = [
   { id: "players", label: "Players" },
 ];
 
+const PAGE_VERSION = "1.01";
+const LS_CAMPAIGN_KEY = "lw:selectedCampaignId";
 const LS_CAMPAIGN_KEY = "lw:selectedCampaignId";
 
 export default function CampaignManagerPage() {
@@ -201,7 +203,19 @@ export default function CampaignManagerPage() {
       <div className="cm-layout">
         {/* LEFT COLUMN — TABS */}
         <aside className="cm-sidebar">
-          <h1 className="cm-title">Campaign Manager</h1>
+          <h1 className="cm-title">
+  Campaign Manager
+  <div
+    style={{
+      marginTop: "4px",
+      fontSize: "10px",
+      letterSpacing: "0.18em",
+      opacity: 0.55,
+    }}
+  >
+    v{PAGE_VERSION}
+  </div>
+</h1>
 
           {CONTAINER_TYPES.map((c) => (
             <button
