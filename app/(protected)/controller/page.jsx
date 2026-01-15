@@ -26,7 +26,7 @@ function streamUrlForKey(key) {
 }
 
 /* ================================
-   Image size enforcement (ONLY ADDITION)
+   Image size enforcement
 ================================ */
 const MAX_IMAGE_DIMENSION = 2048;
 
@@ -37,11 +37,10 @@ function validateImageDimensions(file) {
 
     img.onload = () => {
       URL.revokeObjectURL(objectUrl);
-
       if (img.width > MAX_IMAGE_DIMENSION || img.height > MAX_IMAGE_DIMENSION) {
         reject(
           new Error(
-            "Your image is too large. Please compress it or resize dimensions to under 2048 × 2048 pixels before uploading."
+            "Your image is too large. Please resize under 2048 × 2048 pixels."
           )
         );
       } else {
@@ -88,12 +87,8 @@ async function uploadClip(file, onProgress) {
   });
 
   const urlData = await urlRes.json().catch(() => null);
-
   if (!urlRes.ok || !urlData?.uploadUrl || !urlData?.key) {
-    throw new Error(
-      urlData?.error ||
-        `Upload initialization failed (status ${urlRes.status})`
-    );
+    throw new Error(urlData?.error || "Upload initialization failed");
   }
 
   const { uploadUrl, key } = urlData;
@@ -127,7 +122,6 @@ async function uploadClip(file, onProgress) {
   });
 
   if (!finRes.ok) throw new Error("Finalize failed");
-
   return key;
 }
 
@@ -154,7 +148,7 @@ async function setNowPlaying(key) {
 }
 
 /* ================================
-   Controller Page
+   Controller Page (FIXED)
 ================================ */
 export default function ControllerPage() {
   const audio = useGlobalAudio();
@@ -193,11 +187,16 @@ export default function ControllerPage() {
   const previewKey = playingKey;
   const previewType = previewKey ? clipTypeFromKey(previewKey) : null;
   const previewUrl = previewKey ? streamUrlForKey(previewKey) : null;
+  const isPlayingAudio =
+    previewKey &&
+    previewType === "audio" &&
+    audio?.currentKey === previewKey &&
+    audio?.isPlaying;
 
   return (
     <div className="lw-main">
       <div className="lw-console">
-        {/* Upload */}
+        {/* UPLOAD */}
         <section className="lw-panel">
           <h2 className="lw-panel-title">UPLOAD CLIP</h2>
 
@@ -216,7 +215,6 @@ export default function ControllerPage() {
                 setLoading(true);
 
                 try {
-                  // ✅ ONLY NEW CALL
                   if (file.type.startsWith("image/")) {
                     await validateImageDimensions(file);
                   }
@@ -226,7 +224,6 @@ export default function ControllerPage() {
                   e.target.value = "";
                   await refresh();
                 } catch (err) {
-                  console.error("[upload]", err);
                   setUploadError(err?.message || "Upload failed");
                   setUploadProgress(null);
                 } finally {
@@ -269,8 +266,6 @@ export default function ControllerPage() {
             ))}
           </div>
 
-          {loading && <div className="lw-loading">Loading clips…</div>}
-
           <div className="lw-clip-list">
             {filteredClips.map((clip) => {
               const key = clip.object_key;
@@ -299,10 +294,7 @@ export default function ControllerPage() {
                         audio?.loop && isNow ? "active" : ""
                       }`}
                       disabled={isBusy}
-                      onClick={() => {
-                        if (!audio?.setLoop) return;
-                        audio.setLoop(!audio.loop);
-                      }}
+                      onClick={() => audio?.setLoop?.(!audio.loop)}
                     >
                       ⟳
                     </button>
@@ -316,10 +308,7 @@ export default function ControllerPage() {
                           await setNowPlaying(key);
                           setNowPlayingState({ key });
 
-                          const type = clipTypeFromKey(key);
-                          if (type === "audio") {
-                            if (audio?.setLoop)
-                              audio.setLoop(!!audio.loop);
+                          if (clipTypeFromKey(key) === "audio") {
                             audio.play(streamUrlForKey(key), key);
                           } else {
                             audio.stop();
@@ -400,7 +389,11 @@ export default function ControllerPage() {
             )}
 
             {previewKey && previewType === "audio" && (
-              <div className="lw-audio-visual">
+              <div
+                className={`lw-audio-visual ${
+                  isPlayingAudio ? "playing" : ""
+                }`}
+              >
                 <div className="lw-audio-bar" />
                 <div className="lw-audio-bar" />
                 <div className="lw-audio-bar" />
