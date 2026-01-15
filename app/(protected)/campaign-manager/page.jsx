@@ -1,12 +1,10 @@
 "use client";
 
-// import React, { useEffect, useMemo, useState } from "react";
-// import { v4 as uuidv4 } from "uuid";
+import React, { useEffect, useState } from "react";
+import { v4 as uuidv4 } from "uuid";
 
-// ❌ TEMP DISABLED FOR DEBUGGING
-// import { cmApi } from "@/lib/cm/api";
-// import { getFormComponent } from "@/components/forms";
-
+import { cmApi } from "@/lib/cm/api";
+import { getFormComponent } from "@/components/forms";
 import { useCampaignContext } from "@/lib/campaign/campaignContext";
 
 import "./campaign-manager.css";
@@ -22,42 +20,6 @@ const CONTAINER_TYPES = [
   { id: "players", label: "Players" },
 ];
 
-function getRecordLabel(type, r) {
-  if (!r) return "(unnamed)";
-  if (type === "players") {
-    const s = `${r.first_name ?? ""} ${r.last_name ?? ""}`.trim();
-    return s || "(unnamed)";
-  }
-  if (typeof r.name === "string" && r.name.trim()) return r.name;
-  return "(unnamed)";
-}
-
-/* ------------------------------------------------------------
-   Error Boundary
------------------------------------------------------------- */
-class DetailErrorBoundary extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { hasError: false };
-  }
-  static getDerivedStateFromError() {
-    return { hasError: true };
-  }
-  componentDidCatch(err, info) {
-    console.error("[CampaignManager] Detail pane crashed:", err, info);
-  }
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="cm-detail-empty">
-          Detail pane failed to render.
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
-
 export default function CampaignManagerPage() {
   const { campaign, setCampaignContext } = useCampaignContext();
 
@@ -69,22 +31,50 @@ export default function CampaignManagerPage() {
 
   const campaignId = campaign?.id;
 
-  const safeSetSelectedRecord = (next) => {
-    setSelectedRecord(next);
-  };
-
   /* ---------------------------------------------
-     Load records (DISABLED)
+     Load records (CAMPAIGN ONLY)
   --------------------------------------------- */
   useEffect(() => {
-    // ❌ cmApi intentionally disabled
-    // This effect is preserved structurally but does nothing
+    if (activeType !== "campaigns" && !campaignId) return;
+
+    let cancelled = false;
+
+    (async () => {
+      setLoading(true);
+      try {
+        const list =
+          activeType === "campaigns"
+            ? await cmApi.list("campaigns")
+            : await cmApi.list(activeType, { campaign_id: campaignId });
+
+        if (cancelled) return;
+
+        setRecords((p) => ({ ...p, [activeType]: list }));
+
+        if (!selectedId && list?.length) {
+          setSelectedId(list[0].id);
+          setSelectedRecord(list[0]);
+
+          if (activeType === "campaigns") {
+            setCampaignContext({ campaign: list[0], session: null });
+          }
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [activeType, campaignId]);
 
   /* ---------------------------------------------
-     CRUD (DISABLED)
+     CRUD
   --------------------------------------------- */
   const handleCreate = () => {
+    if (activeType !== "campaigns" && !campaignId) return;
+
     const id = uuidv4();
     const record = {
       id,
@@ -98,23 +88,78 @@ export default function CampaignManagerPage() {
     }));
 
     setSelectedId(id);
-    safeSetSelectedRecord(record);
+    setSelectedRecord(record);
   };
 
-  const handleSave = async () => {
-    // ❌ cmApi disabled
-  };
+ const handleSave = async () => {
+  if (!selectedRecord) return;
+
+  try {
+    const {
+      _isNew,
+      id,
+      __pendingImageClipId,
+      ...payload
+    } = selectedRecord;
+
+    // 1) Save NPC
+    const saved = _isNew
+      ? await cmApi.create(activeType, payload)
+      : await cmApi.update(activeType, id, payload);
+
+    // 2) Update state
+    setRecords((p) => ({
+      ...p,
+      [activeType]: (p[activeType] || []).map((r) => {
+        if (!r) return r;
+        return r.id === (_isNew ? id : saved.id) ? saved : r;
+      }),
+    }));
+
+    setSelectedId(saved.id);
+    setSelectedRecord(saved);
+
+    // 3) Attach image AFTER save (NPCs only)
+    if (activeType === "npcs" && __pendingImageClipId) {
+      try {
+        await fetch("/api/npc-image", {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            npc_id: saved.id,
+            clip_id: __pendingImageClipId,
+          }),
+        });
+      } catch (err) {
+        console.error("[NPC image attach failed]", err);
+        // DO NOT throw
+      }
+    }
+
+  } catch (err) {
+    console.error("[handleSave failed]", err);
+    // DO NOT throw
+  }
+};
 
   const handleDelete = async () => {
-    // ❌ cmApi disabled
-    safeSetSelectedRecord(null);
+    if (!selectedRecord) return;
+
+    await cmApi.remove(activeType, selectedRecord.id);
+
+    setRecords((p) => ({
+      ...p,
+      [activeType]: p[activeType].filter(
+        (r) => r.id !== selectedRecord.id
+      ),
+    }));
+
+    setSelectedRecord(null);
     setSelectedId(null);
   };
-
-  /* ---------------------------------------------
-     Form resolution (DISABLED)
-  --------------------------------------------- */
-  const Form = null;
 
   /* ---------------------------------------------
      Render
@@ -132,7 +177,6 @@ export default function CampaignManagerPage() {
                 c.id === activeType ? "active" : ""
               }`}
               onClick={() => setActiveType(c.id)}
-              type="button"
             >
               {c.label}
             </button>
@@ -144,35 +188,19 @@ export default function CampaignManagerPage() {
             <div className="cm-main-title">{activeType}</div>
             {campaign && (
               <div className="cm-context-line">
-                <strong>Campaign:</strong>{" "}
-                {typeof campaign.name === "string" ? campaign.name : "—"}
+                <strong>Campaign:</strong> {campaign.name}
               </div>
             )}
           </div>
 
           <div className="cm-main-actions">
-            <button
-              className="cm-btn"
-              onClick={handleCreate}
-              disabled={loading}
-              type="button"
-            >
+            <button className="cm-btn" onClick={handleCreate} disabled={loading}>
               + New
             </button>
-            <button
-              className="cm-btn"
-              onClick={handleSave}
-              disabled={!selectedRecord || loading}
-              type="button"
-            >
+            <button className="cm-btn" onClick={handleSave} disabled={!selectedRecord}>
               Save
             </button>
-            <button
-              className="cm-btn danger"
-              onClick={handleDelete}
-              disabled={!selectedRecord || loading}
-              type="button"
-            >
+            <button className="cm-btn danger" onClick={handleDelete} disabled={!selectedRecord}>
               Delete
             </button>
           </div>
@@ -181,21 +209,23 @@ export default function CampaignManagerPage() {
             <section className="cm-list">
               {(records[activeType] || []).map((r) => (
                 <div
-                  key={r?.id ?? uuidv4()}
-                  className={`cm-list-item ${
-                    r?.id === selectedId ? "selected" : ""
-                  }`}
+                  key={r.id}
+                  className={`cm-list-item ${r.id === selectedId ? "selected" : ""}`}
                   onClick={() => {
-                    if (!r?.id) return;
                     setSelectedId(r.id);
-                    safeSetSelectedRecord(r);
+                    setSelectedRecord(r);
 
                     if (activeType === "campaigns") {
                       setCampaignContext({ campaign: r, session: null });
                     }
                   }}
                 >
-                  {getRecordLabel(activeType, r)}
+
+             {activeType === "players"
+  ? `${r.first_name ?? ""} ${r.last_name ?? ""}`.trim() || "(unnamed)"
+  : typeof r.name === "string"
+    ? r.name
+    : "(unnamed)"}
                 </div>
               ))}
             </section>
@@ -205,21 +235,20 @@ export default function CampaignManagerPage() {
                 <div className="cm-detail-empty">
                   Select a Campaign from the Campaign tab
                 </div>
-              ) : !selectedRecord ? (
+              ) : selectedRecord ? (
+                (() => {
+                  const Form = getFormComponent(activeType);
+                  return (
+                    <Form
+                      record={selectedRecord}
+                      onChange={setSelectedRecord}
+                    />
+                  );
+                })()
+              ) : (
                 <div className="cm-detail-empty">
                   Select a Record from the List to view Details
                 </div>
-              ) : !Form ? (
-                <div className="cm-detail-empty">
-                  Form disabled for debugging
-                </div>
-              ) : (
-                <DetailErrorBoundary>
-                  <Form
-                    record={selectedRecord}
-                    onChange={safeSetSelectedRecord}
-                  />
-                </DetailErrorBoundary>
               )}
             </section>
           </div>
