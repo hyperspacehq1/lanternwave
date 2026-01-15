@@ -217,17 +217,28 @@ export default function CampaignManagerPage() {
      Form resolution (guarded)
   --------------------------------------------- */
   const Form = useMemo(() => {
-    const candidate = getFormComponent(activeType);
-    if (!isProbablyReactComponent(candidate)) {
-      console.error(
-        "[CampaignManager] Invalid form component returned from getFormComponent:",
-        { activeType, candidate }
-      );
-      return null;
-    }
-    return candidate;
-  }, [activeType]);
+  const candidate = getFormComponent(activeType);
 
+  console.log(
+    "[CampaignManager] getFormComponent()",
+    {
+      activeType,
+      candidate,
+      typeofCandidate: typeof candidate,
+      hasDollarType: !!candidate?.$$typeof,
+    }
+  );
+
+  if (!isProbablyReactComponent(candidate)) {
+    console.error(
+      "[CampaignManager] Invalid form component returned from getFormComponent:",
+      { activeType, candidate }
+    );
+    return null;
+  }
+
+  return candidate;
+}, [activeType]);
   /* ---------------------------------------------
      Render
   --------------------------------------------- */
