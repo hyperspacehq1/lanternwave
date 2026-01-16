@@ -308,3 +308,26 @@
   gap: 0.4rem;          /* critical: prevents overlap */
   flex-shrink: 0;
 }
+
+/* ==============================
+   FIX: STOP BUTTON CLICK AREA
+   ============================== */
+
+/* Ensure buttons fully contain text + do not overlap */
+.lw-main .lw-clip-actions .lw-btn {
+  min-width: 42px;              /* ensures STOP fits */
+  text-align: center;
+  position: relative;
+  z-index: 1;                   /* stay above neighbors */
+  pointer-events: auto;
+}
+
+/* Prevent flex children from collapsing hit areas */
+.lw-main .lw-clip-actions {
+  align-items: stretch;
+}
+
+/* Extra safety: prevent text overflow causing ghost clicks */
+.lw-main .lw-btn {
+  white-space: nowrap;
+}
