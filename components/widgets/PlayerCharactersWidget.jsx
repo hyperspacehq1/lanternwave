@@ -41,17 +41,18 @@ useEffect(() => {
 
   // Feature toggle storage key (Account page beacon can write this)
   // Set to "1" to enable sanity UI: localStorage.setItem("lw:feature:player_sanity_tracker", "1")
-  const featureKey = useMemo(() => `lw:feature:${userScope}:player_sanity_tracker`, [userScope]);
-  const [sanityEnabled, setSanityEnabled] = useState(false);
+const [sanityEnabled, setSanityEnabled] = useState(false);
 
-  useEffect(() => {
-    try {
-      const v = localStorage.getItem(featureKey);
-      setSanityEnabled(v === "1");
-    } catch {
-      setSanityEnabled(false);
-    }
-  }, [featureKey]);
+useEffect(() => {
+  // Source of truth: server beacons
+  fetch("/api/account", { credentials: "include", cache: "no-store" })
+    .then((r) => r.json())
+    .then((d) => {
+      const enabled = !!d?.account?.beacons?.player_sanity_tracker;
+      setSanityEnabled(enabled);
+    })
+    .catch(() => setSanityEnabled(false));
+}, []);
 
   /* Restore UI */
   const [pos, setPos] = useState({ x: null, y: null });
