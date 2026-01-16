@@ -68,7 +68,8 @@ export default function LocationForm({ record, onChange }) {
   /* ---------------------------------------------
      AI helpers
   --------------------------------------------- */
-  const [aiLoading, setAiLoading] = useState(false);
+  const [colorLoading, setColorLoading] = useState(false);
+  const [sensoryLoading, setSensoryLoading] = useState(false);
   const [aiError, setAiError] = useState("");
 
   const canUseAI = useMemo(
@@ -99,10 +100,22 @@ export default function LocationForm({ record, onChange }) {
   function colorDetailToTextareaValue(detail) {
     if (!detail || typeof detail !== "object") return "";
     if (!Array.isArray(detail.bullets)) return "";
-
     return detail.bullets.map((b) => `• ${b}`).join("\n");
   }
 
+  /* ---------------------------------------------
+     Echo helper (animation trigger)
+  --------------------------------------------- */
+  function triggerEcho(e) {
+    const btn = e.currentTarget;
+    btn.classList.remove("ai-echo");
+    void btn.offsetWidth; // force reflow
+    btn.classList.add("ai-echo");
+  }
+
+  /* ---------------------------------------------
+     AI actions
+  --------------------------------------------- */
   async function generateColorDetail() {
     setAiError("");
 
@@ -111,7 +124,7 @@ export default function LocationForm({ record, onChange }) {
       return;
     }
 
-    setAiLoading(true);
+    setColorLoading(true);
 
     try {
       const res = await fetch("/api/ai/locations/color-detail", {
@@ -147,7 +160,7 @@ export default function LocationForm({ record, onChange }) {
     } catch (e) {
       setAiError(String(e?.message || e));
     } finally {
-      setAiLoading(false);
+      setColorLoading(false);
     }
   }
 
@@ -159,7 +172,7 @@ export default function LocationForm({ record, onChange }) {
       return;
     }
 
-    setAiLoading(true);
+    setSensoryLoading(true);
 
     try {
       const res = await fetch("/api/ai/locations/sensory", {
@@ -195,21 +208,9 @@ export default function LocationForm({ record, onChange }) {
     } catch (e) {
       setAiError(String(e?.message || e));
     } finally {
-      setAiLoading(false);
+      setSensoryLoading(false);
     }
   }
-
- /* ---------------------------------------------
-     Echo Helper
-  --------------------------------------------- */
-
-function triggerEcho(e) {
-  const btn = e.currentTarget;
-  btn.classList.remove("ai-echo");
-  // Force reflow so animation retriggers reliably
-  void btn.offsetWidth;
-  btn.classList.add("ai-echo");
-}
 
   /* ---------------------------------------------
      Render
@@ -269,27 +270,34 @@ function triggerEcho(e) {
 
       {/* Color Detail + AI */}
       <div className="cm-field">
-       <label className="cm-label" style={{ display: "flex", gap: 10 }}>
-  Detail Echoes
-  <button
-  type="button"
-  onClick={(e) => {
-    triggerEcho(e);
-    generateColorDetail();
-  }}
-  disabled={!canUseAI || aiLoading}
-  style={{ ...aiEchoButtonStyle, marginLeft: "auto" }}
->
-  {aiLoading ? "Generating…" : "Detail Echoes"}
-</button>
-</label>
+        <label className="cm-label" style={{ display: "flex", gap: 10 }}>
+          Detail Echoes
+          <button
+            type="button"
+            onClick={(e) => {
+              triggerEcho(e);
+              generateColorDetail();
+            }}
+            disabled={!canUseAI || colorLoading}
+            className="ai-echo-btn"
+            style={{ marginLeft: "auto" }}
+          >
+            {colorLoading ? "Generating…" : "Detail Echoes"}
+          </button>
+        </label>
 
         <textarea
           className="cm-textarea"
           value={colorDetailToTextareaValue(record.color_detail)}
-          onChange={(e) =>
-            update("color_detail", { bullets: e.target.value.split("\n").map((l) => l.replace(/^•\s*/, "").trim()).filter(Boolean) })
-          }
+          onChange={(e) => {
+            const bullets = e.target.value
+              .split("\n")
+              .map((l) => l.replace(/^•\s*/, "").trim())
+              .filter(Boolean)
+              .slice(0, 3);
+
+            update("color_detail", { bullets });
+          }}
         />
 
         {!!aiError && (
@@ -302,19 +310,20 @@ function triggerEcho(e) {
       {/* Sensory + AI */}
       <div className="cm-field">
         <label className="cm-label" style={{ display: "flex", gap: 10 }}>
-  Sensory
-  <button
-  type="button"
-  onClick={(e) => {
-    triggerEcho(e);
-    generateSensory();
-  }}
-  disabled={!canUseAI || aiLoading}
-  style={{ ...aiEchoButtonStyle, marginLeft: "auto" }}
->
-  {aiLoading ? "Generating…" : "Sensory Echoes"}
-</button>
-</label>
+          Sensory Echoes
+          <button
+            type="button"
+            onClick={(e) => {
+              triggerEcho(e);
+              generateSensory();
+            }}
+            disabled={!canUseAI || sensoryLoading}
+            className="ai-echo-btn"
+            style={{ marginLeft: "auto" }}
+          >
+            {sensoryLoading ? "Generating…" : "Sensory Echoes"}
+          </button>
+        </label>
 
         <textarea
           className="cm-textarea"
@@ -364,3 +373,4 @@ function triggerEcho(e) {
     </div>
   );
 }
+

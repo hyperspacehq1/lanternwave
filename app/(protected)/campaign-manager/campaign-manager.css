@@ -506,15 +506,6 @@
   }
 }
 
-const aiEchoButtonStyle = {
-  background: "#000",
-  color: "rgb(108, 197, 240)",
-  border: "1px solid rgb(108, 197, 240)",
-  padding: "4px 10px",
-  fontSize: 12,
-  cursor: "pointer",
-};
-
 /* ---------------------------------------------
    AI Echo Button Pulse
 --------------------------------------------- */
@@ -532,4 +523,16 @@ const aiEchoButtonStyle = {
 
 .ai-echo {
   animation: ai-echo-pulse 0.9s ease-out;
+}
+
+/* ---------------------------------------------
+   AI Echo Button (base style)
+--------------------------------------------- */
+.ai-echo-btn {
+  background: #000;
+  color: rgb(108, 197, 240);
+  border: 1px solid rgb(108, 197, 240);
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
 }
