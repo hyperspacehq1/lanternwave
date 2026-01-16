@@ -398,3 +398,14 @@
 .player-widget__icon.active .player-widget__sanity-icon {
   filter: drop-shadow(0 0 4px rgba(245, 197, 66, 0.6));
 }
+
+.player-widget__hide-icon {
+  width: 16px;
+  height: 16px;
+  display: block;
+  pointer-events: none;
+}
+
+.player-widget__hidebtn:hover .player-widget__hide-icon {
+  filter: brightness(1.2);
+}

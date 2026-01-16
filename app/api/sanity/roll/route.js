@@ -8,20 +8,28 @@ export const dynamic = "force-dynamic";
 /* -----------------------------------------------------------
    Dice helpers
 ------------------------------------------------------------ */
-function rollD100() {
-  return Math.floor(Math.random() * 100) + 1;
+function roll(max) {
+  return Math.floor(Math.random() * max) + 1;
 }
 
-function rollLoss(type) {
-  switch (type) {
-    case "0/1":
-      return Math.random() < 0.5 ? 0 : 1;
+/* VALUE TABLE */
+function computeLoss(rollType, passed) {
+  switch (rollType) {
+    case "1d2":
+      return passed ? 0 : roll(2);
+
+    case "1d3":
+      return passed ? 0 : roll(3);
+
     case "1d6":
-      return Math.floor(Math.random() * 6) + 1;
-    case "1d10":
-      return Math.floor(Math.random() * 10) + 1;
+      return passed ? 1 : roll(6);
+
+    case "1d8":
+      return passed ? 2 : roll(8);
+
     case "1d20":
-      return Math.floor(Math.random() * 20) + 1;
+      return passed ? 6 : roll(20);
+
     default:
       throw new Error("Invalid roll_type");
   }
@@ -41,9 +49,7 @@ export async function POST(req) {
   const tenantId = ctx.tenantId;
   const body = await req.json();
 
-  const playerId = body.player_id;
-  const campaignId = body.campaign_id;
-  const rollType = body.roll_type;
+  const { player_id: playerId, campaign_id: campaignId, roll_type: rollType } = body;
 
   if (!playerId || !campaignId || !rollType) {
     return Response.json(
@@ -53,7 +59,7 @@ export async function POST(req) {
   }
 
   /* ---------------------------------------------------------
-     Resolve ALL player names once (players table)
+     Resolve player names (for pulse)
   --------------------------------------------------------- */
   const { rows: playerRows } = await query(
     `
@@ -76,13 +82,12 @@ export async function POST(req) {
 
   const pulsePlayers = [];
 
-  /* ---------------------------------------------------------
-     Transaction
-  --------------------------------------------------------- */
   try {
     await query("BEGIN");
 
-    /* 1️⃣ Ensure sanity row exists */
+    /* -------------------------------------------------------
+       Ensure sanity row
+    ------------------------------------------------------- */
     const sanityRes = await query(
       `
       SELECT *
@@ -131,14 +136,17 @@ export async function POST(req) {
       currentSanity = sanityRes.rows[0].current_sanity;
     }
 
-    /* 2️⃣ Roll SAN check */
-    const roll = rollD100();
-    const passed = roll <= currentSanity;
-
-    const loss = passed ? 0 : rollLoss(rollType);
+    /* -------------------------------------------------------
+       SANITY ROLL (NEW RULES)
+    ------------------------------------------------------- */
+    const d100 = roll(100);
+    const passed = d100 < currentSanity;
+    const loss = computeLoss(rollType, passed);
     const sanityAfter = Math.max(0, currentSanity - loss);
 
-    /* 3️⃣ Insert SAN event */
+    /* -------------------------------------------------------
+       Record event
+    ------------------------------------------------------- */
     await query(
       `
       INSERT INTO player_sanity_events (
@@ -167,7 +175,9 @@ export async function POST(req) {
       ]
     );
 
-    /* 4️⃣ Update current sanity */
+    /* -------------------------------------------------------
+       Update sanity
+    ------------------------------------------------------- */
     await query(
       `
       UPDATE player_sanity
@@ -180,7 +190,9 @@ export async function POST(req) {
       [sanityAfter, tenantId, campaignId, playerId]
     );
 
-    /* 5️⃣ Collect pulse data (ONLY if SAN lost) */
+    /* -------------------------------------------------------
+       Pulse (only if SAN lost)
+    ------------------------------------------------------- */
     if (loss > 0) {
       pulsePlayers.push({
         name: playerNameById[playerId] || "Unknown",
@@ -191,35 +203,35 @@ export async function POST(req) {
     await query("COMMIT");
 
     /* -------------------------------------------------------
-       🔊 Emit SANITY pulse for Player Viewer
+       Emit player viewer pulse (10s)
     ------------------------------------------------------- */
- if (pulsePlayers.length) {
- const expiresAt = new Date(Date.now() + 10_000); // 10 seconds
+    if (pulsePlayers.length) {
+      const expiresAt = new Date(Date.now() + 10_000);
 
-  await query(
-    `
-    insert into player_sanity_pulse_playing (tenant_id, payload, expires_at)
-    values ($1, $2, $3)
-    on conflict (tenant_id)
-    do update set
-      payload = excluded.payload,
-      expires_at = excluded.expires_at,
-      created_at = now()
-    `,
-    [
-      tenantId,
-      {
-        title: "Sanity",
-        players: pulsePlayers,
-      },
-      expiresAt,
-    ]
-  );
-}
+      await query(
+        `
+        INSERT INTO player_sanity_pulse_playing (tenant_id, payload, expires_at)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (tenant_id)
+        DO UPDATE SET
+          payload = excluded.payload,
+          expires_at = excluded.expires_at,
+          created_at = NOW()
+        `,
+        [
+          tenantId,
+          {
+            title: "Sanity",
+            players: pulsePlayers,
+          },
+          expiresAt,
+        ]
+      );
+    }
 
     return Response.json({
       player_id: playerId,
-      roll,
+      roll: d100,
       passed,
       sanity_loss: loss,
       sanity_before: currentSanity,

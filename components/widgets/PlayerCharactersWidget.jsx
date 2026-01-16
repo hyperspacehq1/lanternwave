@@ -301,14 +301,22 @@ export default function PlayerCharactersWidget({ campaignId }) {
         <div className="player-widget__body">
           {sanityEnabled && sanityMode && (
             <div className="player-widget__sanitybar" onPointerDown={(e) => e.stopPropagation()}>
-<div className="player-widget__sanitylabel">Sanity</div>
 
-              <div className="player-widget__sanitybar-actions">
-                <button className="player-widget__sanbtn" disabled={!selectedIds.length} onClick={() => rollSanityForSelected("0/1")}>0 / 1</button>
-                <button className="player-widget__sanbtn" disabled={!selectedIds.length} onClick={() => rollSanityForSelected("1d6")}>1D6</button>
-                <button className="player-widget__sanbtn" disabled={!selectedIds.length} onClick={() => rollSanityForSelected("1d10")}>1D10</button>
-              </div>
-            </div>
+             <div className="player-widget__sanitybar-actions">
+  <button className="player-widget__sanbtn" disabled={!selectedIds.length} onClick={() => rollSanityForSelected("1d2")}>1D2</button>
+  <button className="player-widget__sanbtn" disabled={!selectedIds.length} onClick={() => rollSanityForSelected("1d3")}>1D3</button>
+  <button className="player-widget__sanbtn" disabled={!selectedIds.length} onClick={() => rollSanityForSelected("1d6")}>1D6</button>
+  <button className="player-widget__sanbtn" disabled={!selectedIds.length} onClick={() => rollSanityForSelected("1d8")}>1D8</button>
+  <button className="player-widget__sanbtn" disabled={!selectedIds.length} onClick={() => rollSanityForSelected("1d20")}>1D20</button>
+
+  <button
+    className="player-widget__sanbtn"
+    title="Reset all sanity"
+    onClick={resetAllSanity}
+  >
+    <img src="/reset.png" alt="Reset" style={{ width: 14, height: 14 }} />
+  </button>
+</div>
           )}
 
           <ul className={`player-widget__list ${layout}`}>
@@ -352,16 +360,22 @@ export default function PlayerCharactersWidget({ campaignId }) {
                   )}
 
                   <button
-                    className="player-widget__hidebtn"
-                    onPointerDown={(e) => e.stopPropagation()}
-                    onClick={() => {
-                      const n = { ...inactive, [p.id]: !off };
-                      setInactive(n);
-                      persistUI({ inactive: n });
-                    }}
-                  >
-                    👁
-                  </button>
+  className="player-widget__hidebtn"
+  onPointerDown={(e) => e.stopPropagation()}
+  title={off ? "Show player" : "Hide player"}
+  onClick={() => {
+    const n = { ...inactive, [p.id]: !off };
+    setInactive(n);
+    persistUI({ inactive: n });
+  }}
+>
+  <img
+    src={off ? "/unhide.png" : "/hide.png"}
+    alt={off ? "Show" : "Hide"}
+    className="player-widget__hide-icon"
+    draggable={false}
+  />
+</button>
                 </li>
               );
             })}
