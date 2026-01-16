@@ -9,225 +9,180 @@ export default function PlayerCharactersWidget({ campaignId }) {
   const [players, setPlayers] = useState([]);
   const [loading, setLoading] = useState(false);
 
+  /* UI state */
   const [collapsed, setCollapsed] = useState(false);
+  const [layout, setLayout] = useState("vertical");
   const [inactive, setInactive] = useState({});
   const [turns, setTurns] = useState({});
   const [order, setOrder] = useState([]);
+  const [showSanity, setShowSanity] = useState(false);
 
-  const [sanityEnabled, setSanityEnabled] = useState(false);
-  const [sanityMode, setSanityMode] = useState(true);
-
-  const [sanityState, setSanityState] = useState({});
-  const [sanityFlash, setSanityFlash] = useState({});
-
-  /* ------------------------------
-     Load account beacons
-  ------------------------------ */
+  /* User scope */
+  const [userScope, setUserScope] = useState("anon");
   useEffect(() => {
-    fetch("/api/account", { credentials: "include", cache: "no-store" })
+    fetch("/api/account")
       .then((r) => r.json())
-      .then((d) => {
-        setSanityEnabled(!!d?.account?.beacons?.player_sanity_tracker);
-      })
-      .catch(() => setSanityEnabled(false));
+      .then((d) => setUserScope(d?.id || "anon"))
+      .catch(() => setUserScope("anon"));
   }, []);
 
-  /* ------------------------------
-     Load players
-  ------------------------------ */
+  const storageKey = useMemo(() => `lw:widget:${userScope}:players`, [userScope]);
+
+  /* Restore UI */
+  const [pos, setPos] = useState({ x: null, y: null });
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(storageKey);
+      if (!raw) return;
+      const s = JSON.parse(raw);
+      setCollapsed(!!s.collapsed);
+      setLayout(s.layout || "vertical");
+      setInactive(s.inactive || {});
+      setTurns(s.turns || {});
+      setOrder(s.order || []);
+      setShowSanity(!!s.showSanity);
+      if (s.pos) setPos(s.pos);
+    } catch {}
+  }, [storageKey]);
+
+  function persistUI(next) {
+    try {
+      localStorage.setItem(
+        storageKey,
+        JSON.stringify({
+          collapsed,
+          layout,
+          inactive,
+          turns,
+          order,
+          showSanity,
+          pos,
+          ...next,
+        })
+      );
+    } catch {}
+  }
+
+  /* Drag */
+  const MARGIN = 16;
+  const dragging = useRef(false);
+  const dragOffset = useRef({ dx: 0, dy: 0 });
+
+  function onDragStart(e) {
+    dragging.current = true;
+    const r = widgetRef.current.getBoundingClientRect();
+    dragOffset.current = {
+      dx: e.clientX - r.left,
+      dy: e.clientY - r.top,
+    };
+    widgetRef.current.setPointerCapture(e.pointerId);
+  }
+
+  function onPointerMove(e) {
+    if (!dragging.current) return;
+    const r = widgetRef.current.getBoundingClientRect();
+
+    setPos({
+      x: Math.max(MARGIN, Math.min(e.clientX - dragOffset.current.dx, window.innerWidth - r.width - MARGIN)),
+      y: Math.max(MARGIN, Math.min(e.clientY - dragOffset.current.dy, window.innerHeight - r.height - MARGIN)),
+    });
+  }
+
+  function onPointerUp(e) {
+    dragging.current = false;
+    persistUI({ pos });
+    try {
+      widgetRef.current.releasePointerCapture(e.pointerId);
+    } catch {}
+  }
+
+  /* Load players */
   useEffect(() => {
     if (!campaignId) return;
     setLoading(true);
-
     fetch(`/api/players?campaign_id=${campaignId}`)
       .then((r) => r.json())
-      .then((list) => {
+      .then((d) => {
+        const list = Array.isArray(d) ? d : [];
         setPlayers(list);
-        setOrder(list.map((p) => p.id));
-
-        const map = {};
-        for (const p of list) {
-          if (Number.isInteger(p.sanity)) {
-            map[p.id] = {
-              base: p.sanity,
-              current: p.sanity,
-              lastLoss: 0,
-            };
-          }
-        }
-        setSanityState(map);
+        if (!order.length) setOrder(list.map((p) => p.id));
       })
       .finally(() => setLoading(false));
   }, [campaignId]);
 
-  const selectedIds = useMemo(
-    () => Object.keys(turns).filter((id) => turns[id]),
-    [turns]
-  );
-
-  function rollSanityForSelected(type) {
-    selectedIds.forEach(async (playerId) => {
-      const res = await fetch("/api/sanity/roll", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          campaign_id: campaignId,
-          player_id: playerId,
-          roll_type: type,
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) return;
-
-      setSanityState((prev) => ({
-        ...prev,
-        [playerId]: {
-          base: data.base_sanity,
-          current: data.current_sanity,
-          lastLoss: data.sanity_loss,
-        },
-      }));
-
-      if (data.sanity_loss > 0) {
-        setSanityFlash((prev) => ({
-          ...prev,
-          [playerId]: Date.now(),
-        }));
-
-        setTimeout(() => {
-          setSanityFlash((prev) => {
-            const next = { ...prev };
-            delete next[playerId];
-            return next;
-          });
-        }, 2000);
-      }
-    });
-  }
-
-  function sanTone(p) {
-    const s = sanityState[p.id];
-    if (!s) return "muted";
-    if (s.lastLoss >= 5) return "yellow";
-    if (s.current / s.base >= 0.8) return "green";
-    return "red";
-  }
+  const orderedPlayers = order.map((id) => players.find((p) => p.id === id)).filter(Boolean);
 
   return (
-    <div className="player-widget" ref={widgetRef}>
-      <div className="player-widget__header">
-        <div className="player-widget__title">
-          Players <span className="player-widget__version">V.1</span>
-        </div>
+    <div
+      ref={widgetRef}
+      className="player-widget"
+      data-layout={layout}
+      style={{
+        position: "fixed",
+        zIndex: 9999,
+        left: pos.x ?? "auto",
+        top: pos.y ?? "auto",
+        right: pos.x == null ? MARGIN : "auto",
+        bottom: pos.y == null ? MARGIN : "auto",
+      }}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+    >
+      {/* HEADER */}
+      <div className="player-widget__header" onPointerDown={onDragStart}>
+        <div className="player-widget__title">Players</div>
 
         <div className="player-widget__controls">
-          {sanityEnabled && (
-            <span
-              className={`player-widget__icon ${sanityMode ? "active" : ""}`}
-              onClick={() => setSanityMode((v) => !v)}
-            >
-              🧠
-            </span>
-          )}
+          {/* Sanity Toggle */}
+          <button
+            className="player-widget__sanity-toggle"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={() => {
+              const v = !showSanity;
+              setShowSanity(v);
+              persistUI({ showSanity: v });
+            }}
+            title="Toggle Sanity"
+          >
+            <img src="/sanity.png" alt="Sanity" />
+          </button>
+
           <span
             className="player-widget__icon"
-            onClick={() => setCollapsed((v) => !v)}
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={() => {
+              const v = !collapsed;
+              setCollapsed(v);
+              persistUI({ collapsed: v });
+            }}
           >
-            ▾
+            {collapsed ? "▸" : "▾"}
           </span>
         </div>
       </div>
 
       {!collapsed && (
         <div className="player-widget__body">
-          {sanityEnabled && sanityMode && (
-            <div className="player-widget__sanitybar">
-              <div className="player-widget__sanitylabel">Sanity</div>
-
-              <div className="player-widget__sanitybar-actions">
-                <button
-                  className="player-widget__sanbtn"
-                  disabled={!selectedIds.length}
-                  onClick={() => rollSanityForSelected("0/1")}
-                >
-                  0 / 1
-                </button>
-                <button
-                  className="player-widget__sanbtn"
-                  disabled={!selectedIds.length}
-                  onClick={() => rollSanityForSelected("1d6")}
-                >
-                  1D6
-                </button>
-                <button
-                  className="player-widget__sanbtn"
-                  disabled={!selectedIds.length}
-                  onClick={() => rollSanityForSelected("1d10")}
-                >
-                  1D10
-                </button>
-              </div>
-            </div>
-          )}
-
           {loading ? (
             <div>Loading…</div>
           ) : (
             <ul className="player-widget__list vertical">
-              {players.map((p) => (
-                <li
-                  key={p.id}
-                  className={`player-widget__player ${
-                    inactive[p.id] ? "inactive" : ""
-                  }`}
-                >
-                  {sanityFlash[p.id] && (
-                    <div className={`player-widget__flash player-widget__flash--${sanTone(p)}`}>
-                      <div>
-                        <div className="player-widget__flash-top">Sanity</div>
-                        <div className="player-widget__flash-bottom">
-                          SAN {sanityState[p.id]?.current}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  <input
-                    type="checkbox"
-                    className="player-widget__checkbox"
-                    checked={!!turns[p.id]}
-                    onChange={() =>
-                      setTurns((t) => ({ ...t, [p.id]: !t[p.id] }))
-                    }
-                  />
-
+              {orderedPlayers.map((p) => (
+                <li key={p.id} className="player-widget__player">
                   <div className="player-widget__text">
-                    <div className="player-widget__character">
-                      {p.character_name}
+                    <div className="player-widget__character">{p.character_name}</div>
+                    <div className="player-widget__name">
+                      {`${p.first_name ?? ""} ${p.last_name ?? ""}`.trim()}
                     </div>
-                    <div className="player-widget__name">{p.first_name}</div>
                   </div>
 
-                  {sanityEnabled && sanityMode && (
-                    <div
-                      className={`player-widget__sanval player-widget__sanval--${sanTone(
-                        p
-                      )}`}
-                    >
-                      SAN {sanityState[p.id]?.current}
+                  {showSanity && (
+                    <div className="player-widget__sanity">
+                      <button>-</button>
+                      <button>+</button>
                     </div>
                   )}
-
-                  <button
-                    className="player-widget__hidebtn"
-                    onClick={() =>
-                      setInactive((i) => ({ ...i, [p.id]: !i[p.id] }))
-                    }
-                  >
-                    👁
-                  </button>
                 </li>
               ))}
             </ul>
