@@ -143,20 +143,8 @@ export default function LocationForm({ record, onChange }) {
         return;
       }
 
-      const saveRes = await fetch(`/api/locations?id=${record.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ color_detail: data.color_detail }),
-      });
+update("color_detail", data.color_detail);
 
-      const saved = await saveRes.json().catch(() => null);
-
-      if (!saveRes.ok || !saved) {
-        setAiError("Generated color detail, but failed to save.");
-        return;
-      }
-
-      update("color_detail", saved.color_detail);
     } catch (e) {
       setAiError(String(e?.message || e));
     } finally {
