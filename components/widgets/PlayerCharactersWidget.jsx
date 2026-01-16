@@ -240,6 +240,46 @@ export default function PlayerCharactersWidget({ campaignId }) {
   }
 
   /* -----------------------------------------------------------
+     RESET SANITY
+  ------------------------------------------------------------ */
+
+ async function resetAllSanity() {
+    if (!campaignId) return;
+
+    const ok = window.confirm(
+      "Reset sanity for ALL players in this campaign?"
+    );
+    if (!ok) return;
+
+    try {
+      const res = await fetch("/api/sanity/reset", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ campaign_id: campaignId }),
+      });
+
+      if (!res.ok) throw new Error("Reset failed");
+
+      // Update local UI state to match DB
+      setSanityState((prev) => {
+        const next = { ...prev };
+        for (const id in next) {
+          next[id] = {
+            ...next[id],
+            current: next[id].base,
+            lastLoss: 0,
+            lastUpdatedAt: Date.now(),
+          };
+        }
+        return next;
+      });
+    } catch (e) {
+      alert("Failed to reset sanity");
+    }
+  }
+
+  /* -----------------------------------------------------------
      RENDER
   ------------------------------------------------------------ */
   return (
@@ -299,25 +339,28 @@ export default function PlayerCharactersWidget({ campaignId }) {
 
       {!collapsed && (
         <div className="player-widget__body">
-          {sanityEnabled && sanityMode && (
-            <div className="player-widget__sanitybar" onPointerDown={(e) => e.stopPropagation()}>
 
-             <div className="player-widget__sanitybar-actions">
-  <button className="player-widget__sanbtn" disabled={!selectedIds.length} onClick={() => rollSanityForSelected("1d2")}>1D2</button>
-  <button className="player-widget__sanbtn" disabled={!selectedIds.length} onClick={() => rollSanityForSelected("1d3")}>1D3</button>
-  <button className="player-widget__sanbtn" disabled={!selectedIds.length} onClick={() => rollSanityForSelected("1d6")}>1D6</button>
-  <button className="player-widget__sanbtn" disabled={!selectedIds.length} onClick={() => rollSanityForSelected("1d8")}>1D8</button>
-  <button className="player-widget__sanbtn" disabled={!selectedIds.length} onClick={() => rollSanityForSelected("1d20")}>1D20</button>
+       {sanityEnabled && sanityMode && (
+  <div className="player-widget__sanitybar" onPointerDown={(e) => e.stopPropagation()}>
 
-  <button
-    className="player-widget__sanbtn"
-    title="Reset all sanity"
-    onClick={resetAllSanity}
-  >
-    <img src="/reset.png" alt="Reset" style={{ width: 14, height: 14 }} />
-  </button>
-</div>
-          )}
+    <div className="player-widget__sanitybar-actions">
+      <button className="player-widget__sanbtn" disabled={!selectedIds.length} onClick={() => rollSanityForSelected("1d2")}>1D2</button>
+      <button className="player-widget__sanbtn" disabled={!selectedIds.length} onClick={() => rollSanityForSelected("1d3")}>1D3</button>
+      <button className="player-widget__sanbtn" disabled={!selectedIds.length} onClick={() => rollSanityForSelected("1d6")}>1D6</button>
+      <button className="player-widget__sanbtn" disabled={!selectedIds.length} onClick={() => rollSanityForSelected("1d8")}>1D8</button>
+      <button className="player-widget__sanbtn" disabled={!selectedIds.length} onClick={() => rollSanityForSelected("1d20")}>1D20</button>
+
+      <button
+        className="player-widget__sanbtn"
+        title="Reset all sanity"
+        onClick={resetAllSanity}
+      >
+        <img src="/reset.png" alt="Reset" style={{ width: 14, height: 14 }} />
+      </button>
+    </div>
+
+  </div>
+)}
 
           <ul className={`player-widget__list ${layout}`}>
             {orderedPlayers.map((p, index) => {
