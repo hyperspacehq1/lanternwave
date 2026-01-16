@@ -106,6 +106,27 @@ export default function PlayerForm({ record, onChange }) {
         />
       </div>
 
+      {/* Base Sanity */}
+      <div className="cm-field">
+        <label className="cm-label">Sanity (Base)</label>
+        <input
+          type="number"
+          className="cm-input"
+          min={0}
+          max={99}
+          value={Number.isInteger(record.sanity) ? record.sanity : ""}
+          onChange={(e) =>
+            update(
+              "sanity",
+              e.target.value === "" ? null : Number(e.target.value)
+            )
+          }
+        />
+        <div className="cm-field-help">
+          Base SAN used to calculate starting and percentage thresholds.
+        </div>
+      </div>
+
       {/* Notes */}
       <div className="cm-field">
         <label className="cm-label">Notes</label>

@@ -11,10 +11,22 @@ export default function PlayerCharactersWidget({ campaignId }) {
 
   /* UI state */
   const [collapsed, setCollapsed] = useState(false);
-  const [layout] = useState("vertical");
+
+  // 🔒 locked per requirement
+  const layout = "vertical";
+
   const [inactive, setInactive] = useState({});
   const [turns, setTurns] = useState({});
   const [order, setOrder] = useState([]);
+
+  // 🧠 Sanity UI
+  const [sanityMode, setSanityMode] = useState(false);
+
+  // sanityState[playerId] = { base, current, lastLoss, lastUpdatedAt }
+  const [sanityState, setSanityState] = useState({});
+
+  // sanityFlash[playerId] = { key, textTop, textBottom, tone }
+  const [sanityFlash, setSanityFlash] = useState({});
 
   /* User scope */
   const [userScope, setUserScope] = useState("anon");
@@ -26,6 +38,20 @@ export default function PlayerCharactersWidget({ campaignId }) {
   }, []);
 
   const storageKey = useMemo(() => `lw:widget:${userScope}:players`, [userScope]);
+
+  // Feature toggle storage key (Account page beacon can write this)
+  // Set to "1" to enable sanity UI: localStorage.setItem("lw:feature:player_sanity_tracker", "1")
+  const featureKey = useMemo(() => `lw:feature:${userScope}:player_sanity_tracker`, [userScope]);
+  const [sanityEnabled, setSanityEnabled] = useState(false);
+
+  useEffect(() => {
+    try {
+      const v = localStorage.getItem(featureKey);
+      setSanityEnabled(v === "1");
+    } catch {
+      setSanityEnabled(false);
+    }
+  }, [featureKey]);
 
   /* Restore UI */
   const [pos, setPos] = useState({ x: null, y: null });
@@ -40,6 +66,9 @@ export default function PlayerCharactersWidget({ campaignId }) {
       setTurns(s.turns || {});
       setOrder(s.order || []);
       if (s.pos) setPos(s.pos);
+
+      // sanity mode is per-user UI preference (does not imply enabled)
+      setSanityMode(!!s.sanityMode);
     } catch {}
   }, [storageKey]);
 
@@ -54,6 +83,7 @@ export default function PlayerCharactersWidget({ campaignId }) {
           turns,
           order,
           pos,
+          sanityMode,
           ...next,
         })
       );
@@ -80,7 +110,6 @@ export default function PlayerCharactersWidget({ campaignId }) {
   function onPointerMove(e) {
     if (!dragging.current) return;
 
-    // ✅ FIX: clamp using the *actual current widget size* (vertical is fit-content)
     const r = widgetRef.current?.getBoundingClientRect();
     const w = r?.width ?? 480;
     const h = r?.height ?? 260;
@@ -111,6 +140,23 @@ export default function PlayerCharactersWidget({ campaignId }) {
         const list = Array.isArray(d) ? d : [];
         setPlayers(list);
         if (!order.length) setOrder(list.map((p) => p.id));
+
+        // seed sanityState with base sanity (current = base) for display
+        setSanityState((prev) => {
+          const next = { ...prev };
+          for (const p of list) {
+            const base = Number.isInteger(p?.sanity) ? p.sanity : null;
+            if (!next[p.id] && Number.isInteger(base)) {
+              next[p.id] = {
+                base,
+                current: base,
+                lastLoss: 0,
+                lastUpdatedAt: Date.now(),
+              };
+            }
+          }
+          return next;
+        });
       })
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -148,6 +194,106 @@ export default function PlayerCharactersWidget({ campaignId }) {
     );
   }
 
+  /* -----------------------------------------------------------
+     Sanity helpers
+  ------------------------------------------------------------ */
+  const selectedIds = useMemo(() => {
+    return Object.keys(turns).filter((id) => !!turns[id]);
+  }, [turns]);
+
+  function computeSanTone(playerId) {
+    const s = sanityState[playerId];
+    if (!s || !Number.isInteger(s.base) || !Number.isInteger(s.current) || s.base <= 0) {
+      return "muted";
+    }
+    const pct = s.current / s.base;
+
+    // per your rules
+    if (s.lastLoss >= 5) return "yellow";
+    if (pct >= 0.8) return "green";
+    if (pct >= 0.6) return "red";
+    return "red"; // (future: blinking/broken here)
+  }
+
+  function showSanityFlash(playerId, tone, after, loss) {
+    const k = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+    setSanityFlash((prev) => ({
+      ...prev,
+      [playerId]: {
+        key: k,
+        tone,
+        textTop: "SANITY",
+        textBottom: `SAN ${after}${loss ? `  (-${loss})` : ""}`,
+      },
+    }));
+
+    // auto-clear after 2s (matches your spec)
+    window.setTimeout(() => {
+      setSanityFlash((prev) => {
+        const next = { ...prev };
+        // only clear if same flash is still active
+        if (next[playerId]?.key === k) delete next[playerId];
+        return next;
+      });
+    }, 2000);
+  }
+
+  async function rollSanityForSelected(rollType) {
+    if (!campaignId) return;
+    if (!sanityEnabled) return;
+    if (!selectedIds.length) return;
+
+    // optimistic: mark loading-like state could be added later; keeping minimal
+    const ids = [...selectedIds];
+
+    await Promise.all(
+      ids.map(async (playerId) => {
+        try {
+          const res = await fetch("/api/sanity/roll", {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              player_id: playerId,
+              campaign_id: campaignId,
+              roll_type: rollType,
+            }),
+          });
+
+          const data = await res.json();
+          if (!res.ok) throw new Error(data?.error || "Sanity roll failed");
+
+          // update local sanity state for display
+          setSanityState((prev) => ({
+            ...prev,
+            [playerId]: {
+              base: data.base_sanity,
+              current: data.current_sanity,
+              lastLoss: data.sanity_loss,
+              lastUpdatedAt: Date.now(),
+            },
+          }));
+
+          // flash overlay
+          const tone =
+            data.sanity_loss >= 5
+              ? "yellow"
+              : data.current_sanity / data.base_sanity >= 0.8
+              ? "green"
+              : data.current_sanity / data.base_sanity >= 0.6
+              ? "red"
+              : "red";
+
+          showSanityFlash(playerId, tone, data.current_sanity, data.sanity_loss);
+        } catch (e) {
+          // show a muted flash to indicate failure (no modal)
+          showSanityFlash(playerId, "muted", "—", 0);
+        }
+      })
+    );
+  }
+
   return (
     <div
       ref={widgetRef}
@@ -169,19 +315,21 @@ export default function PlayerCharactersWidget({ campaignId }) {
         <div className="player-widget__title">Players</div>
 
         <div className="player-widget__controls">
-
-          <span
-            className="player-widget__icon"
-            onPointerDown={(e) => e.stopPropagation()}
-            title="Layout"
-            onClick={() => {
-              const v = layout === "vertical" ? "horizontal" : "vertical";
-              setLayout(v);
-              persistUI({ layout: v });
-            }}
-          >
-            ⇄
-          </span>
+          {/* 🧠 Sanity Mode toggle (only if enabled via beacon/feature key) */}
+          {sanityEnabled && (
+            <span
+              className={`player-widget__icon ${sanityMode ? "active" : ""}`}
+              onPointerDown={(e) => e.stopPropagation()}
+              title="Sanity Mode"
+              onClick={() => {
+                const v = !sanityMode;
+                setSanityMode(v);
+                persistUI({ sanityMode: v });
+              }}
+            >
+              🧠
+            </span>
+          )}
 
           <span
             className="player-widget__icon"
@@ -200,12 +348,60 @@ export default function PlayerCharactersWidget({ campaignId }) {
 
       {!collapsed && (
         <div className="player-widget__body">
+          {/* ✅ SANITY ACTION STRIP */}
+          {sanityEnabled && sanityMode && (
+            <div className="player-widget__sanitybar" onPointerDown={(e) => e.stopPropagation()}>
+              <div className="player-widget__sanitybar-left">
+                <div className="player-widget__sanitylabel">SANITY CHECK →</div>
+                <div className="player-widget__sanityhint">
+                  Select players, then click a loss button.
+                </div>
+              </div>
+
+              <div className="player-widget__sanitybar-actions">
+                <button
+                  type="button"
+                  className="player-widget__sanbtn"
+                  disabled={!selectedIds.length}
+                  title="Fail: lose 0 or 1 SAN"
+                  onClick={() => rollSanityForSelected("0/1")}
+                >
+                  0 / 1
+                </button>
+
+                <button
+                  type="button"
+                  className="player-widget__sanbtn"
+                  disabled={!selectedIds.length}
+                  title="Fail: lose 1D6 SAN"
+                  onClick={() => rollSanityForSelected("1d6")}
+                >
+                  1D6
+                </button>
+
+                <button
+                  type="button"
+                  className="player-widget__sanbtn"
+                  disabled={!selectedIds.length}
+                  title="Fail: lose 1D10 SAN"
+                  onClick={() => rollSanityForSelected("1d10")}
+                >
+                  1D10
+                </button>
+              </div>
+            </div>
+          )}
+
           {loading ? (
             <div>Loading…</div>
           ) : (
             <ul className={`player-widget__list ${layout}`}>
               {orderedPlayers.map((p, index) => {
                 const off = inactive[p.id];
+                const s = sanityState[p.id];
+                const tone = computeSanTone(p.id);
+                const flash = sanityFlash[p.id];
+
                 return (
                   <li
                     key={p.id}
@@ -218,6 +414,17 @@ export default function PlayerCharactersWidget({ campaignId }) {
                       if (!Number.isNaN(from)) movePlayer(from, index);
                     }}
                   >
+                    {/* Overlay flash (2s) */}
+                    {flash && (
+                      <div
+                        key={flash.key}
+                        className={`player-widget__flash player-widget__flash--${flash.tone}`}
+                      >
+                        <div className="player-widget__flash-top">{flash.textTop}</div>
+                        <div className="player-widget__flash-bottom">{flash.textBottom}</div>
+                      </div>
+                    )}
+
                     <input
                       className="player-widget__checkbox"
                       type="checkbox"
@@ -236,6 +443,13 @@ export default function PlayerCharactersWidget({ campaignId }) {
                       </div>
                     </div>
 
+                    {/* Inline SAN display (only in sanity mode + enabled + has base sanity) */}
+                    {sanityEnabled && sanityMode && Number.isInteger(s?.base) && (
+                      <div className={`player-widget__sanval player-widget__sanval--${tone}`}>
+                        SAN {Number.isInteger(s?.current) ? s.current : s.base}
+                      </div>
+                    )}
+
                     <button
                       type="button"
                       className="player-widget__hidebtn"
@@ -248,10 +462,10 @@ export default function PlayerCharactersWidget({ campaignId }) {
                       }}
                     >
                       <img
-  className="player-widget__hideimg"
-  src={off ? "/unhide.png" : "/hide.png"}
-  alt={off ? "Unhide" : "Hide"}
-/>
+                        className="player-widget__hideimg"
+                        src={off ? "/unhide.png" : "/hide.png"}
+                        alt={off ? "Unhide" : "Hide"}
+                      />
                     </button>
                   </li>
                 );

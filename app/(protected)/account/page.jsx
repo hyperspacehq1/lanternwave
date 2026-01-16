@@ -10,7 +10,7 @@ export default function AccountPage() {
   const [error, setError] = useState(null);
   const [username, setUsername] = useState(null);
 
-  // Server-backed beacons (from /api/account)
+  // Server-backed beacons
   const [beacons, setBeacons] = useState({});
 
   const loadingRef = useRef(false);
@@ -51,6 +51,26 @@ export default function AccountPage() {
 
     load();
   }, []);
+
+  /* ------------------------------
+     Mirror sanity beacon → localStorage
+     (widget listens to this)
+  ------------------------------ */
+  useEffect(() => {
+    if (!username) return;
+
+    const key = `lw:feature:${username}:player_sanity_tracker`;
+
+    try {
+      if (beacons.player_sanity_tracker) {
+        localStorage.setItem(key, "1");
+      } else {
+        localStorage.removeItem(key);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [beacons.player_sanity_tracker, username]);
 
   /* ------------------------------
      Update Beacon (optimistic)
@@ -96,6 +116,7 @@ export default function AccountPage() {
             {/* ---------------- Beacons ---------------- */}
             <h2 className="account-section-title">Beacons</h2>
             <div className="account-panel beacons-panel">
+
               <div className="account-row">
                 <label className="account-label">
                   <span className="beacon-checkbox">
@@ -103,10 +124,7 @@ export default function AccountPage() {
                       type="checkbox"
                       checked={!!beacons.player_characters}
                       onChange={(e) =>
-                        updateBeacon(
-                          "player_characters",
-                          e.target.checked
-                        )
+                        updateBeacon("player_characters", e.target.checked)
                       }
                     />
                   </span>
@@ -121,16 +139,33 @@ export default function AccountPage() {
                       type="checkbox"
                       checked={!!beacons.npc_pulse}
                       onChange={(e) =>
-                        updateBeacon(
-                          "npc_pulse",
-                          e.target.checked
-                        )
+                        updateBeacon("npc_pulse", e.target.checked)
                       }
                     />
                   </span>
                   NPC Pulse Beacon (GM Dashboard)
                 </label>
               </div>
+
+              {/* 🧠 NEW SANITY BEACON */}
+              <div className="account-row">
+                <label className="account-label">
+                  <span className="beacon-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={!!beacons.player_sanity_tracker}
+                      onChange={(e) =>
+                        updateBeacon(
+                          "player_sanity_tracker",
+                          e.target.checked
+                        )
+                      }
+                    />
+                  </span>
+                  Player Sanity Tracker (GM Dashboard)
+                </label>
+              </div>
+
             </div>
           </>
         )}

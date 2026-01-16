@@ -24,6 +24,15 @@ function validateOptionalString(val, max, field) {
   return validateString(val, max, field);
 }
 
+function validateOptionalInt(val, field) {
+  if (val === null || val === undefined) return null;
+  const n = Number(val);
+  if (!Number.isInteger(n)) {
+    throw new Error(`${field} must be an integer`);
+  }
+  return n;
+}
+
 /* -----------------------------------------------------------
    GET /api/players/[id]
 ------------------------------------------------------------ */
@@ -61,6 +70,7 @@ export async function GET(req, { params }) {
           notes: 2000,
           phone: 50,
           email: 120,
+          sanity: true,
         })
       : null
   );
@@ -107,6 +117,13 @@ export async function PUT(req, { params }) {
       }
     }
 
+    // ✅ Base Sanity
+    if (hasOwn(body, "sanity")) {
+      const val = validateOptionalInt(body.sanity, "sanity");
+      sets.push(`sanity = $${i++}`);
+      values.push(val);
+    }
+
     if (!sets.length) {
       return Response.json(
         { error: "No valid fields provided" },
@@ -136,6 +153,7 @@ export async function PUT(req, { params }) {
             notes: 2000,
             phone: 50,
             email: 120,
+            sanity: true,
           })
         : null
     );
@@ -145,7 +163,7 @@ export async function PUT(req, { params }) {
 }
 
 /* -----------------------------------------------------------
-   DELETE /api/players/[id]   (SOFT DELETE)
+   DELETE /api/players/[id]
 ------------------------------------------------------------ */
 export async function DELETE(req, { params }) {
   let ctx;
@@ -182,6 +200,7 @@ export async function DELETE(req, { params }) {
           notes: 2000,
           phone: 50,
           email: 120,
+          sanity: true,
         })
       : null
   );

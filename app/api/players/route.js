@@ -25,6 +25,15 @@ function validateOptionalString(val, max, field) {
   return validateString(val, max, field);
 }
 
+function validateOptionalInt(val, field) {
+  if (val === null || val === undefined) return null;
+  const n = Number(val);
+  if (!Number.isInteger(n)) {
+    throw new Error(`${field} must be an integer`);
+  }
+  return n;
+}
+
 /* -----------------------------------------------------------
    GET /api/players
 ------------------------------------------------------------ */
@@ -62,6 +71,7 @@ export async function GET(req) {
       notes: 2000,
       phone: 50,
       email: 120,
+      sanity: true,
     })
   );
 }
@@ -111,6 +121,7 @@ export async function POST(req) {
     const notes = validateOptionalString(body.notes, 2000, "notes");
     const phone = validateOptionalString(body.phone, 50, "phone");
     const email = validateOptionalString(body.email, 120, "email");
+    const sanity = validateOptionalInt(body.sanity, "sanity");
 
     const { rows } = await query(
       `
@@ -123,9 +134,10 @@ export async function POST(req) {
         character_name,
         notes,
         phone,
-        email
+        email,
+        sanity
       )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
       RETURNING *
       `,
       [
@@ -138,6 +150,7 @@ export async function POST(req) {
         notes,
         phone,
         email,
+        sanity,
       ]
     );
 
@@ -149,6 +162,7 @@ export async function POST(req) {
         notes: 2000,
         phone: 50,
         email: 120,
+        sanity: true,
       }),
       { status: 201 }
     );
@@ -199,6 +213,12 @@ export async function PUT(req) {
       }
     }
 
+    if (hasOwn(body, "sanity")) {
+      const val = validateOptionalInt(body.sanity, "sanity");
+      sets.push(`sanity = $${i++}`);
+      values.push(val);
+    }
+
     if (!sets.length) {
       return Response.json(
         { error: "No valid fields provided" },
@@ -228,6 +248,7 @@ export async function PUT(req) {
             notes: 2000,
             phone: 50,
             email: 120,
+            sanity: true,
           })
         : null
     );
@@ -237,7 +258,7 @@ export async function PUT(req) {
 }
 
 /* -----------------------------------------------------------
-   DELETE /api/players?id=   (SOFT DELETE)
+   DELETE /api/players?id=
 ------------------------------------------------------------ */
 export async function DELETE(req) {
   let ctx;
@@ -275,6 +296,7 @@ export async function DELETE(req) {
           notes: 2000,
           phone: 50,
           email: 120,
+          sanity: true,
         })
       : null
   );
