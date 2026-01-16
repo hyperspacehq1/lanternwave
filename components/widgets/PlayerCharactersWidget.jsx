@@ -30,12 +30,12 @@ export default function PlayerCharactersWidget({ campaignId }) {
 
   /* User scope */
   const [userScope, setUserScope] = useState("anon");
-  useEffect(() => {
-    fetch("/api/account")
-      .then((r) => r.json())
-      .then((d) => setUserScope(d?.id || "anon"))
-      .catch(() => setUserScope("anon"));
-  }, []);
+useEffect(() => {
+  fetch("/api/account")
+    .then((r) => r.json())
+    .then((d) => setUserScope(d?.account?.id || "anon"))
+    .catch(() => setUserScope("anon"));
+}, []);
 
   const storageKey = useMemo(() => `lw:widget:${userScope}:players`, [userScope]);
 
