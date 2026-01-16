@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  createContext,
-  useContext,
-  useRef,
-  useState,
-  useEffect,
-} from "react";
+import { createContext, useContext, useRef, useState, useEffect } from "react";
 
 const AudioContextCtx = createContext(null);
 
@@ -25,6 +19,9 @@ export function GlobalAudioProvider({ children }) {
 
   const [currentKey, setCurrentKey] = useState(null);
   const [loop, setLoopState] = useState(false);
+
+  // ✅ Cancels stale async play() calls (fixes STOP not sticking)
+  const playTokenRef = useRef(0);
 
   /* ------------------------------
      INIT WEB AUDIO (ONCE)
@@ -58,52 +55,82 @@ export function GlobalAudioProvider({ children }) {
   }
 
   /* ------------------------------
-     PLAY
+     PLAY (CANCEL-SAFE)
   ------------------------------ */
   async function play(src, key) {
     if (!audioRef.current) return;
 
+    // New play op id
+    const token = ++playTokenRef.current;
+
     const audio = audioRef.current;
 
-    // Ensure clean state before play (prevents overlap)
-    audio.pause();
-    audio.currentTime = 0;
+    try {
+      // Clean slate
+      audio.pause();
+      try {
+        audio.currentTime = 0;
+      } catch {
+        // Some streams can throw on currentTime writes; ignore safely
+      }
 
-    audio.src = src;
-    audio.loop = loop;
+      audio.src = src;
+      audio.loop = loop;
 
-    if (audioContextRef.current?.state === "suspended") {
-      await audioContextRef.current.resume();
+      // Resume context (required for analyser + playback in many browsers)
+      if (audioContextRef.current?.state === "suspended") {
+        await audioContextRef.current.resume();
+      }
+
+      // Attempt to play
+      await audio.play();
+
+      // If STOP happened while we were awaiting play(), ignore stale completion
+      if (token !== playTokenRef.current) return;
+
+      isPlayingRef.current = true;
+      setCurrentKey(key);
+    } catch (err) {
+      // If STOP happened, browsers often throw AbortError — treat as non-fatal
+      if (token !== playTokenRef.current) return;
+
+      // Ensure state is consistent on real errors
+      isPlayingRef.current = false;
+      setCurrentKey(null);
+
+      // Optional: console noise control (leave minimal)
+      console.warn("[GlobalAudio.play] failed:", err);
     }
-
-    await audio.play();
-
-    isPlayingRef.current = true;
-    setCurrentKey(key);
   }
 
   /* ------------------------------
-     STOP (FIXED FOR MP3)
+     STOP (AUTHORITATIVE)
   ------------------------------ */
   function stop() {
     if (!audioRef.current) return;
 
+    // ✅ Invalidate any pending play() immediately
+    playTokenRef.current++;
+
     const audio = audioRef.current;
 
-    // HARD STOP media element (required for MP3)
+    // Hard stop the media element
     audio.pause();
-    audio.currentTime = 0;
+    try {
+      audio.currentTime = 0;
+    } catch {
+      // Ignore for non-seekable streams
+    }
 
-    // Clear source safely
+    // Fully detach the resource
     audio.src = "";
     audio.load();
 
     isPlayingRef.current = false;
     setCurrentKey(null);
 
-    // ❌ DO NOT suspend AudioContext here
-    // Suspending does NOT reliably stop MediaElementSource
-    // and causes MP3 playback to continue in some browsers
+    // NOTE: We intentionally do NOT suspend the AudioContext here.
+    // Suspending doesn't reliably stop MediaElementSource and can cause weirdness.
   }
 
   return (
