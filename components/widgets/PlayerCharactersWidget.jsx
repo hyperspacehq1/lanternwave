@@ -312,7 +312,9 @@ export default function PlayerCharactersWidget({ campaignId }) {
     >
       {/* HEADER = DRAG HANDLE */}
       <div className="player-widget__header" onPointerDown={onDragStart}>
-        <div className="player-widget__title">Players</div>
+        <div className="player-widget__title">
+  Players <span className="player-widget__version">V.1</span>
+</div>
 
         <div className="player-widget__controls">
           {/* 🧠 Sanity Mode toggle (only if enabled via beacon/feature key) */}
