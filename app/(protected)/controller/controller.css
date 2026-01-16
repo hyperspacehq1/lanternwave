@@ -298,3 +298,13 @@
   border: 1px solid rgba(108,197,240,0.35);
   box-shadow: inset 0 0 18px rgba(108,197,240,0.25);
 }
+
+/* ------------------------------
+   CLIP ACTION BUTTON GROUP (FIX)
+------------------------------ */
+.lw-main .lw-clip-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;          /* critical: prevents overlap */
+  flex-shrink: 0;
+}

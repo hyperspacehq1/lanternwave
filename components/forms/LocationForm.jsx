@@ -96,6 +96,61 @@ export default function LocationForm({ record, onChange }) {
     return String(sensory);
   }
 
+  function colorDetailToTextareaValue(detail) {
+    if (!detail || typeof detail !== "object") return "";
+    if (!Array.isArray(detail.bullets)) return "";
+
+    return detail.bullets.map((b) => `• ${b}`).join("\n");
+  }
+
+  async function generateColorDetail() {
+    setAiError("");
+
+    if (!canUseAI) {
+      setAiError("Save the location before generating color detail.");
+      return;
+    }
+
+    setAiLoading(true);
+
+    try {
+      const res = await fetch("/api/ai/locations/color-detail", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          location_id: record.id,
+          campaign_id: campaign.id,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || !data?.color_detail) {
+        setAiError(data?.error || "AI generation failed.");
+        return;
+      }
+
+      const saveRes = await fetch(`/api/locations?id=${record.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ color_detail: data.color_detail }),
+      });
+
+      const saved = await saveRes.json().catch(() => null);
+
+      if (!saveRes.ok || !saved) {
+        setAiError("Generated color detail, but failed to save.");
+        return;
+      }
+
+      update("color_detail", saved.color_detail);
+    } catch (e) {
+      setAiError(String(e?.message || e));
+    } finally {
+      setAiLoading(false);
+    }
+  }
+
   async function generateSensory() {
     setAiError("");
 
@@ -143,6 +198,18 @@ export default function LocationForm({ record, onChange }) {
       setAiLoading(false);
     }
   }
+
+ /* ---------------------------------------------
+     Echo Helper
+  --------------------------------------------- */
+
+function triggerEcho(e) {
+  const btn = e.currentTarget;
+  btn.classList.remove("ai-echo");
+  // Force reflow so animation retriggers reliably
+  void btn.offsetWidth;
+  btn.classList.add("ai-echo");
+}
 
   /* ---------------------------------------------
      Render
@@ -200,24 +267,29 @@ export default function LocationForm({ record, onChange }) {
         />
       </div>
 
-      {/* Sensory + AI */}
+      {/* Color Detail + AI */}
       <div className="cm-field">
-        <label className="cm-label" style={{ display: "flex", gap: 10 }}>
-          Sensory
-          <button
-            type="button"
-            onClick={generateSensory}
-            disabled={!canUseAI || aiLoading}
-            style={{ marginLeft: "auto" }}
-          >
-            {aiLoading ? "Generating…" : "Generate AI"}
-          </button>
-        </label>
+       <label className="cm-label" style={{ display: "flex", gap: 10 }}>
+  Detail Echoes
+  <button
+  type="button"
+  onClick={(e) => {
+    triggerEcho(e);
+    generateColorDetail();
+  }}
+  disabled={!canUseAI || aiLoading}
+  style={{ ...aiEchoButtonStyle, marginLeft: "auto" }}
+>
+  {aiLoading ? "Generating…" : "Detail Echoes"}
+</button>
+</label>
 
         <textarea
           className="cm-textarea"
-          value={sensoryToTextareaValue(record.sensory)}
-          onChange={(e) => update("sensory", e.target.value)}
+          value={colorDetailToTextareaValue(record.color_detail)}
+          onChange={(e) =>
+            update("color_detail", { bullets: e.target.value.split("\n").map((l) => l.replace(/^•\s*/, "").trim()).filter(Boolean) })
+          }
         />
 
         {!!aiError && (
@@ -225,6 +297,30 @@ export default function LocationForm({ record, onChange }) {
             {aiError}
           </div>
         )}
+      </div>
+
+      {/* Sensory + AI */}
+      <div className="cm-field">
+        <label className="cm-label" style={{ display: "flex", gap: 10 }}>
+  Sensory
+  <button
+  type="button"
+  onClick={(e) => {
+    triggerEcho(e);
+    generateSensory();
+  }}
+  disabled={!canUseAI || aiLoading}
+  style={{ ...aiEchoButtonStyle, marginLeft: "auto" }}
+>
+  {aiLoading ? "Generating…" : "Sensory Echoes"}
+</button>
+</label>
+
+        <textarea
+          className="cm-textarea"
+          value={sensoryToTextareaValue(record.sensory)}
+          onChange={(e) => update("sensory", e.target.value)}
+        />
       </div>
 
       {/* Address toggle */}

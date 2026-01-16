@@ -241,7 +241,7 @@ useEffect(() => {
               + New
             </button>
             <button className="cm-btn" onClick={handleSave}>
-              Save
+              Save/Update
             </button>
             <button className="cm-btn danger" onClick={handleDelete}>
               Delete
