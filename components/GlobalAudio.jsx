@@ -1,6 +1,12 @@
 "use client";
 
-import { createContext, useContext, useRef, useState, useEffect } from "react";
+import {
+  createContext,
+  useContext,
+  useRef,
+  useState,
+  useEffect,
+} from "react";
 
 const AudioContextCtx = createContext(null);
 
@@ -20,9 +26,6 @@ export function GlobalAudioProvider({ children }) {
   const [currentKey, setCurrentKey] = useState(null);
   const [loop, setLoopState] = useState(false);
 
-  // ✅ Cancels stale async play() calls (fixes STOP not sticking)
-  const playTokenRef = useRef(0);
-
   /* ------------------------------
      INIT WEB AUDIO (ONCE)
   ------------------------------ */
@@ -30,16 +33,12 @@ export function GlobalAudioProvider({ children }) {
     if (!audioRef.current || audioContextRef.current) return;
 
     const ctx = new window.AudioContext();
+
     const analyser = ctx.createAnalyser();
     analyser.fftSize = 2048;
 
-    const source = ctx.createMediaElementSource(audioRef.current);
-    source.connect(analyser);
-    analyser.connect(ctx.destination);
-
     audioContextRef.current = ctx;
     analyserRef.current = analyser;
-    sourceRef.current = source;
     dataArrayRef.current = new Uint8Array(analyser.fftSize);
   }, []);
 
@@ -55,82 +54,98 @@ export function GlobalAudioProvider({ children }) {
   }
 
   /* ------------------------------
-     PLAY (CANCEL-SAFE)
+     CONNECT SOURCE (SAFE)
+  ------------------------------ */
+  function connectSource() {
+    if (
+      !audioContextRef.current ||
+      !audioRef.current ||
+      sourceRef.current
+    ) {
+      return;
+    }
+
+    const source = audioContextRef.current.createMediaElementSource(
+      audioRef.current
+    );
+    source.connect(analyserRef.current);
+    analyserRef.current.connect(audioContextRef.current.destination);
+    sourceRef.current = source;
+  }
+
+  /* ------------------------------
+     DISCONNECT SOURCE (CRITICAL)
+  ------------------------------ */
+  function disconnectSource() {
+    if (!sourceRef.current) return;
+
+    try {
+      sourceRef.current.disconnect();
+    } catch {
+      // ignore — already disconnected
+    }
+
+    sourceRef.current = null;
+  }
+
+  /* ------------------------------
+     PLAY
   ------------------------------ */
   async function play(src, key) {
-    if (!audioRef.current) return;
-
-    // New play op id
-    const token = ++playTokenRef.current;
+    if (!audioRef.current || !audioContextRef.current) return;
 
     const audio = audioRef.current;
 
+    // Ensure fully stopped state
+    disconnectSource();
+    audio.pause();
     try {
-      // Clean slate
-      audio.pause();
-      try {
-        audio.currentTime = 0;
-      } catch {
-        // Some streams can throw on currentTime writes; ignore safely
-      }
+      audio.currentTime = 0;
+    } catch {}
 
-      audio.src = src;
-      audio.loop = loop;
+    audio.src = src;
+    audio.loop = loop;
 
-      // Resume context (required for analyser + playback in many browsers)
-      if (audioContextRef.current?.state === "suspended") {
-        await audioContextRef.current.resume();
-      }
+    // Resume audio context (required by browsers)
+    if (audioContextRef.current.state === "suspended") {
+      await audioContextRef.current.resume();
+    }
 
-      // Attempt to play
+    // 🔴 MUST reconnect AFTER src is set
+    connectSource();
+
+    try {
       await audio.play();
-
-      // If STOP happened while we were awaiting play(), ignore stale completion
-      if (token !== playTokenRef.current) return;
-
       isPlayingRef.current = true;
       setCurrentKey(key);
     } catch (err) {
-      // If STOP happened, browsers often throw AbortError — treat as non-fatal
-      if (token !== playTokenRef.current) return;
-
-      // Ensure state is consistent on real errors
+      console.warn("[GlobalAudio.play] failed:", err);
       isPlayingRef.current = false;
       setCurrentKey(null);
-
-      // Optional: console noise control (leave minimal)
-      console.warn("[GlobalAudio.play] failed:", err);
     }
   }
 
   /* ------------------------------
-     STOP (AUTHORITATIVE)
+     STOP (RESTORED BEHAVIOR)
   ------------------------------ */
   function stop() {
     if (!audioRef.current) return;
 
-    // ✅ Invalidate any pending play() immediately
-    playTokenRef.current++;
-
     const audio = audioRef.current;
 
-    // Hard stop the media element
+    // 🔴 THIS IS THE FIX
+    disconnectSource();
+
     audio.pause();
     try {
       audio.currentTime = 0;
-    } catch {
-      // Ignore for non-seekable streams
-    }
+    } catch {}
 
-    // Fully detach the resource
-    audio.src = "";
+    audio.removeAttribute("src");
     audio.load();
 
     isPlayingRef.current = false;
     setCurrentKey(null);
-
-    // NOTE: We intentionally do NOT suspend the AudioContext here.
-    // Suspending doesn't reliably stop MediaElementSource and can cause weirdness.
   }
 
   return (
