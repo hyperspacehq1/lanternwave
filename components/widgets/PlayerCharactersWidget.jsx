@@ -350,13 +350,18 @@ export default function PlayerCharactersWidget({ campaignId }) {
       <button className="player-widget__sanbtn" disabled={!selectedIds.length} onClick={() => rollSanityForSelected("1d8")}>1D8</button>
       <button className="player-widget__sanbtn" disabled={!selectedIds.length} onClick={() => rollSanityForSelected("1d20")}>1D20</button>
 
-      <button
-        className="player-widget__sanbtn"
-        title="Reset all sanity"
-        onClick={resetAllSanity}
-      >
-        <img src="/reset.png" alt="Reset" style={{ width: 14, height: 14 }} />
-      </button>
+     <button
+  className="player-widget__sanbtn"
+  title="Reset all sanity"
+  onClick={resetAllSanity}
+>
+  <img
+    src="/reset.png"
+    alt="Reset"
+    className="player-widget__reset-icon"
+    draggable={false}
+  />
+</button>
     </div>
 
   </div>

@@ -409,3 +409,10 @@
 .player-widget__hidebtn:hover .player-widget__hide-icon {
   filter: brightness(1.2);
 }
+
+.player-widget__reset-icon {
+  width: 16px;
+  height: 16px;
+  display: block;
+  pointer-events: none;
+}
