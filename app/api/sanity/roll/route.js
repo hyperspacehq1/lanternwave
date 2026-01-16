@@ -193,21 +193,29 @@ export async function POST(req) {
     /* -------------------------------------------------------
        🔊 Emit SANITY pulse for Player Viewer
     ------------------------------------------------------- */
-    if (pulsePlayers.length) {
-      try {
-        await fetch("/api/player-sanity-pulse", {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            durationMs: 2500,
-            players: pulsePlayers,
-          }),
-        });
-      } catch {
-        // pulse failure must never break SAN roll
-      }
-    }
+ if (pulsePlayers.length) {
+ const expiresAt = new Date(Date.now() + 10_000); // 10 seconds
+
+  await query(
+    `
+    insert into player_sanity_pulse_playing (tenant_id, payload, expires_at)
+    values ($1, $2, $3)
+    on conflict (tenant_id)
+    do update set
+      payload = excluded.payload,
+      expires_at = excluded.expires_at,
+      created_at = now()
+    `,
+    [
+      tenantId,
+      {
+        title: "Sanity",
+        players: pulsePlayers,
+      },
+      expiresAt,
+    ]
+  );
+}
 
     return Response.json({
       player_id: playerId,
