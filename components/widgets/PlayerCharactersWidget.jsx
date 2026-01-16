@@ -11,7 +11,7 @@ export default function PlayerCharactersWidget({ campaignId }) {
 
   /* UI state */
   const [collapsed, setCollapsed] = useState(false);
-  const [layout, setLayout] = useState("vertical");
+  const [layout] = useState("vertical");
   const [inactive, setInactive] = useState({});
   const [turns, setTurns] = useState({});
   const [order, setOrder] = useState([]);
@@ -36,7 +36,6 @@ export default function PlayerCharactersWidget({ campaignId }) {
       if (!raw) return;
       const s = JSON.parse(raw);
       setCollapsed(!!s.collapsed);
-      setLayout(s.layout || "vertical");
       setInactive(s.inactive || {});
       setTurns(s.turns || {});
       setOrder(s.order || []);
@@ -170,17 +169,6 @@ export default function PlayerCharactersWidget({ campaignId }) {
         <div className="player-widget__title">Players</div>
 
         <div className="player-widget__controls">
-          <span
-            className="player-widget__icon"
-            onPointerDown={(e) => e.stopPropagation()}
-            title="Reset Turns"
-            onClick={() => {
-              setTurns({});
-              persistUI({ turns: {} });
-            }}
-          >
-            ↺
-          </span>
 
           <span
             className="player-widget__icon"
