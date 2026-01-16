@@ -63,35 +63,47 @@ export function GlobalAudioProvider({ children }) {
   async function play(src, key) {
     if (!audioRef.current) return;
 
-    audioRef.current.src = src;
-    audioRef.current.loop = loop;
+    const audio = audioRef.current;
+
+    // Ensure clean state before play (prevents overlap)
+    audio.pause();
+    audio.currentTime = 0;
+
+    audio.src = src;
+    audio.loop = loop;
 
     if (audioContextRef.current?.state === "suspended") {
       await audioContextRef.current.resume();
     }
 
-    await audioRef.current.play();
+    await audio.play();
+
     isPlayingRef.current = true;
     setCurrentKey(key);
   }
 
   /* ------------------------------
-     STOP
+     STOP (FIXED FOR MP3)
   ------------------------------ */
   function stop() {
     if (!audioRef.current) return;
 
-    audioRef.current.pause();
-    audioRef.current.removeAttribute("src");
-    audioRef.current.load();
+    const audio = audioRef.current;
+
+    // HARD STOP media element (required for MP3)
+    audio.pause();
+    audio.currentTime = 0;
+
+    // Clear source safely
+    audio.src = "";
+    audio.load();
 
     isPlayingRef.current = false;
-
-    if (audioContextRef.current?.state === "running") {
-      audioContextRef.current.suspend();
-    }
-
     setCurrentKey(null);
+
+    // ❌ DO NOT suspend AudioContext here
+    // Suspending does NOT reliably stop MediaElementSource
+    // and causes MP3 playback to continue in some browsers
   }
 
   return (
