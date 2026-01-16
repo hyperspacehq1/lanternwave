@@ -53,6 +53,30 @@ export async function POST(req) {
   }
 
   /* ---------------------------------------------------------
+     Resolve ALL player names once (players table)
+  --------------------------------------------------------- */
+  const { rows: playerRows } = await query(
+    `
+    SELECT id, character_name, first_name, last_name
+    FROM players
+    WHERE tenant_id = $1
+      AND campaign_id = $2
+      AND deleted_at IS NULL
+    `,
+    [tenantId, campaignId]
+  );
+
+  const playerNameById = {};
+  for (const p of playerRows) {
+    playerNameById[p.id] =
+      p.character_name ||
+      `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() ||
+      "Unknown";
+  }
+
+  const pulsePlayers = [];
+
+  /* ---------------------------------------------------------
      Transaction
   --------------------------------------------------------- */
   try {
@@ -61,13 +85,12 @@ export async function POST(req) {
     /* 1️⃣ Ensure sanity row exists */
     const sanityRes = await query(
       `
-      SELECT ps.*, p.sanity AS base
-        FROM player_sanity ps
-        JOIN players p ON p.id = ps.player_id
-       WHERE ps.tenant_id = $1
-         AND ps.campaign_id = $2
-         AND ps.player_id = $3
-       LIMIT 1
+      SELECT *
+      FROM player_sanity
+      WHERE tenant_id = $1
+        AND campaign_id = $2
+        AND player_id = $3
+      LIMIT 1
       `,
       [tenantId, campaignId, playerId]
     );
@@ -79,10 +102,10 @@ export async function POST(req) {
       const playerRes = await query(
         `
         SELECT sanity
-          FROM players
-         WHERE id = $1
-           AND tenant_id = $2
-         LIMIT 1
+        FROM players
+        WHERE id = $1
+          AND tenant_id = $2
+        LIMIT 1
         `,
         [playerId, tenantId]
       );
@@ -115,7 +138,7 @@ export async function POST(req) {
     const loss = passed ? 0 : rollLoss(rollType);
     const sanityAfter = Math.max(0, currentSanity - loss);
 
-    /* 3️⃣ Insert event */
+    /* 3️⃣ Insert SAN event */
     await query(
       `
       INSERT INTO player_sanity_events (
@@ -148,16 +171,43 @@ export async function POST(req) {
     await query(
       `
       UPDATE player_sanity
-         SET current_sanity = $1,
-             updated_at = NOW()
-       WHERE tenant_id = $2
-         AND campaign_id = $3
-         AND player_id = $4
+      SET current_sanity = $1,
+          updated_at = NOW()
+      WHERE tenant_id = $2
+        AND campaign_id = $3
+        AND player_id = $4
       `,
       [sanityAfter, tenantId, campaignId, playerId]
     );
 
+    /* 5️⃣ Collect pulse data (ONLY if SAN lost) */
+    if (loss > 0) {
+      pulsePlayers.push({
+        name: playerNameById[playerId] || "Unknown",
+        sanity: sanityAfter,
+      });
+    }
+
     await query("COMMIT");
+
+    /* -------------------------------------------------------
+       🔊 Emit SANITY pulse for Player Viewer
+    ------------------------------------------------------- */
+    if (pulsePlayers.length) {
+      try {
+        await fetch("/api/player-sanity-pulse", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            durationMs: 2500,
+            players: pulsePlayers,
+          }),
+        });
+      } catch {
+        // pulse failure must never break SAN roll
+      }
+    }
 
     return Response.json({
       player_id: playerId,
