@@ -263,19 +263,24 @@ export default function PlayerCharactersWidget({ campaignId }) {
 
         <div className="player-widget__controls">
           {sanityEnabled && (
-            <span
-              className={`player-widget__icon ${sanityMode ? "active" : ""}`}
-              onPointerDown={(e) => e.stopPropagation()}
-              title="Sanity Mode"
-              onClick={() => {
-                const v = !sanityMode;
-                setSanityMode(v);
-                persistUI({ sanityMode: v });
-              }}
-            >
-              🧠
-            </span>
-          )}
+  <span
+    className={`player-widget__icon ${sanityMode ? "active" : ""}`}
+    onPointerDown={(e) => e.stopPropagation()}
+    title="Sanity Mode"
+    onClick={() => {
+      const v = !sanityMode;
+      setSanityMode(v);
+      persistUI({ sanityMode: v });
+    }}
+  >
+    <img
+      src="/sanity.png"
+      alt="Sanity"
+      className="player-widget__sanity-icon"
+      draggable={false}
+    />
+  </span>
+)}
 
           <span
             className="player-widget__icon"
@@ -296,12 +301,7 @@ export default function PlayerCharactersWidget({ campaignId }) {
         <div className="player-widget__body">
           {sanityEnabled && sanityMode && (
             <div className="player-widget__sanitybar" onPointerDown={(e) => e.stopPropagation()}>
-              <div className="player-widget__sanitybar-left">
-                <div className="player-widget__sanitylabel">SANITY CHECK →</div>
-                <div className="player-widget__sanityhint">
-                  Select players, then click a loss button.
-                </div>
-              </div>
+<div className="player-widget__sanitylabel">Sanity</div>
 
               <div className="player-widget__sanitybar-actions">
                 <button className="player-widget__sanbtn" disabled={!selectedIds.length} onClick={() => rollSanityForSelected("0/1")}>0 / 1</button>

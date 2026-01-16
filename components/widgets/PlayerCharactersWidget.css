@@ -387,3 +387,14 @@
   color: rgba(255, 255, 255, 0.7);
   text-shadow: none;
 }
+
+.player-widget__sanity-icon {
+  width: 16px;
+  height: 16px;
+  display: block;
+  pointer-events: none;
+}
+
+.player-widget__icon.active .player-widget__sanity-icon {
+  filter: drop-shadow(0 0 4px rgba(245, 197, 66, 0.6));
+}
