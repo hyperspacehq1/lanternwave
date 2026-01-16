@@ -57,20 +57,34 @@ export default function AccountPage() {
      (widget listens to this)
   ------------------------------ */
   useEffect(() => {
-    if (!username) return;
-
-    const key = `lw:feature:${username}:player_sanity_tracker`;
-
+  if (!beacons || !beacons.player_sanity_tracker) {
     try {
-      if (beacons.player_sanity_tracker) {
-        localStorage.setItem(key, "1");
-      } else {
-        localStorage.removeItem(key);
-      }
+      Object.keys(localStorage)
+        .filter((k) => k.endsWith(":player_sanity_tracker"))
+        .forEach((k) => localStorage.removeItem(k));
+    } catch {}
+    return;
+  }
+
+  async function sync() {
+    try {
+      const res = await fetch("/api/account", {
+        credentials: "include",
+        cache: "no-store",
+      });
+      const data = await res.json();
+      const id = data?.account?.id;
+      if (!id) return;
+
+      const key = `lw:feature:${id}:player_sanity_tracker`;
+      localStorage.setItem(key, "1");
     } catch {
       /* ignore */
     }
-  }, [beacons.player_sanity_tracker, username]);
+  }
+
+  sync();
+}, [beacons.player_sanity_tracker]);
 
   /* ------------------------------
      Update Beacon (optimistic)
