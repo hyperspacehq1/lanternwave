@@ -24,9 +24,19 @@ function validateSensory(input) {
   if (typeof input !== "object") {
     throw new Error("sensory must be an object");
   }
-  const size = JSON.stringify(input).length;
-  if (size > 20000) {
+  if (JSON.stringify(input).length > 20000) {
     throw new Error("sensory payload too large");
+  }
+  return input;
+}
+
+function validateColorDetail(input) {
+  if (input === null || input === undefined) return null;
+  if (typeof input !== "object") {
+    throw new Error("color_detail must be an object");
+  }
+  if (JSON.stringify(input).length > 20000) {
+    throw new Error("color_detail payload too large");
   }
   return input;
 }
@@ -117,6 +127,7 @@ export async function POST(req) {
     }
 
     const sensory = validateSensory(body.sensory ?? null);
+    const colorDetail = validateColorDetail(body.color_detail ?? null);
 
     const { rows } = await query(
       `
@@ -133,9 +144,10 @@ export async function POST(req) {
         address_state,
         address_zip,
         address_country,
-        sensory
+        sensory,
+        color_detail
       )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
       RETURNING *
       `,
       [
@@ -152,6 +164,7 @@ export async function POST(req) {
         body.addressZip ?? null,
         body.addressCountry ?? null,
         sensory,
+        colorDetail,
       ]
     );
 
@@ -222,6 +235,11 @@ export async function PUT(req) {
       values.push(validateSensory(body.sensory));
     }
 
+    if (hasOwn(body, "color_detail")) {
+      sets.push(`color_detail = $${i++}`);
+      values.push(validateColorDetail(body.color_detail));
+    }
+
     if (!sets.length) {
       return Response.json(
         { error: "No valid fields provided" },
@@ -258,7 +276,7 @@ export async function PUT(req) {
 }
 
 /* -----------------------------------------------------------
-   DELETE /api/locations?id=   (SOFT DELETE)
+   DELETE /api/locations?id=
 ------------------------------------------------------------ */
 export async function DELETE(req) {
   let ctx;

@@ -29,6 +29,17 @@ function validateSensory(input) {
   return input;
 }
 
+function validateColorDetail(input) {
+  if (input === null || input === undefined) return null;
+  if (typeof input !== "object") {
+    throw new Error("color_detail must be an object");
+  }
+  if (JSON.stringify(input).length > 20000) {
+    throw new Error("color_detail payload too large");
+  }
+  return input;
+}
+
 /* -----------------------------------------------------------
    GET /api/locations/[id]
 ------------------------------------------------------------ */
@@ -117,6 +128,11 @@ export async function PUT(req, { params }) {
       values.push(validateSensory(body.sensory));
     }
 
+    if (hasOwn(body, "color_detail")) {
+      sets.push(`color_detail = $${i++}`);
+      values.push(validateColorDetail(body.color_detail));
+    }
+
     if (!sets.length) {
       return Response.json(
         { error: "No valid fields provided" },
@@ -153,7 +169,7 @@ export async function PUT(req, { params }) {
 }
 
 /* -----------------------------------------------------------
-   DELETE /api/locations/[id]   (SOFT DELETE)
+   DELETE /api/locations/[id]
 ------------------------------------------------------------ */
 export async function DELETE(req, { params }) {
   let ctx;
