@@ -264,14 +264,16 @@ useEffect(() => {
   }));
 
   if (activeType === "campaigns") {
-    setCampaignContext({ campaign: r });
-  }
+  setCampaignContext({ campaign: r });
+}
 }}
-                >
-                  {r.name || "(unnamed)"}
-                </div>
-              ))}
-            </section>
+>
+  {activeType === "players"
+    ? r.character_name || "(unnamed)"
+    : r.name || "(unnamed)"}
+</div>
+))}
+</section>
 
             {/* RIGHT COLUMN — DETAIL */}
             <section className="cm-detail">

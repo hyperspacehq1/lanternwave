@@ -7,7 +7,7 @@ export default function PlayerForm({ record, onChange }) {
   const { campaign } = useCampaignContext();
 
   /* ------------------------------------------------------------
-     Guard: No campaign selected
+     Guards
   ------------------------------------------------------------ */
   if (!campaign) {
     return (
@@ -18,9 +18,6 @@ export default function PlayerForm({ record, onChange }) {
     );
   }
 
-  /* ------------------------------------------------------------
-     Guard: No player selected
-  ------------------------------------------------------------ */
   if (!record) {
     return (
       <div className="cm-detail-empty">
@@ -31,7 +28,7 @@ export default function PlayerForm({ record, onChange }) {
   }
 
   /* ------------------------------------------------------------
-     Campaign-scoped update helper (explicit)
+     Update helper
   ------------------------------------------------------------ */
   const update = (field, value) => {
     onChange({
@@ -42,21 +39,21 @@ export default function PlayerForm({ record, onChange }) {
   };
 
   /* ------------------------------------------------------------
-     Visual pulse when record changes
+     Pulse on record change
   ------------------------------------------------------------ */
   const [pulse, setPulse] = useState(false);
-
   useEffect(() => {
     setPulse(true);
     const t = setTimeout(() => setPulse(false), 800);
     return () => clearTimeout(t);
   }, [record.id]);
 
+  const firstNameInvalid = !record.first_name?.trim();
+  const characterNameInvalid = !record.character_name?.trim();
+
   return (
     <div className="cm-detail-form">
-      {/* ---------------------------------------------
-          Header / Context
-      --------------------------------------------- */}
+      {/* Header */}
       <div className={`cm-campaign-header ${pulse ? "pulse" : ""}`}>
         <div className="cm-context-line">
           <strong>Campaign:</strong> {campaign.name}
@@ -69,21 +66,22 @@ export default function PlayerForm({ record, onChange }) {
         </div>
       </div>
 
-      {/* ---------------------------------------------
-          First Name
-      --------------------------------------------- */}
-      <div className="cm-field">
-        <label className="cm-label">First Name</label>
+      {/* First Name (Required) */}
+      <div className="cm-field" data-required data-invalid={firstNameInvalid}>
+        <label className="cm-label">
+          First Name <span style={{ color: "red" }}>(Required)</span>
+        </label>
         <input
           className="cm-input"
           value={record.first_name || ""}
           onChange={(e) => update("first_name", e.target.value)}
+          style={{
+            borderColor: firstNameInvalid ? "red" : undefined,
+          }}
         />
       </div>
 
-      {/* ---------------------------------------------
-          Last Name
-      --------------------------------------------- */}
+      {/* Last Name */}
       <div className="cm-field">
         <label className="cm-label">Last Name</label>
         <input
@@ -93,21 +91,22 @@ export default function PlayerForm({ record, onChange }) {
         />
       </div>
 
-      {/* ---------------------------------------------
-          Character Name
-      --------------------------------------------- */}
-      <div className="cm-field">
-        <label className="cm-label">Character Name</label>
+      {/* Character Name (Required) */}
+      <div className="cm-field" data-required data-invalid={characterNameInvalid}>
+        <label className="cm-label">
+          Character Name <span style={{ color: "red" }}>(Required)</span>
+        </label>
         <input
           className="cm-input"
           value={record.character_name || ""}
           onChange={(e) => update("character_name", e.target.value)}
+          style={{
+            borderColor: characterNameInvalid ? "red" : undefined,
+          }}
         />
       </div>
 
-      {/* ---------------------------------------------
-          Notes
-      --------------------------------------------- */}
+      {/* Notes */}
       <div className="cm-field">
         <label className="cm-label">Notes</label>
         <textarea
@@ -117,9 +116,7 @@ export default function PlayerForm({ record, onChange }) {
         />
       </div>
 
-      {/* ---------------------------------------------
-          Phone
-      --------------------------------------------- */}
+      {/* Phone */}
       <div className="cm-field">
         <label className="cm-label">Phone</label>
         <input
@@ -129,9 +126,7 @@ export default function PlayerForm({ record, onChange }) {
         />
       </div>
 
-      {/* ---------------------------------------------
-          Email
-      --------------------------------------------- */}
+      {/* Email */}
       <div className="cm-field">
         <label className="cm-label">Email</label>
         <input
@@ -142,9 +137,7 @@ export default function PlayerForm({ record, onChange }) {
         />
       </div>
 
-      {/* ---------------------------------------------
-          Initiative Score
-      --------------------------------------------- */}
+      {/* Initiative Score */}
       <div className="cm-field">
         <label className="cm-label">Initiative Score</label>
         <input
@@ -164,9 +157,7 @@ export default function PlayerForm({ record, onChange }) {
         />
       </div>
 
-      {/* ---------------------------------------------
-          Initiative Bonus
-      --------------------------------------------- */}
+      {/* Initiative Bonus */}
       <div className="cm-field">
         <label className="cm-label">Initiative Bonus</label>
         <input
