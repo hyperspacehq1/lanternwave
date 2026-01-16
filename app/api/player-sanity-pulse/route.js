@@ -6,7 +6,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /* =========================
-   GET — read active sanity pulse
+   GET — viewer polls this
 ========================= */
 export async function GET(req) {
   const ctx = await getTenantContext(req);
@@ -36,7 +36,7 @@ export async function GET(req) {
 }
 
 /* =========================
-   POST — trigger sanity pulse
+   POST — GM triggers this
 ========================= */
 export async function POST(req) {
   const ctx = await getTenantContext(req);
@@ -54,11 +54,6 @@ export async function POST(req) {
     );
   }
 
-  const payload = {
-    title: "Sanity",
-    players,
-  };
-
   const expiresAt = new Date(Date.now() + Number(durationMs));
 
   await query(
@@ -71,7 +66,7 @@ export async function POST(req) {
       expires_at = excluded.expires_at,
       created_at = now()
     `,
-    [ctx.tenantId, payload, expiresAt]
+    [ctx.tenantId, { title: "Sanity", players }, expiresAt]
   );
 
   return NextResponse.json({ ok: true });
