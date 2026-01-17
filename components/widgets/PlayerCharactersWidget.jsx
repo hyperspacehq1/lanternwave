@@ -5,6 +5,7 @@ import "./PlayerCharactersWidget.css";
 
 export default function PlayerCharactersWidget({ campaignId }) {
   const widgetRef = useRef(null);
+  const draggingId = useRef(null);
 
   const [players, setPlayers] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -89,6 +90,49 @@ export default function PlayerCharactersWidget({ campaignId }) {
   const MARGIN = 16;
   const dragging = useRef(false);
   const dragOffset = useRef({ dx: 0, dy: 0 });
+
+/* -----------------------------------------------------------
+   Auto-scroll while reordering players
+------------------------------------------------------------ */
+useEffect(() => {
+  function onMove(e) {
+    if (!draggingId.current) return;
+
+    const edge = 60;
+    const speed = 8;
+    const y = e.clientY;
+
+    if (y < edge) window.scrollBy(0, -speed);
+    else if (y > window.innerHeight - edge) window.scrollBy(0, speed);
+  }
+
+  window.addEventListener("pointermove", onMove);
+  return () => window.removeEventListener("pointermove", onMove);
+}, []);
+
+/* -----------------------------------------------------------
+   Global pointerup safety net
+------------------------------------------------------------ */
+
+useEffect(() => {
+  function stopDrag() {
+  draggingId.current = null;
+  dragging.current = false;
+
+  document
+    .querySelectorAll(".player-widget__player.dragging")
+    .forEach((el) => el.classList.remove("dragging"));
+}
+
+  window.addEventListener("pointerup", stopDrag);
+  window.addEventListener("pointercancel", stopDrag);
+
+  return () => {
+    window.removeEventListener("pointerup", stopDrag);
+    window.removeEventListener("pointercancel", stopDrag);
+  };
+}, []);
+
 
   const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
 
@@ -399,7 +443,26 @@ async function rollSanityForSelected(rollType) {
               const flash = sanityFlash[p.id];
 
               return (
-                <li key={p.id} className={`player-widget__player ${off ? "inactive" : ""}`}>
+         <li
+  key={p.id}
+  className={`player-widget__player ${off ? "inactive" : ""}`}
+  data-player-id={p.id}
+  onPointerEnter={() => {
+    if (!draggingId.current || draggingId.current === p.id) return;
+
+    setOrder((prev) => {
+      const next = [...prev];
+      const from = next.indexOf(draggingId.current);
+      const to = next.indexOf(p.id);
+      if (from === to) return prev;
+
+      next.splice(from, 1);
+      next.splice(to, 0, draggingId.current);
+      persistUI({ order: next });
+      return next;
+    });
+  }}
+>
                   {flash && (
                     <div className={`player-widget__flash player-widget__flash--${flash.tone}`}>
                       <div className="player-widget__flash-top">{flash.textTop}</div>
@@ -407,16 +470,32 @@ async function rollSanityForSelected(rollType) {
                     </div>
                   )}
 
-                  <input
-                    className="player-widget__checkbox"
-                    type="checkbox"
-                    checked={!!turns[p.id]}
-                    onChange={() => {
-                      const n = { ...turns, [p.id]: !turns[p.id] };
-                      setTurns(n);
-                      persistUI({ turns: n });
-                    }}
-                  />
+                  <span
+  className="player-widget__drag"
+  onPointerDown={(e) => {
+    e.stopPropagation();
+    draggingId.current = p.id;
+    e.currentTarget.closest("li")?.classList.add("dragging");
+  }}
+  onPointerUp={(e) => {
+    draggingId.current = null;
+    e.currentTarget.closest("li")?.classList.remove("dragging");
+  }}
+>
+  ☰
+</span>
+
+<input
+  className="player-widget__checkbox"
+  type="checkbox"
+  checked={!!turns[p.id]}
+  onPointerDown={(e) => e.stopPropagation()}
+  onChange={() => {
+    const n = { ...turns, [p.id]: !turns[p.id] };
+    setTurns(n);
+    persistUI({ turns: n });
+  }}
+/>
 
                   <div className="player-widget__text">
                     <div className="player-widget__character">{p.character_name || "—"}</div>
