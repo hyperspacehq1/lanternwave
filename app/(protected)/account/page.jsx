@@ -9,6 +9,8 @@ export default function AccountPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [username, setUsername] = useState(null);
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [passwordStatus, setPasswordStatus] = useState(null);
 
   // Server-backed beacons
   const [beacons, setBeacons] = useState({});
@@ -126,6 +128,78 @@ export default function AccountPage() {
                 <span className="account-value">{username}</span>
               </div>
             </div>
+
+{/* ---------------- Security ---------------- */}
+<h2 className="account-section-title">Security</h2>
+
+<div className="account-panel">
+  <div className="account-row">
+    <span className="account-label">Password</span>
+
+    <button
+      className="account-action"
+      onClick={() => {
+        setShowPasswordForm((v) => !v);
+        setPasswordStatus(null);
+      }}
+    >
+      Change Password
+    </button>
+  </div>
+
+  {showPasswordForm && (
+    <form
+      className="account-password-form"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        setPasswordStatus("Saving…");
+
+        const form = new FormData(e.currentTarget);
+
+        const res = await fetch("/api/account/password", {
+          method: "PUT",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            currentPassword: form.get("currentPassword"),
+            newPassword: form.get("newPassword"),
+          }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          setPasswordStatus(data?.error || "Password update failed.");
+          return;
+        }
+
+        setPasswordStatus("Password updated successfully.");
+        e.currentTarget.reset();
+      }}
+    >
+      <input
+        type="password"
+        name="currentPassword"
+        placeholder="Current password"
+        required
+      />
+
+      <input
+        type="password"
+        name="newPassword"
+        placeholder="New password"
+        minLength={8}
+        required
+      />
+
+      <button type="submit">Update Password</button>
+
+      {passwordStatus && (
+        <div className="account-status">{passwordStatus}</div>
+      )}
+    </form>
+  )}
+</div>
 
             {/* ---------------- Beacons ---------------- */}
             <h2 className="account-section-title">Beacons</h2>

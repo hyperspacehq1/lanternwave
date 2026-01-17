@@ -256,3 +256,39 @@
   margin-top: 4px;
   color: #ffcc00;
 }
+
+.account-action {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  background: transparent;
+  color: #f5c542;
+  border: 1px solid #f5c542;
+  padding: 0.35rem 0.6rem;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.account-action:hover {
+  background: rgba(245, 197, 66, 0.12);
+}
+
+.account-password-form {
+  margin-top: 0.75rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.account-password-form input {
+  background: transparent;
+  border: 1px solid var(--lw-border-muted);
+  color: #e8e8e8;
+  padding: 0.4rem 0.5rem;
+  border-radius: 6px;
+  font-family: var(--font-terminal);
+}
+
+.account-password-form button {
+  margin-top: 0.25rem;
+}
+
