@@ -207,30 +207,32 @@ export default function PlayerPage() {
           Player Pulse (Sanity) — TEMP DEBUG
           (UI can be added later)
       -------------------------------- */}
-     {playerPulse && (
-  <div
-    style={{
-      position: "fixed",
-      top: 20,
-      left: "50%",
-      transform: "translateX(-50%)",
-      background: "rgba(0,0,0,0.85)",
-      color: "#fff",
-      padding: "12px 16px",
-      borderRadius: 8,
-      zIndex: 99999,
-      fontSize: 14,
-    }}
-  >
-    <strong>{playerPulse.title}</strong>
-    <ul style={{ margin: "8px 0 0", padding: 0, listStyle: "none" }}>
-      {playerPulse.players.map((p) => (
-        <li key={p.player_id}>
-          SAN {p.current}
-          {p.loss ? ` (-${p.loss})` : ""}
-        </li>
-      ))}
-    </ul>
-   </div>
+      {playerPulse && (
+        <div
+          style={{
+            position: "fixed",
+            top: 20,
+            left: "50%",
+            transform: "translateX(-50%)",
+            background: "rgba(0,0,0,0.85)",
+            color: "#fff",
+            padding: "12px 16px",
+            borderRadius: 8,
+            zIndex: 99999,
+            fontSize: 14,
+          }}
+        >
+          <strong>{playerPulse.title}</strong>
+          <ul style={{ margin: "8px 0 0", padding: 0, listStyle: "none" }}>
+            {playerPulse.players.map((p) => (
+              <li key={p.player_id}>
+                SAN {p.current}
+                {p.loss ? ` (-${p.loss})` : ""}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
   );
 }
