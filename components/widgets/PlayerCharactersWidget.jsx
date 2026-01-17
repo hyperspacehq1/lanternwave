@@ -391,17 +391,28 @@ async function rollSanityForSelected(rollType) {
 )}
 
           <span
-            className="player-widget__icon"
-            onPointerDown={(e) => e.stopPropagation()}
-            title="Collapse"
-            onClick={() => {
-              const v = !collapsed;
-              setCollapsed(v);
-              persistUI({ collapsed: v });
-            }}
-          >
-            {collapsed ? "▸" : "▾"}
-          </span>
+  className="player-widget__icon"
+  title={collapsed ? "Expand" : "Collapse"}
+  onPointerDown={(e) => e.stopPropagation()}
+  onClick={() => {
+    const v = !collapsed;
+    setCollapsed(v);
+    persistUI({ collapsed: v });
+  }}
+>
+  <span
+    style={{
+      display: "inline-block",
+      fontSize: 14,
+      lineHeight: 1,
+      transform: collapsed ? "rotate(-90deg)" : "rotate(0deg)",
+      transition: "transform 160ms ease",
+      userSelect: "none",
+    }}
+  >
+    ▾
+  </span>
+</span>
         </div>
       </div>
 
