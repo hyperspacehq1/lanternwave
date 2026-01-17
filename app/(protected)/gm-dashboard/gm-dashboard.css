@@ -399,3 +399,27 @@
   background-repeat: no-repeat;
 }
 
+/* =========================================================
+   GM CARD ACTION GROUP SPACING
+========================================================= */
+
+/* Ensure space BETWEEN NPC pulse group and action buttons */
+.gm-card-header {
+  gap: 10px;
+}
+
+/* Explicit separation between pulse buttons and expand/open */
+.npc-pulse-actions {
+  margin-right: 8px;
+  padding-right: 8px;
+  border-right: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+/* Tighten internal spacing (keep buttons close within group) */
+.npc-pulse-actions,
+.gm-card-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
