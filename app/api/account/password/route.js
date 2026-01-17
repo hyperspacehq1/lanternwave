@@ -1,30 +1,49 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import { query } from "@/lib/db";
 import { rateLimit } from "@/lib/rateLimit";
-import { getSessionUser } from "@/lib/auth/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+const SECRET = process.env.AUTH_SECRET;
+
+/* --------------------------------
+   Verify stateless session cookie
+-------------------------------- */
+function verifySession(token) {
+  if (!token) return null;
+
+  const [body, sig] = token.split(".");
+  if (!body || !sig) return null;
+
+  const expected = crypto
+    .createHmac("sha256", SECRET)
+    .update(body)
+    .digest("hex");
+
+  if (sig !== expected) return null;
+
+  try {
+    return JSON.parse(Buffer.from(body, "base64url").toString());
+  } catch {
+    return null;
+  }
+}
+
 /**
  * PUT /api/account/password
- *
- * Body:
- * {
- *   currentPassword: string,
- *   newPassword: string
- * }
  */
 export async function PUT(req) {
   try {
     /* --------------------------------
-       Auth (logged-in only)
-       -------------------------------- */
-    let user;
-    try {
-      user = await getSessionUser(req);
-    } catch {
+       Auth (cookie-based)
+    -------------------------------- */
+    const cookie = req.cookies.get("lw_session")?.value;
+    const session = verifySession(cookie);
+
+    if (!session?.userId) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
@@ -33,7 +52,7 @@ export async function PUT(req) {
 
     /* --------------------------------
        Optional rate limit (non-fatal)
-       -------------------------------- */
+    -------------------------------- */
     try {
       const ip =
         req.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
@@ -50,12 +69,12 @@ export async function PUT(req) {
         );
       }
     } catch {
-      // Rate limit must never block password change
+      // must not block password change
     }
 
     /* --------------------------------
        Parse body
-       -------------------------------- */
+    -------------------------------- */
     const { currentPassword, newPassword } = await req.json();
 
     if (!currentPassword || !newPassword) {
@@ -73,8 +92,8 @@ export async function PUT(req) {
     }
 
     /* --------------------------------
-       Fetch current hash
-       -------------------------------- */
+       Fetch + verify current password
+    -------------------------------- */
     const result = await query(
       `
       SELECT password_hash
@@ -82,7 +101,7 @@ export async function PUT(req) {
       WHERE id = $1
       LIMIT 1
       `,
-      [user.id]
+      [session.userId]
     );
 
     if (!result.rows.length) {
@@ -106,7 +125,7 @@ export async function PUT(req) {
 
     /* --------------------------------
        Update password + timestamp
-       -------------------------------- */
+    -------------------------------- */
     const passwordHash = await bcrypt.hash(newPassword, 10);
 
     await query(
@@ -117,13 +136,12 @@ export async function PUT(req) {
           updated_at = NOW()
       WHERE id = $2
       `,
-      [passwordHash, user.id]
+      [passwordHash, session.userId]
     );
 
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("CHANGE PASSWORD ERROR:", err);
-
     return NextResponse.json(
       { error: "Server error" },
       { status: 500 }
