@@ -410,9 +410,9 @@
 
 /* Explicit separation between pulse buttons and expand/open */
 .npc-pulse-actions {
-  margin-right: 8px;
-  padding-right: 8px;
-  border-right: 1px solid rgba(255, 255, 255, 0.15);
+  margin-right: 6px;
+  padding-right: 6px;
+  border-right: none;
 }
 
 /* Tighten internal spacing (keep buttons close within group) */
