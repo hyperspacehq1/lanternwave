@@ -7,12 +7,10 @@
   box-shadow: 0 0 16px rgba(0, 0, 0, 0.85);
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial,
     sans-serif;
-
-  /* animated size changes */
   transition: width 220ms ease, max-width 220ms ease, height 180ms ease;
 }
 
-/* ===== HEADER ===== */
+/* ================= HEADER ================= */
 
 .player-widget__header {
   display: flex;
@@ -42,17 +40,14 @@
 }
 
 .player-widget__icon {
-  color: #f5c542;
   background: #000;
   border: 1px solid #f5c542;
-  padding: 4px 6px;
   border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
-  line-height: 1;
+  padding: 4px 6px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  cursor: pointer;
 }
 
 .player-widget__icon:hover {
@@ -60,17 +55,16 @@
 }
 
 .player-widget__icon.active {
-  background: #111;
   box-shadow: 0 0 0 2px rgba(245, 197, 66, 0.35);
 }
 
-/* ===== BODY ===== */
+/* ================= BODY ================= */
 
 .player-widget__body {
   padding: 14px;
 }
 
-/* ===== SANITY ACTION STRIP ===== */
+/* ================= SANITY BAR ================= */
 
 .player-widget__sanitybar {
   position: relative;
@@ -79,38 +73,30 @@
   gap: 12px;
   padding: 10px;
   margin-bottom: 10px;
-
   border: 1px solid rgba(245, 197, 66, 0.35);
   border-radius: 6px;
   background: #070707;
-
-  width: fit-content;              /* ✅ auto-expand */
-  max-width: min(100%, 520px);     /* ✅ sane upper bound */
-  box-sizing: border-box;
+  width: fit-content;
+  max-width: min(100%, 520px);
 }
 
-/* --- ACTION ROW --- */
+/* ---- ACTION STRIP ---- */
 
 .player-widget__sanitybar-actions {
-  position: relative;
   display: flex;
-  flex-wrap: nowrap;               /* ✅ NEVER wrap */
+  flex-wrap: nowrap;
   gap: 8px;
-  align-items: center;
-
-  overflow-x: auto;                /* ✅ scroll when needed */
+  overflow-x: auto;
   overflow-y: hidden;
-
-  scrollbar-width: none;           /* Firefox */
-  -ms-overflow-style: none;        /* IE/Edge */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
-/* Hide scrollbar (WebKit) */
 .player-widget__sanitybar-actions::-webkit-scrollbar {
   display: none;
 }
 
-/* --- FADE INDICATORS --- */
+/* ---- FADE EDGES ---- */
 
 .player-widget__sanitybar::before,
 .player-widget__sanitybar::after {
@@ -125,23 +111,15 @@
 
 .player-widget__sanitybar::before {
   left: 0;
-  background: linear-gradient(
-    to right,
-    rgba(7, 7, 7, 0.95),
-    rgba(7, 7, 7, 0)
-  );
+  background: linear-gradient(to right, #070707, transparent);
 }
 
 .player-widget__sanitybar::after {
   right: 0;
-  background: linear-gradient(
-    to left,
-    rgba(7, 7, 7, 0.95),
-    rgba(7, 7, 7, 0)
-  );
+  background: linear-gradient(to left, #070707, transparent);
 }
 
-/* ===== SANITY BUTTON ===== */
+/* ================= SANITY BUTTON ================= */
 
 .player-widget__sanbtn {
   background: #000;
@@ -150,27 +128,19 @@
   border-radius: 6px;
   padding: 8px 10px;
   font-weight: 700;
+  font-size: 12px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  font-size: 12px;
   cursor: pointer;
-
   white-space: nowrap;
-  flex: 0 0 auto;                  /* ✅ never shrink */
+  flex: 0 0 auto;
 }
 
 .player-widget__sanbtn:hover {
   background: #111;
-  border-color: rgba(245, 197, 66, 0.95);
 }
 
-.player-widget__sanbtn:disabled {
-  cursor: not-allowed;
-  opacity: 0.35;
-  background: #000;
-}
-
-/* ===== LIST ===== */
+/* ================= PLAYER LIST ================= */
 
 .player-widget__list {
   list-style: none;
@@ -181,12 +151,11 @@
 .player-widget__list.vertical {
   display: flex;
   flex-direction: column;
-  align-items: stretch;
   width: fit-content;
   max-width: 360px;
 }
 
-/* ===== PLAYER ROW ===== */
+/* ================= PLAYER ROW ================= */
 
 .player-widget__player {
   position: relative;
@@ -199,24 +168,46 @@
   margin-bottom: 8px;
   background: #050505;
   white-space: nowrap;
-  width: fit-content;
-}
-
-.player-widget__player:last-child {
-  margin-bottom: 0;
 }
 
 .player-widget__player.inactive {
   opacity: 0.35;
 }
 
-/* ===== TEXT ===== */
+/* ================= CHECKBOX (FIXED) ================= */
+
+.player-widget__checkbox {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  background: #000 !important;
+  border: 1px solid rgba(245, 197, 66, 0.65);
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.player-widget__checkbox::after {
+  content: "";
+  width: 10px;
+  height: 6px;
+  border-left: 2px solid #f5c542;
+  border-bottom: 2px solid #f5c542;
+  transform: rotate(-45deg);
+  opacity: 0;
+}
+
+.player-widget__checkbox:checked::after {
+  opacity: 1;
+}
+
+/* ================= TEXT ================= */
 
 .player-widget__text {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  flex: 0 0 auto;
 }
 
 .player-widget__character {
@@ -230,13 +221,10 @@
   opacity: 0.8;
 }
 
-/* ===== SAN VALUE ===== */
+/* ================= SAN VALUE ================= */
 
 .player-widget__sanval {
-  margin-left: 6px;
   font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
   font-size: 12px;
   padding: 4px 8px;
   border-radius: 999px;
@@ -248,26 +236,37 @@
   color: #8df58a;
 }
 
-.player-widget__sanval--yellow {
-  color: #ffe18a;
+/* ================= HIDE BUTTON (FIXED) ================= */
+
+.player-widget__hidebtn {
+  background: #000 !important;
+  border: 1px solid #f5c542;
+  border-radius: 4px;
+  padding: 4px 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
 }
 
-.player-widget__sanval--red {
-  color: #ff7d7d;
+.player-widget__hidebtn:hover {
+  background: #111;
 }
 
-/* ===== ICON IMAGES ===== */
+.player-widget__hide-icon {
+  width: 16px;
+  height: 16px;
+  display: block;
+  filter: none;
+  pointer-events: none;
+}
+
+/* ================= ICONS ================= */
 
 .player-widget__sanity-icon,
-.player-widget__hide-icon,
 .player-widget__reset-icon {
   width: 16px;
   height: 16px;
   display: block;
   pointer-events: none;
-}
-
-.player-widget__sanbtn img.player-widget__reset-icon {
-  width: 14px;
-  height: 14px;
 }
