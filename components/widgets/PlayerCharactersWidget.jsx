@@ -213,6 +213,28 @@ export default function PlayerCharactersWidget({ campaignId }) {
             }),
           });
 
+setSanityState((prev) => ({
+        ...prev,
+        [playerId]: {
+          base: data.base_sanity,
+          current: data.current_sanity,
+          lastLoss: data.sanity_loss,
+          lastUpdatedAt: Date.now(),
+        },
+      }));
+
+      showSanityFlash(
+        playerId,
+        computeSanTone(playerId),
+        data.current_sanity,
+        data.sanity_loss
+      );
+    } catch {
+      showSanityFlash(playerId, "muted", "—", 0);
+    }
+  })
+);
+
           const data = await res.json();
           if (!res.ok) throw new Error();
 
