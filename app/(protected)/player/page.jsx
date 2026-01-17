@@ -35,6 +35,15 @@ async function getNpcPulse() {
   return data.pulse || null;
 }
 
+async function getPlayerPulse() {
+  const res = await fetch("/api/player-sanity-pulse", {
+    cache: "no-store",
+  });
+  if (!res.ok) return null;
+  const data = await res.json();
+  return data.pulse || null;
+}
+
 /* ================================
    🔑 TIMING SYNC
 ================================ */
@@ -56,6 +65,7 @@ function syncMediaToNowPlaying(mediaEl, updatedAt) {
 export default function PlayerPage() {
   const [nowPlaying, setNowPlaying] = useState(null);
   const [npcPulse, setNpcPulse] = useState(null);
+  const [playerPulse, setPlayerPulse] = useState(null);
 
   const mediaRef = useRef(null);
 
@@ -77,37 +87,70 @@ export default function PlayerPage() {
     return () => (cancelled = true);
   }, []);
 
- /* -------------------------------
-   Poll: NPC Pulse (overlay)
--------------------------------- */
-useEffect(() => {
-  let cancelled = false;
-  let timeoutId = null;
+  /* -------------------------------
+     Poll: NPC Pulse (overlay)
+  -------------------------------- */
+  useEffect(() => {
+    let cancelled = false;
+    let timeoutId = null;
 
-  async function pollPulse() {
-    try {
-      const data = await getNpcPulse();
-      if (cancelled) return;
+    async function pollPulse() {
+      try {
+        const data = await getNpcPulse();
+        if (cancelled) return;
 
-      setNpcPulse(data);
+        setNpcPulse(data);
 
-      // 🔑 back off when no pulse is active
-      const delay = data ? 500 : 5000;
-      timeoutId = setTimeout(pollPulse, delay);
-    } catch {
-      if (!cancelled) {
-        timeoutId = setTimeout(pollPulse, 5000);
+        const delay = data ? 500 : 5000;
+        timeoutId = setTimeout(pollPulse, delay);
+      } catch {
+        if (!cancelled) {
+          timeoutId = setTimeout(pollPulse, 5000);
+        }
       }
     }
-  }
 
-  pollPulse();
+    pollPulse();
 
-  return () => {
-    cancelled = true;
-    if (timeoutId) clearTimeout(timeoutId);
-  };
-}, []);
+    return () => {
+      cancelled = true;
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, []);
+
+  /* -------------------------------
+     Poll: Player Pulse (sanity)
+  -------------------------------- */
+  useEffect(() => {
+    let cancelled = false;
+    let timeoutId = null;
+
+    async function pollPlayerPulse() {
+      try {
+        const data = await getPlayerPulse();
+        if (cancelled) return;
+
+        if (data) {
+          console.log("[PLAYER PULSE RECEIVED]", data);
+          setPlayerPulse(data);
+        } else {
+          setPlayerPulse(null);
+        }
+
+        timeoutId = setTimeout(pollPlayerPulse, 1000);
+      } catch {
+        if (!cancelled) timeoutId = setTimeout(pollPlayerPulse, 3000);
+      }
+    }
+
+    pollPlayerPulse();
+
+    return () => {
+      cancelled = true;
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, []);
+
   const key = nowPlaying?.key || null;
   const type = key ? clipTypeFromKey(key) : null;
   const url = key ? streamUrlForKey(key) : null;
@@ -120,7 +163,7 @@ useEffect(() => {
       {!key && <div className="lw-player-idle">NO SIGNAL</div>}
 
       {/* -------------------------------
-          Background Media (unchanged)
+          Background Media
       -------------------------------- */}
       {key && type === "image" && (
         <div className="lw-preview-frame">
@@ -148,7 +191,7 @@ useEffect(() => {
       )}
 
       {/* -------------------------------
-          NPC Pulse Overlay (NEW)
+          NPC Pulse Overlay
       -------------------------------- */}
       {pulseUrl && (
         <div className="npc-pulse-overlay">
@@ -157,6 +200,16 @@ useEffect(() => {
             className="npc-pulse-image fade-pulse"
             alt=""
           />
+        </div>
+      )}
+
+      {/* -------------------------------
+          Player Pulse (Sanity) — TEMP DEBUG
+          (UI can be added later)
+      -------------------------------- */}
+      {playerPulse && (
+        <div className="player-pulse-debug">
+          {/* Temporary beacon so you KNOW it works */}
         </div>
       )}
     </div>
