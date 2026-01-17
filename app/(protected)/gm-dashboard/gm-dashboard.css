@@ -306,3 +306,48 @@
   font-family: var(--font-terminal);
   opacity: 0.6;
 }
+
+/* =========================================================
+   SUBTLE DARK SCROLLBARS (LanternWave)
+   Applies ONLY to scrollable GM panels
+========================================================= */
+
+/* Firefox */
+.gm-column-body,
+.gm-floating-body {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(108, 196, 23, 0.45) rgba(0, 0, 0, 0.4);
+}
+
+/* Chromium / Safari */
+.gm-column-body::-webkit-scrollbar,
+.gm-floating-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.gm-column-body::-webkit-scrollbar-track,
+.gm-floating-body::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 6px;
+}
+
+.gm-column-body::-webkit-scrollbar-thumb,
+.gm-floating-body::-webkit-scrollbar-thumb {
+  background: linear-gradient(
+    180deg,
+    rgba(108, 196, 23, 0.55),
+    rgba(108, 196, 23, 0.35)
+  );
+  border-radius: 6px;
+  border: 1px solid rgba(0, 0, 0, 0.6);
+}
+
+/* Hover = slightly brighter, never white */
+.gm-column-body::-webkit-scrollbar-thumb:hover,
+.gm-floating-body::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(
+    180deg,
+    rgba(108, 196, 23, 0.75),
+    rgba(108, 196, 23, 0.55)
+  );
+}

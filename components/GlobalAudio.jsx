@@ -40,6 +40,12 @@ export function GlobalAudioProvider({ children }) {
     audioContextRef.current = ctx;
     analyserRef.current = analyser;
     dataArrayRef.current = new Uint8Array(analyser.fftSize);
+
+    // ✅ CREATE MEDIA SOURCE ONCE — NEVER DISCONNECT
+    const source = ctx.createMediaElementSource(audioRef.current);
+    source.connect(analyser);
+    analyser.connect(ctx.destination);
+    sourceRef.current = source;
   }, []);
 
   /* ------------------------------
@@ -54,41 +60,6 @@ export function GlobalAudioProvider({ children }) {
   }
 
   /* ------------------------------
-     CONNECT SOURCE (SAFE)
-  ------------------------------ */
-  function connectSource() {
-    if (
-      !audioContextRef.current ||
-      !audioRef.current ||
-      sourceRef.current
-    ) {
-      return;
-    }
-
-    const source = audioContextRef.current.createMediaElementSource(
-      audioRef.current
-    );
-    source.connect(analyserRef.current);
-    analyserRef.current.connect(audioContextRef.current.destination);
-    sourceRef.current = source;
-  }
-
-  /* ------------------------------
-     DISCONNECT SOURCE (CRITICAL)
-  ------------------------------ */
-  function disconnectSource() {
-    if (!sourceRef.current) return;
-
-    try {
-      sourceRef.current.disconnect();
-    } catch {
-      // ignore — already disconnected
-    }
-
-    sourceRef.current = null;
-  }
-
-  /* ------------------------------
      PLAY
   ------------------------------ */
   async function play(src, key) {
@@ -96,8 +67,7 @@ export function GlobalAudioProvider({ children }) {
 
     const audio = audioRef.current;
 
-    // Ensure fully stopped state
-    disconnectSource();
+    // Stop current playback cleanly
     audio.pause();
     try {
       audio.currentTime = 0;
@@ -106,13 +76,10 @@ export function GlobalAudioProvider({ children }) {
     audio.src = src;
     audio.loop = loop;
 
-    // Resume audio context (required by browsers)
+    // Resume audio context if needed
     if (audioContextRef.current.state === "suspended") {
       await audioContextRef.current.resume();
     }
-
-    // 🔴 MUST reconnect AFTER src is set
-    connectSource();
 
     try {
       await audio.play();
@@ -126,15 +93,12 @@ export function GlobalAudioProvider({ children }) {
   }
 
   /* ------------------------------
-     STOP (RESTORED BEHAVIOR)
+     STOP
   ------------------------------ */
   function stop() {
     if (!audioRef.current) return;
 
     const audio = audioRef.current;
-
-    // 🔴 THIS IS THE FIX
-    disconnectSource();
 
     audio.pause();
     try {
