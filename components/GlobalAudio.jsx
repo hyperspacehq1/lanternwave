@@ -32,7 +32,7 @@ export function GlobalAudioProvider({ children }) {
   useEffect(() => {
     if (!audioRef.current || audioContextRef.current) return;
 
-    const ctx = new window.AudioContext();
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
 
     const analyser = ctx.createAnalyser();
     analyser.fftSize = 2048;
@@ -47,6 +47,23 @@ export function GlobalAudioProvider({ children }) {
     analyser.connect(ctx.destination);
     sourceRef.current = source;
   }, []);
+
+  /* ------------------------------
+     SAFARI / MOBILE RESUME FIX
+     (handles tab switch, sleep, focus)
+  ------------------------------ */
+  async function ensureAudioContextRunning() {
+    const ctx = audioContextRef.current;
+    if (!ctx) return;
+
+    if (ctx.state === "suspended") {
+      try {
+        await ctx.resume();
+      } catch (err) {
+        console.warn("[GlobalAudio] AudioContext resume failed:", err);
+      }
+    }
+  }
 
   /* ------------------------------
      LOOP
@@ -67,19 +84,19 @@ export function GlobalAudioProvider({ children }) {
 
     const audio = audioRef.current;
 
-    // Stop current playback cleanly
+    // Clean stop before replay
     audio.pause();
     try {
       audio.currentTime = 0;
     } catch {}
 
+    // Safari-safe src reset
+    audio.src = "";
     audio.src = src;
     audio.loop = loop;
 
-    // Resume audio context if needed
-    if (audioContextRef.current.state === "suspended") {
-      await audioContextRef.current.resume();
-    }
+    // Ensure AudioContext is alive (Safari / iOS)
+    await ensureAudioContextRunning();
 
     try {
       await audio.play();
@@ -93,7 +110,7 @@ export function GlobalAudioProvider({ children }) {
   }
 
   /* ------------------------------
-     STOP
+     STOP (FIXED — DO NOT DETACH)
   ------------------------------ */
   function stop() {
     if (!audioRef.current) return;
@@ -105,8 +122,9 @@ export function GlobalAudioProvider({ children }) {
       audio.currentTime = 0;
     } catch {}
 
-    audio.removeAttribute("src");
-    audio.load();
+    // ❌ DO NOT remove src
+    // ❌ DO NOT call load()
+    // ❌ DO NOT disconnect MediaElementSource
 
     isPlayingRef.current = false;
     setCurrentKey(null);
