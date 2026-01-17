@@ -77,24 +77,37 @@ export default function PlayerPage() {
     return () => (cancelled = true);
   }, []);
 
-  /* -------------------------------
-     Poll: NPC Pulse (overlay)
-  -------------------------------- */
-  useEffect(() => {
-    let cancelled = false;
+ /* -------------------------------
+   Poll: NPC Pulse (overlay)
+-------------------------------- */
+useEffect(() => {
+  let cancelled = false;
+  let timeoutId = null;
 
-    async function pollPulse() {
-      try {
-        const data = await getNpcPulse();
-        if (!cancelled) setNpcPulse(data);
-      } catch {}
-      if (!cancelled) setTimeout(pollPulse, 500);
+  async function pollPulse() {
+    try {
+      const data = await getNpcPulse();
+      if (cancelled) return;
+
+      setNpcPulse(data);
+
+      // 🔑 back off when no pulse is active
+      const delay = data ? 500 : 5000;
+      timeoutId = setTimeout(pollPulse, delay);
+    } catch {
+      if (!cancelled) {
+        timeoutId = setTimeout(pollPulse, 5000);
+      }
     }
+  }
 
-    pollPulse();
-    return () => (cancelled = true);
-  }, []);
+  pollPulse();
 
+  return () => {
+    cancelled = true;
+    if (timeoutId) clearTimeout(timeoutId);
+  };
+}, []);
   const key = nowPlaying?.key || null;
   const type = key ? clipTypeFromKey(key) : null;
   const url = key ? streamUrlForKey(key) : null;
