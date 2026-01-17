@@ -402,12 +402,13 @@ async function rollSanityForSelected(rollType) {
 >
   <span
     style={{
-      display: "inline-block",
-      fontSize: 14,
-      lineHeight: 1,
-      transform: collapsed ? "rotate(-90deg)" : "rotate(0deg)",
-      transition: "transform 160ms ease",
-      userSelect: "none",
+     display: "inline-block",
+    fontSize: 14,
+    lineHeight: 1,
+    color: "#f5c542",
+    transform: collapsed ? "rotate(-90deg)" : "rotate(0deg)",
+    transition: "transform 160ms ease",
+    userSelect: "none",
     }}
   >
     ▾

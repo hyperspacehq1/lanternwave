@@ -351,3 +351,51 @@
     rgba(108, 196, 23, 0.55)
   );
 }
+
+/* =========================================================
+   GM TOOLBAR SELECTS (Campaign / Session)
+========================================================= */
+
+.gm-toolbar select {
+  background: #000;
+  color: #fff;
+
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  border-radius: 4px;
+
+  padding: 6px 28px 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+
+  cursor: pointer;
+}
+
+/* focus state */
+.gm-toolbar select:focus {
+  outline: none;
+  border-color: #fff;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.25);
+}
+
+/* disabled */
+.gm-toolbar select:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* dropdown arrow */
+.gm-toolbar select {
+  background-image:
+    linear-gradient(45deg, transparent 50%, #fff 50%),
+    linear-gradient(135deg, #fff 50%, transparent 50%);
+  background-position:
+    calc(100% - 16px) calc(50% - 2px),
+    calc(100% - 11px) calc(50% - 2px);
+  background-size: 5px 5px;
+  background-repeat: no-repeat;
+}
+
