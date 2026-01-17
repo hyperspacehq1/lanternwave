@@ -204,8 +204,7 @@ export default function PlayerPage() {
       )}
 
       {/* -------------------------------
-          Player Pulse (Sanity) — TEMP DEBUG
-          (UI can be added later)
+          Player Pulse (Sanity)
       -------------------------------- */}
       {playerPulse && (
         <div
