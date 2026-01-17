@@ -196,71 +196,73 @@ export default function PlayerCharactersWidget({ campaignId }) {
     }, 2000);
   }
 
-  async function rollSanityForSelected(rollType) {
-    if (!campaignId || !sanityEnabled || !selectedIds.length) return;
+async function rollSanityForSelected(rollType) {
+  if (!campaignId || !sanityEnabled || !selectedIds.length) return;
 
-    await Promise.all(
-      selectedIds.map(async (playerId) => {
-        try {
-          const res = await fetch("/api/sanity/roll", {
-            method: "POST",
-            credentials: "include",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              player_id: playerId,
-              campaign_id: campaignId,
-              roll_type: rollType,
-            }),
-          });
+  // ✅ collect exact roll results for Player Pulse
+  const pulseResults = [];
 
-setSanityState((prev) => ({
-        ...prev,
-        [playerId]: {
-          base: data.base_sanity,
+  await Promise.all(
+    selectedIds.map(async (playerId) => {
+      try {
+        const res = await fetch("/api/sanity/roll", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            player_id: playerId,
+            campaign_id: campaignId,
+            roll_type: rollType,
+          }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error();
+
+        // update local GM state
+        setSanityState((prev) => ({
+          ...prev,
+          [playerId]: {
+            base: data.base_sanity,
+            current: data.current_sanity,
+            lastLoss: data.sanity_loss,
+            lastUpdatedAt: Date.now(),
+          },
+        }));
+
+        // local flash
+        showSanityFlash(
+          playerId,
+          computeSanTone(playerId),
+          data.current_sanity,
+          data.sanity_loss
+        );
+
+        // ✅ capture for Player Pulse
+        pulseResults.push({
+          player_id: playerId,
           current: data.current_sanity,
-          lastLoss: data.sanity_loss,
-          lastUpdatedAt: Date.now(),
-        },
-      }));
+          loss: data.sanity_loss,
+        });
+      } catch {
+        showSanityFlash(playerId, "muted", "—", 0);
+      }
+    })
+  );
 
-      showSanityFlash(
-        playerId,
-        computeSanTone(playerId),
-        data.current_sanity,
-        data.sanity_loss
-      );
-    } catch {
-      showSanityFlash(playerId, "muted", "—", 0);
-    }
-  })
-);
-
-          const data = await res.json();
-          if (!res.ok) throw new Error();
-
-          setSanityState((prev) => ({
-            ...prev,
-            [playerId]: {
-              base: data.base_sanity,
-              current: data.current_sanity,
-              lastLoss: data.sanity_loss,
-              lastUpdatedAt: Date.now(),
-            },
-          }));
-
-          showSanityFlash(
-            playerId,
-            computeSanTone(playerId),
-            data.current_sanity,
-            data.sanity_loss
-          );
-        } catch {
-          showSanityFlash(playerId, "muted", "—", 0);
-        }
-      })
-    );
+  // 🔔 BROADCAST TO PLAYER (Player Pulse)
+  if (pulseResults.length) {
+    await fetch("/api/player-sanity-pulse", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        players: pulseResults,
+        durationMs: 2000,
+      }),
+    });
   }
-
+}
   /* -----------------------------------------------------------
      RESET SANITY
   ------------------------------------------------------------ */
