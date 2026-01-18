@@ -598,74 +598,84 @@ if (allRecords.length === 0) return;
       {selectedCampaign && selectedSession && (
   <div className="gm-grid">
     <GMColumn
-      title="Events"
-      color="red"
-      entityKey="events"
-      items={events}
-joinHighlights={joinHighlights}
-      forceOpen={expandAll}
-      campaignId={selectedCampaign.id}   // ✅ ADD
-      sessionId={selectedSession.id}
-      schema={DISPLAY_SCHEMAS.events}
-      onOpenPanel={openPanel}
-      onOpenEditor={(id) => router.push(editorPathFor("events", id))}
-    />
+  title="Events"
+  color="red"
+  entityKey="events"
+  items={events}
+  joinHighlights={joinHighlights}
+  resolveJoins={resolveJoins}
+  clearJoins={clearJoins}
+  forceOpen={expandAll}
+  campaignId={selectedCampaign.id}
+  sessionId={selectedSession.id}
+  schema={DISPLAY_SCHEMAS.events}
+  onOpenPanel={openPanel}
+  onOpenEditor={(id) => router.push(editorPathFor("events", id))}
+/>
 
-    <GMColumn
+   <GMColumn
   title="NPCs"
   color="blue"
   entityKey="npcs"
   items={npcs}
-joinHighlights={joinHighlights}
+  joinHighlights={joinHighlights}
+  resolveJoins={resolveJoins}
+  clearJoins={clearJoins}
   forceOpen={expandAll}
   campaignId={selectedCampaign.id}
   sessionId={selectedSession.id}
   schema={DISPLAY_SCHEMAS.npcs}
+  showNpcPulseBeacon
   onOpenPanel={openPanel}
   onOpenEditor={(id) => router.push(editorPathFor("npcs", id))}
-  showNpcPulseBeacon={showNpcPulseBeacon}
 />
     <GMColumn
-      title="Encounters"
-      color="green"
-      entityKey="encounters"
-      items={encounters}
-joinHighlights={joinHighlights}
-      forceOpen={expandAll}
-      campaignId={selectedCampaign.id}   // ✅ ADD
-      sessionId={selectedSession.id}
-      schema={DISPLAY_SCHEMAS.encounters}
-      onOpenPanel={openPanel}
-      onOpenEditor={(id) => router.push(editorPathFor("encounters", id))}
-    />
+  title="Encounters"
+  color="green"
+  entityKey="encounters"
+  items={encounters}
+  joinHighlights={joinHighlights}
+  resolveJoins={resolveJoins}
+  clearJoins={clearJoins}
+  forceOpen={expandAll}
+  campaignId={selectedCampaign.id}
+  sessionId={selectedSession.id}
+  schema={DISPLAY_SCHEMAS.encounters}
+  onOpenPanel={openPanel}
+  onOpenEditor={(id) => router.push(editorPathFor("encounters", id))}
+/>
 
     <GMColumn
-      title="Locations"
-      color="purple"
-      entityKey="locations"
-      items={locations}
-joinHighlights={joinHighlights}
-      forceOpen={expandAll}
-      campaignId={selectedCampaign.id}   // ✅ ADD
-      sessionId={selectedSession.id}
-      schema={DISPLAY_SCHEMAS.locations}
-      onOpenPanel={openPanel}
-      onOpenEditor={(id) => router.push(editorPathFor("locations", id))}
-    />
+  title="Locations"
+  color="purple"
+  entityKey="locations"
+  items={locations}
+  joinHighlights={joinHighlights}
+  resolveJoins={resolveJoins}
+  clearJoins={clearJoins}
+  forceOpen={expandAll}
+  campaignId={selectedCampaign.id}
+  sessionId={selectedSession.id}
+  schema={DISPLAY_SCHEMAS.locations}
+  onOpenPanel={openPanel}
+  onOpenEditor={(id) => router.push(editorPathFor("locations", id))}
+/>
 
     <GMColumn
-      title="Items"
-      color="orange"
-      entityKey="items"
-      items={items}
-joinHighlights={joinHighlights}
-      forceOpen={expandAll}
-      campaignId={selectedCampaign.id}   // ✅ ADD
-      sessionId={selectedSession.id}
-      schema={DISPLAY_SCHEMAS.items}
-      onOpenPanel={openPanel}
-      onOpenEditor={(id) => router.push(editorPathFor("items", id))}
-    />
+  title="Items"
+  color="orange"
+  entityKey="items"
+  items={items}
+  joinHighlights={joinHighlights}
+  resolveJoins={resolveJoins}
+  clearJoins={clearJoins}
+  forceOpen={expandAll}
+  campaignId={selectedCampaign.id}
+  sessionId={selectedSession.id}
+  schema={DISPLAY_SCHEMAS.items}
+  onOpenPanel={openPanel}
+  onOpenEditor={(id) => router.push(editorPathFor("items", id))}
+/>
   </div>
 )}
 
