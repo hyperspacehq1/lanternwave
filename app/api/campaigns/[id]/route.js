@@ -135,24 +135,40 @@ export async function PUT(req, { params }) {
 /* -----------------------------
    DELETE /api/campaigns/[id]
 ----------------------------- */
-export async function DELETE(req, { params } = {}) {
+export async function DELETE(req, ctxArg) {
+  console.log("=== CAMPAIGN DELETE HIT ===");
+
+  console.log("raw ctxArg:", ctxArg);
+
   let ctx;
   try {
     ctx = await getTenantContext(req);
-  } catch {
+  } catch (e) {
+    console.log("getTenantContext FAILED", e);
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const tenantId = ctx.tenantId;
+  console.log("tenantId:", ctx?.tenantId);
+  console.log("userId:", ctx?.user?.id);
 
-  // Accept id from multiple shapes (matches how your app evolved)
-  const { searchParams } = new URL(req.url);
+  const url = new URL(req.url);
+  console.log("req.url:", req.url);
+  console.log("searchParams:", Object.fromEntries(url.searchParams.entries()));
+
+  const params = ctxArg?.params;
+  console.log("params:", params);
+  console.log("params?.id:", params?.id);
+  console.log("params?.campaign_id:", params?.campaign_id);
+
   const id =
-    params?.id ||
-    params?.campaign_id || // if your folder is [campaign_id]
-    searchParams.get("id"); // if someone calls /api/campaigns?id=
+    params?.id ??
+    params?.campaign_id ??
+    url.searchParams.get("id");
+
+  console.log("FINAL RESOLVED id:", id);
 
   if (!id) {
+    console.log("❌ ABORTING: id is missing");
     return Response.json({ error: "id required" }, { status: 400 });
   }
 
@@ -161,18 +177,21 @@ export async function DELETE(req, { params } = {}) {
     UPDATE campaigns
        SET deleted_at = NOW(),
            updated_at = NOW()
-     WHERE tenant_id = $1
-       AND id = $2
+     WHERE id = $1
+       AND tenant_id = $2
        AND deleted_at IS NULL
      RETURNING id
     `,
-    [tenantId, id]
+    [id, ctx.tenantId]
   );
 
-  // Don’t throw; return ok:false like “best effort” deletes elsewhere
+  console.log("rows returned:", rows);
+
   if (!rows.length) {
-    return Response.json({ ok: false, error: "Not found" }, { status: 404 });
+    console.log("❌ UPDATE MATCHED ZERO ROWS");
+    return Response.json({ error: "Not found" }, { status: 404 });
   }
 
+  console.log("✅ DELETE SUCCESS");
   return Response.json({ ok: true });
 }
