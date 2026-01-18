@@ -211,12 +211,12 @@ const confirmCampaignDelete = async () => {
   if (!selectedRecord) return;
 
   const res = await fetch(
-    `/api/campaigns/${selectedRecord.id}`,
-    {
-      method: "DELETE",
-      credentials: "include",
-    }
-  );
+  `/api/campaigns?id=${selectedRecord.id}`,
+  {
+    method: "DELETE",
+    credentials: "include",
+  }
+);
 
   if (!res.ok) {
     const err = await res.text();
