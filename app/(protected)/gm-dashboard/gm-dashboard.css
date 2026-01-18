@@ -423,3 +423,76 @@
   gap: 6px;
 }
 
+/* ============================================================
+   JOIN PANEL (Sessions ⇄ Encounters ⇄ NPCs)
+   ============================================================ */
+
+.cm-join-panel {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(163, 197, 159, 0.15);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.cm-join-title {
+  font-family: var(--font-terminal);
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--lw-green-primary);
+}
+
+/* Joined list */
+.cm-join-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.cm-join-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.35rem 0;
+}
+
+.cm-join-name {
+  font-size: 13px;
+  color: var(--lw-text-main);
+}
+
+/* Controls row */
+.cm-join-controls {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+/* Dropdown */
+.cm-join-select {
+  flex: 1;
+  background: #000;
+  border: 1px solid var(--lw-border-muted);
+  color: var(--lw-text-main);
+  padding: 0.45rem 0.55rem;
+  font-size: 12px;
+}
+
+.cm-join-select:focus {
+  outline: none;
+  border-color: var(--lw-green-primary);
+}
+
+/* Buttons */
+.cm-join-add {
+  white-space: nowrap;
+}
+
+.cm-join-remove {
+  padding: 0.25rem 0.6rem;
+  font-size: 11px;
+}
+

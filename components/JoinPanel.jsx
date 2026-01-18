@@ -73,21 +73,29 @@ export default function JoinPanel({
       .catch(() => setAttached([]));
   }, [baseUrl]);
 
-  /* ----------------------------------------------------------
-     Load available (campaign-scoped)
-  ---------------------------------------------------------- */
-  useEffect(() => {
-    if (!campaignId) return;
+ /* ----------------------------------------------------------
+   Load available (campaign-scoped)
+---------------------------------------------------------- */
+useEffect(() => {
+  if (!campaignId) return;
 
-    fetch(`/api/${joinPath}?campaign_id=${campaignId}`, {
-      credentials: "include",
+  fetch(`/api/${joinPath}?campaign_id=${campaignId}`, {
+    credentials: "include",
+  })
+    .then((r) => (r.ok ? r.json() : []))
+    .then((data) => {
+      const attachedIds = new Set(
+        attached.map((r) => r[idField])
+      );
+
+      setAvailable(
+        Array.isArray(data)
+          ? data.filter((r) => !attachedIds.has(r[idField] ?? r.id))
+          : []
+      );
     })
-      .then((r) => (r.ok ? r.json() : []))
-      .then((data) => {
-        setAvailable(Array.isArray(data) ? data : []);
-      })
-      .catch(() => setAvailable([]));
-  }, [campaignId, joinPath]);
+    .catch(() => setAvailable([]));
+}, [campaignId, joinPath, attached]);
 
   /* ----------------------------------------------------------
      Attach
@@ -173,32 +181,49 @@ export default function JoinPanel({
 
   return (
     <div className="cm-join-panel">
-      <h3>{title}</h3>
+     <h3 className="cm-join-title">{title}</h3>
 
-      <ul>
-        {attached.map((r) => (
-          <li key={r[idField]}>
-            {r[labelField]}
-            <button onClick={() => detach(r[idField])}>Remove</button>
-          </li>
-        ))}
-        {attached.length === 0 && <li>None</li>}
-      </ul>
+      <ul className="cm-join-list">
+  {attached.map((r) => (
+    <li key={r[idField]} className="cm-join-row">
+      <span className="cm-join-name">{r[labelField]}</span>
+      <button
+        className="cm-button cm-join-remove danger"
+        onClick={() => detach(r)}
+      >
+        Remove
+      </button>
+    </li>
+  ))}
 
-      <div className="cm-join-add">
-        <select value={selectedId} onChange={(e) => setSelectedId(e.target.value)}>
-          <option value="">Add existing…</option>
-          {available.map((r) => (
-            <option key={r.id} value={r.id}>
-              {r[labelField]}
-            </option>
-          ))}
-        </select>
+  {attached.length === 0 && (
+    <li className="cm-muted">None</li>
+  )}
+</ul>
+      <div className="cm-join-controls">
+  <select
+    className="cm-join-select"
+    value={selectedId}
+    onChange={(e) => setSelectedId(e.target.value)}
+  >
+    <option value="">Add existing…</option>
+    {available.map((r) => (
+      <option key={r.id} value={r.id}>
+        {r[labelField]}
+      </option>
+    ))}
+  </select>
 
-        <button disabled={!selectedId || loading} onClick={attach}>
-          Add
-        </button>
-      </div>
+  <button
+    className="cm-button cm-join-add"
+    disabled={!selectedId || loading}
+    onClick={attach}
+  >
+    {scopeType === "sessions"
+      ? "Link to Session"
+      : "Link to Encounter"}
+  </button>
+</div>
     </div>
   );
 }
