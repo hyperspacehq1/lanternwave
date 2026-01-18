@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import "./account.css";
 import { PLANS, getCurrentPlan } from "@/lib/plans";
 import Tooltip from "@/components/Tooltip";
-import { TOOLTIPS } from "@/lib/tooltips";
+import { TOOLTIPS } from "@/lib/tooltips/tooltips";
 
 export const dynamic = "force-dynamic";
 
