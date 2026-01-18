@@ -98,7 +98,7 @@ export default function EncounterForm({ record, onChange }) {
 
       {record._isNew && (
         <div className="cm-muted">
-          Save the encounter before linking NPCs, items, or locations.
+          Save the encounter before linking NPCs.
         </div>
       )}
     </div>

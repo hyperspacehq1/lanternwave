@@ -43,9 +43,6 @@ export default function JoinPanel({
 
   /* ----------------------------------------------------------
      Build base URL
-     - encounter ↔ npc → join table API
-     - sessions → resource API
-     - encounters → resource API
   ---------------------------------------------------------- */
   let baseUrl;
 
@@ -62,7 +59,7 @@ export default function JoinPanel({
   ---------------------------------------------------------- */
   useEffect(() => {
     fetch(baseUrl, { credentials: "include" })
-      .then((r) => r.json())
+      .then((r) => (r.ok ? r.json() : []))
       .then((data) => {
         setAttached(Array.isArray(data) ? data : []);
       })
@@ -78,7 +75,7 @@ export default function JoinPanel({
     fetch(`/api/${joinPath}?campaign_id=${campaignId}`, {
       credentials: "include",
     })
-      .then((r) => r.json())
+      .then((r) => (r.ok ? r.json() : []))
       .then((data) => {
         setAvailable(Array.isArray(data) ? data : []);
       })
@@ -93,7 +90,7 @@ export default function JoinPanel({
 
     setLoading(true);
     try {
-      await fetch(
+      const res = await fetch(
         joinPath === "npcs" && scopeType === "encounters"
           ? "/api/encounters-npcs"
           : baseUrl,
@@ -110,9 +107,14 @@ export default function JoinPanel({
         }
       );
 
+      if (!res.ok) {
+        console.error("JoinPanel attach failed");
+        return;
+      }
+
       const refreshed = await fetch(baseUrl, {
         credentials: "include",
-      }).then((r) => r.json());
+      }).then((r) => (r.ok ? r.json() : []));
 
       setAttached(Array.isArray(refreshed) ? refreshed : []);
     } finally {
@@ -125,7 +127,7 @@ export default function JoinPanel({
      Detach
   ---------------------------------------------------------- */
   async function detach(id) {
-    await fetch(
+    const res = await fetch(
       joinPath === "npcs" && scopeType === "encounters"
         ? "/api/encounters-npcs"
         : baseUrl,
@@ -141,6 +143,11 @@ export default function JoinPanel({
         }),
       }
     );
+
+    if (!res.ok) {
+      console.error("JoinPanel detach failed");
+      return;
+    }
 
     setAttached((prev) =>
       Array.isArray(prev)

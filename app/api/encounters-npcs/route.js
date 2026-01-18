@@ -1,5 +1,5 @@
-import { query } from "@/lib/db";
 import { sanitizeRows } from "@/lib/api/sanitize";
+import { query } from "@/lib/db";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 
 export const runtime = "nodejs";
@@ -16,6 +16,7 @@ export async function GET(req) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const tenantId = ctx.tenantId;
   const { searchParams } = new URL(req.url);
   const encounterId = searchParams.get("encounter_id");
 
@@ -25,23 +26,24 @@ export async function GET(req) {
 
   const { rows } = await query(
     `
-    SELECT en.id,
-           en.npc_id,
-           n.name,
-           n.description
-      FROM encounter_npcs en
-      JOIN encounters e
-        ON e.id = en.encounter_id
-       AND e.tenant_id = $1
-       AND e.deleted_at IS NULL
-      JOIN npcs n
-        ON n.id = en.npc_id
-       AND n.deleted_at IS NULL
-     WHERE en.encounter_id = $2
-       AND en.deleted_at IS NULL
-     ORDER BY en.created_at ASC
+    SELECT
+      en.npc_id,
+      n.name,
+      n.description
+    FROM encounter_npcs en
+    JOIN encounters e
+      ON e.id = en.encounter_id
+     AND e.tenant_id = $1
+     AND e.deleted_at IS NULL
+    JOIN npcs n
+      ON n.id = en.npc_id
+     AND n.deleted_at IS NULL
+    WHERE en.tenant_id = $1
+      AND en.encounter_id = $2
+      AND en.deleted_at IS NULL
+    ORDER BY en.created_at ASC
     `,
-    [ctx.tenantId, encounterId]
+    [tenantId, encounterId]
   );
 
   return Response.json(
@@ -63,30 +65,36 @@ export async function POST(req) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { encounter_id, npc_id } = await req.json();
+  const tenantId = ctx.tenantId;
 
-  if (!encounter_id || !npc_id) {
-    return Response.json(
-      { error: "encounter_id and npc_id required" },
-      { status: 400 }
+  try {
+    const body = await req.json();
+    const { encounter_id, npc_id } = body ?? {};
+
+    if (!encounter_id || !npc_id) {
+      return Response.json(
+        { error: "encounter_id and npc_id required" },
+        { status: 400 }
+      );
+    }
+
+    await query(
+      `
+      INSERT INTO encounter_npcs (
+        tenant_id,
+        encounter_id,
+        npc_id,
+        created_at
+      )
+      VALUES ($1, $2, $3, NOW())
+      `,
+      [tenantId, encounter_id, npc_id]
     );
+
+    return Response.json({ ok: true }, { status: 201 });
+  } catch (e) {
+    return Response.json({ error: e.message }, { status: 400 });
   }
-
-  await query(
-    `
-    INSERT INTO encounter_npcs (
-      tenant_id,
-      encounter_id,
-      npc_id
-    )
-    VALUES ($1, $2, $3)
-    ON CONFLICT (tenant_id, encounter_id, npc_id)
-    DO NOTHING
-    `,
-    [ctx.tenantId, encounter_id, npc_id]
-  );
-
-  return Response.json({ ok: true });
 }
 
 /* -----------------------------------------------------------
@@ -100,26 +108,33 @@ export async function DELETE(req) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { encounter_id, npc_id } = await req.json();
+  const tenantId = ctx.tenantId;
 
-  if (!encounter_id || !npc_id) {
-    return Response.json(
-      { error: "encounter_id and npc_id required" },
-      { status: 400 }
+  try {
+    const body = await req.json();
+    const { encounter_id, npc_id } = body ?? {};
+
+    if (!encounter_id || !npc_id) {
+      return Response.json(
+        { error: "encounter_id and npc_id required" },
+        { status: 400 }
+      );
+    }
+
+    await query(
+      `
+      UPDATE encounter_npcs
+         SET deleted_at = NOW()
+       WHERE tenant_id = $1
+         AND encounter_id = $2
+         AND npc_id = $3
+         AND deleted_at IS NULL
+      `,
+      [tenantId, encounter_id, npc_id]
     );
+
+    return Response.json({ ok: true });
+  } catch (e) {
+    return Response.json({ error: e.message }, { status: 400 });
   }
-
-  await query(
-    `
-    UPDATE encounter_npcs
-       SET deleted_at = NOW()
-     WHERE tenant_id = $1
-       AND encounter_id = $2
-       AND npc_id = $3
-       AND deleted_at IS NULL
-    `,
-    [ctx.tenantId, encounter_id, npc_id]
-  );
-
-  return Response.json({ ok: true });
 }
