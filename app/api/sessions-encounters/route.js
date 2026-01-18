@@ -44,7 +44,7 @@ export async function GET(req) {
     WHERE se.tenant_id = $1
       AND se.session_id = $2
       AND se.deleted_at IS NULL
-    ORDER BY se.created_at NULLS LAST, se.id
+    ORDER BY se.id
     `,
     [ctx.tenantId, sessionId]
   );

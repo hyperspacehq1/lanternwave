@@ -101,7 +101,7 @@ export default function JoinPanel({
           ? "/api/encounters-npcs"
           // Session ↔ Encounter join
           : joinPath === "encounters" && scopeType === "sessions"
-          ? "/api/sessions-encounters"
+          ? `/api/sessions-encounters?session_id=${scopeId}`
           : baseUrl,
         {
           method: "POST",
@@ -137,7 +137,7 @@ export default function JoinPanel({
       joinPath === "npcs" && scopeType === "encounters"
         ? "/api/encounters-npcs"
         : joinPath === "encounters" && scopeType === "sessions"
-        ? "/api/sessions-encounters"
+        ? `/api/sessions-encounters?session_id=${scopeId}`
         : baseUrl,
       {
         method: "DELETE",
