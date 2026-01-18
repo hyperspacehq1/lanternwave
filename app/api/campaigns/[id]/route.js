@@ -143,22 +143,30 @@ export async function DELETE(req, { params }) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const tenantId = ctx.tenantId;
+  const id = params?.id;
+
+  if (!id) {
+    return Response.json({ error: "id required" }, { status: 400 });
+  }
+
   const { rows } = await query(
     `
     UPDATE campaigns
        SET deleted_at = NOW(),
            updated_at = NOW()
-     WHERE id = $1
-       AND tenant_id = $2
+     WHERE tenant_id = $1
+       AND id = $2
        AND deleted_at IS NULL
-     RETURNING id
+     RETURNING *
     `,
-    [params.id, ctx.tenantId]
+    [tenantId, id]
   );
 
-  if (!rows.length) {
-    return Response.json({ error: "Not found" }, { status: 404 });
-  }
-
-  return Response.json({ ok: true });
+  // 🔑 MATCH LOCATIONS BEHAVIOR
+  return Response.json(
+    rows[0]
+      ? rows[0]   // or sanitizeRow(fromDb(rows[0])) if you prefer
+      : null
+  );
 }
