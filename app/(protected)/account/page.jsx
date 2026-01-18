@@ -249,8 +249,8 @@ export default function AccountPage() {
                   />
 
                   <button type="submit" className="account-action">
-  Update Password
-</button>
+                    Update Password
+                  </button>
 
                   {passwordStatus && (
                     <div className="account-status">{passwordStatus}</div>
@@ -264,31 +264,40 @@ export default function AccountPage() {
 
             <div className="account-panel beacons-panel">
               {[
-  ["player_characters", "Player Characters Beacon (GM Dashboard)"],
-  ["npc_pulse", "NPC Pulse Beacon (GM Dashboard)"],
-  [
-    "player_sanity_tracker",
-    "Player Sanity Tracker (GM Dashboard)",
-  ],
-].map(([key, label]) => (
-  <div className="account-row" key={key}>
-    <label className="account-label">
-      <span className="beacon-checkbox">
-        <input
-          type="checkbox"
-          checked={!!beacons[key]}
-          onChange={(e) =>
-            updateBeacon(key, e.target.checked)
-          }
-        />
-      </span>
+                ["player_characters", "Player Characters Beacon (GM Dashboard)"],
+                ["npc_pulse", "NPC Pulse Beacon (GM Dashboard)"],
+                [
+                  "player_sanity_tracker",
+                  "Player Sanity Tracker (GM Dashboard)",
+                ],
+              ].map(([key, label]) => (
+                <div className="account-row" key={key}>
+                  <label className="account-label">
+                    <span className="beacon-checkbox">
+                      <input
+                        type="checkbox"
+                        checked={!!beacons[key]}
+                        onChange={(e) =>
+                          updateBeacon(key, e.target.checked)
+                        }
+                      />
+                    </span>
 
-      <Tooltip content={TOOLTIPS.account[key]}>
-        {label}
-      </Tooltip>
-    </label>
-  </div>
-))}
+                    <span className="beacon-label-text">
+                      {label}
+                    </span>
+
+                    <Tooltip content={TOOLTIPS.account[key]}>
+                      <span
+                        className="beacon-tooltip-icon"
+                        aria-label="More info"
+                      >
+                        ⓘ
+                      </span>
+                    </Tooltip>
+                  </label>
+                </div>
+              ))}
             </div>
           </>
         )}
