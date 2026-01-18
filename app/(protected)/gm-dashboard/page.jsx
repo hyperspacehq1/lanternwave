@@ -128,8 +128,11 @@ export default function GMDashboardPage() {
   const [locations, setLocations] = useState([]);
   const [items, setItems] = useState([]);
 
-  const [loading, setLoading] = useState(false);
-  const [expandAll, setExpandAll] = useState(null);
+ const [loading, setLoading] = useState(false);
+const [expandAll, setExpandAll] = useState(null);
+
+/* -------- Joined-record pulse state -------- */
+const [joinHighlights, setJoinHighlights] = useState({});
 
 /* -------- Floating Windows (overlay layer) -------- */
 const [floatingWindows, setFloatingWindows] = useState([]);
@@ -184,6 +187,41 @@ y: clamp(clickY - 20, 16, window.innerHeight - 240 - 16),
     ];
   });
 };
+
+/* =========================
+   Resolve joined records
+========================= */
+async function resolveJoins(entityKey, recordId) {
+  // Only these entities participate
+  if (!["sessions", "encounters", "locations"].includes(entityKey)) return;
+
+  try {
+    const res = await fetch(
+      `/api/gm/joins?entity=${entityKey}&id=${recordId}`,
+      { credentials: "include" }
+    );
+
+    if (!res.ok) return;
+
+    const data = await res.json();
+
+    setJoinHighlights((prev) => {
+      const next = { ...prev };
+
+      Object.entries(data.joined || {}).forEach(([k, ids]) => {
+        next[k] = Array.isArray(ids) ? ids.map(String) : [];
+      });
+
+      return next;
+    });
+  } catch {
+    // silent failure – no UI regression
+  }
+}
+
+function clearJoins() {
+  setJoinHighlights({});
+}
 
 /* =========================
    Persist Floating Windows
@@ -564,6 +602,7 @@ if (allRecords.length === 0) return;
       color="red"
       entityKey="events"
       items={events}
+joinHighlights={joinHighlights}
       forceOpen={expandAll}
       campaignId={selectedCampaign.id}   // ✅ ADD
       sessionId={selectedSession.id}
@@ -577,6 +616,7 @@ if (allRecords.length === 0) return;
   color="blue"
   entityKey="npcs"
   items={npcs}
+joinHighlights={joinHighlights}
   forceOpen={expandAll}
   campaignId={selectedCampaign.id}
   sessionId={selectedSession.id}
@@ -590,6 +630,7 @@ if (allRecords.length === 0) return;
       color="green"
       entityKey="encounters"
       items={encounters}
+joinHighlights={joinHighlights}
       forceOpen={expandAll}
       campaignId={selectedCampaign.id}   // ✅ ADD
       sessionId={selectedSession.id}
@@ -603,6 +644,7 @@ if (allRecords.length === 0) return;
       color="purple"
       entityKey="locations"
       items={locations}
+joinHighlights={joinHighlights}
       forceOpen={expandAll}
       campaignId={selectedCampaign.id}   // ✅ ADD
       sessionId={selectedSession.id}
@@ -616,6 +658,7 @@ if (allRecords.length === 0) return;
       color="orange"
       entityKey="items"
       items={items}
+joinHighlights={joinHighlights}
       forceOpen={expandAll}
       campaignId={selectedCampaign.id}   // ✅ ADD
       sessionId={selectedSession.id}
@@ -682,6 +725,9 @@ function GMColumn({
   onOpenPanel,
   schema,
   showNpcPulseBeacon,
+  joinHighlights,
+  resolveJoins,
+  clearJoins,
 }) {
   const stableStorageKeyRef = useRef(null);
   const hydratedRef = useRef(false);
@@ -824,27 +870,22 @@ useEffect(() => {
     <div className={`gm-column gm-${color}`}>
       <div className="gm-column-header">{title}</div>
       <div className="gm-column-body" aria-label={`${title} column`}>
-        {order.map((item, index) => (
-          <div
-  key={`${entityKey}-${item.id}`}   // ✅ key MUST be here (wrapper)
-  className="gm-drag-wrapper"
-  draggable
-  onDragStart={(e) => onDragStart(e, index)}
-  onDragOver={onDragOver}
-  onDrop={(e) => onDrop(e, index)}
->
+       {order.map((item, index) => (
   <GMCard
-  item={item}
-  entityKey={entityKey}
-  forceOpen={forceOpen}
-  onOpenEditor={onOpenEditor}
-  onOpenPanel={onOpenPanel}
-  sessionId={sessionId}
-  schema={schema}
-  showNpcPulseBeacon={showNpcPulseBeacon}
-/>
-</div>
-        ))}
+    key={`${entityKey}-${item.id}`}
+    item={item}
+    entityKey={entityKey}
+    forceOpen={forceOpen}
+    onOpenEditor={onOpenEditor}
+    onOpenPanel={onOpenPanel}
+    sessionId={sessionId}
+    schema={schema}
+    showNpcPulseBeacon={showNpcPulseBeacon}
+    joinHighlights={joinHighlights}
+    resolveJoins={resolveJoins}
+    clearJoins={clearJoins}
+  />
+))}
       </div>
     </div>
   );
@@ -863,7 +904,11 @@ function GMCard({
   sessionId,
   schema,
   showNpcPulseBeacon,
+  joinHighlights,
+  resolveJoins,
+  clearJoins,
 }) {
+
   const hydratedRef = useRef(false);  
   const [open, setOpen] = useState(false);
   const contentRef = useRef(null);
@@ -899,10 +944,28 @@ function GMCard({
     if (open && contentRef.current) setHeight(contentRef.current.scrollHeight);
   }, [open, item]);
 
-  const toggle = () => setOpen((v) => !v);
+ const toggle = () => {
+  setOpen((v) => {
+    const next = !v;
+
+    if (next) {
+      resolveJoins(entityKey, item.id);
+    } else {
+      clearJoins();
+    }
+
+    return next;
+  });
+};
 
   return (
-    <div className={`gm-card ${open ? "is-open" : ""}`}>
+    <div
+  className={`gm-card ${open ? "is-open" : ""} ${
+    joinHighlights?.[entityKey]?.includes(String(item.id))
+      ? "gm-join-pulse"
+      : ""
+  }`}
+>
       <div
         className="gm-card-header"
         role="button"
@@ -1001,7 +1064,7 @@ function GMCard({
 /* =========================
    Floating Window Component
 ========================= */
-function FloatingWindow({ win, schema, onClose, onMove, onResize }) {
+function FloatingWindow({ win, schema, onClose, onMove, onResize, clearJoins }) {
   const ref = useRef(null);
   const drag = useRef({ dx: 0, dy: 0 });
 
@@ -1039,7 +1102,15 @@ function FloatingWindow({ win, schema, onClose, onMove, onResize }) {
     >
       <div className="gm-floating-header" onMouseDown={onMouseDown}>
         <span>{win.record?.name || "Untitled"}</span>
-        <button className="gm-card-action-btn" onClick={onClose}>✕</button>
+       <button
+  className="gm-card-action-btn"
+  onClick={() => {
+    clearJoins();
+    onClose();
+  }}
+>
+  ✕
+</button>
       </div>
 
       <div className="gm-floating-body">
