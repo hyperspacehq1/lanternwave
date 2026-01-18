@@ -210,7 +210,18 @@ const handleDelete = async () => {
 const confirmCampaignDelete = async () => {
   if (!selectedRecord) return;
 
-  await cmApi.remove("campaigns", selectedRecord.id);
+  const res = await fetch(
+    `/api/campaigns/${selectedRecord.id}`,
+    {
+      method: "DELETE",
+      credentials: "include",
+    }
+  );
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(err);
+  }
 
   setRecordsByType((p) => ({
     ...p,
