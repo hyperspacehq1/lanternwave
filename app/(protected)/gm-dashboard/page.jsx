@@ -920,6 +920,13 @@ function GMCard({
   const contentRef = useRef(null);
   const [height, setHeight] = useState(0);
 
+// Re-resolve joins if card is already open after rehydrate
+useEffect(() => {
+  if (open && resolveJoins && item?.id) {
+    resolveJoins(entityKey, item.id);
+  }
+}, [open, resolveJoins, entityKey, item?.id]);
+
   const storageKey = useMemo(() => {
     const sid = sessionId ? String(sessionId) : "no-session";
     return `${LS_CARD_OPEN_PREFIX}${sid}:${String(item.id)}`;
