@@ -687,24 +687,20 @@ if (allRecords.length === 0) return;
     key={`fw-${win.entityKey}-${win.id}`}
     win={win}
     schema={DISPLAY_SCHEMAS[win.entityKey]}
+    clearJoins={clearJoins}
     onClose={() =>
       setFloatingWindows((prev) => prev.filter((w) => w.id !== win.id))
     }
     onMove={(id, x, y, bringToFront = false) =>
-  setFloatingWindows((prev) => {
-    const maxZ = Math.max(0, ...prev.map(w => w.z || 0));
-    return prev.map((w) =>
-      w.id === id
-        ? {
-            ...w,
-            x,
-            y,
-            z: bringToFront ? maxZ + 1 : w.z,
-          }
-        : w
-    );
-  })
-}
+      setFloatingWindows((prev) => {
+        const maxZ = Math.max(0, ...prev.map(w => w.z || 0));
+        return prev.map((w) =>
+          w.id === id
+            ? { ...w, x, y, z: bringToFront ? maxZ + 1 : w.z }
+            : w
+        );
+      })
+    }
     onResize={(id, width) =>
       setFloatingWindows((prev) =>
         prev.map((w) => (w.id === id ? { ...w, width } : w))
