@@ -353,20 +353,16 @@ update("color_detail", data.color_detail);
             <input
               className="cm-input"
               value={record[`address_${field}`] || ""}
-              onChange={(e) =>
-                update(`address_${field}`, e.target.value)
-              }
+              onChange={(e) => update(`address_${field}`, e.target.value)}
             />
           </div>
         ))}
 
-{/* ---------------------------------------------
+      {/* ---------------------------------------------
           Related Items
       --------------------------------------------- */}
       {record._isNew && (
-        <div className="cm-muted">
-          Save the location before adding items.
-        </div>
+        <div className="cm-muted">Save the location before adding items.</div>
       )}
 
       {!record._isNew && (
@@ -381,8 +377,3 @@ update("color_detail", data.color_detail);
     </div>
   );
 }
-
-    </div>
-  );
-}
-
