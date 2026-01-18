@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { useCampaignContext } from "@/lib/campaign/campaignContext";
+import JoinPanel from "@/components/JoinPanel";
 
 export default function LocationForm({ record, onChange }) {
   const { campaign } = useCampaignContext();
@@ -358,6 +359,29 @@ update("color_detail", data.color_detail);
             />
           </div>
         ))}
+
+{/* ---------------------------------------------
+          Related Items
+      --------------------------------------------- */}
+      {record._isNew && (
+        <div className="cm-muted">
+          Save the location before adding items.
+        </div>
+      )}
+
+      {!record._isNew && (
+        <JoinPanel
+          title="Items"
+          campaignId={campaign.id}
+          locationId={record.id}
+          joinPath="items"
+          idField="item_id"
+        />
+      )}
+    </div>
+  );
+}
+
     </div>
   );
 }
