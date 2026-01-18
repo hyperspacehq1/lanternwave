@@ -6,21 +6,20 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /* -------------------------------
-   GET ?session_id=
+   GET /api/sessions-encounters?session_id=
 -------------------------------- */
 export async function GET(req) {
   let ctx;
   try {
     ctx = await getTenantContext(req);
   } catch (err) {
-    console.error("getTenantContext failed (GET events)", err);
+    console.error("getTenantContext failed (GET sessions-encounters)", err);
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const { searchParams } = new URL(req.url);
   const sessionId = searchParams.get("session_id");
 
-  // HARD GUARD — never run a query without binds
   if (!ctx?.tenantId || !sessionId) {
     return Response.json([]);
   }
@@ -29,20 +28,21 @@ export async function GET(req) {
     `
     SELECT
       se.id,
-      se.event_id,
+      se.encounter_id,
       e.name,
       e.description,
-      e.event_type,
-      e.priority
-    FROM session_events se
-    JOIN events e
-      ON e.id = se.event_id
+      e.encounter_type,
+      e.difficulty
+    FROM session_encounters se
+    JOIN encounters e
+      ON e.id = se.encounter_id
      AND e.deleted_at IS NULL
     JOIN sessions s
       ON s.id = se.session_id
      AND s.tenant_id = $1
      AND s.deleted_at IS NULL
-    WHERE se.session_id = $2
+    WHERE se.tenant_id = $1
+      AND se.session_id = $2
       AND se.deleted_at IS NULL
     ORDER BY se.created_at NULLS LAST, se.id
     `,
@@ -53,85 +53,83 @@ export async function GET(req) {
     sanitizeRows(rows, {
       name: 120,
       description: 10000,
-      event_type: 50,
-      priority: 20,
+      encounter_type: 50,
+      difficulty: 20,
     })
   );
 }
 
 /* -------------------------------
-   POST ?session_id=
+   POST /api/sessions-encounters?session_id=
 -------------------------------- */
 export async function POST(req) {
   let ctx;
   try {
     ctx = await getTenantContext(req);
   } catch (err) {
-    console.error("getTenantContext failed (POST events)", err);
+    console.error("getTenantContext failed (POST sessions-encounters)", err);
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const { searchParams } = new URL(req.url);
   const sessionId = searchParams.get("session_id");
-  const { event_id } = await req.json();
+  const { encounter_id } = await req.json();
 
-  if (!ctx?.tenantId || !sessionId || !event_id) {
+  if (!ctx?.tenantId || !sessionId || !encounter_id) {
     return Response.json(
-      { error: "session_id and event_id required" },
+      { error: "session_id and encounter_id required" },
       { status: 400 }
     );
   }
 
   await query(
     `
-    INSERT INTO session_events (
+    INSERT INTO session_encounters (
       tenant_id,
       session_id,
-      event_id
+      encounter_id
     )
     VALUES ($1, $2, $3)
-    ON CONFLICT (tenant_id, session_id, event_id)
-    DO NOTHING
     `,
-    [ctx.tenantId, sessionId, event_id]
+    [ctx.tenantId, sessionId, encounter_id]
   );
 
-  return Response.json({ ok: true });
+  return Response.json({ ok: true }, { status: 201 });
 }
 
 /* -------------------------------
-   DELETE ?session_id=&event_id=
+   DELETE /api/sessions-encounters?session_id=&encounter_id=
 -------------------------------- */
 export async function DELETE(req) {
   let ctx;
   try {
     ctx = await getTenantContext(req);
   } catch (err) {
-    console.error("getTenantContext failed (DELETE events)", err);
+    console.error("getTenantContext failed (DELETE sessions-encounters)", err);
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const { searchParams } = new URL(req.url);
   const sessionId = searchParams.get("session_id");
-  const eventId = searchParams.get("event_id");
+  const encounterId = searchParams.get("encounter_id");
 
-  if (!ctx?.tenantId || !sessionId || !eventId) {
+  if (!ctx?.tenantId || !sessionId || !encounterId) {
     return Response.json(
-      { error: "session_id and event_id required" },
+      { error: "session_id and encounter_id required" },
       { status: 400 }
     );
   }
 
   await query(
     `
-    UPDATE session_events
+    UPDATE session_encounters
        SET deleted_at = now()
      WHERE tenant_id = $1
        AND session_id = $2
-       AND event_id = $3
+       AND encounter_id = $3
        AND deleted_at IS NULL
     `,
-    [ctx.tenantId, sessionId, eventId]
+    [ctx.tenantId, sessionId, encounterId]
   );
 
   return Response.json({ ok: true });

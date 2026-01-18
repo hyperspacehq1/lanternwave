@@ -17,7 +17,7 @@ export default function JoinPanel({
   const [loading, setLoading] = useState(false);
 
   /* ----------------------------------------------------------
-     Resolve scope (encounter OR session)
+     Resolve scope
   ---------------------------------------------------------- */
   const scopeId = encounterId || sessionId;
   const scopeType = encounterId ? "encounters" : "sessions";
@@ -25,7 +25,7 @@ export default function JoinPanel({
   if (!scopeId) return null;
 
   /* ----------------------------------------------------------
-     Guard: allow ONLY valid joins per scope
+     Guard allowed joins
   ---------------------------------------------------------- */
   const VALID_ENCOUNTER_JOINS = new Set(["npcs", "sessions"]);
   const VALID_SESSION_JOINS = new Set(["encounters"]);
@@ -42,20 +42,25 @@ export default function JoinPanel({
   }
 
   /* ----------------------------------------------------------
-     Build base URL
+     Build base URL (FIXED)
   ---------------------------------------------------------- */
   let baseUrl;
 
+  // encounter ↔ npc (join table)
   if (scopeType === "encounters" && joinPath === "npcs") {
     baseUrl = `/api/encounters-npcs?encounter_id=${scopeId}`;
-  } else if (scopeType === "sessions") {
-    baseUrl = `/api/sessions/${joinPath}?session_id=${scopeId}`;
-  } else {
+  }
+  // session ↔ encounter (join table)
+  else if (scopeType === "sessions" && joinPath === "encounters") {
+    baseUrl = `/api/sessions-encounters?session_id=${scopeId}`;
+  }
+  // fallback (resource-style joins)
+  else {
     baseUrl = `/api/${scopeType}/${scopeId}/${joinPath}`;
   }
 
   /* ----------------------------------------------------------
-     Load attached (scope-scoped)
+     Load attached
   ---------------------------------------------------------- */
   useEffect(() => {
     fetch(baseUrl, { credentials: "include" })
@@ -91,8 +96,12 @@ export default function JoinPanel({
     setLoading(true);
     try {
       const res = await fetch(
+        // NPC join
         joinPath === "npcs" && scopeType === "encounters"
           ? "/api/encounters-npcs"
+          // Session ↔ Encounter join
+          : joinPath === "encounters" && scopeType === "sessions"
+          ? "/api/sessions-encounters"
           : baseUrl,
         {
           method: "POST",
@@ -100,17 +109,14 @@ export default function JoinPanel({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             [idField]: selectedId,
-            ...(joinPath === "npcs" && scopeType === "encounters"
+            ...(scopeType === "encounters" && joinPath === "npcs"
               ? { encounter_id: scopeId }
               : {}),
           }),
         }
       );
 
-      if (!res.ok) {
-        console.error("JoinPanel attach failed");
-        return;
-      }
+      if (!res.ok) return;
 
       const refreshed = await fetch(baseUrl, {
         credentials: "include",
@@ -130,6 +136,8 @@ export default function JoinPanel({
     const res = await fetch(
       joinPath === "npcs" && scopeType === "encounters"
         ? "/api/encounters-npcs"
+        : joinPath === "encounters" && scopeType === "sessions"
+        ? "/api/sessions-encounters"
         : baseUrl,
       {
         method: "DELETE",
@@ -137,17 +145,14 @@ export default function JoinPanel({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           [idField]: id,
-          ...(joinPath === "npcs" && scopeType === "encounters"
+          ...(scopeType === "encounters" && joinPath === "npcs"
             ? { encounter_id: scopeId }
             : {}),
         }),
       }
     );
 
-    if (!res.ok) {
-      console.error("JoinPanel detach failed");
-      return;
-    }
+    if (!res.ok) return;
 
     setAttached((prev) =>
       Array.isArray(prev)
@@ -164,9 +169,7 @@ export default function JoinPanel({
         {attached.map((r) => (
           <li key={r[idField]}>
             {r[labelField]}
-            <button onClick={() => detach(r[idField])}>
-              Remove
-            </button>
+            <button onClick={() => detach(r[idField])}>Remove</button>
           </li>
         ))}
         {attached.length === 0 && <li>None</li>}
