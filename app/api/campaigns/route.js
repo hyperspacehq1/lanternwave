@@ -43,7 +43,7 @@ const ALLOWED_RPG_GAMES = new Set([
   "The One Ring Roleplaying Game",
   "Vaesen",
   "Vampire: The Masquerade 5th Edition",
-  "XYZ-Custom Campaign Codex"
+  "XYZ-Custom Campaign Codex",
 ]);
 
 function hasOwn(obj, key) {
@@ -101,11 +101,8 @@ export async function POST(req) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // -------------------------------------------------
-  // Campaign limit enforcement (plan-based)
-  // -------------------------------------------------
+  // Plan enforcement (unchanged)
   const { getCurrentPlan, getPlanLimits } = await import("@/lib/plans");
-
   const plan = getCurrentPlan(ctx);
   const { maxCampaigns } = getPlanLimits(plan);
 
@@ -122,23 +119,19 @@ export async function POST(req) {
   const currentCount = countResult.rows[0]?.count ?? 0;
 
   if (currentCount >= maxCampaigns) {
-  return Response.json(
-    {
-      ok: false,
-      error: "campaign_limit_exceeded",
-      plan,
-      usedCampaigns: currentCount,
-      limitCampaigns: maxCampaigns,
-      attemptedCampaigns: currentCount + 1,
-    },
-    { status: 403 }
-  );
-}
+    return Response.json(
+      {
+        ok: false,
+        error: "campaign_limit_exceeded",
+        plan,
+        usedCampaigns: currentCount,
+        limitCampaigns: maxCampaigns,
+        attemptedCampaigns: currentCount + 1,
+      },
+      { status: 403 }
+    );
+  }
 
-
-  // -------------------------------------------------
-  // Existing behavior (unchanged)
-  // -------------------------------------------------
   const body = await req.json();
 
   const name =
@@ -192,9 +185,8 @@ export async function POST(req) {
   );
 }
 
-
 /* -----------------------------
-   PUT /api/campaigns
+   PUT /api/campaigns?id=
 ----------------------------- */
 export async function PUT(req) {
   let ctx;
@@ -270,5 +262,52 @@ export async function PUT(req) {
       campaignPackage: 50,
       rpgGame: 120,
     })
+  );
+}
+
+/* -----------------------------
+   DELETE /api/campaigns?id=
+   (MATCHES LOCATIONS BEHAVIOR)
+----------------------------- */
+export async function DELETE(req) {
+  let ctx;
+  try {
+    ctx = await getTenantContext(req);
+  } catch {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { searchParams } = new URL(req.url);
+  const id = searchParams.get("id");
+
+  if (!id) {
+    return Response.json({ error: "id required" }, { status: 400 });
+  }
+
+  const { rows } = await query(
+    `
+    UPDATE campaigns
+       SET deleted_at = NOW(),
+           updated_at = NOW()
+     WHERE tenant_id = $1
+       AND id = $2
+       AND deleted_at IS NULL
+     RETURNING *
+    `,
+    [ctx.tenantId, id]
+  );
+
+  // IMPORTANT: no throw, no 404 – same contract as Locations
+  return Response.json(
+    rows[0]
+      ? sanitizeRow(fromDb(rows[0]), {
+          name: 120,
+          description: 10000,
+          worldSetting: 10000,
+          campaignDate: 50,
+          campaignPackage: 50,
+          rpgGame: 120,
+        })
+      : null
   );
 }
