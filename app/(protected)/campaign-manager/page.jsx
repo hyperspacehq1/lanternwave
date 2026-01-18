@@ -29,6 +29,7 @@ export default function CampaignManagerPage() {
   const [recordsByType, setRecordsByType] = useState({});
   const [selectedByType, setSelectedByType] = useState({});
   const [loading, setLoading] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const campaignId = campaign?.id;
   const selectedRecord = selectedByType[activeType] || null;
@@ -181,23 +182,52 @@ useEffect(() => {
     }
   };
 
-  const handleDelete = async () => {
-    if (!selectedRecord) return;
+const handleDelete = async () => {
+  if (!selectedRecord) return;
 
-    await cmApi.remove(activeType, selectedRecord.id);
+  // Only campaigns require confirmation
+  if (activeType === "campaigns") {
+    setShowDeleteConfirm(true);
+    return;
+  }
 
-    setRecordsByType((p) => ({
-      ...p,
-      [activeType]: p[activeType].filter(
-        (r) => r.id !== selectedRecord.id
-      ),
-    }));
+  // Existing behavior for all other tabs
+  await cmApi.remove(activeType, selectedRecord.id);
 
-    setSelectedByType((p) => ({
-      ...p,
-      [activeType]: null,
-    }));
-  };
+  setRecordsByType((p) => ({
+    ...p,
+    [activeType]: p[activeType].filter(
+      (r) => r.id !== selectedRecord.id
+    ),
+  }));
+
+  setSelectedByType((p) => ({
+    ...p,
+    [activeType]: null,
+  }));
+};
+
+const confirmCampaignDelete = async () => {
+  if (!selectedRecord) return;
+
+  await cmApi.remove("campaigns", selectedRecord.id);
+
+  setRecordsByType((p) => ({
+    ...p,
+    campaigns: p.campaigns.filter(
+      (c) => c.id !== selectedRecord.id
+    ),
+  }));
+
+  setSelectedByType((p) => ({
+    ...p,
+    campaigns: null,
+  }));
+
+  setCampaignContext({ campaign: null });
+  setShowDeleteConfirm(false);
+};
+
 
   /* ------------------------------------------------------------
      Render
@@ -299,8 +329,46 @@ useEffect(() => {
               )}
             </section>
           </div>
-        </section>
+               </section>
       </div>
+
+      {showDeleteConfirm && activeType === "campaigns" && (
+        <div className="cm-modal-backdrop">
+          <div className="cm-modal danger">
+            <h3 className="cm-modal-title">Delete Campaign</h3>
+
+            <p className="cm-modal-text">
+              Are you sure you want to delete the{" "}
+              <strong>
+                “{selectedRecord?.name || "Unnamed Campaign"}”
+              </strong>{" "}
+              campaign?
+            </p>
+
+            <p className="cm-modal-warning">
+              This will permanently delete the campaign and all related
+              content (sessions, events, NPCs, locations, players, and items).
+            </p>
+
+            <div className="cm-modal-actions">
+              <button
+                className="cm-button"
+                onClick={() => setShowDeleteConfirm(false)}
+              >
+                Cancel
+              </button>
+
+              <button
+                className="cm-button danger"
+                onClick={confirmCampaignDelete}
+              >
+                Yes, Delete Campaign
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
