@@ -536,3 +536,53 @@
   font-size: 12px;
   cursor: pointer;
 }
+
+/* ---------------------------------------------
+   JoinPanel select — force dark theme
+--------------------------------------------- */
+.cm-join-select {
+  background-color: #000;
+  color: var(--lw-text-main);
+  border: 1px solid var(--lw-border-muted);
+  padding: 0.45rem 0.6rem;
+  font-size: 12px;
+  line-height: 1.2;
+
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--lw-text-main) 50%),
+    linear-gradient(135deg, var(--lw-text-main) 50%, transparent 50%);
+  background-position:
+    calc(100% - 14px) 50%,
+    calc(100% - 9px) 50%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+
+.cm-join-select:focus {
+  outline: none;
+  border-color: var(--lw-green-primary);
+  box-shadow: 0 0 0 1px rgba(108, 196, 23, 0.35);
+}
+
+.cm-join-controls {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  margin-top: 0.25rem;
+}
+
+/* Let dropdown grow, keep button fixed */
+.cm-join-controls .cm-join-select {
+  flex: 1;
+  min-width: 0;
+}
+
+.cm-join-controls .cm-join-add {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
