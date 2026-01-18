@@ -135,7 +135,7 @@ export async function PUT(req, { params }) {
 /* -----------------------------
    DELETE /api/campaigns/[id]
 ----------------------------- */
-export async function DELETE(req, { params }) {
+export async function DELETE(req, { params } = {}) {
   let ctx;
   try {
     ctx = await getTenantContext(req);
@@ -144,7 +144,13 @@ export async function DELETE(req, { params }) {
   }
 
   const tenantId = ctx.tenantId;
-  const id = params?.id;
+
+  // Accept id from multiple shapes (matches how your app evolved)
+  const { searchParams } = new URL(req.url);
+  const id =
+    params?.id ||
+    params?.campaign_id || // if your folder is [campaign_id]
+    searchParams.get("id"); // if someone calls /api/campaigns?id=
 
   if (!id) {
     return Response.json({ error: "id required" }, { status: 400 });
@@ -158,15 +164,15 @@ export async function DELETE(req, { params }) {
      WHERE tenant_id = $1
        AND id = $2
        AND deleted_at IS NULL
-     RETURNING *
+     RETURNING id
     `,
     [tenantId, id]
   );
 
-  // 🔑 MATCH LOCATIONS BEHAVIOR
-  return Response.json(
-    rows[0]
-      ? rows[0]   // or sanitizeRow(fromDb(rows[0])) if you prefer
-      : null
-  );
+  // Don’t throw; return ok:false like “best effort” deletes elsewhere
+  if (!rows.length) {
+    return Response.json({ ok: false, error: "Not found" }, { status: 404 });
+  }
+
+  return Response.json({ ok: true });
 }
