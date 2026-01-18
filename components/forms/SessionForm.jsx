@@ -110,19 +110,10 @@ export default function SessionForm({ record, onChange }) {
       --------------------------------------------- */}
       {record._isNew && (
         <div className="cm-muted">
-          Save the session before adding events or encounters.
+          Save the session before adding encounters.
         </div>
       )}
 
-      {!record._isNew && (
-        <JoinPanel
-          title="Events"
-          campaignId={campaign.id}
-          sessionId={record.id}
-          joinPath="events"
-          idField="event_id"
-        />
-      )}
 
       {!record._isNew && (
         <JoinPanel
