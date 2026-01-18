@@ -139,7 +139,19 @@ export async function PUT(req) {
       [passwordHash, session.userId]
     );
 
-    return NextResponse.json({ ok: true });
+const res = NextResponse.json({ ok: true });
+
+// Invalidate session cookie (force re-login)
+res.cookies.set("lw_session", "", {
+  httpOnly: true,
+  secure: true,
+  sameSite: "lax",
+  path: "/",
+  maxAge: 0,
+});
+
+return res;
+
   } catch (err) {
     console.error("CHANGE PASSWORD ERROR:", err);
     return NextResponse.json(

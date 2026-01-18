@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import "./account.css";
+import { PLANS, getCurrentPlan } from "@/lib/plans";
 
 export const dynamic = "force-dynamic";
 
@@ -12,13 +13,15 @@ export default function AccountPage() {
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [passwordStatus, setPasswordStatus] = useState(null);
 
-  // Server-backed beacons
   const [beacons, setBeacons] = useState({});
+  const [plan, setPlan] = useState("observer");
+  const [campaignCount, setCampaignCount] = useState(null);
+  const [usedBytes, setUsedBytes] = useState(null);
 
   const loadingRef = useRef(false);
 
   /* ------------------------------
-     Load account + beacons
+     Load account
   ------------------------------ */
   useEffect(() => {
     if (loadingRef.current) return;
@@ -31,18 +34,15 @@ export default function AccountPage() {
           cache: "no-store",
         });
 
-        if (!accountRes.ok) {
-          throw new Error("Failed to load account");
-        }
+        if (!accountRes.ok) throw new Error("Failed to load account");
 
         const accountData = await accountRes.json();
-
-        if (!accountData?.account?.username) {
+        if (!accountData?.account?.username)
           throw new Error("Invalid account response");
-        }
 
         setUsername(accountData.account.username);
         setBeacons(accountData.account.beacons ?? {});
+        setPlan(getCurrentPlan());
       } catch (err) {
         console.error("ACCOUNT LOAD ERROR:", err);
         setError("Unable to load account details.");
@@ -55,44 +55,53 @@ export default function AccountPage() {
   }, []);
 
   /* ------------------------------
-     Mirror sanity beacon → localStorage
-     (widget listens to this)
+     Load campaign usage (live)
   ------------------------------ */
   useEffect(() => {
-  if (!beacons || !beacons.player_sanity_tracker) {
-    try {
-      Object.keys(localStorage)
-        .filter((k) => k.endsWith(":player_sanity_tracker"))
-        .forEach((k) => localStorage.removeItem(k));
-    } catch {}
-    return;
-  }
-
-  async function sync() {
-    try {
-      const res = await fetch("/api/account", {
-        credentials: "include",
-        cache: "no-store",
-      });
-      const data = await res.json();
-      const id = data?.account?.id;
-      if (!id) return;
-
-      const key = `lw:feature:${id}:player_sanity_tracker`;
-      localStorage.setItem(key, "1");
-    } catch {
-      /* ignore */
+    async function loadCampaigns() {
+      try {
+        const res = await fetch("/api/campaigns", {
+          credentials: "include",
+          cache: "no-store",
+        });
+        if (!res.ok) return;
+        const rows = await res.json();
+        setCampaignCount(Array.isArray(rows) ? rows.length : 0);
+      } catch {
+        /* ignore */
+      }
     }
-  }
 
-  sync();
-}, [beacons.player_sanity_tracker]);
+    loadCampaigns();
+  }, []);
+
+  /* ------------------------------
+     Load storage usage (read-only)
+  ------------------------------ */
+  useEffect(() => {
+    async function loadUsage() {
+      try {
+        const res = await fetch("/api/r2/usage", {
+          credentials: "include",
+          cache: "no-store",
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (typeof data.usedBytes === "number") {
+          setUsedBytes(data.usedBytes);
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+
+    loadUsage();
+  }, []);
 
   /* ------------------------------
      Update Beacon (optimistic)
   ------------------------------ */
   const updateBeacon = (key, enabled) => {
-    // Optimistic UI
     setBeacons((prev) => ({ ...prev, [key]: enabled }));
 
     fetch("/api/account", {
@@ -100,10 +109,13 @@ export default function AccountPage() {
       credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ key, enabled }),
-    }).catch((err) => {
-      console.error("Beacon update failed:", err);
-    });
+    }).catch(() => {});
   };
+
+  const planDef = PLANS[plan];
+
+  const formatGB = (bytes) =>
+    (bytes / (1024 * 1024 * 1024)).toFixed(1);
 
   return (
     <div className="account-page">
@@ -129,131 +141,147 @@ export default function AccountPage() {
               </div>
             </div>
 
-{/* ---------------- Security ---------------- */}
-<h2 className="account-section-title">Security</h2>
+            {/* ---------------- Plan & Limits ---------------- */}
+            <h2 className="account-section-title">Plan & Limits</h2>
 
-<div className="account-panel">
-  <div className="account-row">
-    <span className="account-label">Password</span>
+            <div className="account-panel">
+              <div className="account-row">
+                <div>
+                  <div className="account-label">
+                    {plan.toUpperCase()} (Current)
+                  </div>
 
-    <button
-      className="account-action"
-      onClick={() => {
-        setShowPasswordForm((v) => !v);
-        setPasswordStatus(null);
-      }}
-    >
-      Change Password
-    </button>
-  </div>
+                  <div className="account-status">
+                    Campaigns:{" "}
+                    {campaignCount !== null
+                      ? `${campaignCount} / ${planDef.maxCampaigns}`
+                      : `— / ${planDef.maxCampaigns}`}
+                    <br />
+                    Storage:{" "}
+                    {usedBytes !== null
+                      ? `${formatGB(usedBytes)} / ${formatGB(
+                          planDef.storageLimitBytes
+                        )} GB`
+                      : `${formatGB(planDef.storageLimitBytes)} GB`}
+                  </div>
+                </div>
 
-  {showPasswordForm && (
-    <form
-      className="account-password-form"
-      onSubmit={async (e) => {
-        e.preventDefault();
-        setPasswordStatus("Saving…");
+                <button
+                  className="account-action"
+                  disabled
+                  title="Upgrades not available yet"
+                >
+                  Upgrade
+                </button>
+              </div>
+            </div>
 
-        const form = new FormData(e.currentTarget);
+            {/* ---------------- Security ---------------- */}
+            <h2 className="account-section-title">Security</h2>
 
-        const res = await fetch("/api/account/password", {
-          method: "PUT",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            currentPassword: form.get("currentPassword"),
-            newPassword: form.get("newPassword"),
-          }),
-        });
+            <div className="account-panel">
+              <div className="account-row">
+                <span className="account-label">Password</span>
 
-        const data = await res.json();
+                <button
+                  className="account-action"
+                  onClick={() => {
+                    setShowPasswordForm((v) => !v);
+                    setPasswordStatus(null);
+                  }}
+                >
+                  Change Password
+                </button>
+              </div>
 
-        if (!res.ok) {
-          setPasswordStatus(data?.error || "Password update failed.");
-          return;
-        }
+              {showPasswordForm && (
+                <form
+                  className="account-password-form"
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    setPasswordStatus("Saving…");
 
-        setPasswordStatus("Password updated successfully.");
-        e.currentTarget.reset();
-      }}
-    >
-      <input
-        type="password"
-        name="currentPassword"
-        placeholder="Current password"
-        required
-      />
+                    const form = new FormData(e.currentTarget);
 
-      <input
-        type="password"
-        name="newPassword"
-        placeholder="New password"
-        minLength={8}
-        required
-      />
+                    const res = await fetch("/api/account/password", {
+                      method: "PUT",
+                      credentials: "include",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        currentPassword: form.get("currentPassword"),
+                        newPassword: form.get("newPassword"),
+                      }),
+                    });
 
-      <button type="submit">Update Password</button>
+                    if (res.status === 401) {
+                      window.location.href = "/login";
+                      return;
+                    }
 
-      {passwordStatus && (
-        <div className="account-status">{passwordStatus}</div>
-      )}
-    </form>
-  )}
-</div>
+                    const data = await res.json();
+
+                    if (!res.ok) {
+                      setPasswordStatus(
+                        data?.error || "Password update failed."
+                      );
+                      return;
+                    }
+
+                    setPasswordStatus("Password updated successfully.");
+                    e.currentTarget.reset();
+                  }}
+                >
+                  <input
+                    type="password"
+                    name="currentPassword"
+                    placeholder="Current password"
+                    required
+                  />
+
+                  <input
+                    type="password"
+                    name="newPassword"
+                    placeholder="New password"
+                    minLength={8}
+                    required
+                  />
+
+                  <button type="submit">Update Password</button>
+
+                  {passwordStatus && (
+                    <div className="account-status">{passwordStatus}</div>
+                  )}
+                </form>
+              )}
+            </div>
 
             {/* ---------------- Beacons ---------------- */}
             <h2 className="account-section-title">Beacons</h2>
+
             <div className="account-panel beacons-panel">
-
-              <div className="account-row">
-                <label className="account-label">
-                  <span className="beacon-checkbox">
-                    <input
-                      type="checkbox"
-                      checked={!!beacons.player_characters}
-                      onChange={(e) =>
-                        updateBeacon("player_characters", e.target.checked)
-                      }
-                    />
-                  </span>
-                  Player Characters Beacon (GM Dashboard)
-                </label>
-              </div>
-
-              <div className="account-row">
-                <label className="account-label">
-                  <span className="beacon-checkbox">
-                    <input
-                      type="checkbox"
-                      checked={!!beacons.npc_pulse}
-                      onChange={(e) =>
-                        updateBeacon("npc_pulse", e.target.checked)
-                      }
-                    />
-                  </span>
-                  NPC Pulse Beacon (GM Dashboard)
-                </label>
-              </div>
-
-              {/* 🧠 NEW SANITY BEACON */}
-              <div className="account-row">
-                <label className="account-label">
-                  <span className="beacon-checkbox">
-                    <input
-                      type="checkbox"
-                      checked={!!beacons.player_sanity_tracker}
-                      onChange={(e) =>
-                        updateBeacon(
-                          "player_sanity_tracker",
-                          e.target.checked
-                        )
-                      }
-                    />
-                  </span>
-                  Player Sanity Tracker (GM Dashboard)
-                </label>
-              </div>
-
+              {[
+                ["player_characters", "Player Characters Beacon (GM Dashboard)"],
+                ["npc_pulse", "NPC Pulse Beacon (GM Dashboard)"],
+                [
+                  "player_sanity_tracker",
+                  "Player Sanity Tracker (GM Dashboard)",
+                ],
+              ].map(([key, label]) => (
+                <div className="account-row" key={key}>
+                  <label className="account-label">
+                    <span className="beacon-checkbox">
+                      <input
+                        type="checkbox"
+                        checked={!!beacons[key]}
+                        onChange={(e) =>
+                          updateBeacon(key, e.target.checked)
+                        }
+                      />
+                    </span>
+                    {label}
+                  </label>
+                </div>
+              ))}
             </div>
           </>
         )}

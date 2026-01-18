@@ -101,6 +101,44 @@ export async function POST(req) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // -------------------------------------------------
+  // Campaign limit enforcement (plan-based)
+  // -------------------------------------------------
+  const { getCurrentPlan, getPlanLimits } = await import("@/lib/plans");
+
+  const plan = getCurrentPlan(ctx);
+  const { maxCampaigns } = getPlanLimits(plan);
+
+  const countResult = await query(
+    `
+    SELECT COUNT(*)::int AS count
+      FROM campaigns
+     WHERE tenant_id = $1
+       AND deleted_at IS NULL
+    `,
+    [ctx.tenantId]
+  );
+
+  const currentCount = countResult.rows[0]?.count ?? 0;
+
+  if (currentCount >= maxCampaigns) {
+  return Response.json(
+    {
+      ok: false,
+      error: "campaign_limit_exceeded",
+      plan,
+      usedCampaigns: currentCount,
+      limitCampaigns: maxCampaigns,
+      attemptedCampaigns: currentCount + 1,
+    },
+    { status: 403 }
+  );
+}
+
+
+  // -------------------------------------------------
+  // Existing behavior (unchanged)
+  // -------------------------------------------------
   const body = await req.json();
 
   const name =
@@ -153,6 +191,7 @@ export async function POST(req) {
     { status: 201 }
   );
 }
+
 
 /* -----------------------------
    PUT /api/campaigns

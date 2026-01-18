@@ -109,16 +109,32 @@ const tenantId = ctx.tenantId;
 
     const usedBytes = Number(usedResult?.rows?.[0]?.used || 0);
 
-    const limitBytes = Number(
-      ctx?.tenant?.storage_limit_bytes ?? DEFAULT_STORAGE_LIMIT_BYTES
-    );
+   // -------------------------------------------------
+// Storage limit enforcement (plan-based)
+// -------------------------------------------------
+const { getCurrentPlan, getPlanLimits } = await import("@/lib/plans");
 
-    if (usedBytes + size > limitBytes) {
-      return NextResponse.json(
-        { ok: false, error: "storage quota exceeded", used: usedBytes, limit: limitBytes },
-        { status: 413 }
-      );
-    }
+const plan = getCurrentPlan(ctx);
+const { storageLimitBytes } = getPlanLimits(plan);
+
+const limitBytes = Number(
+  ctx?.tenant?.storage_limit_bytes ??
+  storageLimitBytes ??
+  DEFAULT_STORAGE_LIMIT_BYTES
+);
+   if (usedBytes + size > limitBytes) {
+  return NextResponse.json(
+    {
+      ok: false,
+      error: "storage_limit_exceeded",
+      plan,
+      usedBytes,
+      limitBytes,
+      attemptedBytes: size,
+    },
+    { status: 413 }
+  );
+}
 
     // ✅ Key format stays same as old route
     const key = `clips/${tenantId}/${Date.now()}-${safeName}`;

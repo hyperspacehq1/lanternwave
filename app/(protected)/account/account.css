@@ -292,3 +292,8 @@
   margin-top: 0.25rem;
 }
 
+.account-action[disabled] {
+  pointer-events: none;
+  border-style: dashed;
+}
+
