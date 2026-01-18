@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import "./account.css";
 import { PLANS, getCurrentPlan } from "@/lib/plans";
+import Tooltip from "@/components/Tooltip";
+import { TOOLTIPS } from "@/lib/tooltips";
 
 export const dynamic = "force-dynamic";
 
@@ -262,28 +264,31 @@ export default function AccountPage() {
 
             <div className="account-panel beacons-panel">
               {[
-                ["player_characters", "Player Characters Beacon (GM Dashboard)"],
-                ["npc_pulse", "NPC Pulse Beacon (GM Dashboard)"],
-                [
-                  "player_sanity_tracker",
-                  "Player Sanity Tracker (GM Dashboard)",
-                ],
-              ].map(([key, label]) => (
-                <div className="account-row" key={key}>
-                  <label className="account-label">
-                    <span className="beacon-checkbox">
-                      <input
-                        type="checkbox"
-                        checked={!!beacons[key]}
-                        onChange={(e) =>
-                          updateBeacon(key, e.target.checked)
-                        }
-                      />
-                    </span>
-                    {label}
-                  </label>
-                </div>
-              ))}
+  ["player_characters", "Player Characters Beacon (GM Dashboard)"],
+  ["npc_pulse", "NPC Pulse Beacon (GM Dashboard)"],
+  [
+    "player_sanity_tracker",
+    "Player Sanity Tracker (GM Dashboard)",
+  ],
+].map(([key, label]) => (
+  <div className="account-row" key={key}>
+    <label className="account-label">
+      <span className="beacon-checkbox">
+        <input
+          type="checkbox"
+          checked={!!beacons[key]}
+          onChange={(e) =>
+            updateBeacon(key, e.target.checked)
+          }
+        />
+      </span>
+
+      <Tooltip content={TOOLTIPS.account[key]}>
+        {label}
+      </Tooltip>
+    </label>
+  </div>
+))}
             </div>
           </>
         )}
