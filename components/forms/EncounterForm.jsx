@@ -93,22 +93,6 @@ export default function EncounterForm({ record, onChange }) {
             joinPath="npcs"
             idField="npc_id"
           />
-
-          <JoinPanel
-            title="Items"
-            encounterId={record.id}
-            campaignId={campaign.id}
-            joinPath="items"
-            idField="item_id"
-          />
-
-          <JoinPanel
-            title="Locations"
-            encounterId={record.id}
-            campaignId={campaign.id}
-            joinPath="locations"
-            idField="location_id"
-          />
         </>
       )}
 

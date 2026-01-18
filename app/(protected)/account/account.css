@@ -29,7 +29,7 @@
 }
 
 .account-section-title {
-  margin-bottom: 0.5rem;
+  margin-bottom: 1rem; /* match visual spacing of Plan & Limits / Security */
   transition: color 0.15s ease;
 }
 

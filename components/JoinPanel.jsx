@@ -7,9 +7,9 @@ export default function JoinPanel({
   encounterId,
   sessionId,
   campaignId,
-  joinPath,          // "npcs" | "items" | "locations" | "events" | "encounters"
-  idField,           // npc_id | item_id | location_id | event_id | encounter_id
-  labelField = "name"
+  joinPath,          // "npcs" | "sessions" | "encounters"
+  idField,           // npc_id | session_id | encounter_id
+  labelField = "name",
 }) {
   const [attached, setAttached] = useState([]);
   const [available, setAvailable] = useState([]);
@@ -25,14 +25,37 @@ export default function JoinPanel({
   if (!scopeId) return null;
 
   /* ----------------------------------------------------------
-     Build base URL (FINAL CONTRACT)
-     - sessions → query-param identity
-     - encounters → path-param identity
+     Guard: allow ONLY valid joins per scope
   ---------------------------------------------------------- */
-  const baseUrl =
-    scopeType === "sessions"
-      ? `/api/sessions/${joinPath}?session_id=${scopeId}`
-      : `/api/${scopeType}/${scopeId}/${joinPath}`;
+  const VALID_ENCOUNTER_JOINS = new Set(["npcs", "sessions"]);
+  const VALID_SESSION_JOINS = new Set(["encounters"]);
+
+  if (
+    (scopeType === "encounters" && !VALID_ENCOUNTER_JOINS.has(joinPath)) ||
+    (scopeType === "sessions" && !VALID_SESSION_JOINS.has(joinPath))
+  ) {
+    console.warn("JoinPanel: invalid joinPath for scope", {
+      scopeType,
+      joinPath,
+    });
+    return null;
+  }
+
+  /* ----------------------------------------------------------
+     Build base URL
+     - encounter ↔ npc → join table API
+     - sessions → resource API
+     - encounters → resource API
+  ---------------------------------------------------------- */
+  let baseUrl;
+
+  if (scopeType === "encounters" && joinPath === "npcs") {
+    baseUrl = `/api/encounters-npcs?encounter_id=${scopeId}`;
+  } else if (scopeType === "sessions") {
+    baseUrl = `/api/sessions/${joinPath}?session_id=${scopeId}`;
+  } else {
+    baseUrl = `/api/${scopeType}/${scopeId}/${joinPath}`;
+  }
 
   /* ----------------------------------------------------------
      Load attached (scope-scoped)
@@ -70,12 +93,22 @@ export default function JoinPanel({
 
     setLoading(true);
     try {
-      await fetch(baseUrl, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ [idField]: selectedId }),
-      });
+      await fetch(
+        joinPath === "npcs" && scopeType === "encounters"
+          ? "/api/encounters-npcs"
+          : baseUrl,
+        {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            [idField]: selectedId,
+            ...(joinPath === "npcs" && scopeType === "encounters"
+              ? { encounter_id: scopeId }
+              : {}),
+          }),
+        }
+      );
 
       const refreshed = await fetch(baseUrl, {
         credentials: "include",
@@ -92,12 +125,22 @@ export default function JoinPanel({
      Detach
   ---------------------------------------------------------- */
   async function detach(id) {
-    await fetch(baseUrl, {
-      method: "DELETE",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ [idField]: id }),
-    });
+    await fetch(
+      joinPath === "npcs" && scopeType === "encounters"
+        ? "/api/encounters-npcs"
+        : baseUrl,
+      {
+        method: "DELETE",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          [idField]: id,
+          ...(joinPath === "npcs" && scopeType === "encounters"
+            ? { encounter_id: scopeId }
+            : {}),
+        }),
+      }
+    );
 
     setAttached((prev) =>
       Array.isArray(prev)

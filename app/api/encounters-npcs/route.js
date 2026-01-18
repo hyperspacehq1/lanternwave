@@ -6,9 +6,9 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /* -----------------------------------------------------------
-   GET /api/encounters/[id]/npcs
+   GET /api/encounters-npcs?encounter_id=
 ------------------------------------------------------------ */
-export async function GET(req, { params }) {
+export async function GET(req) {
   let ctx;
   try {
     ctx = await getTenantContext(req);
@@ -16,9 +16,11 @@ export async function GET(req, { params }) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const encounterId = params?.id;
+  const { searchParams } = new URL(req.url);
+  const encounterId = searchParams.get("encounter_id");
+
   if (!encounterId) {
-    return Response.json({ error: "encounter id required" }, { status: 400 });
+    return Response.json({ error: "encounter_id required" }, { status: 400 });
   }
 
   const { rows } = await query(
@@ -51,9 +53,9 @@ export async function GET(req, { params }) {
 }
 
 /* -----------------------------------------------------------
-   POST /api/encounters/[id]/npcs
+   POST /api/encounters-npcs
 ------------------------------------------------------------ */
-export async function POST(req, { params }) {
+export async function POST(req) {
   let ctx;
   try {
     ctx = await getTenantContext(req);
@@ -61,10 +63,9 @@ export async function POST(req, { params }) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const encounterId = params?.id;
-  const { npc_id } = await req.json();
+  const { encounter_id, npc_id } = await req.json();
 
-  if (!encounterId || !npc_id) {
+  if (!encounter_id || !npc_id) {
     return Response.json(
       { error: "encounter_id and npc_id required" },
       { status: 400 }
@@ -82,16 +83,16 @@ export async function POST(req, { params }) {
     ON CONFLICT (tenant_id, encounter_id, npc_id)
     DO NOTHING
     `,
-    [ctx.tenantId, encounterId, npc_id]
+    [ctx.tenantId, encounter_id, npc_id]
   );
 
   return Response.json({ ok: true });
 }
 
 /* -----------------------------------------------------------
-   DELETE /api/encounters/[id]/npcs
+   DELETE /api/encounters-npcs
 ------------------------------------------------------------ */
-export async function DELETE(req, { params }) {
+export async function DELETE(req) {
   let ctx;
   try {
     ctx = await getTenantContext(req);
@@ -99,10 +100,9 @@ export async function DELETE(req, { params }) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const encounterId = params?.id;
-  const { npc_id } = await req.json();
+  const { encounter_id, npc_id } = await req.json();
 
-  if (!encounterId || !npc_id) {
+  if (!encounter_id || !npc_id) {
     return Response.json(
       { error: "encounter_id and npc_id required" },
       { status: 400 }
@@ -112,13 +112,13 @@ export async function DELETE(req, { params }) {
   await query(
     `
     UPDATE encounter_npcs
-       SET deleted_at = now()
+       SET deleted_at = NOW()
      WHERE tenant_id = $1
        AND encounter_id = $2
        AND npc_id = $3
        AND deleted_at IS NULL
     `,
-    [ctx.tenantId, encounterId, npc_id]
+    [ctx.tenantId, encounter_id, npc_id]
   );
 
   return Response.json({ ok: true });
