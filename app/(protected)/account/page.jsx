@@ -246,7 +246,9 @@ export default function AccountPage() {
                     required
                   />
 
-                  <button type="submit">Update Password</button>
+                  <button type="submit" className="account-action">
+  Update Password
+</button>
 
                   {passwordStatus && (
                     <div className="account-status">{passwordStatus}</div>

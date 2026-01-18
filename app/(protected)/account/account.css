@@ -297,3 +297,7 @@
   border-style: dashed;
 }
 
+.account-password-form button {
+  margin-top: 0.25rem;
+}
+

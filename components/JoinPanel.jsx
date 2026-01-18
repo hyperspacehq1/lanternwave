@@ -42,7 +42,9 @@ export default function JoinPanel({
   }
 
   /* ----------------------------------------------------------
-     Build base URL (FIXED)
+     Build base URL
+     - GET uses querystring for scope id
+     - POST/DELETE use JSON body (see attach/detach)
   ---------------------------------------------------------- */
   let baseUrl;
 
@@ -95,26 +97,27 @@ export default function JoinPanel({
 
     setLoading(true);
     try {
-      const res = await fetch(
-        // NPC join
-        joinPath === "npcs" && scopeType === "encounters"
-          ? "/api/encounters-npcs"
-          // Session ↔ Encounter join
-          : joinPath === "encounters" && scopeType === "sessions"
-          ? `/api/sessions-encounters?session_id=${scopeId}`
-          : baseUrl,
-        {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            [idField]: selectedId,
-            ...(scopeType === "encounters" && joinPath === "npcs"
-              ? { encounter_id: scopeId }
-              : {}),
-          }),
-        }
-      );
+      const isEncounterNpcs = scopeType === "encounters" && joinPath === "npcs";
+      const isSessionEncounters = scopeType === "sessions" && joinPath === "encounters";
+
+      const postUrl = isEncounterNpcs
+        ? "/api/encounters-npcs"
+        : isSessionEncounters
+        ? "/api/sessions-encounters"
+        : baseUrl;
+
+      const payload = isEncounterNpcs
+        ? { encounter_id: scopeId, npc_id: selectedId }
+        : isSessionEncounters
+        ? { session_id: scopeId, encounter_id: selectedId }
+        : { [idField]: selectedId };
+
+      const res = await fetch(postUrl, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
 
       if (!res.ok) return;
 
@@ -132,32 +135,39 @@ export default function JoinPanel({
   /* ----------------------------------------------------------
      Detach
   ---------------------------------------------------------- */
-  async function detach(id) {
-    const res = await fetch(
-      joinPath === "npcs" && scopeType === "encounters"
-        ? "/api/encounters-npcs"
-        : joinPath === "encounters" && scopeType === "sessions"
-        ? `/api/sessions-encounters?session_id=${scopeId}`
-        : baseUrl,
-      {
-        method: "DELETE",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          [idField]: id,
-          ...(scopeType === "encounters" && joinPath === "npcs"
-            ? { encounter_id: scopeId }
-            : {}),
-        }),
-      }
-    );
+  async function detach(row) {
+    // row can be either:
+    // - a row object from attached list
+    // - or an id (legacy behavior)
+    const isObj = row && typeof row === "object";
+    const id = isObj ? row[idField] : row;
+
+    const isEncounterNpcs = scopeType === "encounters" && joinPath === "npcs";
+    const isSessionEncounters = scopeType === "sessions" && joinPath === "encounters";
+
+    const deleteUrl = isEncounterNpcs
+      ? "/api/encounters-npcs"
+      : isSessionEncounters
+      ? "/api/sessions-encounters"
+      : baseUrl;
+
+    const payload = isEncounterNpcs
+      ? { encounter_id: scopeId, npc_id: id }
+      : isSessionEncounters
+      ? { session_id: scopeId, encounter_id: id }
+      : { [idField]: id };
+
+    const res = await fetch(deleteUrl, {
+      method: "DELETE",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
 
     if (!res.ok) return;
 
     setAttached((prev) =>
-      Array.isArray(prev)
-        ? prev.filter((r) => r[idField] !== id)
-        : []
+      Array.isArray(prev) ? prev.filter((r) => r[idField] !== id) : []
     );
   }
 
@@ -176,10 +186,7 @@ export default function JoinPanel({
       </ul>
 
       <div className="cm-join-add">
-        <select
-          value={selectedId}
-          onChange={(e) => setSelectedId(e.target.value)}
-        >
+        <select value={selectedId} onChange={(e) => setSelectedId(e.target.value)}>
           <option value="">Add existing…</option>
           {available.map((r) => (
             <option key={r.id} value={r.id}>
