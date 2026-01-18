@@ -133,6 +133,11 @@ const [expandAll, setExpandAll] = useState(null);
 
 /* -------- Joined-record pulse state -------- */
 const [joinHighlights, setJoinHighlights] = useState({});
+const [fadingJoins, setFadingJoins] = useState({});
+
+/* -------- Active join source (ownership) -------- */
+const [activeJoinSource, setActiveJoinSource] = useState(null);
+// shape: { entityKey, recordId } | null
 
 /* -------- Floating Windows (overlay layer) -------- */
 const [floatingWindows, setFloatingWindows] = useState([]);
@@ -204,6 +209,7 @@ async function resolveJoins(entityKey, recordId) {
     if (!res.ok) return;
 
     const data = await res.json();
+setActiveJoinSource({ entityKey, recordId });
 
     setJoinHighlights((prev) => {
       const next = { ...prev };
@@ -219,8 +225,36 @@ async function resolveJoins(entityKey, recordId) {
   }
 }
 
-function clearJoins() {
-  setJoinHighlights({});
+function clearJoins(source) {
+  setActiveJoinSource((current) => {
+    // If no active joins, nothing to clear
+    if (!current) return current;
+
+    // If a source is provided, only clear if it matches
+    if (
+      source &&
+      (current.entityKey !== source.entityKey ||
+        current.recordId !== source.recordId)
+    ) {
+      return current;
+    }
+
+    // ✅ This source owns the joins — clear them
+   
+// 🌫️ mark current joins as fading
+setFadingJoins((prev) => ({ ...prev, ...joinHighlights }));
+
+// clear active highlights immediately
+setJoinHighlights({});
+
+// remove fade markers after animation completes
+setTimeout(() => {
+  setFadingJoins({});
+}, 650);
+
+
+    return null;
+  });
 }
 
 /* =========================
@@ -605,6 +639,7 @@ if (allRecords.length === 0) return;
   joinHighlights={joinHighlights}
   resolveJoins={resolveJoins}
   clearJoins={clearJoins}
+fadingJoins={fadingJoins}
   forceOpen={expandAll}
   campaignId={selectedCampaign.id}
   sessionId={selectedSession.id}
@@ -621,6 +656,7 @@ if (allRecords.length === 0) return;
   joinHighlights={joinHighlights}
   resolveJoins={resolveJoins}
   clearJoins={clearJoins}
+fadingJoins={fadingJoins}
   forceOpen={expandAll}
   campaignId={selectedCampaign.id}
   sessionId={selectedSession.id}
@@ -637,6 +673,7 @@ if (allRecords.length === 0) return;
   joinHighlights={joinHighlights}
   resolveJoins={resolveJoins}
   clearJoins={clearJoins}
+fadingJoins={fadingJoins}
   forceOpen={expandAll}
   campaignId={selectedCampaign.id}
   sessionId={selectedSession.id}
@@ -653,6 +690,7 @@ if (allRecords.length === 0) return;
   joinHighlights={joinHighlights}
   resolveJoins={resolveJoins}
   clearJoins={clearJoins}
+fadingJoins={fadingJoins}
   forceOpen={expandAll}
   campaignId={selectedCampaign.id}
   sessionId={selectedSession.id}
@@ -669,6 +707,7 @@ if (allRecords.length === 0) return;
   joinHighlights={joinHighlights}
   resolveJoins={resolveJoins}
   clearJoins={clearJoins}
+fadingJoins={fadingJoins}
   forceOpen={expandAll}
   campaignId={selectedCampaign.id}
   sessionId={selectedSession.id}
@@ -732,9 +771,11 @@ function GMColumn({
   schema,
   showNpcPulseBeacon,
   joinHighlights,
+  fadingJoins,          // ✅ ADD THIS
   resolveJoins,
   clearJoins,
 }) {
+
   const stableStorageKeyRef = useRef(null);
   const hydratedRef = useRef(false);
   const [order, setOrder] = useState([]);
@@ -886,6 +927,7 @@ useEffect(() => {
     onOpenPanel={onOpenPanel}
     sessionId={sessionId}
     schema={schema}
+fadingJoins={fadingJoins}
     showNpcPulseBeacon={showNpcPulseBeacon}
     joinHighlights={joinHighlights}
     resolveJoins={resolveJoins}
@@ -911,6 +953,7 @@ function GMCard({
   schema,
   showNpcPulseBeacon,
   joinHighlights,
+  fadingJoins,          
   resolveJoins,
   clearJoins,
 }) {
@@ -963,9 +1006,9 @@ useEffect(() => {
 
     if (next) {
       resolveJoins(entityKey, item.id);
-    } else {
-      clearJoins();
-    }
+   } else {
+  clearJoins({ entityKey, recordId: item.id });
+}
 
     return next;
   });
@@ -974,10 +1017,12 @@ useEffect(() => {
   return (
     <div
   className={`gm-card ${open ? "is-open" : ""} ${
-    joinHighlights?.[entityKey]?.includes(String(item.id))
-      ? "gm-join-pulse"
-      : ""
-  }`}
+  joinHighlights?.[entityKey]?.includes(String(item.id))
+    ? "gm-join-pulse"
+    : fadingJoins?.[entityKey]?.includes(String(item.id))
+    ? "gm-join-fade"
+    : ""
+}`}
 >
       <div
         className="gm-card-header"
