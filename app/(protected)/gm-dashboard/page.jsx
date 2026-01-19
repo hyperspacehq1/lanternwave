@@ -642,6 +642,7 @@ if (allRecords.length === 0) return;
   resolveJoins={resolveJoins}
   clearJoins={clearJoins}
 fadingJoins={fadingJoins}
+openJoinCountRef={openJoinCountRef}  
   forceOpen={expandAll}
   campaignId={selectedCampaign.id}
   sessionId={selectedSession.id}
@@ -658,6 +659,7 @@ fadingJoins={fadingJoins}
   joinHighlights={joinHighlights}
   resolveJoins={resolveJoins}
   clearJoins={clearJoins}
+openJoinCountRef={openJoinCountRef}  
 fadingJoins={fadingJoins}
   forceOpen={expandAll}
   campaignId={selectedCampaign.id}
@@ -676,6 +678,7 @@ fadingJoins={fadingJoins}
   resolveJoins={resolveJoins}
   clearJoins={clearJoins}
 fadingJoins={fadingJoins}
+openJoinCountRef={openJoinCountRef}  
   forceOpen={expandAll}
   campaignId={selectedCampaign.id}
   sessionId={selectedSession.id}
@@ -693,6 +696,7 @@ fadingJoins={fadingJoins}
   resolveJoins={resolveJoins}
   clearJoins={clearJoins}
 fadingJoins={fadingJoins}
+openJoinCountRef={openJoinCountRef}  
   forceOpen={expandAll}
   campaignId={selectedCampaign.id}
   sessionId={selectedSession.id}
@@ -710,6 +714,7 @@ fadingJoins={fadingJoins}
   resolveJoins={resolveJoins}
   clearJoins={clearJoins}
 fadingJoins={fadingJoins}
+openJoinCountRef={openJoinCountRef}  
   forceOpen={expandAll}
   campaignId={selectedCampaign.id}
   sessionId={selectedSession.id}
@@ -773,9 +778,10 @@ function GMColumn({
   schema,
   showNpcPulseBeacon,
   joinHighlights,
-  fadingJoins,          // ✅ ADD THIS
+  fadingJoins,         
   resolveJoins,
   clearJoins,
+openJoinCountRef,
 }) {
 
   const stableStorageKeyRef = useRef(null);
@@ -934,6 +940,7 @@ fadingJoins={fadingJoins}
     joinHighlights={joinHighlights}
     resolveJoins={resolveJoins}
     clearJoins={clearJoins}
+openJoinCountRef={openJoinCountRef}
   />
 ))}
       </div>
@@ -958,6 +965,7 @@ function GMCard({
   fadingJoins,          
   resolveJoins,
   clearJoins,
+openJoinCountRef,
 }) {
 
   const hydratedRef = useRef(false);  
