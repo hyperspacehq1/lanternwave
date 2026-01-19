@@ -137,6 +137,8 @@ const [fadingJoins, setFadingJoins] = useState({});
 
 /* -------- Active join source (ownership) -------- */
 const [activeJoinSource, setActiveJoinSource] = useState(null);
+const joinsTokenRef = useRef(0);
+const openJoinCountRef = useRef(0);
 // shape: { entityKey, recordId } | null
 
 /* -------- Floating Windows (overlay layer) -------- */
@@ -197,6 +199,7 @@ y: clamp(clickY - 20, 16, window.innerHeight - 240 - 16),
    Resolve joined records
 ========================= */
 async function resolveJoins(entityKey, recordId) {
+const myToken = ++joinsTokenRef.current;
   // Only these entities participate
   if (!["sessions", "encounters", "locations"].includes(entityKey)) return;
 
@@ -211,15 +214,15 @@ async function resolveJoins(entityKey, recordId) {
     const data = await res.json();
 setActiveJoinSource({ entityKey, recordId });
 
-    setJoinHighlights((prev) => {
-      const next = { ...prev };
+const next = {};
+Object.entries(data.joined || {}).forEach(([k, ids]) => {
+  next[k] = Array.isArray(ids) ? ids.map(String) : [];
+});
 
-      Object.entries(data.joined || {}).forEach(([k, ids]) => {
-        next[k] = Array.isArray(ids) ? ids.map(String) : [];
-      });
+if (myToken !== joinsTokenRef.current) return;
 
-      return next;
-    });
+setJoinHighlights(next);
+
   } catch {
     // silent failure – no UI regression
   }
@@ -238,8 +241,7 @@ function clearJoins(source) {
     ) {
       return current;
     }
-
-    // ✅ This source owns the joins — clear them
+joinsTokenRef.current += 1;
    
 // 🌫️ mark current joins as fading
 setFadingJoins((prev) => ({ ...prev, ...joinHighlights }));
@@ -976,15 +978,26 @@ useEffect(() => {
   }, [sessionId, item.id]);
 
   useEffect(() => {
-    let saved = null;
-    try {
-      saved = localStorage.getItem(storageKey);
-    } catch {
-      saved = null;
+  let saved = null;
+  try {
+    saved = localStorage.getItem(storageKey);
+  } catch {
+    saved = null;
+  }
+
+  if (saved === "true") {
+    setOpen(true);
+
+    const isJoinEntity = ["sessions", "encounters", "locations"].includes(entityKey);
+    if (isJoinEntity) {
+      openJoinCountRef.current += 1;
     }
-    if (saved === "true") setOpen(true);
-    if (saved === "false") setOpen(false);
-  }, [storageKey]);
+  }
+
+  if (saved === "false") {
+    setOpen(false);
+  }
+}, [storageKey]);
 
   useEffect(() => {
     try {
@@ -993,22 +1006,58 @@ useEffect(() => {
   }, [storageKey, open]);
 
   useEffect(() => {
-    if (typeof forceOpen === "boolean") setOpen(forceOpen);
-  }, [forceOpen]);
+  if (typeof forceOpen !== "boolean") return;
+
+  const isJoinEntity = ["sessions", "encounters", "locations"].includes(entityKey);
+
+  setOpen((prev) => {
+    if (prev === forceOpen) return prev;
+
+    if (!forceOpen && isJoinEntity) {
+      openJoinCountRef.current = Math.max(0, openJoinCountRef.current - 1);
+      if (openJoinCountRef.current === 0) {
+        clearJoins({ entityKey, recordId: item.id });
+      }
+    }
+
+    if (forceOpen && isJoinEntity) {
+      openJoinCountRef.current += 1;
+      resolveJoins(entityKey, item.id);
+    }
+
+    return forceOpen;
+  });
+}, [forceOpen]);
 
   useEffect(() => {
     if (open && contentRef.current) setHeight(contentRef.current.scrollHeight);
   }, [open, item]);
 
- const toggle = () => {
+
+const toggle = () => {
   setOpen((v) => {
     const next = !v;
 
     if (next) {
-      resolveJoins(entityKey, item.id);
-   } else {
-  clearJoins({ entityKey, recordId: item.id });
+      // opening
+      const isJoinEntity = ["sessions", "encounters", "locations"].includes(entityKey);
+
+if (isJoinEntity) {
+  openJoinCountRef.current += 1;
+  resolveJoins(entityKey, item.id);
 }
+    } else {
+      // closing
+     const isJoinEntity = ["sessions", "encounters", "locations"].includes(entityKey);
+
+if (isJoinEntity) {
+  openJoinCountRef.current = Math.max(0, openJoinCountRef.current - 1);
+
+  if (openJoinCountRef.current === 0) {
+    clearJoins({ entityKey, recordId: item.id });
+  }
+}
+    }
 
     return next;
   });
