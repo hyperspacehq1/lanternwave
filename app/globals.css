@@ -166,48 +166,77 @@ body {
 }
 
 /* =========================
-   TOOLTIP (GLOBAL)
+   TOOLTIP BEACON EMPHASIS
    ========================= */
 
+/* Tooltip trigger container */
 .lw-tooltip-wrap {
-  position: relative;
+  gap: 6px; /* separates from Beacon title */
+}
+
+/* Visual affordance for tooltip trigger */
+.lw-tooltip-trigger {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+
+  min-width: 18px;
+  height: 18px;
+  padding: 0 6px;
+
+  border-radius: 999px;
+
+  background: rgba(244, 208, 63, 0.14); /* warm gold tint */
+  border: 1px solid rgba(244, 208, 63, 0.55);
+
+  color: #f6d96a;
+  font-size: 10px;
+  font-weight: 600;
+
+  cursor: help;
+
+  box-shadow:
+    0 0 6px rgba(244, 208, 63, 0.35),
+    0 0 14px rgba(244, 208, 63, 0.15);
+
+  animation: lw-tooltip-pulse 2.8s ease-in-out infinite;
 }
 
-.lw-tooltip {
-  position: absolute;
-  bottom: calc(100% + 6px);
-  left: 0;
-  min-width: 220px;
-  max-width: 280px;
-
-  background: rgba(0, 0, 0, 0.92);
-  border: 1px solid var(--lw-border-muted);
-  border-radius: 8px;
-  padding: 0.6rem 0.75rem;
-
-  color: #e8e8e8;
-  font-size: 11px;
-  line-height: 1.45;
-
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
-  z-index: 1000;
+/* Stop animation when user engages */
+.lw-tooltip-trigger:hover,
+.lw-tooltip-trigger:focus {
+  animation: none;
+  box-shadow:
+    0 0 8px rgba(244, 208, 63, 0.55),
+    0 0 18px rgba(244, 208, 63, 0.35);
 }
 
-.lw-tooltip-title {
-  display: block;
-  font-family: MU-TH-UR, system-ui, sans-serif;
-  font-size: 11px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: rgb(163, 197, 159);
-  margin-bottom: 4px;
+/* Optional: slightly brighten tooltip title when opened */
+.lw-tooltip-wrap:hover .lw-tooltip-title {
+  color: #f6d96a;
 }
 
-.lw-tooltip-body {
-  color: #cfcfcf;
+/* ------------------------------
+   Tooltip pulse animation
+------------------------------ */
+@keyframes lw-tooltip-pulse {
+  0% {
+    box-shadow:
+      0 0 4px rgba(244, 208, 63, 0.25),
+      0 0 10px rgba(244, 208, 63, 0.1);
+  }
+  50% {
+    box-shadow:
+      0 0 8px rgba(244, 208, 63, 0.55),
+      0 0 18px rgba(244, 208, 63, 0.35);
+  }
+  100% {
+    box-shadow:
+      0 0 4px rgba(244, 208, 63, 0.25),
+      0 0 10px rgba(244, 208, 63, 0.1);
+  }
 }
+
 
 /* ------------------------------
    CRT EFFECTS (SAFE / GLOBAL)
