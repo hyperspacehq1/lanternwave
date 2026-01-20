@@ -349,3 +349,10 @@
   opacity: 0.35;
   cursor: not-allowed;
 }
+
+.player-widget__sanity-notice {
+  margin: 6px 0 8px;
+  font-size: 12px;
+  text-align: center;
+  color: #d97706;
+}

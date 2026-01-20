@@ -30,6 +30,9 @@ export default function PlayerCharactersWidget({ campaignId }) {
   // sanityFlash[playerId] = { key, textTop, textBottom, tone }
   const [sanityFlash, setSanityFlash] = useState({});
 
+  // ✅ NEW: notice text shown when attempting to roll with no selection
+  const [sanityNotice, setSanityNotice] = useState("");
+
   /* -----------------------------------------------------------
      ✅ FEATURE GATING — Account Page Beacon (SOURCE OF TRUTH)
   ------------------------------------------------------------ */
@@ -188,7 +191,7 @@ export default function PlayerCharactersWidget({ campaignId }) {
         setPlayers(list);
         if (!order.length) setOrder(list.map((p) => p.id));
 
-       setSanityState((prev) => prev);
+        setSanityState((prev) => prev);
       })
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -198,35 +201,35 @@ export default function PlayerCharactersWidget({ campaignId }) {
     .map((id) => players.find((p) => p.id === id))
     .filter(Boolean);
 
-useEffect(() => {
-  if (!campaignId || !sanityEnabled) return;
+  useEffect(() => {
+    if (!campaignId || !sanityEnabled) return;
 
-  fetch(`/api/sanity/list?campaign_id=${campaignId}`, {
-    credentials: "include",
-    cache: "no-store",
-  })
-    .then((r) => r.json())
-    .then((rows) => {
-      if (!Array.isArray(rows)) return;
-
-      setSanityState((prev) => {
-  // ✅ If sanity already exists, do NOT overwrite it
-  if (Object.keys(prev).length) return prev;
-
-  const next = {};
-  for (const r of rows) {
-    next[r.player_id] = {
-      base: Number(r.base_sanity),
-      current: Number(r.current_sanity),
-      lastLoss: 0,
-      lastUpdatedAt: Date.now(),
-    };
-  }
-  return next;
-});
+    fetch(`/api/sanity/list?campaign_id=${campaignId}`, {
+      credentials: "include",
+      cache: "no-store",
     })
-    .catch(() => {});
-}, [campaignId, sanityEnabled]);
+      .then((r) => r.json())
+      .then((rows) => {
+        if (!Array.isArray(rows)) return;
+
+        setSanityState((prev) => {
+          // ✅ If sanity already exists, do NOT overwrite it
+          if (Object.keys(prev).length) return prev;
+
+          const next = {};
+          for (const r of rows) {
+            next[r.player_id] = {
+              base: Number(r.base_sanity),
+              current: Number(r.current_sanity),
+              lastLoss: 0,
+              lastUpdatedAt: Date.now(),
+            };
+          }
+          return next;
+        });
+      })
+      .catch(() => {});
+  }, [campaignId, sanityEnabled]);
 
   /* -----------------------------------------------------------
      Sanity helpers
@@ -235,6 +238,12 @@ useEffect(() => {
     () => Object.keys(turns).filter((id) => !!turns[id]),
     [turns]
   );
+
+  // ✅ Clear notice when selection changes (prevents sticky warning)
+  useEffect(() => {
+    if (sanityNotice && selectedIds.length) setSanityNotice("");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedIds.length]);
 
   function computeSanTone(playerId) {
     const s = sanityState[playerId];
@@ -274,7 +283,17 @@ useEffect(() => {
   }
 
   async function rollSanityForSelected(rollType) {
-    if (!campaignId || !sanityEnabled || !selectedIds.length) return;
+    // ✅ RULE: require selection, show message instead of doing nothing
+    if (!selectedIds.length) {
+      setSanityNotice("Select one or more Players before rolling for Sanity.");
+      return;
+    }
+
+    // keep existing guards
+    if (!campaignId || !sanityEnabled) return;
+
+    // clear message once user acts correctly
+    if (sanityNotice) setSanityNotice("");
 
     const pulseResults = [];
 
@@ -358,10 +377,10 @@ useEffect(() => {
       setSanityState((prev) => {
         const next = { ...prev };
         for (const id in next) {
-  if (!Number.isFinite(next[id]?.base)) continue;
-  next[id] = {
-    ...next[id],
-    current: next[id].base,
+          if (!Number.isFinite(next[id]?.base)) continue;
+          next[id] = {
+            ...next[id],
+            current: next[id].base,
             lastLoss: 0,
             lastUpdatedAt: Date.now(),
           };
@@ -527,11 +546,21 @@ useEffect(() => {
               className="player-widget__sanitybar"
               onPointerDown={(e) => e.stopPropagation()}
             >
+              {/* ✅ NEW NOTICE */}
+              {sanityNotice && (
+                <div
+                  className="player-widget__sanity-notice"
+                  role="status"
+                  aria-live="polite"
+                >
+                  {sanityNotice}
+                </div>
+              )}
+
               <div className="player-widget__sanitybar-actions">
                 <button
                   type="button"
                   className="player-widget__sanbtn"
-                  disabled={!selectedIds.length}
                   onClick={() => rollSanityForSelected("1d2")}
                 >
                   1D2
@@ -539,7 +568,6 @@ useEffect(() => {
                 <button
                   type="button"
                   className="player-widget__sanbtn"
-                  disabled={!selectedIds.length}
                   onClick={() => rollSanityForSelected("1d3")}
                 >
                   1D3
@@ -547,7 +575,6 @@ useEffect(() => {
                 <button
                   type="button"
                   className="player-widget__sanbtn"
-                  disabled={!selectedIds.length}
                   onClick={() => rollSanityForSelected("1d6")}
                 >
                   1D6
@@ -555,7 +582,6 @@ useEffect(() => {
                 <button
                   type="button"
                   className="player-widget__sanbtn"
-                  disabled={!selectedIds.length}
                   onClick={() => rollSanityForSelected("1d8")}
                 >
                   1D8
@@ -563,7 +589,6 @@ useEffect(() => {
                 <button
                   type="button"
                   className="player-widget__sanbtn"
-                  disabled={!selectedIds.length}
                   onClick={() => rollSanityForSelected("1d20")}
                 >
                   1D20
@@ -599,7 +624,8 @@ useEffect(() => {
                   className={`player-widget__player ${off ? "inactive" : ""}`}
                   data-player-id={p.id}
                   onPointerEnter={() => {
-                    if (!draggingId.current || draggingId.current === p.id) return;
+                    if (!draggingId.current || draggingId.current === p.id)
+                      return;
 
                     setOrder((prev) => {
                       const next = [...prev];
@@ -615,9 +641,15 @@ useEffect(() => {
                   }}
                 >
                   {flash && (
-                    <div className={`player-widget__flash player-widget__flash--${flash.tone}`}>
-                      <div className="player-widget__flash-top">{flash.textTop}</div>
-                      <div className="player-widget__flash-bottom">{flash.textBottom}</div>
+                    <div
+                      className={`player-widget__flash player-widget__flash--${flash.tone}`}
+                    >
+                      <div className="player-widget__flash-top">
+                        {flash.textTop}
+                      </div>
+                      <div className="player-widget__flash-bottom">
+                        {flash.textBottom}
+                      </div>
                     </div>
                   )}
 
@@ -660,7 +692,9 @@ useEffect(() => {
                   {/* ✅ SANITY INLINE (value + stacked arrows on the RIGHT) */}
                   {sanityEnabled && sanityMode && (
                     <div className="player-widget__sanity-inline">
-                      <div className={`player-widget__sanval player-widget__sanval--${tone}`}>
+                      <div
+                        className={`player-widget__sanval player-widget__sanval--${tone}`}
+                      >
                         SAN {Number.isFinite(s?.current) ? s.current : "—"}
                       </div>
 
@@ -715,3 +749,4 @@ useEffect(() => {
     </div>
   );
 }
+
