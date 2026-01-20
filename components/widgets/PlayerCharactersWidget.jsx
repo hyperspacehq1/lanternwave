@@ -61,7 +61,16 @@ export default function PlayerCharactersWidget({ campaignId }) {
       const s = JSON.parse(raw);
       setCollapsed(!!s.collapsed);
       setInactive(s.inactive || {});
-      setTurns(s.turns || {});
+      const rawTurns = s.turns || {};
+const cleanedTurns = {};
+
+for (const id in rawTurns) {
+  if (rawTurns[id] === true) {
+    cleanedTurns[id] = true;
+  }
+}
+
+setTurns(cleanedTurns);
       setOrder(s.order || []);
       if (s.pos) setPos(s.pos);
       setSanityMode(!!s.sanityMode);
