@@ -210,6 +210,18 @@ setTurns(cleanedTurns);
     .map((id) => players.find((p) => p.id === id))
     .filter(Boolean);
 
+// 🧹 Safety net: drop stale selected player IDs that aren't rendered
+useEffect(() => {
+  setTurns((prev) => {
+    const valid = new Set(orderedPlayers.map((p) => String(p.id)));
+    const next = {};
+    for (const id in prev) {
+      if (prev[id] && valid.has(String(id))) next[id] = true;
+    }
+    return next;
+  });
+}, [orderedPlayers]);
+
   useEffect(() => {
     if (!campaignId || !sanityEnabled) return;
 
@@ -243,10 +255,13 @@ setTurns(cleanedTurns);
   /* -----------------------------------------------------------
      Sanity helpers
   ------------------------------------------------------------ */
-  const selectedIds = useMemo(
-    () => Object.keys(turns).filter((id) => !!turns[id]),
-    [turns]
-  );
+// ✅ Selection must come from players that actually exist in this widget
+const selectedIds = useMemo(() => {
+  return orderedPlayers
+    .filter((p) => turns[p.id])
+    .map((p) => p.id);
+}, [orderedPlayers, turns]);
+
 const hasSelection = selectedIds.length > 0;
 
   // ✅ Clear notice when selection changes (prevents sticky warning)
