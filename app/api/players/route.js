@@ -133,49 +133,71 @@ export async function POST(req) {
     const email = validateOptionalString(body.email, 120, "email");
     const sanity = validateOptionalInt(body.sanity, "sanity");
 
-    const { rows } = await query(
-      `
-      INSERT INTO players (
-        id,
-        tenant_id,
-        campaign_id,
-        first_name,
-        last_name,
-        character_name,
-        notes,
-        phone,
-        email,
-        sanity
-      )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
-      RETURNING *
-      `,
-      [
-        uuid(),
-        tenantId,
-        campaignId,
-        firstName,
-        lastName,
-        characterName,
-        notes,
-        phone,
-        email,
-        sanity,
-      ]
-    );
+    const newPlayerId = uuid();
 
-    return Response.json(
-      sanitizeRow(rows[0], {
-        firstName: 100,
-        lastName: 100,
-        characterName: 100,
-        notes: 2000,
-        phone: 50,
-        email: 120,
-        sanity: true,
-      }),
-      { status: 201 }
-    );
+const { rows } = await query(
+  `
+  INSERT INTO players (
+    id,
+    tenant_id,
+    campaign_id,
+    first_name,
+    last_name,
+    character_name,
+    notes,
+    phone,
+    email,
+    sanity
+  )
+  VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+  RETURNING *
+  `,
+  [
+    newPlayerId,
+    tenantId,
+    campaignId,
+    firstName,
+    lastName,
+    characterName,
+    notes,
+    phone,
+    email,
+    sanity,
+  ]
+);
+
+// ✅ Seed player_sanity ON CREATE (no triggers)
+if (Number.isInteger(sanity)) {
+  await query(
+    `
+    INSERT INTO player_sanity (
+      id,
+      tenant_id,
+      campaign_id,
+      player_id,
+      base_sanity,
+      current_sanity,
+      created_at,
+      updated_at
+    )
+    VALUES ($1,$2,$3,$4,$5,$5,NOW(),NOW())
+    `,
+    [uuid(), tenantId, campaignId, newPlayerId, sanity]
+  );
+}
+
+return Response.json(
+  sanitizeRow(rows[0], {
+    firstName: 100,
+    lastName: 100,
+    characterName: 100,
+    notes: 2000,
+    phone: 50,
+    email: 120,
+    sanity: true,
+  }),
+  { status: 201 }
+);
   } catch (e) {
     return Response.json({ error: e.message }, { status: 400 });
   }

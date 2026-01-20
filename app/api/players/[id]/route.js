@@ -135,38 +135,53 @@ export async function PUT(req, { params }) {
     }
 
     if (!sets.length) {
-      return Response.json(
-        { error: "No valid fields provided" },
-        { status: 400 }
-      );
-    }
+  return Response.json(
+    { error: "No valid fields provided" },
+    { status: 400 }
+  );
+}
 
-    const { rows } = await query(
-      `
-      UPDATE players
-         SET ${sets.join(", ")},
-             updated_at = NOW()
-       WHERE tenant_id = $1
-         AND id = $2
-         AND deleted_at IS NULL
-       RETURNING *
-      `,
-      values
-    );
+// ✅ Update player
+const { rows } = await query(
+  `
+  UPDATE players
+     SET ${sets.join(", ")},
+         updated_at = NOW()
+   WHERE tenant_id = $1
+     AND id = $2
+     AND deleted_at IS NULL
+   RETURNING *
+  `,
+  values
+);
 
-    return Response.json(
-      rows[0]
-        ? sanitizeRow(rows[0], {
-            firstName: 100,
-            lastName: 100,
-            characterName: 100,
-            notes: 2000,
-            phone: 50,
-            email: 120,
-            sanity: true,
-          })
-        : null
-    );
+// ✅ Keep player_sanity.base_sanity in sync IF sanity was updated
+if (hasOwn(body, "sanity") && Number.isInteger(rows[0]?.sanity)) {
+  await query(
+    `
+    UPDATE player_sanity
+       SET base_sanity = $1,
+           updated_at = NOW()
+     WHERE tenant_id = $2
+       AND player_id = $3
+    `,
+    [rows[0].sanity, tenantId, rows[0].id]
+  );
+}
+
+return Response.json(
+  rows[0]
+    ? sanitizeRow(rows[0], {
+        firstName: 100,
+        lastName: 100,
+        characterName: 100,
+        notes: 2000,
+        phone: 50,
+        email: 120,
+        sanity: true,
+      })
+    : null
+);
   } catch (e) {
     return Response.json({ error: e.message }, { status: 400 });
   }
