@@ -242,5 +242,9 @@ export default function PlayerPage() {
         ))}
       </ul>
     </div>,
-    document.body
-  )}
+   document.body
+    )}
+
+    </div>
+  );
+}
