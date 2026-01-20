@@ -576,7 +576,7 @@ async function adjustSanity(playerId, delta) {
                     </div>
                   </div>
 
-                 {sanityEnabled && sanityMode && Number.isInteger(s?.base) && (
+                {sanityEnabled && sanityMode && (
   <div className="player-widget__sanity-inline">
     <button
       className="player-widget__sanity-arrow"
@@ -588,8 +588,19 @@ async function adjustSanity(playerId, delta) {
     </button>
 
     <div className={`player-widget__sanval player-widget__sanval--${tone}`}>
-      SAN {Number.isInteger(s?.current) ? s.current : s.base}
+      SAN {s?.current ?? "—"}
     </div>
+
+    <button
+      className="player-widget__sanity-arrow"
+      title="Decrease sanity"
+      onPointerDown={(e) => e.stopPropagation()}
+      onClick={() => adjustSanity(p.id, -1)}
+    >
+      ▼
+    </button>
+  </div>
+)}
 
     <button
       className="player-widget__sanity-arrow"
