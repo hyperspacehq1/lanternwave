@@ -452,3 +452,14 @@
   background: #000 !important; /* prevent hover from looking "active" */
 }
 
+/* --- Click-through container so header/menu still works --- */
+.player-widget {
+  pointer-events: none;
+}
+
+.player-widget__header,
+.player-widget__body,
+.player-widget__body * {
+  pointer-events: auto;
+}
+
