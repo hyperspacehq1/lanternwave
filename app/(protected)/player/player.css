@@ -303,3 +303,60 @@
   75%  { transform: translateX(-50%) translateX(-1px); }
   100% { transform: translateX(-50%) translateX(0); }
 }
+
+/* ===============================
+   PLAYER VIEW — HELP TOOLTIP
+=============================== */
+
+.lw-player .lw-tooltip {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial,
+    sans-serif;
+  font-weight: 800;
+  color: rgb(108, 196, 23);
+
+  background: rgba(0, 0, 0, 0.9);
+  border: 1px solid rgba(108, 196, 23, 0.55);
+  border-radius: 10px;
+
+  padding: 14px 18px;
+  max-width: 360px;
+
+  font-size: 15px;
+  line-height: normal;
+  letter-spacing: 0.02em;
+
+  box-shadow:
+    0 0 12px rgba(108, 196, 23, 0.35),
+    0 0 26px rgba(0, 0, 0, 0.85);
+}
+
+/* Title */
+.lw-player .lw-tooltip strong {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 16px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: rgb(108, 196, 23);
+}
+
+/* Body text */
+.lw-player .lw-tooltip p {
+  margin: 0;
+  font-weight: 800;
+}
+
+/* Tooltip fade animation */
+.lw-player .lw-tooltip {
+  opacity: 0;
+  transform: translateY(4px) scale(0.98);
+  animation: lw-tooltip-fade-in 160ms ease-out forwards;
+}
+
+@keyframes lw-tooltip-fade-in {
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+

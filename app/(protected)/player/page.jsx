@@ -165,12 +165,7 @@ export default function PlayerPage() {
       {!key && <div className="lw-player-idle">NO SIGNAL</div>}
 
 {/* Player Help Tooltip */}
-<Tooltip
-  content={{
-    title: "Player View",
-    body: "This screen displays live media, NPC pulses, and sanity effects pushed by the GM.",
-  }}
->
+<Tooltip content="player.help">
   <button
     className="lw-player-help"
     aria-label="Player view help"
