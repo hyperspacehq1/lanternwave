@@ -540,75 +540,76 @@ export default function PlayerCharactersWidget({ campaignId }) {
 
       {!collapsed && (
         <div className="player-widget__body">
-          {sanityEnabled && sanityMode && (
-            <div
-              className="player-widget__sanitybar"
-              onPointerDown={(e) => e.stopPropagation()}
-            >
-              {/* ✅ NEW NOTICE */}
-              {sanityNotice && (
-                <div
-                  className="player-widget__sanity-notice"
-                  role="status"
-                  aria-live="polite"
-                >
-                  {sanityNotice}
-                </div>
-              )}
+         {sanityEnabled && sanityMode && (
+  <>
+    {sanityNotice && (
+      <div
+        className="player-widget__sanity-notice"
+        role="status"
+        aria-live="polite"
+      >
+        {sanityNotice}
+      </div>
+    )}
 
-              <div className="player-widget__sanitybar-actions">
-                <button
-                  type="button"
-                  className="player-widget__sanbtn"
-                  onClick={() => rollSanityForSelected("1d2")}
-                >
-                  1D2
-                </button>
-                <button
-                  type="button"
-                  className="player-widget__sanbtn"
-                  onClick={() => rollSanityForSelected("1d3")}
-                >
-                  1D3
-                </button>
-                <button
-                  type="button"
-                  className="player-widget__sanbtn"
-                  onClick={() => rollSanityForSelected("1d6")}
-                >
-                  1D6
-                </button>
-                <button
-                  type="button"
-                  className="player-widget__sanbtn"
-                  onClick={() => rollSanityForSelected("1d8")}
-                >
-                  1D8
-                </button>
-                <button
-                  type="button"
-                  className="player-widget__sanbtn"
-                  onClick={() => rollSanityForSelected("1d20")}
-                >
-                  1D20
-                </button>
+    <div
+      className="player-widget__sanitybar"
+      onPointerDown={(e) => e.stopPropagation()}
+    >
+      <div className="player-widget__sanitybar-actions">
+        <button
+          type="button"
+          className="player-widget__sanbtn"
+          onClick={() => rollSanityForSelected("1d2")}
+        >
+          1D2
+        </button>
+        <button
+          type="button"
+          className="player-widget__sanbtn"
+          onClick={() => rollSanityForSelected("1d3")}
+        >
+          1D3
+        </button>
+        <button
+          type="button"
+          className="player-widget__sanbtn"
+          onClick={() => rollSanityForSelected("1d6")}
+        >
+          1D6
+        </button>
+        <button
+          type="button"
+          className="player-widget__sanbtn"
+          onClick={() => rollSanityForSelected("1d8")}
+        >
+          1D8
+        </button>
+        <button
+          type="button"
+          className="player-widget__sanbtn"
+          onClick={() => rollSanityForSelected("1d20")}
+        >
+          1D20
+        </button>
 
-                <button
-                  type="button"
-                  className="player-widget__sanbtn"
-                  title="Reset all sanity"
-                  onClick={resetAllSanity}
-                >
-                  <img
-                    src="/reset.png"
-                    alt="Reset"
-                    className="player-widget__reset-icon"
-                    draggable={false}
-                  />
-                </button>
-              </div>
-            </div>
-          )}
+        <button
+          type="button"
+          className="player-widget__sanbtn"
+          title="Reset all sanity"
+          onClick={resetAllSanity}
+        >
+          <img
+            src="/reset.png"
+            alt="Reset"
+            className="player-widget__reset-icon"
+            draggable={false}
+          />
+        </button>
+      </div>
+    </div>
+  </>
+)}
 
           <ul className={`player-widget__list ${layout}`}>
             {orderedPlayers.map((p) => {
