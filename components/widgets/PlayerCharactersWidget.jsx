@@ -690,56 +690,58 @@ export default function PlayerCharactersWidget({ campaignId }) {
                   </div>
 
                   {/* ✅ SANITY INLINE (value + stacked arrows on the RIGHT) */}
-                  {sanityEnabled && sanityMode && (
-                    <div className="player-widget__sanity-inline">
-                      <div
-                        className={`player-widget__sanval player-widget__sanval--${tone}`}
-                      >
-                        SAN {Number.isFinite(s?.current) ? s.current : "—"}
-                      </div>
+                  <div className="player-widget__actions">
+  {sanityEnabled && sanityMode && (
+    <div className="player-widget__sanity-inline">
+      <div
+        className={`player-widget__sanval player-widget__sanval--${tone}`}
+      >
+        SAN {Number.isFinite(s?.current) ? s.current : "—"}
+      </div>
 
-                      <div className="player-widget__sanity-arrows">
-                        <button
-                          type="button"
-                          className="player-widget__sanity-arrow"
-                          title="Increase sanity"
-                          onPointerDown={(e) => e.stopPropagation()}
-                          onClick={() => adjustSanity(p.id, +1)}
-                        >
-                          ▲
-                        </button>
+      <div className="player-widget__sanity-arrows">
+        <button
+          type="button"
+          className="player-widget__sanity-arrow"
+          title="Increase sanity"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={() => adjustSanity(p.id, +1)}
+        >
+          ▲
+        </button>
 
-                        <button
-                          type="button"
-                          className="player-widget__sanity-arrow"
-                          title="Decrease sanity"
-                          onPointerDown={(e) => e.stopPropagation()}
-                          onClick={() => adjustSanity(p.id, -1)}
-                        >
-                          ▼
-                        </button>
-                      </div>
-                    </div>
-                  )}
+        <button
+          type="button"
+          className="player-widget__sanity-arrow"
+          title="Decrease sanity"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={() => adjustSanity(p.id, -1)}
+        >
+          ▼
+        </button>
+      </div>
+    </div>
+  )}
 
-                  <button
-                    type="button"
-                    className="player-widget__hidebtn"
-                    onPointerDown={(e) => e.stopPropagation()}
-                    title={off ? "Show player" : "Hide player"}
-                    onClick={() => {
-                      const n = { ...inactive, [p.id]: !off };
-                      setInactive(n);
-                      persistUI({ inactive: n });
-                    }}
-                  >
-                    <img
-                      src={off ? "/unhide.png" : "/hide.png"}
-                      alt={off ? "Show" : "Hide"}
-                      className="player-widget__hide-icon"
-                      draggable={false}
-                    />
-                  </button>
+  <button
+    type="button"
+    className="player-widget__hidebtn"
+    onPointerDown={(e) => e.stopPropagation()}
+    title={off ? "Show player" : "Hide player"}
+    onClick={() => {
+      const n = { ...inactive, [p.id]: !off };
+      setInactive(n);
+      persistUI({ inactive: n });
+    }}
+  >
+    <img
+      src={off ? "/unhide.png" : "/hide.png"}
+      alt={off ? "Show" : "Hide"}
+      className="player-widget__hide-icon"
+      draggable={false}
+    />
+  </button>
+</div>
                 </li>
               );
             })}
