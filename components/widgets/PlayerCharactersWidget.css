@@ -152,8 +152,8 @@
 .player-widget__list.vertical {
   display: flex;
   flex-direction: column;
-  width: fit-content;
-  max-width: 360px;
+  width: 100%;
+  max-width: 100%;
 }
 
 /* ================= PLAYER ROW ================= */
@@ -168,7 +168,7 @@
   border-radius: 6px;
   margin-bottom: 8px;
   background: #050505;
-  white-space: nowrap;
+  white-space: normal;
   transition: transform 140ms ease, box-shadow 140ms ease;
 }
 
