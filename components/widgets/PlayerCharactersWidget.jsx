@@ -601,3 +601,30 @@ async function adjustSanity(playerId, delta) {
     </button>
   </div>
 )}
+
+<button
+                    className="player-widget__hidebtn"
+                    onPointerDown={(e) => e.stopPropagation()}
+                    title={off ? "Show player" : "Hide player"}
+                    onClick={() => {
+                      const n = { ...inactive, [p.id]: !off };
+                      setInactive(n);
+                      persistUI({ inactive: n });
+                    }}
+                  >
+                    <img
+                      src={off ? "/unhide.png" : "/hide.png"}
+                      alt={off ? "Show" : "Hide"}
+                      className="player-widget__hide-icon"
+                      draggable={false}
+                    />
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
