@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import "./player.css";
 import Tooltip from "@/components/Tooltip";
 import { createPortal } from "react-dom";
+import { TOOLTIPS } from "@/lib/tooltips/tooltips";
 
 /* ================================
    Helpers
@@ -164,15 +165,15 @@ export default function PlayerPage() {
     <div className="lw-player">
       {!key && <div className="lw-player-idle">NO SIGNAL</div>}
 
-{/* Player Help Tooltip */}
-<Tooltip content="player.help">
-  <button
-    className="lw-player-help"
-    aria-label="Player view help"
-  >
-    ⓘ
-  </button>
-</Tooltip>
+<button
+  className="lw-player-help"
+  aria-label="Player view help"
+>
+  ⓘ
+  <span className="lw-player-help-tooltip">
+    {TOOLTIPS.player.help.body}
+  </span>
+</button>
 
       {/* -------------------------------
           Background Media
