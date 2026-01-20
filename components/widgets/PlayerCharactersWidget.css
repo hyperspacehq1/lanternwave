@@ -437,3 +437,7 @@
   align-items: center;
   pointer-events: none;
 }
+
+.player-widget__sanbtn {
+  transition: opacity 160ms ease, background 160ms ease;
+}

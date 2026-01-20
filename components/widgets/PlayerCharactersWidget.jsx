@@ -238,6 +238,7 @@ export default function PlayerCharactersWidget({ campaignId }) {
     () => Object.keys(turns).filter((id) => !!turns[id]),
     [turns]
   );
+const hasSelection = selectedIds.length > 0;
 
   // ✅ Clear notice when selection changes (prevents sticky warning)
   useEffect(() => {
@@ -567,6 +568,7 @@ export default function PlayerCharactersWidget({ campaignId }) {
         <button
           type="button"
           className="player-widget__sanbtn"
+  disabled={!hasSelection}
           onClick={() => rollSanityForSelected("1d3")}
         >
           1D3
@@ -574,6 +576,7 @@ export default function PlayerCharactersWidget({ campaignId }) {
         <button
           type="button"
           className="player-widget__sanbtn"
+  disabled={!hasSelection}
           onClick={() => rollSanityForSelected("1d6")}
         >
           1D6
@@ -581,6 +584,7 @@ export default function PlayerCharactersWidget({ campaignId }) {
         <button
           type="button"
           className="player-widget__sanbtn"
+  disabled={!hasSelection}
           onClick={() => rollSanityForSelected("1d8")}
         >
           1D8
@@ -588,6 +592,7 @@ export default function PlayerCharactersWidget({ campaignId }) {
         <button
           type="button"
           className="player-widget__sanbtn"
+  disabled={!hasSelection}
           onClick={() => rollSanityForSelected("1d20")}
         >
           1D20
@@ -596,6 +601,7 @@ export default function PlayerCharactersWidget({ campaignId }) {
         <button
           type="button"
           className="player-widget__sanbtn"
+  disabled={!hasSelection}
           title="Reset all sanity"
           onClick={resetAllSanity}
         >
