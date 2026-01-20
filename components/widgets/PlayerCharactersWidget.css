@@ -373,10 +373,7 @@
 }
 
 .player-widget__flash {
-  position: absolute;
-  right: 54px;
-  top: 50%;
-  transform: translateY(-50%);
+  position: relative;
   pointer-events: none;
   animation: san-flash 2s ease forwards;
 }
@@ -417,3 +414,13 @@
   }
 }
 
+/* ================= SANITY FLASH SLOT ================= */
+
+.player-widget__flash-slot {
+  flex: 0 0 auto;
+  min-width: 48px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  pointer-events: none;
+}
