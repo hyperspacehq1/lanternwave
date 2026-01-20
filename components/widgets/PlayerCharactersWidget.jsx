@@ -575,6 +575,11 @@ const hasSelection = selectedIds.length > 0;
           type="button"
           className="player-widget__sanbtn"
   disabled={!hasSelection}
+ style={{
+    opacity: hasSelection ? 1 : 0.25,
+    pointerEvents: hasSelection ? "auto" : "none",
+    filter: hasSelection ? "none" : "grayscale(1)",
+  }}
           onClick={() => rollSanityForSelected("1d2")}
         >
           1D2
@@ -583,6 +588,11 @@ const hasSelection = selectedIds.length > 0;
           type="button"
           className="player-widget__sanbtn"
   disabled={!hasSelection}
+ style={{
+    opacity: hasSelection ? 1 : 0.25,
+    pointerEvents: hasSelection ? "auto" : "none",
+    filter: hasSelection ? "none" : "grayscale(1)",
+  }}
           onClick={() => rollSanityForSelected("1d3")}
         >
           1D3
@@ -591,6 +601,11 @@ const hasSelection = selectedIds.length > 0;
           type="button"
           className="player-widget__sanbtn"
   disabled={!hasSelection}
+ style={{
+    opacity: hasSelection ? 1 : 0.25,
+    pointerEvents: hasSelection ? "auto" : "none",
+    filter: hasSelection ? "none" : "grayscale(1)",
+  }}
           onClick={() => rollSanityForSelected("1d6")}
         >
           1D6
@@ -599,6 +614,11 @@ const hasSelection = selectedIds.length > 0;
           type="button"
           className="player-widget__sanbtn"
   disabled={!hasSelection}
+ style={{
+    opacity: hasSelection ? 1 : 0.25,
+    pointerEvents: hasSelection ? "auto" : "none",
+    filter: hasSelection ? "none" : "grayscale(1)",
+  }}
           onClick={() => rollSanityForSelected("1d8")}
         >
           1D8
@@ -607,6 +627,11 @@ const hasSelection = selectedIds.length > 0;
           type="button"
           className="player-widget__sanbtn"
   disabled={!hasSelection}
+ style={{
+    opacity: hasSelection ? 1 : 0.25,
+    pointerEvents: hasSelection ? "auto" : "none",
+    filter: hasSelection ? "none" : "grayscale(1)",
+  }}
           onClick={() => rollSanityForSelected("1d20")}
         >
           1D20
