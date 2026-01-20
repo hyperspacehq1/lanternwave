@@ -143,14 +143,19 @@ setTurns(cleanedTurns);
   const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
 
   function onDragStart(e) {
-    dragging.current = true;
-    const r = widgetRef.current.getBoundingClientRect();
-    dragOffset.current = {
-      dx: e.clientX - r.left,
-      dy: e.clientY - r.top,
-    };
-    widgetRef.current?.setPointerCapture(e.pointerId);
-  }
+  // ✅ Only drag on primary (left) button
+  if (e.button !== 0) return;
+
+  dragging.current = true;
+
+  const r = widgetRef.current.getBoundingClientRect();
+  dragOffset.current = {
+    dx: e.clientX - r.left,
+    dy: e.clientY - r.top,
+  };
+
+  widgetRef.current?.setPointerCapture(e.pointerId);
+}
 
   function onPointerMove(e) {
     if (!dragging.current) return;
@@ -177,12 +182,12 @@ setTurns(cleanedTurns);
   }
 
   function onPointerUp(e) {
-    dragging.current = false;
-    try {
-      widgetRef.current?.releasePointerCapture(e.pointerId);
-    } catch {}
-  }
+  dragging.current = false;
 
+  if (widgetRef.current?.hasPointerCapture?.(e.pointerId)) {
+    widgetRef.current.releasePointerCapture(e.pointerId);
+  }
+}
   /* -----------------------------------------------------------
      Load players
   ------------------------------------------------------------ */
