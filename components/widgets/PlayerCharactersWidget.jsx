@@ -264,14 +264,13 @@ export default function PlayerCharactersWidget({ campaignId }) {
     const k = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
     setSanityFlash((prev) => ({
-      ...prev,
-      [playerId]: {
-        key: k,
-        tone,
-        textTop: "SANITY",
-        textBottom: `SAN ${after}${loss ? ` (-${loss})` : ""}`,
-      },
-    }));
+  ...prev,
+  [playerId]: {
+    key: k,
+    tone,
+    value: `${loss ? `-${loss} / ` : ""}${after}`,
+  },
+}));
 
     setTimeout(() => {
       setSanityFlash((prev) => {
@@ -641,17 +640,15 @@ export default function PlayerCharactersWidget({ campaignId }) {
                   }}
                 >
                   {flash && (
-                    <div
-                      className={`player-widget__flash player-widget__flash--${flash.tone}`}
-                    >
-                      <div className="player-widget__flash-top">
-                        {flash.textTop}
-                      </div>
-                      <div className="player-widget__flash-bottom">
-                        {flash.textBottom}
-                      </div>
-                    </div>
-                  )}
+  <div
+    key={flash.key}
+    className={`player-widget__flash player-widget__flash--${flash.tone}`}
+  >
+    <span className="player-widget__flash-value">
+      {flash.value}
+    </span>
+  </div>
+)}
 
                   <span
                     className="player-widget__drag"

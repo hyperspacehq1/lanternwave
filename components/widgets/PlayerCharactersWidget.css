@@ -67,16 +67,16 @@
 /* ================= SANITY BAR ================= */
 
 .player-widget__sanitybar {
-  position: relative;
   display: flex;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column; /* ✅ key change */
+  align-items: stretch;   /* ✅ allow notice to expand */
+  gap: 8px;
   padding: 10px;
   margin-bottom: 10px;
   border: 1px solid rgba(245, 197, 66, 0.35);
   border-radius: 6px;
   background: #070707;
-  width: fit-content;
+  width: 100%;            /* ✅ allow full-width notice */
   max-width: min(100%, 520px);
 }
 
@@ -84,6 +84,7 @@
   display: flex;
   flex-wrap: nowrap;
   gap: 8px;
+  justify-content: center;
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: none;
@@ -376,10 +377,14 @@
 }
 
 .player-widget__sanity-notice {
-  margin: 6px 0 8px;
+  padding: 6px 10px;
   font-size: 12px;
+  font-weight: 700;
   text-align: center;
-  color: #d97706;
+  color: #f5c542;
+  background: rgba(245, 197, 66, 0.12);
+  border: 1px solid rgba(245, 197, 66, 0.35);
+  border-radius: 6px;
 }
 
 /* Right-side action group */
@@ -397,5 +402,50 @@
   min-height: 18px;
   max-width: 18px;
   max-height: 18px;
+}
+
+.player-widget__flash {
+  position: absolute;
+  right: 54px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  animation: san-flash 2s ease forwards;
+}
+
+.player-widget__flash-value {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial,
+    sans-serif;
+  font-weight: 800;
+  font-size: 12px;
+  line-height: normal;
+  color: rgb(141, 245, 138);
+  white-space: nowrap;
+}
+
+/* Tone overrides if needed */
+.player-widget__flash--yellow .player-widget__flash-value {
+  color: #f5c542;
+}
+
+.player-widget__flash--red .player-widget__flash-value {
+  color: #ff6a6a;
+}
+
+@keyframes san-flash {
+  0% {
+    opacity: 0;
+    transform: translateY(-50%) scale(0.95);
+  }
+  15% {
+    opacity: 1;
+    transform: translateY(-50%) scale(1);
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
 }
 
