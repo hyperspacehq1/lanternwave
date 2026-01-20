@@ -2,8 +2,6 @@
   background: #000;
   color: #fff;
   border: 1px solid #f5c542;
-width: fit-content;
-max-width: 520px;
   overflow: hidden;
   border-radius: 8px;
   box-shadow: 0 0 16px rgba(0, 0, 0, 0.85);
@@ -79,8 +77,8 @@ max-width: 520px;
   border: 1px solid rgba(245, 197, 66, 0.35);
   border-radius: 6px;
   background: #070707;
-  width: fit-content;
-  max-width: 520px;
+  width: 100%;
+  max-width: min(100%, 520px);
 }
 
 .player-widget__sanitybar-actions {
@@ -132,8 +130,8 @@ max-width: 520px;
 .player-widget__list.vertical {
   display: flex;
   flex-direction: column;
-  width: fit-content;
-  max-width: 360px;
+  width: 100%;
+  max-width: 100%;
 }
 
 /* ================= PLAYER ROW ================= */
@@ -439,29 +437,3 @@ max-width: 520px;
   align-items: center;
   pointer-events: none;
 }
-
-.player-widget__sanbtn {
-  transition: opacity 160ms ease, background 160ms ease;
-}
-
-/* Force "inoperable" look when no players are selected */
-.player-widget__sanitybar-actions--disabled .player-widget__sanbtn {
-  opacity: 0.25 !important;
-  filter: grayscale(1) brightness(0.75);
-}
-
-.player-widget__sanitybar-actions--disabled .player-widget__sanbtn:hover {
-  background: #000 !important; /* prevent hover from looking "active" */
-}
-
-/* --- Click-through container so header/menu still works --- */
-.player-widget {
-  pointer-events: none;
-}
-
-.player-widget__header,
-.player-widget__body,
-.player-widget__body * {
-  pointer-events: auto;
-}
-

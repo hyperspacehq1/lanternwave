@@ -61,16 +61,7 @@ export default function PlayerCharactersWidget({ campaignId }) {
       const s = JSON.parse(raw);
       setCollapsed(!!s.collapsed);
       setInactive(s.inactive || {});
-      const rawTurns = s.turns || {};
-const cleanedTurns = {};
-
-for (const id in rawTurns) {
-  if (rawTurns[id] === true) {
-    cleanedTurns[id] = true;
-  }
-}
-
-setTurns(cleanedTurns);
+      setTurns(s.turns || {});
       setOrder(s.order || []);
       if (s.pos) setPos(s.pos);
       setSanityMode(!!s.sanityMode);
@@ -143,19 +134,14 @@ setTurns(cleanedTurns);
   const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
 
   function onDragStart(e) {
-  // ✅ Only drag on primary (left) button
-  if (e.button !== 0) return;
-
-  dragging.current = true;
-
-  const r = widgetRef.current.getBoundingClientRect();
-  dragOffset.current = {
-    dx: e.clientX - r.left,
-    dy: e.clientY - r.top,
-  };
-
-  widgetRef.current?.setPointerCapture(e.pointerId);
-}
+    dragging.current = true;
+    const r = widgetRef.current.getBoundingClientRect();
+    dragOffset.current = {
+      dx: e.clientX - r.left,
+      dy: e.clientY - r.top,
+    };
+    widgetRef.current?.setPointerCapture(e.pointerId);
+  }
 
   function onPointerMove(e) {
     if (!dragging.current) return;
@@ -182,12 +168,12 @@ setTurns(cleanedTurns);
   }
 
   function onPointerUp(e) {
-  dragging.current = false;
-
-  if (widgetRef.current?.hasPointerCapture?.(e.pointerId)) {
-    widgetRef.current.releasePointerCapture(e.pointerId);
+    dragging.current = false;
+    try {
+      widgetRef.current?.releasePointerCapture(e.pointerId);
+    } catch {}
   }
-}
+
   /* -----------------------------------------------------------
      Load players
   ------------------------------------------------------------ */
@@ -214,18 +200,6 @@ setTurns(cleanedTurns);
   const orderedPlayers = order
     .map((id) => players.find((p) => p.id === id))
     .filter(Boolean);
-
-// 🧹 Safety net: drop stale selected player IDs that aren't rendered
-useEffect(() => {
-  setTurns((prev) => {
-    const valid = new Set(orderedPlayers.map((p) => String(p.id)));
-    const next = {};
-    for (const id in prev) {
-      if (prev[id] && valid.has(String(id))) next[id] = true;
-    }
-    return next;
-  });
-}, [orderedPlayers]);
 
   useEffect(() => {
     if (!campaignId || !sanityEnabled) return;
@@ -260,14 +234,10 @@ useEffect(() => {
   /* -----------------------------------------------------------
      Sanity helpers
   ------------------------------------------------------------ */
-// ✅ Selection must come from players that actually exist in this widget
-const selectedIds = useMemo(() => {
-  return orderedPlayers
-    .filter((p) => turns[p.id])
-    .map((p) => p.id);
-}, [orderedPlayers, turns]);
-
-const hasSelection = selectedIds.length > 0;
+  const selectedIds = useMemo(
+    () => Object.keys(turns).filter((id) => !!turns[id]),
+    [turns]
+  );
 
   // ✅ Clear notice when selection changes (prevents sticky warning)
   useEffect(() => {
@@ -570,85 +540,75 @@ const hasSelection = selectedIds.length > 0;
 
       {!collapsed && (
         <div className="player-widget__body">
-         {sanityEnabled && sanityMode && (
-  <>
-    {sanityNotice && (
-      <div
-        className="player-widget__sanity-notice"
-        role="status"
-        aria-live="polite"
-      >
-        {sanityNotice}
-      </div>
-    )}
+          {sanityEnabled && sanityMode && (
+            <div
+              className="player-widget__sanitybar"
+              onPointerDown={(e) => e.stopPropagation()}
+            >
+              {/* ✅ NEW NOTICE */}
+              {sanityNotice && (
+                <div
+                  className="player-widget__sanity-notice"
+                  role="status"
+                  aria-live="polite"
+                >
+                  {sanityNotice}
+                </div>
+              )}
 
-    <div
-      className="player-widget__sanitybar"
-      onPointerDown={(e) => e.stopPropagation()}
-    >
-      <div
-  className={`player-widget__sanitybar-actions ${
-    hasSelection ? "" : "player-widget__sanitybar-actions--disabled"
-  }`}
->
-        <button
-          type="button"
-          className="player-widget__sanbtn"
-  disabled={!hasSelection}
-          onClick={() => rollSanityForSelected("1d2")}
-        >
-          1D2
-        </button>
-        <button
-          type="button"
-          className="player-widget__sanbtn"
-  disabled={!hasSelection}
-          onClick={() => rollSanityForSelected("1d3")}
-        >
-          1D3
-        </button>
-        <button
-          type="button"
-          className="player-widget__sanbtn"
-  disabled={!hasSelection}
-          onClick={() => rollSanityForSelected("1d6")}
-        >
-          1D6
-        </button>
-        <button
-          type="button"
-          className="player-widget__sanbtn"
-  disabled={!hasSelection}
-          onClick={() => rollSanityForSelected("1d8")}
-        >
-          1D8
-        </button>
-        <button
-          type="button"
-          className="player-widget__sanbtn"
-  disabled={!hasSelection}
-          onClick={() => rollSanityForSelected("1d20")}
-        >
-          1D20
-        </button>
+              <div className="player-widget__sanitybar-actions">
+                <button
+                  type="button"
+                  className="player-widget__sanbtn"
+                  onClick={() => rollSanityForSelected("1d2")}
+                >
+                  1D2
+                </button>
+                <button
+                  type="button"
+                  className="player-widget__sanbtn"
+                  onClick={() => rollSanityForSelected("1d3")}
+                >
+                  1D3
+                </button>
+                <button
+                  type="button"
+                  className="player-widget__sanbtn"
+                  onClick={() => rollSanityForSelected("1d6")}
+                >
+                  1D6
+                </button>
+                <button
+                  type="button"
+                  className="player-widget__sanbtn"
+                  onClick={() => rollSanityForSelected("1d8")}
+                >
+                  1D8
+                </button>
+                <button
+                  type="button"
+                  className="player-widget__sanbtn"
+                  onClick={() => rollSanityForSelected("1d20")}
+                >
+                  1D20
+                </button>
 
-        <button
-          type="button"
-          className="player-widget__sanbtn"
-          title="Reset all sanity"
-          onClick={resetAllSanity}
-        >
-          <img
-            src="/reset.png"
-            alt="Reset"
-            className="player-widget__reset-icon"
-            draggable={false}
-          />
-        </button>
-      </div>
-    </div>
-  </>
-)}
+                <button
+                  type="button"
+                  className="player-widget__sanbtn"
+                  title="Reset all sanity"
+                  onClick={resetAllSanity}
+                >
+                  <img
+                    src="/reset.png"
+                    alt="Reset"
+                    className="player-widget__reset-icon"
+                    draggable={false}
+                  />
+                </button>
+              </div>
+            </div>
+          )}
 
           <ul className={`player-widget__list ${layout}`}>
             {orderedPlayers.map((p) => {
@@ -705,20 +665,13 @@ const hasSelection = selectedIds.length > 0;
                     ☰
                   </span>
 
-                 <input
+                  <input
                     className="player-widget__checkbox"
                     type="checkbox"
                     checked={!!turns[p.id]}
                     onPointerDown={(e) => e.stopPropagation()}
                     onChange={() => {
-                      const n = { ...turns };
-
-                      if (n[p.id]) {
-                        delete n[p.id]; // remove key entirely
-                      } else {
-                        n[p.id] = true; // only store checked players
-                      }
-
+                      const n = { ...turns, [p.id]: !turns[p.id] };
                       setTurns(n);
                       persistUI({ turns: n });
                     }}
