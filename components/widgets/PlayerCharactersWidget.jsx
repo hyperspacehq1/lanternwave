@@ -234,10 +234,13 @@ export default function PlayerCharactersWidget({ campaignId }) {
   /* -----------------------------------------------------------
      Sanity helpers
   ------------------------------------------------------------ */
-  const selectedIds = useMemo(
-    () => Object.keys(turns).filter((id) => !!turns[id]),
-    [turns]
-  );
+  const selectedIds = useMemo(() => {
+  return orderedPlayers
+    .filter((p) => turns[p.id])
+    .map((p) => p.id);
+}, [orderedPlayers, turns]);
+
+const hasSelection = selectedIds.length > 0;
 
   // ✅ Clear notice when selection changes (prevents sticky warning)
   useEffect(() => {
@@ -556,10 +559,15 @@ export default function PlayerCharactersWidget({ campaignId }) {
                 </div>
               )}
 
-              <div className="player-widget__sanitybar-actions">
+              <div
+  className={`player-widget__sanitybar-actions ${
+    hasSelection ? "" : "player-widget__sanitybar-actions--disabled"
+  }`}
+>
                 <button
                   type="button"
                   className="player-widget__sanbtn"
+ disabled={!hasSelection}
                   onClick={() => rollSanityForSelected("1d2")}
                 >
                   1D2
@@ -567,6 +575,7 @@ export default function PlayerCharactersWidget({ campaignId }) {
                 <button
                   type="button"
                   className="player-widget__sanbtn"
+ disabled={!hasSelection}
                   onClick={() => rollSanityForSelected("1d3")}
                 >
                   1D3
@@ -574,6 +583,7 @@ export default function PlayerCharactersWidget({ campaignId }) {
                 <button
                   type="button"
                   className="player-widget__sanbtn"
+ disabled={!hasSelection}
                   onClick={() => rollSanityForSelected("1d6")}
                 >
                   1D6
@@ -581,6 +591,7 @@ export default function PlayerCharactersWidget({ campaignId }) {
                 <button
                   type="button"
                   className="player-widget__sanbtn"
+ disabled={!hasSelection}
                   onClick={() => rollSanityForSelected("1d8")}
                 >
                   1D8
@@ -588,6 +599,7 @@ export default function PlayerCharactersWidget({ campaignId }) {
                 <button
                   type="button"
                   className="player-widget__sanbtn"
+ disabled={!hasSelection}
                   onClick={() => rollSanityForSelected("1d20")}
                 >
                   1D20

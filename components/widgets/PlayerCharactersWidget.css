@@ -437,3 +437,16 @@
   align-items: center;
   pointer-events: none;
 }
+
+/* Dice buttons disabled when no players are selected */
+.player-widget__sanitybar-actions--disabled .player-widget__sanbtn:disabled {
+  opacity: 0.25;
+  filter: grayscale(1) brightness(0.8);
+  cursor: not-allowed;
+}
+
+/* Prevent hover from looking active when disabled */
+.player-widget__sanitybar-actions--disabled
+  .player-widget__sanbtn:disabled:hover {
+  background: #000;
+}
