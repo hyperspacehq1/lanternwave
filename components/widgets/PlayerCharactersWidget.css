@@ -441,3 +441,14 @@
 .player-widget__sanbtn {
   transition: opacity 160ms ease, background 160ms ease;
 }
+
+/* Force "inoperable" look when no players are selected */
+.player-widget__sanitybar-actions--disabled .player-widget__sanbtn {
+  opacity: 0.25 !important;
+  filter: grayscale(1) brightness(0.75);
+}
+
+.player-widget__sanitybar-actions--disabled .player-widget__sanbtn:hover {
+  background: #000 !important; /* prevent hover from looking "active" */
+}
+

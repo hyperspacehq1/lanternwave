@@ -557,7 +557,11 @@ const hasSelection = selectedIds.length > 0;
       className="player-widget__sanitybar"
       onPointerDown={(e) => e.stopPropagation()}
     >
-      <div className="player-widget__sanitybar-actions">
+      <div
+  className={`player-widget__sanitybar-actions ${
+    hasSelection ? "" : "player-widget__sanitybar-actions--disabled"
+  }`}
+>
         <button
           type="button"
           className="player-widget__sanbtn"
