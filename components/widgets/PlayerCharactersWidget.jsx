@@ -561,6 +561,7 @@ const hasSelection = selectedIds.length > 0;
         <button
           type="button"
           className="player-widget__sanbtn"
+  disabled={!hasSelection}
           onClick={() => rollSanityForSelected("1d2")}
         >
           1D2
