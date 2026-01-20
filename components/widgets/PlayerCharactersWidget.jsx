@@ -683,11 +683,17 @@ const hasSelection = selectedIds.length > 0;
                     checked={!!turns[p.id]}
                     onPointerDown={(e) => e.stopPropagation()}
                     onChange={() => {
-                      const n = { ...turns, [p.id]: !turns[p.id] };
-                      setTurns(n);
-                      persistUI({ turns: n });
-                    }}
-                  />
+  const n = { ...turns };
+
+  if (n[p.id]) {
+    delete n[p.id];        // ← remove key entirely
+  } else {
+    n[p.id] = true;        // ← only store checked players
+  }
+
+  setTurns(n);
+  persistUI({ turns: n });
+}}
 
                   <div className="player-widget__text">
                     <div className="player-widget__character">
