@@ -677,24 +677,24 @@ const hasSelection = selectedIds.length > 0;
                     ☰
                   </span>
 
-                  input
-  className="player-widget__checkbox"
-  type="checkbox"
-  checked={!!turns[p.id]}
-  onPointerDown={(e) => e.stopPropagation()}
-  onChange={() => {
-    const n = { ...turns };
+                 <input
+                    className="player-widget__checkbox"
+                    type="checkbox"
+                    checked={!!turns[p.id]}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onChange={() => {
+                      const n = { ...turns };
 
-    if (n[p.id]) {
-      delete n[p.id]; // remove key entirely
-    } else {
-      n[p.id] = true; // only store checked players
-    }
+                      if (n[p.id]) {
+                        delete n[p.id]; // remove key entirely
+                      } else {
+                        n[p.id] = true; // only store checked players
+                      }
 
-    setTurns(n);
-    persistUI({ turns: n });
-  }}
-/>
+                      setTurns(n);
+                      persistUI({ turns: n });
+                    }}
+                  />
 
                   <div className="player-widget__text">
                     <div className="player-widget__character">
