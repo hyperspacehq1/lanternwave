@@ -17,19 +17,14 @@ function computeLoss(rollType, passed) {
   switch (rollType) {
     case "1d2":
       return passed ? 0 : roll(2);
-
     case "1d3":
       return passed ? 0 : roll(3);
-
     case "1d6":
       return passed ? 1 : roll(6);
-
     case "1d8":
       return passed ? 2 : roll(8);
-
     case "1d20":
       return passed ? 6 : roll(20);
-
     default:
       throw new Error("Invalid roll_type");
   }
@@ -49,7 +44,11 @@ export async function POST(req) {
   const tenantId = ctx.tenantId;
   const body = await req.json();
 
-  const { player_id: playerId, campaign_id: campaignId, roll_type: rollType } = body;
+  const {
+    player_id: playerId,
+    campaign_id: campaignId,
+    roll_type: rollType,
+  } = body;
 
   if (!playerId || !campaignId || !rollType) {
     return Response.json(
@@ -86,11 +85,11 @@ export async function POST(req) {
     await query("BEGIN");
 
     /* -------------------------------------------------------
-       Ensure sanity row
+       Load sanity row (AUTHORITATIVE SOURCE)
     ------------------------------------------------------- */
     const sanityRes = await query(
       `
-      SELECT *
+      SELECT base_sanity, current_sanity
       FROM player_sanity
       WHERE tenant_id = $1
         AND campaign_id = $2
@@ -100,44 +99,19 @@ export async function POST(req) {
       [tenantId, campaignId, playerId]
     );
 
-    let baseSanity;
-    let currentSanity;
-
     if (!sanityRes.rows.length) {
-      const playerRes = await query(
-        `
-        SELECT sanity
-        FROM players
-        WHERE id = $1
-          AND tenant_id = $2
-        LIMIT 1
-        `,
-        [playerId, tenantId]
-      );
+      throw new Error("Player sanity row not found");
+    }
 
-      baseSanity = playerRes.rows[0]?.sanity;
-      if (!Number.isInteger(baseSanity)) {
-        throw new Error("Player base sanity not set");
-      }
+    const baseSanity = sanityRes.rows[0].base_sanity;
+    const currentSanity = sanityRes.rows[0].current_sanity;
 
-      currentSanity = baseSanity;
-
-      await query(
-        `
-        INSERT INTO player_sanity (
-          id, tenant_id, campaign_id, player_id, base_sanity, current_sanity
-        )
-        VALUES ($1,$2,$3,$4,$5,$6)
-        `,
-        [uuid(), tenantId, campaignId, playerId, baseSanity, currentSanity]
-      );
-    } else {
-      baseSanity = sanityRes.rows[0].base_sanity;
-      currentSanity = sanityRes.rows[0].current_sanity;
+    if (!Number.isInteger(baseSanity)) {
+      throw new Error("Player base sanity not set");
     }
 
     /* -------------------------------------------------------
-       SANITY ROLL (NEW RULES)
+       SANITY ROLL
     ------------------------------------------------------- */
     const d100 = roll(100);
     const passed = d100 < currentSanity;
@@ -176,7 +150,7 @@ export async function POST(req) {
     );
 
     /* -------------------------------------------------------
-       Update sanity
+       Update sanity (CURRENT ONLY)
     ------------------------------------------------------- */
     await query(
       `
