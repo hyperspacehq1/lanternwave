@@ -188,32 +188,7 @@ export default function PlayerCharactersWidget({ campaignId }) {
         setPlayers(list);
         if (!order.length) setOrder(list.map((p) => p.id));
 
-        // ✅ Robust: handle sanity coming back as string/number
-        setSanityState((prev) => {
-          const next = { ...prev };
-          for (const p of list) {
-            const raw = p?.sanity;
-            const baseNum =
-              raw === null || raw === undefined ? null : Number(raw);
-
-            if (!next[p.id] && Number.isFinite(baseNum)) {
-              const base = Math.trunc(baseNum);
-              next[p.id] = {
-                base,
-                current: base,
-                lastLoss: 0,
-                lastUpdatedAt: Date.now(),
-              };
-            } else if (next[p.id] && Number.isFinite(baseNum)) {
-              // If base changes in DB, keep current but update base
-              next[p.id] = {
-                ...next[p.id],
-                base: Math.trunc(baseNum),
-              };
-            }
-          }
-          return next;
-        });
+       setSanityState((prev) => prev);
       })
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -222,6 +197,36 @@ export default function PlayerCharactersWidget({ campaignId }) {
   const orderedPlayers = order
     .map((id) => players.find((p) => p.id === id))
     .filter(Boolean);
+
+useEffect(() => {
+  if (!campaignId || !sanityEnabled) return;
+
+  fetch(`/api/sanity/list?campaign_id=${campaignId}`, {
+    credentials: "include",
+    cache: "no-store",
+  })
+    .then((r) => r.json())
+    .then((rows) => {
+      if (!Array.isArray(rows)) return;
+
+      setSanityState((prev) => {
+  // ✅ If sanity already exists, do NOT overwrite it
+  if (Object.keys(prev).length) return prev;
+
+  const next = {};
+  for (const r of rows) {
+    next[r.player_id] = {
+      base: Number(r.base_sanity),
+      current: Number(r.current_sanity),
+      lastLoss: 0,
+      lastUpdatedAt: Date.now(),
+    };
+  }
+  return next;
+});
+    })
+    .catch(() => {});
+}, [campaignId, sanityEnabled]);
 
   /* -----------------------------------------------------------
      Sanity helpers
@@ -353,9 +358,10 @@ export default function PlayerCharactersWidget({ campaignId }) {
       setSanityState((prev) => {
         const next = { ...prev };
         for (const id in next) {
-          next[id] = {
-            ...next[id],
-            current: next[id].base,
+  if (!Number.isFinite(next[id]?.base)) continue;
+  next[id] = {
+    ...next[id],
+    current: next[id].base,
             lastLoss: 0,
             lastUpdatedAt: Date.now(),
           };
