@@ -347,6 +347,66 @@ async function rollSanityForSelected(rollType) {
     }
   }
 
+async function adjustSanity(playerId, delta) {
+  if (!campaignId) return;
+
+  // optimistic UI
+  setSanityState((prev) => {
+    const s = prev[playerId];
+    if (!s) return prev;
+    return {
+      ...prev,
+      [playerId]: {
+        ...s,
+        current: s.current + delta,
+        lastLoss: delta < 0 ? Math.abs(delta) : 0,
+        lastUpdatedAt: Date.now(),
+      },
+    };
+  });
+
+  try {
+    const res = await fetch("/api/sanity/adjust", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        player_id: playerId,
+        campaign_id: campaignId,
+        delta,
+      }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error();
+
+    setSanityState((prev) => ({
+      ...prev,
+      [playerId]: {
+        ...prev[playerId],
+        current: data.current_sanity,
+        lastUpdatedAt: Date.now(),
+      },
+    }));
+
+    showSanityFlash(
+      playerId,
+      computeSanTone(playerId),
+      data.current_sanity,
+      delta < 0 ? Math.abs(delta) : 0
+    );
+  } catch {
+    // rollback
+    setSanityState((prev) => ({
+      ...prev,
+      [playerId]: {
+        ...prev[playerId],
+        current: prev[playerId].current - delta,
+      },
+    }));
+  }
+}
+
   /* -----------------------------------------------------------
      RENDER
   ------------------------------------------------------------ */
@@ -516,11 +576,31 @@ async function rollSanityForSelected(rollType) {
                     </div>
                   </div>
 
-                  {sanityEnabled && sanityMode && Number.isInteger(s?.base) && (
-                    <div className={`player-widget__sanval player-widget__sanval--${tone}`}>
-                      SAN {Number.isInteger(s?.current) ? s.current : s.base}
-                    </div>
-                  )}
+                 {sanityEnabled && sanityMode && Number.isInteger(s?.base) && (
+  <div className="player-widget__sanity-inline">
+    <button
+      className="player-widget__sanity-arrow"
+      title="Increase sanity"
+      onPointerDown={(e) => e.stopPropagation()}
+      onClick={() => adjustSanity(p.id, +1)}
+    >
+      ▲
+    </button>
+
+    <div className={`player-widget__sanval player-widget__sanval--${tone}`}>
+      SAN {Number.isInteger(s?.current) ? s.current : s.base}
+    </div>
+
+    <button
+      className="player-widget__sanity-arrow"
+      title="Decrease sanity"
+      onPointerDown={(e) => e.stopPropagation()}
+      onClick={() => adjustSanity(p.id, -1)}
+    >
+      ▼
+    </button>
+  </div>
+)}
 
                   <button
   className="player-widget__hidebtn"

@@ -22,7 +22,17 @@ function validateString(val, max, field) {
 
 function validateOptionalString(val, max, field) {
   if (val === null || val === undefined) return null;
-  return validateString(val, max, field);
+
+  if (typeof val === "string") {
+    const trimmed = val.trim();
+    if (trimmed === "") return null;
+    if (trimmed.length > max) {
+      throw new Error(`${field} max ${max} chars`);
+    }
+    return trimmed;
+  }
+
+  throw new Error(`${field} must be a string`);
 }
 
 function validateOptionalInt(val, field) {

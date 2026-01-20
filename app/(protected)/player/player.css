@@ -12,7 +12,7 @@
   align-items: center;
   justify-content: center;
   border: 1px solid #1c2b1a;
-  overflow: hidden;
+  overflow: hidden
 }
 
 /* Enforce font ONLY inside player */
@@ -152,4 +152,154 @@
   20%  { opacity: 1 }
   80%  { opacity: 1 }
   100% { opacity: 0 }
+}
+
+/* ===============================
+   PLAYER HELP TOOLTIP (TOP RIGHT)
+================================ */
+
+.lw-player-help {
+  position: fixed;
+  top: 14px;
+  right: 16px;
+  z-index: 100000;
+
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: rgba(108, 196, 23, 0.15);
+  border: 1px solid rgba(108, 196, 23, 0.65);
+
+  color: rgb(108, 196, 23);
+  font-size: 12px;
+  font-weight: 700;
+
+  cursor: help;
+
+  box-shadow:
+    0 0 6px rgba(108, 196, 23, 0.45),
+    0 0 14px rgba(108, 196, 23, 0.25);
+
+  animation: lw-player-help-pulse 2.6s ease-in-out infinite;
+}
+
+/* Stop pulse once user interacts */
+.lw-player-help:hover,
+.lw-player-help:focus {
+  animation: none;
+  box-shadow:
+    0 0 10px rgba(108, 196, 23, 0.75),
+    0 0 22px rgba(108, 196, 23, 0.45);
+}
+
+/* Pulse animation */
+@keyframes lw-player-help-pulse {
+  0% {
+    box-shadow:
+      0 0 4px rgba(108, 196, 23, 0.35),
+      0 0 10px rgba(108, 196, 23, 0.2);
+  }
+  50% {
+    box-shadow:
+      0 0 10px rgba(108, 196, 23, 0.7),
+      0 0 22px rgba(108, 196, 23, 0.45);
+  }
+  100% {
+    box-shadow:
+      0 0 4px rgba(108, 196, 23, 0.35),
+      0 0 10px rgba(108, 196, 23, 0.2);
+  }
+}
+
+/* =========================
+   PLAYER SANITY PULSE (HUD)
+========================= */
+.lw-player-sanity-pulse {
+  position: fixed;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000000;
+
+  background: rgba(0, 0, 0, 0.88);
+  color: #fff;
+  padding: 14px 18px;
+  border-radius: 10px;
+
+  border: 1px solid rgba(108, 196, 23, 0.55);
+  box-shadow:
+    0 0 10px rgba(108, 196, 23, 0.35),
+    0 0 24px rgba(0, 0, 0, 0.85);
+
+  font-size: 14px;
+  letter-spacing: 0.05em;
+}
+
+.lw-player-sanity-pulse strong {
+  display: block;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-size: 11px;
+  color: #6cc417;
+}
+
+.lw-player-sanity-pulse ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lw-player-sanity-pulse li {
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+/* =========================
+   SANITY PULSE ANIMATION
+========================= */
+
+.lw-player-sanity-pulse--animate {
+  animation:
+    lw-sanity-fade 2.4s ease-in-out forwards,
+    lw-sanity-shake 0.45s ease-out 0.35s;
+}
+
+/* Fade + subtle scale */
+@keyframes lw-sanity-fade {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) scale(0.96);
+  }
+
+  12% {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+  }
+
+  85% {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) scale(1.02);
+  }
+}
+
+/* Panic shake */
+@keyframes lw-sanity-shake {
+  0%   { transform: translateX(-50%) translateX(0); }
+  15%  { transform: translateX(-50%) translateX(-3px); }
+  30%  { transform: translateX(-50%) translateX(3px); }
+  45%  { transform: translateX(-50%) translateX(-2px); }
+  60%  { transform: translateX(-50%) translateX(2px); }
+  75%  { transform: translateX(-50%) translateX(-1px); }
+  100% { transform: translateX(-50%) translateX(0); }
 }

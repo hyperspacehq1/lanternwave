@@ -301,3 +301,14 @@
   margin-top: 0.25rem;
 }
 
+.beacon-tooltip-icon {
+  color: rgb(245, 197, 66);
+  font-size: 13px;
+  margin-left: 6px;
+  cursor: help;
+}
+
+/* Optional: subtle hover emphasis */
+.beacon-tooltip-icon:hover {
+  filter: drop-shadow(0 0 4px rgba(245, 197, 66, 0.6));
+}

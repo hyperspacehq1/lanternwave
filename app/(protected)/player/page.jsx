@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import "./player.css";
+import Tooltip from "@/components/Tooltip";
+import { createPortal } from "react-dom";
 
 /* ================================
    Helpers
@@ -162,6 +164,21 @@ export default function PlayerPage() {
     <div className="lw-player">
       {!key && <div className="lw-player-idle">NO SIGNAL</div>}
 
+{/* Player Help Tooltip */}
+<Tooltip
+  content={{
+    title: "Player View",
+    body: "This screen displays live media, NPC pulses, and sanity effects pushed by the GM.",
+  }}
+>
+  <button
+    className="lw-player-help"
+    aria-label="Player view help"
+  >
+    ⓘ
+  </button>
+</Tooltip>
+
       {/* -------------------------------
           Background Media
       -------------------------------- */}
@@ -203,35 +220,27 @@ export default function PlayerPage() {
         </div>
       )}
 
-      {/* -------------------------------
-          Player Pulse (Sanity)
-      -------------------------------- */}
-      {playerPulse && (
-        <div
-          style={{
-            position: "fixed",
-            top: 20,
-            left: "50%",
-            transform: "translateX(-50%)",
-            background: "rgba(0,0,0,0.85)",
-            color: "#fff",
-            padding: "12px 16px",
-            borderRadius: 8,
-            zIndex: 99999,
-            fontSize: 14,
-          }}
-        >
-          <strong>{playerPulse.title}</strong>
-          <ul style={{ margin: "8px 0 0", padding: 0, listStyle: "none" }}>
-            {playerPulse.players.map((p) => (
-              <li key={p.player_id}>
-                SAN {p.current}
-                {p.loss ? ` (-${p.loss})` : ""}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-    </div>
-  );
-}
+     {/* -------------------------------
+    Player Pulse (Sanity) — PORTAL
+-------------------------------- */}
+{playerPulse &&
+  typeof document !== "undefined" &&
+  createPortal(
+  <div
+    key={playerPulse?.title + JSON.stringify(playerPulse.players)}
+    className="lw-player-sanity-pulse lw-player-sanity-pulse--animate"
+    role="status"
+    aria-live="polite"
+  >
+      <strong>{playerPulse.title}</strong>
+      <ul>
+        {playerPulse.players.map((p) => (
+          <li key={p.player_id}>
+            SAN {p.current}
+            {p.loss ? ` (-${p.loss})` : ""}
+          </li>
+        ))}
+      </ul>
+    </div>,
+    document.body
+  )}

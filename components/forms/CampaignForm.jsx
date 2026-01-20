@@ -49,7 +49,7 @@ export default function CampaignForm({ record, onChange }) {
   // --------------------------------------------------
   // Guard
   // --------------------------------------------------
-  if (!campaign || !record) {
+  if (!record) {
     return (
       <div className="cm-detail-empty">
         <h3>No Campaign Selected</h3>
