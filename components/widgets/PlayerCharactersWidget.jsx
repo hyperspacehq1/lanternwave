@@ -576,7 +576,7 @@ async function adjustSanity(playerId, delta) {
                     </div>
                   </div>
 
-                {sanityEnabled && sanityMode && (
+               {sanityEnabled && sanityMode && (
   <div className="player-widget__sanity-inline">
     <button
       className="player-widget__sanity-arrow"
@@ -601,41 +601,3 @@ async function adjustSanity(playerId, delta) {
     </button>
   </div>
 )}
-
-    <button
-      className="player-widget__sanity-arrow"
-      title="Decrease sanity"
-      onPointerDown={(e) => e.stopPropagation()}
-      onClick={() => adjustSanity(p.id, -1)}
-    >
-      ▼
-    </button>
-  </div>
-)}
-
-                  <button
-  className="player-widget__hidebtn"
-  onPointerDown={(e) => e.stopPropagation()}
-  title={off ? "Show player" : "Hide player"}
-  onClick={() => {
-    const n = { ...inactive, [p.id]: !off };
-    setInactive(n);
-    persistUI({ inactive: n });
-  }}
->
-  <img
-    src={off ? "/unhide.png" : "/hide.png"}
-    alt={off ? "Show" : "Hide"}
-    className="player-widget__hide-icon"
-    draggable={false}
-  />
-</button>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      )}
-    </div>
-  );
-}
