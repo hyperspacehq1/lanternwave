@@ -6,6 +6,10 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /* =========================
+   Now Playing Route
+========================= */
+
+/* =========================
    GET — read active pulse
 ========================= */
 export async function GET(req) {

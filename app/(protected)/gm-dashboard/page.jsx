@@ -74,7 +74,7 @@ async function pulseNpcClip({ npcId, durationMs }) {
 
 async function pulseItemClip({ itemId, durationMs }) {
   // 1. resolve Item → clip key
-  const clipRes = await fetch(`/api/item-pulse/resolve?item_id=${itemId}`, {
+  const clipRes = await fetch(`/api/items/resolve-clip?item_id=${itemId}`, {
     credentials: "include",
   });
   if (!clipRes.ok) return;
@@ -82,19 +82,37 @@ async function pulseItemClip({ itemId, durationMs }) {
   const { key } = await clipRes.json();
   if (!key) return;
 
-  // 2. trigger item pulse (10s handled by backend expiry)
-  await fetch("/api/item-pulse", {
+  // 2. stash current now-playing
+  const nowRes = await fetch("/api/r2/now-playing", {
+    credentials: "include",
+    cache: "no-store",
+  });
+  const nowData = nowRes.ok ? await nowRes.json() : null;
+  const previousKey = nowData?.nowPlaying?.key ?? null;
+
+  // 3. set Item clip
+  await fetch("/api/r2/now-playing", {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ key, durationMs }),
+    body: JSON.stringify({ key }),
   });
+
+  // 4. restore after duration
+  setTimeout(async () => {
+    await fetch("/api/r2/now-playing", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key: previousKey }),
+    });
+  }, durationMs);
 }
 
 async function pulseLocationClip({ locationId, durationMs }) {
   // 1. resolve Location → clip key
   const clipRes = await fetch(
-    `/api/location-pulse/resolve?location_id=${locationId}`,
+    `/api/locations/resolve-clip?location_id=${locationId}`,
     { credentials: "include" }
   );
   if (!clipRes.ok) return;
@@ -102,15 +120,32 @@ async function pulseLocationClip({ locationId, durationMs }) {
   const { key } = await clipRes.json();
   if (!key) return;
 
-  // 2. trigger location pulse (10s handled by backend expiry)
-  await fetch("/api/location-pulse", {
+  // 2. stash current now-playing
+  const nowRes = await fetch("/api/r2/now-playing", {
+    credentials: "include",
+    cache: "no-store",
+  });
+  const nowData = nowRes.ok ? await nowRes.json() : null;
+  const previousKey = nowData?.nowPlaying?.key ?? null;
+
+  // 3. set Location clip
+  await fetch("/api/r2/now-playing", {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ key, durationMs }),
+    body: JSON.stringify({ key }),
   });
-}
 
+  // 4. restore after duration
+  setTimeout(async () => {
+    await fetch("/api/r2/now-playing", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key: previousKey }),
+    });
+  }, durationMs);
+}
 
 /* =========================
    Record Rendering (Field View)
