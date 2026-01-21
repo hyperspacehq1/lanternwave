@@ -77,3 +77,39 @@ export async function POST(req) {
 
   return NextResponse.json({ ok: true });
 }
+
+/* ============================================================
+   DELETE — remove NPC image (soft delete)
+============================================================ */
+export async function DELETE(req) {
+  const { searchParams } = new URL(req.url);
+  const npcId = searchParams.get("npc_id");
+
+  if (!npcId) {
+    return NextResponse.json(
+      { ok: false, error: "missing npc_id" },
+      { status: 400 }
+    );
+  }
+
+  const ctx = await getTenantContext(req);
+  if (!ctx?.tenantId) {
+    return NextResponse.json(
+      { ok: false, error: "unauthorized" },
+      { status: 401 }
+    );
+  }
+
+  await query(
+    `
+    UPDATE npc_clips
+       SET deleted_at = NOW()
+     WHERE npc_id = $1
+       AND deleted_at IS NULL
+    `,
+    [npcId]
+  );
+
+  return NextResponse.json({ ok: true });
+}
+
