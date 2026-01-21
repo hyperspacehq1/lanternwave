@@ -268,6 +268,7 @@ if (DEBUG_GM_JOINS) console.groupEnd();
     console.groupEnd();
   }
 }
+}
 
 function clearJoins(source) {
   setActiveJoinSource((current) => {
