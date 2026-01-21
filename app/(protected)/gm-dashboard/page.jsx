@@ -144,6 +144,7 @@ const [fadingJoins, setFadingJoins] = useState({});
 const [activeJoinSource, setActiveJoinSource] = useState(null);
 const joinsTokenRef = useRef(0);
 const openJoinCountRef = useRef(0);
+const [sessionJoins, setSessionJoins] = useState(null);
 // shape: { entityKey, recordId } | null
 
 /* -------- Floating Windows (overlay layer) -------- */
@@ -453,6 +454,42 @@ if (allRecords.length === 0) return;
     } catch {}
   }, [selectedCampaign?.id, selectedSession?.id]);
 
+
+/* =========================
+   FEATURE B: Session Joins (campaign-scoped)
+========================= */
+useEffect(() => {
+  if (!selectedCampaign?.id) {
+    setSessionJoins(null);
+    return;
+  }
+
+  fetch(`/api/gm/sessions-joins?campaign_id=${selectedCampaign.id}`, {
+    credentials: "include",
+    cache: "no-store",
+  })
+    .then((r) => (r.ok ? r.json() : null))
+    .then((data) => {
+      // normalize all IDs to strings for safe comparison
+      const normalized = {};
+      if (data && typeof data === "object") {
+        for (const [entity, map] of Object.entries(data)) {
+          normalized[entity] = {};
+          if (map && typeof map === "object") {
+            for (const [id, sessions] of Object.entries(map)) {
+              normalized[entity][String(id)] = Array.isArray(sessions)
+                ? sessions.map(String)
+                : [];
+            }
+          }
+        }
+      }
+      setSessionJoins(normalized);
+    })
+    .catch(() => setSessionJoins(null));
+}, [selectedCampaign?.id]);
+
+
   /* =========================
      Load Data (fixed params)
   ========================= */
@@ -536,6 +573,35 @@ if (allRecords.length === 0) return;
       })
       .finally(() => setLoading(false));
   }, [selectedCampaign?.id, selectedSession?.id]);
+
+/* =========================
+   FEATURE B: Session Filter Helper
+========================= */
+const filterBySession = (entityKey, rows) => {
+  // no session selected or joins not loaded → no filtering
+  if (!selectedSession?.id || !sessionJoins) return rows;
+
+  const joinMap = sessionJoins[entityKey];
+  if (!joinMap) return rows;
+
+  const selectedSid = String(selectedSession.id);
+
+  return rows.filter((r) => {
+    const joinedSessions = joinMap[String(r.id)];
+
+    // show if:
+    // 1) not joined to any session
+    // 2) joined to selected session
+    return (
+      !Array.isArray(joinedSessions) ||
+      joinedSessions.length === 0 ||
+      joinedSessions.includes(selectedSid)
+    );
+  });
+};
+
+
+
 
   /* =========================
      Future-safe full-page editor path (pop-out later)
@@ -634,7 +700,7 @@ if (allRecords.length === 0) return;
   title="Events"
   color="red"
   entityKey="events"
-  items={events}
+ items={filterBySession("events", events)}
   joinHighlights={joinHighlights}
   resolveJoins={resolveJoins}
   clearJoins={clearJoins}
@@ -670,7 +736,7 @@ fadingJoins={fadingJoins}
   title="Encounters"
   color="green"
   entityKey="encounters"
-  items={encounters}
+items={filterBySession("encounters", encounters)}
   joinHighlights={joinHighlights}
   resolveJoins={resolveJoins}
   clearJoins={clearJoins}
@@ -688,7 +754,7 @@ openJoinCountRef={openJoinCountRef}
   title="Locations"
   color="purple"
   entityKey="locations"
-  items={locations}
+items={filterBySession("locations", locations)}
   joinHighlights={joinHighlights}
   resolveJoins={resolveJoins}
   clearJoins={clearJoins}
