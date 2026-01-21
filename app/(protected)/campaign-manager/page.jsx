@@ -170,18 +170,17 @@ useEffect(() => {
     }));
 
     if (activeType === "npcs" && __pendingImageClipId) {
-      await fetch("/api/npc-image", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          npc_id: saved.id,
-          clip_id: __pendingImageClipId,
-        }),
-      });
-    }
-  };
-
+  await fetch("/api/npc-image", {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      npc_id: saved.id,
+      clip_id: __pendingImageClipId,
+    }),
+  });
+}
+    
 const handleDelete = async () => {
   if (!selectedRecord) return;
 
