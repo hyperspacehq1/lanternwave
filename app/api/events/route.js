@@ -204,15 +204,16 @@ export async function PUT(req) {
   }
 
   if (hasOwn(body, "search_body") || hasOwn(body, "searchBody")) {
-    const sb = body.search_body ?? body.searchBody;
-    if (typeof sb !== "string" && sb !== null) {
-      return Response.json({ error: "search_body must be a string" }, { status: 400 });
-    }
-    if (sb && sb.length > 20000) {
-      return Response.json({ error: "search_body too long" }, { status: 400 });
-    }
-  }
+  const sb = body.search_body ?? body.searchBody;
 
+  // ignore undefined (means "not edited")
+  if (sb !== undefined && typeof sb !== "string" && sb !== null) {
+    return Response.json(
+      { error: "search_body must be a string" },
+      { status: 400 }
+    );
+  }
+}
   if (hasOwn(body, "priority") && !Number.isInteger(body.priority)) {
     return Response.json({ error: "priority must be an integer" }, { status: 400 });
   }
