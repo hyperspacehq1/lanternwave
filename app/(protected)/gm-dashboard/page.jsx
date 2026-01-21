@@ -206,6 +206,15 @@ y: clamp(clickY - 20, 16, window.innerHeight - 240 - 16),
    Resolve joined records
 ========================= */
 async function resolveJoins(entityKey, recordId) {
+
+  // 🔒 Guard: prevent re-resolving the same join source
+  if (
+    activeJoinSource?.entityKey === entityKey &&
+    activeJoinSource?.recordId === recordId
+  ) {
+    return;
+  }
+
 const myToken = ++joinsTokenRef.current;
 
 if (!["sessions", "encounters", "locations"].includes(entityKey)) return;
