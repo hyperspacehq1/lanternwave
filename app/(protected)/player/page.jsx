@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import "./player.css";
-import Tooltip from "@/components/Tooltip";
 import { createPortal } from "react-dom";
 import { TOOLTIPS } from "@/lib/tooltips/tooltips";
 
@@ -23,13 +22,6 @@ function streamUrlForKey(key) {
 }
 
 async function getNowPlaying() {
-  const res = await fetch("/api/r2/now-playing", { cache: "no-store" });
-  if (!res.ok) return null;
-  const data = await res.json();
-  return data.nowPlaying || null;
-}
-
-async function getNpcPulse() {
   const res = await fetch("/api/r2/now-playing", {
     cache: "no-store",
     credentials: "include",
@@ -41,8 +33,6 @@ async function getNpcPulse() {
   }
 
   const data = await res.json();
-
-  // r2/now-playing returns { nowPlaying: { key } | null }
   return data?.nowPlaying ?? null;
 }
 
@@ -75,54 +65,47 @@ function syncMediaToNowPlaying(mediaEl, updatedAt) {
 ================================ */
 export default function PlayerPage() {
   const [nowPlaying, setNowPlaying] = useState(null);
-  const [npcPulse, setNpcPulse] = useState(null);
   const [playerPulse, setPlayerPulse] = useState(null);
 
+  // For cross-fade images
+  const [prevImageKey, setPrevImageKey] = useState(null);
+
   const mediaRef = useRef(null);
+  const pollDelayRef = useRef(1200);
 
   /* -------------------------------
-     Poll: Now Playing (background)
-  -------------------------------- */
-  useEffect(() => {
-    let cancelled = false;
-
-    async function poll() {
-      try {
-        const data = await getNowPlaying();
-        if (!cancelled) setNowPlaying(data);
-      } catch {}
-      if (!cancelled) setTimeout(poll, 1200);
-    }
-
-    poll();
-    return () => (cancelled = true);
-  }, []);
-
-  /* -------------------------------
-     Poll: NPC Pulse (overlay)
+     Poll: Now Playing (adaptive)
   -------------------------------- */
   useEffect(() => {
     let cancelled = false;
     let timeoutId = null;
 
-    async function pollPulse() {
+    async function poll() {
+      if (document.hidden) {
+        pollDelayRef.current = 5000;
+      }
+
       try {
-        const data = await getNpcPulse();
+        const data = await getNowPlaying();
         if (cancelled) return;
 
-        setNpcPulse(data);
+        setNowPlaying((prev) => {
+          if (prev?.key !== data?.key && prev?.key && data?.key) {
+            setPrevImageKey(prev.key);
+            setTimeout(() => setPrevImageKey(null), 600);
+          }
+          return data;
+        });
 
-        const delay = data ? 500 : 5000;
-        timeoutId = setTimeout(pollPulse, delay);
+        pollDelayRef.current = data ? 1200 : 3000;
       } catch {
-        if (!cancelled) {
-          timeoutId = setTimeout(pollPulse, 5000);
-        }
+        pollDelayRef.current = 5000;
       }
+
+      timeoutId = setTimeout(poll, pollDelayRef.current);
     }
 
-    pollPulse();
-
+    poll();
     return () => {
       cancelled = true;
       if (timeoutId) clearTimeout(timeoutId);
@@ -140,14 +123,7 @@ export default function PlayerPage() {
       try {
         const data = await getPlayerPulse();
         if (cancelled) return;
-
-        if (data) {
-          console.log("[PLAYER PULSE RECEIVED]", data);
-          setPlayerPulse(data);
-        } else {
-          setPlayerPulse(null);
-        }
-
+        setPlayerPulse(data || null);
         timeoutId = setTimeout(pollPlayerPulse, 1000);
       } catch {
         if (!cancelled) timeoutId = setTimeout(pollPlayerPulse, 3000);
@@ -155,7 +131,6 @@ export default function PlayerPage() {
     }
 
     pollPlayerPulse();
-
     return () => {
       cancelled = true;
       if (timeoutId) clearTimeout(timeoutId);
@@ -165,36 +140,42 @@ export default function PlayerPage() {
   const key = nowPlaying?.key || null;
   const type = key ? clipTypeFromKey(key) : null;
   const url = key ? streamUrlForKey(key) : null;
-
-  const pulseKey = npcPulse?.key || null;
-  const pulseUrl = pulseKey ? streamUrlForKey(pulseKey) : null;
+  const prevUrl = prevImageKey ? streamUrlForKey(prevImageKey) : null;
 
   return (
     <div className="lw-player">
       {!key && <div className="lw-player-idle">NO SIGNAL</div>}
 
-<button
-  className="lw-player-help"
-  aria-label="Player view help"
->
-  ⓘ
-  <span className="lw-player-help-tooltip">
-    {TOOLTIPS.player.help.body}
-  </span>
-</button>
+      <button className="lw-player-help" aria-label="Player view help">
+        ⓘ
+        <span className="lw-player-help-tooltip">
+          {TOOLTIPS.player.help.body}
+        </span>
+      </button>
 
       {/* -------------------------------
-          Background Media
+          Background Media (Images)
       -------------------------------- */}
-      {key && type === "image" && (
+      {type === "image" && (
         <div className="lw-preview-frame">
-          <img src={url} className="lw-preview-media" />
+          {prevUrl && (
+            <img
+              src={prevUrl}
+              className="lw-preview-media lw-preview-media--fade-out"
+              alt=""
+            />
+          )}
+          {url && (
+            <img
+              src={url}
+              className="lw-preview-media lw-preview-media--fade-in"
+              alt=""
+            />
+          )}
         </div>
       )}
 
-      {key && type === "audio" && (
-        <audio ref={mediaRef} src={url} autoPlay />
-      )}
+      {key && type === "audio" && <audio ref={mediaRef} src={url} autoPlay />}
 
       {key && type === "video" && (
         <div className="lw-preview-frame">
@@ -212,43 +193,29 @@ export default function PlayerPage() {
       )}
 
       {/* -------------------------------
-          NPC Pulse Overlay
+          Player Pulse (Sanity) — PORTAL
       -------------------------------- */}
-      {pulseUrl && (
-        <div className="npc-pulse-overlay">
-          <img
-            src={pulseUrl}
-            className="npc-pulse-image fade-pulse"
-            alt=""
-          />
-        </div>
-      )}
-
-     {/* -------------------------------
-    Player Pulse (Sanity) — PORTAL
--------------------------------- */}
-{playerPulse &&
-  typeof document !== "undefined" &&
-  createPortal(
-  <div
-    key={playerPulse?.title + JSON.stringify(playerPulse.players)}
-    className="lw-player-sanity-pulse lw-player-sanity-pulse--animate"
-    role="status"
-    aria-live="polite"
-  >
-      <strong>{playerPulse.title}</strong>
-      <ul>
-        {playerPulse.players.map((p) => (
-          <li key={p.player_id}>
-            SAN {p.current}
-            {p.loss ? ` (-${p.loss})` : ""}
-          </li>
-        ))}
-      </ul>
-    </div>,
-   document.body
-    )}
-
+      {playerPulse &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            key={playerPulse?.title + JSON.stringify(playerPulse.players)}
+            className="lw-player-sanity-pulse lw-player-sanity-pulse--animate"
+            role="status"
+            aria-live="polite"
+          >
+            <strong>{playerPulse.title}</strong>
+            <ul>
+              {playerPulse.players.map((p) => (
+                <li key={p.player_id}>
+                  SAN {p.current}
+                  {p.loss ? ` (-${p.loss})` : ""}
+                </li>
+              ))}
+            </ul>
+          </div>,
+          document.body
+        )}
     </div>
   );
 }
