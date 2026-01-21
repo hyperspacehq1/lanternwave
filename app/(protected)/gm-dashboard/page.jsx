@@ -934,6 +934,7 @@ function GMColumn({
   title,
   color,
   entityKey,
+  showNpcPulseBeacon,
   showItemPulseBeacon,
   showLocationPulseBeacon,
   items,
@@ -943,7 +944,6 @@ function GMColumn({
   onOpenEditor,
   onOpenPanel,
   schema,
-  showNpcPulseBeacon,
   joinHighlights,
   fadingJoins,         
   resolveJoins,
@@ -1124,12 +1124,14 @@ openJoinCountRef={openJoinCountRef}
 function GMCard({
   item,
   entityKey,
+ showNpcPulseBeacon,
+  showItemPulseBeacon,
+  showLocationPulseBeacon,
   forceOpen,
   onOpenEditor,
   onOpenPanel,
   sessionId,
   schema,
-  showNpcPulseBeacon,
   joinHighlights,
   fadingJoins,          
   resolveJoins,
@@ -1287,6 +1289,44 @@ if (isJoinEntity) {
 >
   ◎
 </button>
+  </span>
+)}
+
+{entityKey === "items" && showItemPulseBeacon && (
+  <span
+    className="npc-pulse-actions"
+    style={{ marginLeft: "auto", display: "inline-flex", gap: 6 }}
+  >
+    <button
+      type="button"
+      className="gm-card-action-btn npc-pulse-btn"
+      title="Item Pulse"
+      onClick={(e) => {
+        e.stopPropagation();
+        pulseItemClip({ itemId: item.id, durationMs: 10000 });
+      }}
+    >
+      ◉
+    </button>
+  </span>
+)}
+
+{entityKey === "locations" && showLocationPulseBeacon && (
+  <span
+    className="npc-pulse-actions"
+    style={{ marginLeft: "auto", display: "inline-flex", gap: 6 }}
+  >
+    <button
+      type="button"
+      className="gm-card-action-btn npc-pulse-btn"
+      title="Location Pulse"
+      onClick={(e) => {
+        e.stopPropagation();
+        pulseLocationClip({ locationId: item.id, durationMs: 10000 });
+      }}
+    >
+      ◉
+    </button>
   </span>
 )}
 
