@@ -229,7 +229,7 @@ update("color_detail", data.color_detail);
 
       {/* World */}
       <div className="cm-field">
-        <label className="cm-label">World</label>
+        <label className="cm-label">Setting Summary</label>
         <input
           className="cm-input"
           value={record.world || ""}

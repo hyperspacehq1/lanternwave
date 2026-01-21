@@ -24,17 +24,23 @@ export async function GET(req) {
   const tenantId = ctx.tenantId;
   const { searchParams } = new URL(req.url);
 
-const id = searchParams.get("id");
-const campaignId = searchParams.get("campaign_id");
+  const id = searchParams.get("id");
+  const campaignId = searchParams.get("campaign_id");
 
-if (!campaignId && !id) {
-  return Response.json([]);
-}
+  if (!campaignId && !id) {
+    return Response.json([]);
+  }
 
   if (id) {
     const { rows } = await query(
       `
-      SELECT id, campaign_id, name, description, created_at, updated_at
+      SELECT id,
+             campaign_id,
+             name,
+             description,
+             development,
+             created_at,
+             updated_at
         FROM encounters
        WHERE tenant_id = $1
          AND id = $2
@@ -49,6 +55,7 @@ if (!campaignId && !id) {
         ? sanitizeRow(rows[0], {
             name: 120,
             description: 10000,
+            development: 5000,
           })
         : null
     );
@@ -57,7 +64,13 @@ if (!campaignId && !id) {
   if (campaignId) {
     const { rows } = await query(
       `
-      SELECT id, campaign_id, name, description, created_at, updated_at
+      SELECT id,
+             campaign_id,
+             name,
+             description,
+             development,
+             created_at,
+             updated_at
         FROM encounters
        WHERE tenant_id = $1
          AND campaign_id = $2
@@ -71,6 +84,7 @@ if (!campaignId && !id) {
       sanitizeRows(rows, {
         name: 120,
         description: 10000,
+        development: 5000,
       })
     );
   }
@@ -95,6 +109,7 @@ export async function POST(req) {
   const campaignId = body.campaign_id ?? body.campaignId ?? null;
   const name = body.name?.trim();
   const description = body.description ?? null;
+  const development = body.development ?? null;
 
   if (!campaignId) {
     return Response.json({ error: "campaign_id is required" }, { status: 400 });
@@ -123,6 +138,21 @@ export async function POST(req) {
     }
   }
 
+  if (hasOwn(body, "development")) {
+    if (typeof development !== "string" && development !== null) {
+      return Response.json(
+        { error: "development must be a string" },
+        { status: 400 }
+      );
+    }
+    if (development && development.length > 5000) {
+      return Response.json(
+        { error: "development too long" },
+        { status: 400 }
+      );
+    }
+  }
+
   const { rows } = await query(
     `
     INSERT INTO encounters (
@@ -131,19 +161,21 @@ export async function POST(req) {
       campaign_id,
       name,
       description,
+      development,
       created_at,
       updated_at
     )
-    VALUES ($1,$2,$3,$4,$5,NOW(),NOW())
+    VALUES ($1,$2,$3,$4,$5,$6,NOW(),NOW())
     RETURNING *
     `,
-    [uuid(), tenantId, campaignId, name, description]
+    [uuid(), tenantId, campaignId, name, description, development]
   );
 
   return Response.json(
     sanitizeRow(rows[0], {
       name: 120,
       description: 10000,
+      development: 5000,
     }),
     { status: 201 }
   );
@@ -193,6 +225,21 @@ export async function PUT(req) {
     }
   }
 
+  if (hasOwn(body, "development")) {
+    if (typeof body.development !== "string" && body.development !== null) {
+      return Response.json(
+        { error: "development must be a string" },
+        { status: 400 }
+      );
+    }
+    if (body.development && body.development.length > 5000) {
+      return Response.json(
+        { error: "development too long" },
+        { status: 400 }
+      );
+    }
+  }
+
   const sets = [];
   const values = [tenantId, id];
   let i = 3;
@@ -205,6 +252,11 @@ export async function PUT(req) {
   if (hasOwn(body, "description")) {
     sets.push(`description = $${i++}`);
     values.push(body.description ?? null);
+  }
+
+  if (hasOwn(body, "development")) {
+    sets.push(`development = $${i++}`);
+    values.push(body.development ?? null);
   }
 
   if (!sets.length) {
@@ -232,6 +284,7 @@ export async function PUT(req) {
       ? sanitizeRow(rows[0], {
           name: 120,
           description: 10000,
+          development: 5000,
         })
       : null
   );
@@ -274,6 +327,7 @@ export async function DELETE(req) {
       ? sanitizeRow(rows[0], {
           name: 120,
           description: 10000,
+          development: 5000,
         })
       : null
   );

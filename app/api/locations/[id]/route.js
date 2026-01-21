@@ -75,8 +75,8 @@ export async function GET(req, { params }) {
       ? sanitizeRow(rows[0], {
           name: 120,
           description: 10000,
-          notes: 500,
-          world: 120,
+          notes: 10000,
+          world: 2000,
         })
       : null
   );
@@ -109,8 +109,8 @@ export async function PUT(req, { params }) {
     const fields = {
       name: 120,
       description: 10000,
-      notes: 500,
-      world: 120,
+      notes: 10000,
+      world: 2000,
     };
 
     for (const key in fields) {
@@ -158,8 +158,8 @@ export async function PUT(req, { params }) {
         ? sanitizeRow(rows[0], {
             name: 120,
             description: 10000,
-            notes: 500,
-            world: 120,
+            notes: 10000,
+            world: 2000,
           })
         : null
     );
@@ -204,8 +204,8 @@ export async function DELETE(req, { params }) {
       ? sanitizeRow(rows[0], {
           name: 120,
           description: 10000,
-          notes: 500,
-          world: 120,
+          notes: 10000,
+          world: 2000,
         })
       : null
   );

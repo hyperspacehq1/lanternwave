@@ -83,6 +83,17 @@ export default function EncounterForm({ record, onChange }) {
         />
       </div>
 
+      {/* Development */}
+      <div className="cm-field">
+        <label className="cm-label">Development</label>
+        <textarea
+          className="cm-textarea"
+          value={record.development || ""}
+          onChange={(e) => update("development", e.target.value)}
+          placeholder="How this encounter evolves, escalates, or changes over time…"
+        />
+      </div>
+
       {/* Related Entities */}
       {!record._isNew && (
         <>

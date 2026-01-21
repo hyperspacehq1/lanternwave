@@ -74,8 +74,8 @@ export async function GET(req) {
     sanitizeRows(rows, {
       name: 120,
       description: 10000,
-      notes: 500,
-      world: 120,
+      notes: 10000,
+      world: 2000,
     })
   );
 }
@@ -172,8 +172,8 @@ export async function POST(req) {
       sanitizeRow(rows[0], {
         name: 120,
         description: 10000,
-        notes: 500,
-        world: 120,
+        notes: 10000,
+        world: 2000,
       }),
       { status: 201 }
     );
@@ -210,8 +210,8 @@ export async function PUT(req) {
     const stringFields = {
       name: 120,
       description: 10000,
-      notes: 500,
-      world: 120,
+      notes: 10000,
+      world: 2000,
       addressStreet: 120,
       addressCity: 120,
       addressState: 120,
@@ -265,8 +265,8 @@ export async function PUT(req) {
         ? sanitizeRow(rows[0], {
             name: 120,
             description: 10000,
-            notes: 500,
-            world: 120,
+            notes: 10000,
+            world: 2000,
           })
         : null
     );
@@ -312,8 +312,8 @@ export async function DELETE(req) {
       ? sanitizeRow(rows[0], {
           name: 120,
           description: 10000,
-          notes: 500,
-          world: 120,
+          notes: 10000,
+          world: 2000,
         })
       : null
   );

@@ -25,7 +25,13 @@ export async function GET(req, { params }) {
 
   const { rows } = await query(
     `
-    SELECT id, campaign_id, name, description, created_at, updated_at
+    SELECT id,
+           campaign_id,
+           name,
+           description,
+           development,
+           created_at,
+           updated_at
       FROM encounters
      WHERE tenant_id = $1
        AND id = $2
@@ -43,6 +49,7 @@ export async function GET(req, { params }) {
     sanitizeRow(rows[0], {
       name: 120,
       description: 10000,
+      development: 5000,
     })
   );
 }
@@ -86,6 +93,7 @@ export async function DELETE(req, { params }) {
     sanitizeRow(rows[0], {
       name: 120,
       description: 10000,
+      development: 5000,
     })
   );
 }
