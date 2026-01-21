@@ -129,7 +129,12 @@ export default function GMDashboardPage() {
   const [items, setItems] = useState([]);
 
  const [loading, setLoading] = useState(false);
-const [expandAll, setExpandAll] = useState(null);
+const [expandAll, _setExpandAll] = useState(null);
+
+// allow collapse-all only
+const setExpandAll = (value) => {
+  if (value === false) _setExpandAll(false);
+};
 
 /* -------- Joined-record pulse state -------- */
 const [joinHighlights, setJoinHighlights] = useState({});
@@ -593,14 +598,6 @@ if (allRecords.length === 0) return;
   className="gm-toolbar-actions"
   style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 12 }}
 >
-  <button
-    type="button"
-    className="gm-toolbar-btn"
-    onClick={() => setExpandAll(true)}
-    disabled={!canUseSession}
-  >
-    Expand All
-  </button>
 
   <button
     type="button"
@@ -1252,4 +1249,5 @@ function FloatingWindow({ win, schema, onClose, onMove, onResize, clearJoins }) 
     </div>
   );
 }
+
 
