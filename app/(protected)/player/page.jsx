@@ -30,12 +30,20 @@ async function getNowPlaying() {
 }
 
 async function getNpcPulse() {
-  const res = await fetch("/api/npc-pulse/now-playing", {
+  const res = await fetch("/api/r2/now-playing", {
     cache: "no-store",
+    credentials: "include",
   });
-  if (!res.ok) return null;
+
+  if (!res.ok) {
+    console.warn("[Player] now-playing fetch failed:", res.status);
+    return null;
+  }
+
   const data = await res.json();
-  return data.pulse || null;
+
+  // r2/now-playing returns { nowPlaying: { key } | null }
+  return data?.nowPlaying ?? null;
 }
 
 async function getPlayerPulse() {
