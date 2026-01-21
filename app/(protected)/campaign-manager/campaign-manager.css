@@ -575,10 +575,13 @@
   margin-top: 0.25rem;
 }
 
-/* Let dropdown grow, keep button fixed */
 .cm-join-controls .cm-join-select {
-  flex: 1;
-  min-width: 0;
+  flex: 0 0 35%;
+  max-width: 35%;
+  min-width: 220px; /* prevents absurdly small selects */
+}
+  max-width: 35%;
+  min-width: 220px; /* prevents absurdly small selects */
 }
 
 .cm-join-controls .cm-join-add {
