@@ -76,6 +76,25 @@ async function pulseNpcClip({ npcId, durationMs }) {
 /* =========================
    Record Rendering (Field View)
 ========================= */
+function renderValue(value, type) {
+  if (value === null || value === undefined) return null;
+
+  // empty string → hide
+  if (typeof value === "string" && value.trim() === "") return null;
+
+  // explicit json rendering (pretty)
+  if (type === "json") {
+    return <pre className="gm-json">{JSON.stringify(value, null, 2)}</pre>;
+  }
+
+  // if value is an object/array and schema didn’t specify json, still show it safely
+  if (typeof value === "object") {
+    return <pre className="gm-json">{JSON.stringify(value, null, 2)}</pre>;
+  }
+
+  return <div className="gm-text">{String(value)}</div>;
+}
+
 function RecordView({ record, schema }) {
   if (!record || !Array.isArray(schema) || schema.length === 0) return null;
 
@@ -90,6 +109,7 @@ function RecordView({ record, schema }) {
             <div className="gm-field-label">
               <strong>{label}</strong>
             </div>
+
             <div
               className={`gm-field-value ${
                 font === "echo" ? "gm-field--echo" : ""
