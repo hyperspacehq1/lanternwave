@@ -413,7 +413,6 @@ if (allRecords.length === 0) return;
   useEffect(() => {
     if (!selectedCampaign) return;
 
-    setSelectedSession(null);
     setEvents([]);
     setNpcs([]);
     setEncounters([]);
