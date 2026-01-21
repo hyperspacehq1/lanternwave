@@ -149,37 +149,39 @@ useEffect(() => {
   };
 
   const handleSave = async () => {
-    if (!selectedRecord) return;
+  if (!selectedRecord) return;
 
-    const { _isNew, id, __pendingImageClipId, ...payload } = selectedRecord;
+  const { _isNew, id, __pendingImageClipId, ...payload } = selectedRecord;
 
-    const saved = _isNew
-      ? await cmApi.create(activeType, payload)
-      : await cmApi.update(activeType, id, payload);
+  const saved = _isNew
+    ? await cmApi.create(activeType, payload)
+    : await cmApi.update(activeType, id, payload);
 
-    setRecordsByType((p) => ({
-      ...p,
-      [activeType]: p[activeType].map((r) =>
-        r.id === (_isNew ? id : saved.id) ? saved : r
-      ),
-    }));
+  setRecordsByType((p) => ({
+    ...p,
+    [activeType]: p[activeType].map((r) =>
+      r.id === (_isNew ? id : saved.id) ? saved : r
+    ),
+  }));
 
-    setSelectedByType((p) => ({
-      ...p,
-      [activeType]: saved,
-    }));
+  setSelectedByType((p) => ({
+    ...p,
+    [activeType]: saved,
+  }));
 
-    if (activeType === "npcs" && __pendingImageClipId) {
-  await fetch("/api/npc-image", {
-    method: "POST",
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      npc_id: saved.id,
-      clip_id: __pendingImageClipId,
-    }),
-  });
-}
+  // NPC image attach/update (remove is handled immediately in the form)
+  if (activeType === "npcs" && __pendingImageClipId) {
+    await fetch("/api/npc-image", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        npc_id: saved.id,
+        clip_id: __pendingImageClipId,
+      }),
+    });
+  }
+};
     
 const handleDelete = async () => {
   if (!selectedRecord) return;
