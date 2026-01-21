@@ -143,6 +143,7 @@ const [fadingJoins, setFadingJoins] = useState({});
 /* -------- Active join source (ownership) -------- */
 const [activeJoinSource, setActiveJoinSource] = useState(null);
 const joinsTokenRef = useRef(0);
+const DEBUG_GM_JOINS = true;
 const openJoinCountRef = useRef(0);
 const [sessionJoins, setSessionJoins] = useState(null);
 // shape: { entityKey, recordId } | null
@@ -206,31 +207,65 @@ y: clamp(clickY - 20, 16, window.innerHeight - 240 - 16),
 ========================= */
 async function resolveJoins(entityKey, recordId) {
 const myToken = ++joinsTokenRef.current;
-  // Only these entities participate
-  if (!["sessions", "encounters", "locations"].includes(entityKey)) return;
 
-  try {
-    const res = await fetch(
-      `/api/gm/joins?entity=${entityKey}&id=${recordId}`,
-      { credentials: "include" }
-    );
+if (!["sessions", "encounters", "locations"].includes(entityKey)) return;
 
-    if (!res.ok) return;
+if (DEBUG_GM_JOINS) {
+  console.groupCollapsed("[GM JOINS] resolveJoins", {
+    entityKey,
+    recordId,
+    myToken,
+  });
+}
 
-    const data = await res.json();
-setActiveJoinSource({ entityKey, recordId });
+try {
+  const url = `/api/gm/joins?entity=${entityKey}&id=${recordId}&debug=1`;
+  const res = await fetch(url, { credentials: "include" });
 
-const next = {};
-Object.entries(data.joined || {}).forEach(([k, ids]) => {
-  next[k] = Array.isArray(ids) ? ids.map(String) : [];
-});
+  if (DEBUG_GM_JOINS) {
+    console.log("[GM JOINS] status", res.status);
+  }
 
-if (myToken !== joinsTokenRef.current) return;
+  if (!res.ok) {
+    if (DEBUG_GM_JOINS) console.groupEnd();
+    return;
+  }
 
-setJoinHighlights(next);
+  const data = await res.json();
 
-  } catch {
-    // silent failure – no UI regression
+  if (DEBUG_GM_JOINS) {
+    console.log("[GM JOINS] raw response", data);
+  }
+
+  setActiveJoinSource({ entityKey, recordId });
+
+  const next = {};
+  Object.entries(data.joined || {}).forEach(([k, ids]) => {
+    next[k] = Array.isArray(ids) ? ids.map(String) : [];
+  });
+
+  if (DEBUG_GM_JOINS) {
+    console.log("[GM JOINS] normalized joinHighlights", next);
+  }
+
+  if (myToken !== joinsTokenRef.current) {
+    if (DEBUG_GM_JOINS) {
+      console.warn("[GM JOINS] dropped due to token mismatch", {
+        myToken,
+        current: joinsTokenRef.current,
+      });
+      console.groupEnd();
+    }
+    return;
+  }
+
+ setJoinHighlights(next);
+
+if (DEBUG_GM_JOINS) console.groupEnd();
+} catch (e) {
+  if (DEBUG_GM_JOINS) {
+    console.error("[GM JOINS] error", e);
+    console.groupEnd();
   }
 }
 

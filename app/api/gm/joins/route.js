@@ -8,6 +8,7 @@ export const dynamic = "force-dynamic";
    GET /api/gm/joins
    ?entity=sessions|encounters|locations
    &id=<record_id>
+   [&debug=1]
 ------------------------------------------------------------ */
 export async function GET(req) {
   let ctx;
@@ -22,6 +23,7 @@ export async function GET(req) {
 
   const entity = searchParams.get("entity");
   const id = searchParams.get("id");
+  const debug = searchParams.get("debug") === "1";
 
   if (!entity || !id) {
     return Response.json(
@@ -34,66 +36,64 @@ export async function GET(req) {
     entity,
     id,
     joined: {},
+    ...(debug ? { debug: {} } : {}),
   };
 
   try {
-    /* ---------------- Sessions → Encounters ---------------- */
     if (entity === "sessions") {
       const { rows } = await query(
         `
-        SELECT encounter_id
+        SELECT encounter_id::text AS encounter_id
           FROM session_encounters
          WHERE tenant_id = $1
            AND session_id = $2
+           AND deleted_at IS NULL
         `,
         [tenantId, id]
       );
 
-      result.joined.encounters = rows.map(r => r.encounter_id);
+      result.joined.encounters = rows.map((r) => r.encounter_id);
+      if (debug) result.debug.session_encounters_count = rows.length;
     }
 
-    /* ---------------- Encounters → NPCs ---------------- */
     else if (entity === "encounters") {
       const { rows } = await query(
         `
-        SELECT npc_id
+        SELECT npc_id::text AS npc_id
           FROM encounter_npcs
          WHERE tenant_id = $1
            AND encounter_id = $2
+           AND deleted_at IS NULL
         `,
         [tenantId, id]
       );
 
-      result.joined.npcs = rows.map(r => r.npc_id);
+      result.joined.npcs = rows.map((r) => r.npc_id);
+      if (debug) result.debug.encounter_npcs_count = rows.length;
     }
 
-    /* ---------------- Locations → Items ---------------- */
     else if (entity === "locations") {
       const { rows } = await query(
         `
-        SELECT item_id
+        SELECT item_id::text AS item_id
           FROM location_items
          WHERE tenant_id = $1
            AND location_id = $2
+           AND deleted_at IS NULL
         `,
         [tenantId, id]
       );
 
-      result.joined.items = rows.map(r => r.item_id);
+      result.joined.items = rows.map((r) => r.item_id);
+      if (debug) result.debug.location_items_count = rows.length;
     }
 
     else {
-      return Response.json(
-        { error: "Invalid entity type" },
-        { status: 400 }
-      );
+      return Response.json({ error: "Invalid entity type" }, { status: 400 });
     }
 
     return Response.json(result);
   } catch (e) {
-    return Response.json(
-      { error: e.message },
-      { status: 500 }
-    );
+    return Response.json({ error: e.message }, { status: 500 });
   }
 }
