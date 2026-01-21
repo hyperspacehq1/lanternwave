@@ -490,3 +490,12 @@ button {
   100% { opacity: 0.2; }
 }
 
+.cm-input,
+.cm-textarea,
+.cm-field select {
+  font-family: MU-TH-UR, system-ui, sans-serif;
+  font-weight: 400;
+  font-size: 11px;
+  line-height: normal;
+  color: rgb(229, 255, 227);
+}

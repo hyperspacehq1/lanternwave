@@ -72,14 +72,33 @@ export default function ItemForm({ record, onChange }) {
       </div>
 
       {/* Item Type */}
-      <div className="cm-field">
-        <label className="cm-label">Item Type</label>
-        <input
-          className="cm-input"
-          value={record.item_type || ""}
-          onChange={(e) => update("item_type", e.target.value)}
-        />
-      </div>
+<div className="cm-field">
+  <label className="cm-label">Item Type</label>
+  <select
+    className="cm-input"
+    value={record.itemType || record.item_type || ""}
+    onChange={(e) => update("itemType", e.target.value || null)}
+  >
+    <option value="">— Select Item Type —</option>
+    <option value="Weapon">Weapon</option>
+    <option value="Armor">Armor</option>
+    <option value="Accessory">Accessory</option>
+    <option value="Clothing">Clothing</option>
+    <option value="Consumable">Consumable</option>
+    <option value="Equipment">Equipment</option>
+    <option value="Tool">Tool</option>
+    <option value="Ammunition">Ammunition</option>
+    <option value="Magic Item">Magic Item</option>
+    <option value="Trade Good">Trade Good</option>
+    <option value="Currency">Currency</option>
+    <option value="Quest Item">Quest Item</option>
+    <option value="Book / Knowledge">Book / Knowledge</option>
+    <option value="Vehicle">Vehicle</option>
+    <option value="Structure">Structure</option>
+    <option value="Crafting Material">Crafting Material</option>
+    <option value="Technology">Technology</option>
+  </select>
+</div>
 
       {/* Description */}
       <div className="cm-field">
@@ -103,7 +122,7 @@ export default function ItemForm({ record, onChange }) {
 
       {/* Properties */}
       <div className="cm-field">
-        <label className="cm-label">Properties (JSON)</label>
+        <label className="cm-label">Properties</label>
         <textarea
           className="cm-textarea"
           value={

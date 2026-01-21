@@ -95,13 +95,22 @@ export default function EventForm({ record, onChange }) {
           Event Type
       --------------------------------------------- */}
       <div className="cm-field">
-        <label className="cm-label">Event Type</label>
-        <input
-          className="cm-input"
-          value={record.event_type || ""}
-          onChange={(e) => update("event_type", e.target.value)}
-        />
-      </div>
+  <label className="cm-label">Event Type</label>
+  <select
+    className="cm-input"
+    value={record.eventType || record.event_type || ""}
+    onChange={(e) => update("eventType", e.target.value || null)}
+  >
+    <option value="">— Select Event Type —</option>
+    <option value="Scene Event">Scene Event</option>
+    <option value="Action Attempt">Action Attempt</option>
+    <option value="Roll Result">Roll Result</option>
+    <option value="State Change">State Change</option>
+    <option value="Information Reveal">Information Reveal</option>
+    <option value="Time Advance">Time Advance</option>
+    <option value="Consequence Applied">Consequence Applied</option>
+  </select>
+</div>
 
       {/* ---------------------------------------------
           Priority
