@@ -5,71 +5,76 @@ import { getTenantContext } from "@/lib/tenant/getTenantContext";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/* =========================
-   GET — read active pulse
-========================= */
+/**
+ * LOCATION RESOLVER
+ * -----------------
+ * GET /api/location-pulse?location_id=...
+ * → { ok: true, key }
+ */
 export async function GET(req) {
-  const ctx = await getTenantContext(req);
-  if (!ctx?.tenantId) {
-    return NextResponse.json({ ok: false }, { status: 401 });
-  }
+  console.log("🟢 [location-pulse] HIT resolver route");
 
-  const { rows } = await query(
-    `
-    select object_key
-    from location_pulse_playing
-    where tenant_id = $1
-      and expires_at > now()
-    limit 1
-    `,
-    [ctx.tenantId]
-  );
+  try {
+    const url = new URL(req.url);
+    const locationId = url.searchParams.get("location_id");
 
-  if (!rows.length) {
-    return NextResponse.json({ ok: true, pulse: null });
-  }
+    console.log("🟢 [location-pulse] location_id:", locationId);
 
-  return NextResponse.json({
-    ok: true,
-    pulse: {
+    if (!locationId) {
+      console.warn("🔴 [location-pulse] missing location_id");
+      return NextResponse.json(
+        { ok: false, error: "location_id required" },
+        { status: 400 }
+      );
+    }
+
+    const ctx = await getTenantContext(req);
+    console.log("🟢 [location-pulse] tenant:", ctx?.tenantId);
+
+    if (!ctx?.tenantId) {
+      return NextResponse.json(
+        { ok: false, error: "unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    const { rows } = await query(
+      `
+      SELECT c.object_key
+      FROM location_clips lc
+      JOIN locations l ON l.id = lc.location_id
+      JOIN clips c ON c.id = lc.clip_id
+      WHERE lc.location_id = $1
+        AND l.tenant_id = $2
+        AND lc.deleted_at IS NULL
+        AND c.deleted_at IS NULL
+      ORDER BY lc.created_at DESC
+      LIMIT 1
+      `,
+      [locationId, ctx.tenantId]
+    );
+
+    console.log("🟢 [location-pulse] rows:", rows);
+
+    if (!rows.length) {
+      console.warn("🟡 [location-pulse] no clip found");
+      return NextResponse.json(
+        { ok: false, error: "no clip found for location" },
+        { status: 404 }
+      );
+    }
+
+    console.log("✅ [location-pulse] resolved key:", rows[0].object_key);
+
+    return NextResponse.json({
+      ok: true,
       key: rows[0].object_key,
-    },
-  });
-}
-
-/* =========================
-   POST — trigger pulse
-========================= */
-export async function POST(req) {
-  const ctx = await getTenantContext(req);
-  if (!ctx?.tenantId) {
-    return NextResponse.json({ ok: false }, { status: 401 });
-  }
-
-  const body = await req.json();
-  const { key, durationMs } = body || {};
-
-  if (!key || !durationMs) {
+    });
+  } catch (err) {
+    console.error("🔥 [location-pulse] ERROR", err);
     return NextResponse.json(
-      { ok: false, error: "missing key or durationMs" },
-      { status: 400 }
+      { ok: false, error: "internal error" },
+      { status: 500 }
     );
   }
-
-  const expiresAt = new Date(Date.now() + Number(durationMs));
-
-  await query(
-    `
-    insert into location_pulse_playing (tenant_id, object_key, expires_at)
-    values ($1, $2, $3)
-    on conflict (tenant_id)
-    do update set
-      object_key = excluded.object_key,
-      expires_at = excluded.expires_at,
-      created_at = now()
-    `,
-    [ctx.tenantId, key, expiresAt]
-  );
-
-  return NextResponse.json({ ok: true });
 }
