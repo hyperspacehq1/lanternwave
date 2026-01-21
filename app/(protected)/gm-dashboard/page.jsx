@@ -92,7 +92,7 @@ function RecordView({ record, schema }) {
 
   return (
     <div className="gm-record">
-      {schema.map(({ key, label, type }) => {
+     schema.map(({ key, label, type, font }) => {
         const rendered = renderValue(record[key], type);
         if (!rendered) return null;
 
@@ -103,7 +103,7 @@ function RecordView({ record, schema }) {
             </div>
             <div
   className={`gm-field-value ${
-    field.font === "echo" ? "gm-field--echo" : ""
+    font === "echo" ? "gm-field--echo" : ""
   }`}
 >
   {rendered}
