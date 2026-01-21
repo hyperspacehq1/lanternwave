@@ -101,7 +101,13 @@ function RecordView({ record, schema }) {
             <div className="gm-field-label">
               <strong>{label}</strong>
             </div>
-            <div className="gm-field-value">{rendered}</div>
+            <div
+  className={`gm-field-value ${
+    field.font === "echo" ? "gm-field--echo" : ""
+  }`}
+>
+  {rendered}
+</div>
           </div>
         );
       })}

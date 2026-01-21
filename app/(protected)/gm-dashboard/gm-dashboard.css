@@ -558,3 +558,15 @@
     border-color: rgba(255,255,255,0.15);
   }
 }
+
+/* =========================
+   GM Echo Text (Detail / Sensory)
+========================= */
+.gm-field--echo {
+  font-family: system-ui, "MU-TH-UR", sans-serif;
+  font-style: normal;
+  font-weight: 400;
+  color: rgb(211, 226, 233);
+  font-size: 13px;
+  line-height: normal;
+}
