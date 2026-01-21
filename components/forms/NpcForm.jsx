@@ -185,69 +185,106 @@ export default function NpcForm({ record, onChange }) {
       </div>
 
       {/* NPC Image */}
-      <div className="cm-field">
-        <label className="cm-label">NPC Image</label>
+<div className="cm-field">
+  <label
+    className="cm-label"
+    style={{ display: "flex", alignItems: "center", gap: 10 }}
+  >
+    NPC Image
 
-        <select
-          className="cm-input"
-          disabled={isNewNpc}
-          value={selectedClip?.id || ""}
-          onChange={(e) => {
-            if (isNewNpc) return;
+    {selectedClip && !isNewNpc && (
+      <button
+        type="button"
+        className="cm-btn danger"
+        style={{ marginLeft: "auto", padding: "6px 10px" }}
+        onClick={async () => {
+          try {
+            await fetch(`/api/npc-image?npc_id=${record.id}`, {
+              method: "DELETE",
+              credentials: "include",
+            });
 
-            const clip =
-              clips.find((c) => c.id === e.target.value) || null;
+            // Clear local UI state
+            setSelectedClip(null);
+            setPendingClipId(null);
 
-            setSelectedClip(clip);
-            setPendingClipId(clip ? clip.id : null);
+            // Clear parent state so Save doesn't reattach
+            if (typeof onChange === "function") {
+              onChange({
+                ...record,
+                __pendingImageClipId: null,
+                campaign_id: campaign.id,
+              });
+            }
+          } catch (err) {
+            console.error("Failed to remove NPC image", err);
+          }
+        }}
+      >
+        Remove
+      </button>
+    )}
+  </label>
+
+  <select
+    className="cm-input"
+    disabled={isNewNpc}
+    value={selectedClip?.id || ""}
+    onChange={(e) => {
+      if (isNewNpc) return;
+
+      const clip =
+        clips.find((c) => c.id === e.target.value) || null;
+
+      setSelectedClip(clip);
+      setPendingClipId(clip ? clip.id : null);
+    }}
+  >
+    <option value="">— No image —</option>
+    {clips.map((c) => (
+      <option key={c.id} value={c.id}>
+        {displayFilename(c.object_key)}
+      </option>
+    ))}
+  </select>
+
+  {isNewNpc && (
+    <div className="cm-hint">
+      Save the NPC before assigning an image.
+    </div>
+  )}
+
+  {selectedClip && !isNewNpc && (
+    <div style={{ marginTop: 12 }}>
+      <div
+        style={{
+          width: 240,
+          height: 240,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "rgba(0,0,0,0.25)",
+          borderRadius: 6,
+          border: "1px solid rgba(255,255,255,0.15)",
+        }}
+      >
+        <img
+          src={`/api/r2/stream?key=${encodeURIComponent(
+            selectedClip.object_key
+          )}`}
+          alt="NPC"
+          loading="lazy"
+          decoding="async"
+          style={{
+            maxWidth: "100%",
+            maxHeight: "100%",
+            objectFit: "contain",
           }}
-        >
-          <option value="">— No image —</option>
-          {clips.map((c) => (
-            <option key={c.id} value={c.id}>
-              {displayFilename(c.object_key)}
-            </option>
-          ))}
-        </select>
-
-        {isNewNpc && (
-          <div className="cm-hint">
-            Save the NPC before assigning an image.
-          </div>
-        )}
-
-        {selectedClip && !isNewNpc && (
-          <div style={{ marginTop: 12 }}>
-            <div
-              style={{
-                width: 240,
-                height: 240,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                background: "rgba(0,0,0,0.25)",
-                borderRadius: 6,
-                border: "1px solid rgba(255,255,255,0.15)",
-              }}
-            >
-              <img
-                src={`/api/r2/stream?key=${encodeURIComponent(
-                  selectedClip.object_key
-                )}`}
-                alt="NPC"
-                loading="lazy"
-                decoding="async"
-                style={{
-                  maxWidth: "100%",
-                  maxHeight: "100%",
-                  objectFit: "contain",
-                }}
-              />
-            </div>
-          </div>
-        )}
+        />
       </div>
-
+    </div>
+  )}
+</div>
       {/* Description */}
       <div className="cm-field">
         <label className="cm-label">Description</label>
