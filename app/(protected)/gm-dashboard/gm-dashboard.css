@@ -570,3 +570,27 @@
   font-size: 13px;
   line-height: normal;
 }
+
+/* =========================
+   GM Record Fields – spacing
+========================= */
+.gm-field {
+  margin-top: 14px;      /* space from previous section */
+}
+
+.gm-field:first-child {
+  margin-top: 0;         /* no extra space at top */
+}
+
+/* =========================
+   GM Field Titles
+========================= */
+.gm-field-label {
+  margin-bottom: 6px;
+  color: #9ff0b0;              /* brighter green */
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.03em;
+  text-transform: none;
+}
+
