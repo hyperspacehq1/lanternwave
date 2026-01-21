@@ -107,10 +107,10 @@ export async function POST(req) {
       validateString(body.description, 10000, "description");
 
     if (hasOwn(body, "notes") && body.notes !== null)
-      validateString(body.notes, 500, "notes");
+      validateString(body.notes, 10000, "notes");
 
     if (hasOwn(body, "world") && body.world !== null)
-      validateString(body.world, 120, "world");
+      validateString(body.world, 200, "world");
 
     const addressFields = [
       "addressStreet",

@@ -1,5 +1,5 @@
 // ==============================
-// /api/npcs/[id]/route.js  (FULL, FIXED - Pattern A)
+// /api/npcs/[id]/route.js
 // ==============================
 
 import { sanitizeRow } from "@/lib/api/sanitize";
@@ -150,7 +150,7 @@ export async function PUT(req, { params }) {
 }
 
 /* -----------------------------------------------------------
-   DELETE /api/npcs/[id]   (SOFT DELETE)
+   DELETE /api/npcs/[id]
 ------------------------------------------------------------ */
 export async function DELETE(req, { params }) {
   let ctx;

@@ -1,5 +1,5 @@
 // ==============================
-// /api/npcs/route.js  (FULL, FIXED - Pattern A)
+// /api/npcs/route.js  (FULL, FIXED - Pattern A, Defensive)
 // ==============================
 
 import { sanitizeRow, sanitizeRows } from "@/lib/api/sanitize";
@@ -37,7 +37,11 @@ export async function GET(req) {
 
   const tenantId = ctx.tenantId;
   const { searchParams } = new URL(req.url);
-  const campaignId = searchParams.get("campaign_id");
+
+  // ✅ DEFENSIVE: accept both
+  const campaignId =
+    searchParams.get("campaign_id") ??
+    searchParams.get("campaignId");
 
   if (!campaignId) return Response.json([]);
 
