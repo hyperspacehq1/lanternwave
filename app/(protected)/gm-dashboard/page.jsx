@@ -72,6 +72,45 @@ async function pulseNpcClip({ npcId, durationMs }) {
   }, durationMs);
 }
 
+async function pulseItemClip({ itemId, durationMs }) {
+  // 1. resolve Item → clip key
+  const clipRes = await fetch(`/api/item-pulse/resolve?item_id=${itemId}`, {
+    credentials: "include",
+  });
+  if (!clipRes.ok) return;
+
+  const { key } = await clipRes.json();
+  if (!key) return;
+
+  // 2. trigger item pulse (10s handled by backend expiry)
+  await fetch("/api/item-pulse", {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ key, durationMs }),
+  });
+}
+
+async function pulseLocationClip({ locationId, durationMs }) {
+  // 1. resolve Location → clip key
+  const clipRes = await fetch(
+    `/api/location-pulse/resolve?location_id=${locationId}`,
+    { credentials: "include" }
+  );
+  if (!clipRes.ok) return;
+
+  const { key } = await clipRes.json();
+  if (!key) return;
+
+  // 2. trigger location pulse (10s handled by backend expiry)
+  await fetch("/api/location-pulse", {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ key, durationMs }),
+  });
+}
+
 
 /* =========================
    Record Rendering (Field View)
@@ -169,8 +208,10 @@ const floatingHydratedRef = useRef(false);
 
   /* -------- Beacons -------- */
   const [beacons, setBeacons] = useState({});
- const showPlayersBeacon = !!beacons?.player_characters;
- const showNpcPulseBeacon = !!beacons?.npc_pulse;
+const showPlayersBeacon = !!beacons?.player_characters;
+const showNpcPulseBeacon = !!beacons?.npc_pulse;
+const showItemPulseBeacon = !!beacons?.item_pulse;
+const showLocationPulseBeacon = !!beacons?.location_pulse;
 
   /* -------- Schemas -------- */
   const DISPLAY_SCHEMAS = useMemo(() => {
@@ -820,6 +861,7 @@ items={filterBySession("locations", locations)}
 fadingJoins={fadingJoins}
 openJoinCountRef={openJoinCountRef}  
   forceOpen={expandAll}
+showLocationPulseBeacon={showLocationPulseBeacon}
   campaignId={selectedCampaign.id}
   sessionId={selectedSession.id}
   schema={DISPLAY_SCHEMAS.locations}
@@ -838,6 +880,7 @@ openJoinCountRef={openJoinCountRef}
 fadingJoins={fadingJoins}
 openJoinCountRef={openJoinCountRef}  
   forceOpen={expandAll}
+showItemPulseBeacon={showItemPulseBeacon}
   campaignId={selectedCampaign.id}
   sessionId={selectedSession.id}
   schema={DISPLAY_SCHEMAS.items}
@@ -891,6 +934,8 @@ function GMColumn({
   title,
   color,
   entityKey,
+  showItemPulseBeacon,
+  showLocationPulseBeacon,
   items,
   campaignId,
   forceOpen,

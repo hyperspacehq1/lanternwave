@@ -264,13 +264,15 @@ export default function AccountPage() {
 
             <div className="account-panel beacons-panel">
               {[
-                ["player_characters", "Player Characters Beacon (GM Dashboard)"],
-                ["npc_pulse", "NPC Pulse Beacon (GM Dashboard)"],
-                [
-                  "player_sanity_tracker",
-                  "Player Sanity Tracker (GM Dashboard)",
-                ],
-              ].map(([key, label]) => (
+  ["player_characters", "Player Characters Beacon (GM Dashboard)"],
+  ["npc_pulse", "NPC Pulse Beacon (GM Dashboard)"],
+  ["item_pulse", "Item Pulse Beacon (GM Dashboard)"],
+  ["location_pulse", "Location Pulse Beacon (GM Dashboard)"],
+  [
+    "player_sanity_tracker",
+    "Player Sanity Tracker (GM Dashboard)",
+  ],
+].map(([key, label]) => (
                 <div className="account-row" key={key}>
                   <label className="account-label">
                     <span className="beacon-checkbox">
