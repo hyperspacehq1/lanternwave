@@ -580,9 +580,6 @@
   max-width: 35%;
   min-width: 220px; /* prevents absurdly small selects */
 }
-  max-width: 35%;
-  min-width: 220px; /* prevents absurdly small selects */
-}
 
 .cm-join-controls .cm-join-add {
   flex-shrink: 0;
