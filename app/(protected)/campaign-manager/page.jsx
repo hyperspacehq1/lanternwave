@@ -121,6 +121,19 @@ else {
         [activeType]: list,
       }));
 
+// 🔒 NEW: clear invalid selection (NPC bug fix)
+setSelectedByType((p) => {
+  const current = p[activeType];
+  if (!current) return p;
+
+  const stillExists = list.some((r) => r.id === current.id);
+  if (!stillExists) {
+    return { ...p, [activeType]: null };
+  }
+
+  return p;
+});
+
       if (
         activeType !== "campaigns" &&
         !selectedByType[activeType] &&
