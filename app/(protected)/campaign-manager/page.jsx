@@ -157,19 +157,7 @@ useEffect(() => {
     ? await cmApi.create(activeType, payload)
     : await cmApi.update(activeType, id, payload);
 
-  setRecordsByType((p) => ({
-    ...p,
-    [activeType]: p[activeType].map((r) =>
-      r.id === (_isNew ? id : saved.id) ? saved : r
-    ),
-  }));
-
-  setSelectedByType((p) => ({
-    ...p,
-    [activeType]: saved,
-  }));
-
-  // NPC image attach/update (remove is handled immediately in the form)
+  // 🔑 Attach image FIRST
   if (activeType === "npcs" && __pendingImageClipId) {
     await fetch("/api/npc-image", {
       method: "POST",
@@ -181,6 +169,38 @@ useEffect(() => {
       }),
     });
   }
+
+  // THEN update state
+
+  if (activeType === "npcs") {
+  const res = await fetch(
+    `/api/npcs-with-images?campaign_id=${campaignId}`,
+    { credentials: "include" }
+  );
+  const data = await res.json();
+
+  setRecordsByType((p) => ({
+    ...p,
+    npcs: data.rows || [],
+  }));
+
+  setSelectedByType((p) => ({
+    ...p,
+    npcs: (data.rows || []).find((r) => r.id === saved.id) || null,
+  }));
+} else {
+  setRecordsByType((p) => ({
+    ...p,
+    [activeType]: p[activeType].map((r) =>
+      r.id === (_isNew ? id : saved.id) ? saved : r
+    ),
+  }));
+
+  setSelectedByType((p) => ({
+    ...p,
+    [activeType]: saved,
+  }));
+}
 };
     
 const handleDelete = async () => {
@@ -302,12 +322,19 @@ const confirmCampaignDelete = async () => {
                   onClick={() => {
   setSelectedByType((p) => ({
     ...p,
-    [activeType]: r,
+    [activeType]: {
+      ...r,
+      // preserve pending image ONLY if this is the same record
+      __pendingImageClipId:
+        p[activeType]?.id === r.id
+          ? p[activeType]?.__pendingImageClipId
+          : null,
+    },
   }));
 
   if (activeType === "campaigns") {
-  setCampaignContext({ campaign: r });
-}
+    setCampaignContext({ campaign: r });
+  }
 }}
 >
   {activeType === "players"
