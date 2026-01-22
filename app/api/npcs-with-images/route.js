@@ -14,18 +14,23 @@ export async function GET(req) {
   }
 
   const ctx = await getTenantContext(req);
+  if (!ctx?.tenantId) {
+    return NextResponse.json(
+      { ok: false, error: "unauthorized" },
+      { status: 401 }
+    );
+  }
 
   const { rows } = await query(
     `
     SELECT *
-    FROM npc_with_images
-    WHERE tenant_id = $1
-      AND campaign_id = $2
-    ORDER BY created_at DESC
+      FROM npcs_with_images
+     WHERE tenant_id = $1
+       AND campaign_id = $2
+     ORDER BY created_at DESC
     `,
     [ctx.tenantId, campaignId]
   );
 
   return NextResponse.json({ ok: true, rows });
 }
-

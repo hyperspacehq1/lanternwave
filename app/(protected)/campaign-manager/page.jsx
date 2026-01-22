@@ -89,8 +89,11 @@ useEffect(() => {
     { credentials: "include" }
   );
   const data = await res.json();
-  list = data.rows || [];
+
+  // ✅ Enforce same invariant as Items/Locations: never show soft-deleted rows
+  list = (data.rows || []).filter((r) => !r?.deleted_at);
 }
+
 else if (activeType === "locations") {
   const res = await fetch(
     `/api/locations-with-images?campaign_id=${campaignId}`,
