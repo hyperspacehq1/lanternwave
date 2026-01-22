@@ -84,15 +84,32 @@ useEffect(() => {
         }
 
         if (activeType === "npcs") {
-          const res = await fetch(
-            `/api/npcs-with-images?campaign_id=${campaignId}`,
-            { credentials: "include" }
-          );
-          const data = await res.json();
-          list = data.rows || [];
-        } else {
-          list = await cmApi.list(activeType, {
-            campaign_id: campaignId,
+  const res = await fetch(
+    `/api/npcs-with-images?campaign_id=${campaignId}`,
+    { credentials: "include" }
+  );
+  const data = await res.json();
+  list = data.rows || [];
+}
+else if (activeType === "locations") {
+  const res = await fetch(
+    `/api/locations-with-images?campaign_id=${campaignId}`,
+    { credentials: "include" }
+  );
+  const data = await res.json();
+  list = data.rows || [];
+}
+else if (activeType === "items") {
+  const res = await fetch(
+    `/api/items-with-images?campaign_id=${campaignId}`,
+    { credentials: "include" }
+  );
+  const data = await res.json();
+  list = data.rows || [];
+}
+else {
+  list = await cmApi.list(activeType, {
+    campaign_id: campaignId,
           });
         }
       }
