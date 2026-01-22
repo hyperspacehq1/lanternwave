@@ -149,9 +149,9 @@ export async function PUT(req, { params }) {
 }
 
 /* -----------------------------------------------------------
-   DELETE /api/items/[id]   (SOFT DELETE)
+   DELETE /api/items?id=   (SOFT DELETE — defensive)
 ------------------------------------------------------------ */
-export async function DELETE(req, { params }) {
+export async function DELETE(req) {
   let ctx;
   try {
     ctx = await getTenantContext(req);
@@ -160,9 +160,16 @@ export async function DELETE(req, { params }) {
   }
 
   const tenantId = ctx.tenantId;
-  const id = params?.id;
+  const url = new URL(req.url);
 
-  if (!id) return Response.json({ error: "id required" }, { status: 400 });
+  // ✅ Accept id from either route shape
+  const id =
+    url.searchParams.get("id") ??
+    url.pathname.split("/").pop();
+
+  if (!id) {
+    return Response.json({ error: "id required" }, { status: 400 });
+  }
 
   const { rows } = await query(
     `
@@ -182,7 +189,7 @@ export async function DELETE(req, { params }) {
       ? sanitizeRow(rows[0], {
           name: 120,
           description: 10000,
-          notes: 500,
+          notes: 10000,
           itemType: 120,
         })
       : null
