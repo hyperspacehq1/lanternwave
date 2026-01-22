@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 
 /*
   AssetAttachment
@@ -20,7 +20,7 @@ import { useEffect, useState } from "react";
     DELETE /api/{entity}-image?{entity}_id=...
 
   Preview:
-    /api/clips/{clip_id}
+    /api/r2/stream?key=object_key   ✅ (matches NPC behavior)
 */
 
 export default function AssetAttachment({
@@ -41,6 +41,14 @@ export default function AssetAttachment({
 
   const apiBase = `/api/${singular}-image`;
   const idParam = `${singular}_id`;
+
+  /* ----------------------------------------------------------
+     Resolve selected clip object (for object_key)
+  ---------------------------------------------------------- */
+  const selectedClip = useMemo(() => {
+    if (!clipId) return null;
+    return clips.find((c) => c.id === clipId) || null;
+  }, [clipId, clips]);
 
   /* ----------------------------------------------------------
      Load existing attachment
@@ -85,7 +93,6 @@ export default function AssetAttachment({
 
   /* ----------------------------------------------------------
      Load available clips (IMAGES ONLY)
-     Uses existing tenant-scoped /api/r2/list
   ---------------------------------------------------------- */
   useEffect(() => {
     let cancelled = false;
@@ -199,10 +206,12 @@ export default function AssetAttachment({
         </div>
       )}
 
-      {clipId && !loading && (
+      {clipId && !loading && selectedClip && (
         <>
           <img
-            src={`/api/clips/${clipId}`}
+            src={`/api/r2/stream?key=${encodeURIComponent(
+              selectedClip.object_key
+            )}`}
             alt=""
             className="cm-image-preview"
           />
