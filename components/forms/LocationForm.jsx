@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useCampaignContext } from "@/lib/campaign/campaignContext";
 import JoinPanel from "@/components/JoinPanel";
+import AssetAttachment from "@/components/AssetAttachment";
 
 export default function LocationForm({ record, onChange }) {
   const { campaign } = useCampaignContext();
@@ -65,66 +66,6 @@ export default function LocationForm({ record, onChange }) {
       )
     );
   }, [record]);
-
-  /* ---------------------------------------------
-     Image attachment state (ADDITIVE)
-  --------------------------------------------- */
-  const [clipId, setClipId] = useState(null);
-  const [imageLoading, setImageLoading] = useState(false);
-
-  // Load existing image on open / record change
-  useEffect(() => {
-    if (!record?.id || record._isNew) return;
-
-    console.log("[LocationForm] fetching image for location", record.id);
-    setImageLoading(true);
-
-    fetch(`/api/location-image?location_id=${record.id}`)
-      .then((r) => r.json())
-      .then((data) => {
-        console.log("[LocationForm] image fetch response", data);
-        if (data?.ok) {
-          setClipId(data.clip_id ?? null);
-        }
-      })
-      .catch((err) => {
-        console.error("[LocationForm] image fetch error", err);
-      })
-      .finally(() => setImageLoading(false));
-  }, [record.id, record._isNew]);
-
-  async function attachImage(newClipId) {
-    if (!record?.id) return;
-
-    console.log("[LocationForm] attach image", {
-      location_id: record.id,
-      clip_id: newClipId,
-    });
-
-    await fetch("/api/location-image", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        location_id: record.id,
-        clip_id: newClipId,
-      }),
-    });
-
-    setClipId(newClipId);
-  }
-
-  async function removeImage() {
-    if (!record?.id) return;
-
-    console.log("[LocationForm] remove image", record.id);
-
-    await fetch(
-      `/api/location-image?location_id=${record.id}`,
-      { method: "DELETE" }
-    );
-
-    setClipId(null);
-  }
 
   /* ---------------------------------------------
      AI helpers
@@ -275,40 +216,14 @@ export default function LocationForm({ record, onChange }) {
         </div>
       </div>
 
-      {/* Image attachment (ADDITIVE UI) */}
-      {!record._isNew && (
-        <div className="cm-field">
-          <label className="cm-label">Image</label>
-
-          {clipId && (
-            <>
-              <img
-                src={`/api/clips/${clipId}`}
-                className="cm-image-preview"
-                alt=""
-              />
-              <button
-                type="button"
-                className="cm-btn danger"
-                onClick={removeImage}
-              >
-                Remove Image
-              </button>
-            </>
-          )}
-
-          {!clipId && !imageLoading && (
-            <JoinPanel
-              title="Select Image"
-              campaignId={campaign.id}
-              locationId={record.id}
-              joinPath="clips"
-              idField="clip_id"
-              onSelect={attachImage}
-            />
-          )}
-        </div>
-      )}
+     {/* Image attachment */}
+{!record._isNew && (
+  <AssetAttachment
+    title="Image"
+    recordId={record.id}
+    recordType="locations"
+  />
+)}
 
       {/* Name */}
       <div className="cm-field">
