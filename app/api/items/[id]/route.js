@@ -149,9 +149,9 @@ export async function PUT(req, { params }) {
 }
 
 /* -----------------------------------------------------------
-   DELETE /api/items?id=   (SOFT DELETE — defensive)
+   DELETE /api/items/[id]
 ------------------------------------------------------------ */
-export async function DELETE(req) {
+export async function DELETE(req, { params }) {
   let ctx;
   try {
     ctx = await getTenantContext(req);
@@ -160,12 +160,7 @@ export async function DELETE(req) {
   }
 
   const tenantId = ctx.tenantId;
-  const url = new URL(req.url);
-
-  // ✅ Accept id from either route shape
-  const id =
-    url.searchParams.get("id") ??
-    url.pathname.split("/").pop();
+  const id = params?.id;
 
   if (!id) {
     return Response.json({ error: "id required" }, { status: 400 });
