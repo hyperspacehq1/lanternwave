@@ -194,10 +194,16 @@ setSelectedByType((p) => {
       ),
     }));
 
-    setSelectedByType((p) => ({
-      ...p,
-      [activeType]: saved,
-    }));
+setSelectedByType((p) => {
+  const list = p[activeType] || [];
+  const stillExists = list.some((r) => r.id === saved.id);
+
+  return {
+    ...p,
+    [activeType]: stillExists ? saved : null,
+  };
+});    
+
 
     if (activeType === "npcs" && __pendingImageClipId) {
       await fetch("/api/npc-image", {
