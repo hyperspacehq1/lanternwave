@@ -149,60 +149,39 @@ useEffect(() => {
   };
 
   const handleSave = async () => {
-  if (!selectedRecord) return;
+    if (!selectedRecord) return;
 
-  const { _isNew, id, __pendingImageClipId, ...payload } = selectedRecord;
+    const { _isNew, id, __pendingImageClipId, ...payload } = selectedRecord;
 
-  const saved = _isNew
-    ? await cmApi.create(activeType, payload)
-    : await cmApi.update(activeType, id, payload);
+    const saved = _isNew
+      ? await cmApi.create(activeType, payload)
+      : await cmApi.update(activeType, id, payload);
 
-  // 🔑 Attach image FIRST
-  if (activeType === "npcs" && __pendingImageClipId) {
-    await fetch("/api/npc-image", {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        npc_id: saved.id,
-        clip_id: __pendingImageClipId,
-      }),
-    });
-  }
+    setRecordsByType((p) => ({
+      ...p,
+      [activeType]: p[activeType].map((r) =>
+        r.id === (_isNew ? id : saved.id) ? saved : r
+      ),
+    }));
 
-  // THEN update state
+    setSelectedByType((p) => ({
+      ...p,
+      [activeType]: saved,
+    }));
 
-  if (activeType === "npcs") {
-  const res = await fetch(
-    `/api/npcs-with-images?campaign_id=${campaignId}`,
-    { credentials: "include" }
-  );
-  const data = await res.json();
+    if (activeType === "npcs" && __pendingImageClipId) {
+      await fetch("/api/npc-image", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          npc_id: saved.id,
+          clip_id: __pendingImageClipId,
+        }),
+      });
+    }
+  };
 
-  setRecordsByType((p) => ({
-    ...p,
-    npcs: data.rows || [],
-  }));
-
-  setSelectedByType((p) => ({
-    ...p,
-    npcs: (data.rows || []).find((r) => r.id === saved.id) || null,
-  }));
-} else {
-  setRecordsByType((p) => ({
-    ...p,
-    [activeType]: p[activeType].map((r) =>
-      r.id === (_isNew ? id : saved.id) ? saved : r
-    ),
-  }));
-
-  setSelectedByType((p) => ({
-    ...p,
-    [activeType]: saved,
-  }));
-}
-};
-    
 const handleDelete = async () => {
   if (!selectedRecord) return;
 
@@ -322,19 +301,12 @@ const confirmCampaignDelete = async () => {
                   onClick={() => {
   setSelectedByType((p) => ({
     ...p,
-    [activeType]: {
-      ...r,
-      // preserve pending image ONLY if this is the same record
-      __pendingImageClipId:
-        p[activeType]?.id === r.id
-          ? p[activeType]?.__pendingImageClipId
-          : null,
-    },
+    [activeType]: r,
   }));
 
   if (activeType === "campaigns") {
-    setCampaignContext({ campaign: r });
-  }
+  setCampaignContext({ campaign: r });
+}
 }}
 >
   {activeType === "players"
