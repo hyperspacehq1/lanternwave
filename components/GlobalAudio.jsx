@@ -23,7 +23,7 @@ export function GlobalAudioProvider({ children }) {
   const visualizerRef = useRef(null);
   const isPlayingRef = useRef(false);
 
-  // 🔒 NEW: play-cancellation token
+  // 🔒 play-cancellation token
   const playTokenRef = useRef(0);
 
   const [currentKey, setCurrentKey] = useState(null);
@@ -33,10 +33,17 @@ export function GlobalAudioProvider({ children }) {
      INIT WEB AUDIO (ONCE)
   ------------------------------ */
   useEffect(() => {
-    if (!audioRef.current || audioContextRef.current) return;
+    console.log("[GlobalAudio] useEffect init");
+
+    if (!audioRef.current || audioContextRef.current) {
+      console.log("[GlobalAudio] init skipped", {
+        hasAudio: !!audioRef.current,
+        hasCtx: !!audioContextRef.current,
+      });
+      return;
+    }
 
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
-
     const analyser = ctx.createAnalyser();
     analyser.fftSize = 2048;
 
@@ -44,11 +51,14 @@ export function GlobalAudioProvider({ children }) {
     analyserRef.current = analyser;
     dataArrayRef.current = new Uint8Array(analyser.fftSize);
 
-    // ✅ CREATE MEDIA SOURCE ONCE — NEVER DISCONNECT
     const source = ctx.createMediaElementSource(audioRef.current);
     source.connect(analyser);
     analyser.connect(ctx.destination);
     sourceRef.current = source;
+
+    console.log("[GlobalAudio] WebAudio initialized", {
+      state: ctx.state,
+    });
   }, []);
 
   /* ------------------------------
@@ -59,8 +69,10 @@ export function GlobalAudioProvider({ children }) {
     if (!ctx) return;
 
     if (ctx.state === "suspended") {
+      console.log("[GlobalAudio] resuming AudioContext");
       try {
         await ctx.resume();
+        console.log("[GlobalAudio] AudioContext resumed");
       } catch (err) {
         console.warn("[GlobalAudio] AudioContext resume failed:", err);
       }
@@ -72,6 +84,8 @@ export function GlobalAudioProvider({ children }) {
   ------------------------------ */
   function setLoop(value) {
     const v = !!value;
+    console.log("[GlobalAudio] setLoop", v);
+
     setLoopState(v);
     if (audioRef.current) {
       audioRef.current.loop = v;
@@ -79,41 +93,60 @@ export function GlobalAudioProvider({ children }) {
   }
 
   /* ------------------------------
-     PLAY (token-guarded)
+     PLAY (FULL DEBUG)
   ------------------------------ */
   async function play(src, key) {
-    if (!audioRef.current || !audioContextRef.current) return;
+    if (!audioRef.current || !audioContextRef.current) {
+      console.warn("[GlobalAudio.play] aborted — missing refs");
+      return;
+    }
 
     const audio = audioRef.current;
 
-    // 🔒 Invalidate any previous play()
     const token = ++playTokenRef.current;
 
-    // Clean stop before replay
+    console.log("[GlobalAudio.play] START", {
+      token,
+      key,
+      src,
+      currentSrc: audio.currentSrc,
+      paused: audio.paused,
+      time: audio.currentTime,
+    });
+
     audio.pause();
     try {
       audio.currentTime = 0;
     } catch {}
 
-    // Safari-safe src reset
     audio.src = "";
     audio.src = src;
     audio.loop = loop;
 
-    // Ensure AudioContext is alive (Safari / iOS)
     await ensureAudioContextRunning();
 
     try {
       await audio.play();
 
-      // ❗ GUARD: ignore stale async play()
-      if (token !== playTokenRef.current) return;
+      console.log("[GlobalAudio.play] play() resolved", {
+        token,
+        paused: audio.paused,
+        currentSrc: audio.currentSrc,
+      });
+
+      if (token !== playTokenRef.current) {
+        console.warn("[GlobalAudio.play] STALE play() ignored", {
+          token,
+          current: playTokenRef.current,
+        });
+        return;
+      }
 
       isPlayingRef.current = true;
       setCurrentKey(key);
     } catch (err) {
+      console.error("[GlobalAudio.play] FAILED", err);
       if (token === playTokenRef.current) {
-        console.warn("[GlobalAudio.play] failed:", err);
         isPlayingRef.current = false;
         setCurrentKey(null);
       }
@@ -121,15 +154,25 @@ export function GlobalAudioProvider({ children }) {
   }
 
   /* ------------------------------
-     STOP (cancels in-flight play)
+     STOP (FULL DEBUG + HARD RESET)
   ------------------------------ */
   function stop() {
-    if (!audioRef.current) return;
-
-    // 🔒 Cancel any pending play()
-    playTokenRef.current++;
+    if (!audioRef.current) {
+      console.warn("[GlobalAudio.stop] no audioRef");
+      return;
+    }
 
     const audio = audioRef.current;
+
+    playTokenRef.current++;
+
+    console.log("[GlobalAudio.stop] BEFORE", {
+      key: currentKey,
+      currentSrc: audio.currentSrc,
+      paused: audio.paused,
+      time: audio.currentTime,
+      token: playTokenRef.current,
+    });
 
     audio.pause();
 
@@ -137,11 +180,34 @@ export function GlobalAudioProvider({ children }) {
       audio.currentTime = 0;
     } catch {}
 
-    // ✅ HARD STOP — REQUIRED FOR MP3
-    audio.src = "";
+    // 🔥 HARD RESET (stronger than src="")
+    audio.removeAttribute("src");
+    try {
+      audio.load();
+    } catch {}
 
     isPlayingRef.current = false;
     setCurrentKey(null);
+
+    console.log("[GlobalAudio.stop] AFTER", {
+      currentSrc: audio.currentSrc,
+      paused: audio.paused,
+      time: audio.currentTime,
+    });
+
+    // 🔍 Detect duplicate audio elements
+    if (typeof document !== "undefined") {
+      const audios = Array.from(document.querySelectorAll("audio")).map(
+        (a, i) => ({
+          i,
+          currentSrc: a.currentSrc,
+          paused: a.paused,
+          time: a.currentTime,
+        })
+      );
+
+      console.log("[GlobalAudio.stop] AUDIO ELEMENTS ON PAGE:", audios);
+    }
   }
 
   return (
@@ -152,8 +218,6 @@ export function GlobalAudioProvider({ children }) {
         currentKey,
         loop,
         setLoop,
-
-        // 🔊 visualizer exports
         analyser: analyserRef,
         dataArray: dataArrayRef,
         audioContext: audioContextRef,
