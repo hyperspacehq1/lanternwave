@@ -56,7 +56,6 @@ export async function PUT(req) {
       );
     }
 
-    // Explicit allow-list
     const ALLOWED_KEYS = ["player_enabled"];
     if (!ALLOWED_KEYS.includes(key)) {
       return NextResponse.json(
@@ -78,11 +77,11 @@ export async function PUT(req) {
       UPDATE account_preferences
          SET audio =
            COALESCE(audio, '{}'::jsonb)
-           || jsonb_build_object($1, $2::jsonb),
+           || jsonb_build_object($1, $2),
              updated_at = NOW()
        WHERE tenant_id = $3
       `,
-      [key, JSON.stringify(!!value), ctx.tenantId]
+      [key, !!value, ctx.tenantId]
     );
 
     return NextResponse.json({
