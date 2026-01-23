@@ -331,8 +331,10 @@ const confirmCampaignDelete = async () => {
 }}
 >
   {activeType === "players"
-    ? r.character_name || "(unnamed)"
-    : r.name || "(unnamed)"}
+  ? r.character_name ||
+    `${r.first_name || ""} ${r.last_name || ""}`.trim() ||
+    "(unnamed)"
+  : r.name || "(unnamed)"}
 </div>
 ))}
 </section>
