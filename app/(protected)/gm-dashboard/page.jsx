@@ -112,7 +112,7 @@ async function pulseItemClip({ itemId, durationMs }) {
 async function pulseLocationClip({ locationId, durationMs }) {
   // 1. resolve Location → clip key
   const clipRes = await fetch(
-    `/api/locations/resolve-clip?location_id=${locationId}`,
+`/api/location-pulse?location_id=${locationId}`,
     { credentials: "include" }
   );
   if (!clipRes.ok) return;

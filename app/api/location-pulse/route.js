@@ -6,22 +6,17 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * LOCATION RESOLVER
- * -----------------
+ * LOCATION PULSE RESOLVER
+ * ----------------------
  * GET /api/location-pulse?location_id=...
  * → { ok: true, key }
  */
 export async function GET(req) {
-  console.log("🟢 [location-pulse] HIT resolver route");
-
   try {
     const url = new URL(req.url);
     const locationId = url.searchParams.get("location_id");
 
-    console.log("🟢 [location-pulse] location_id:", locationId);
-
     if (!locationId) {
-      console.warn("🔴 [location-pulse] missing location_id");
       return NextResponse.json(
         { ok: false, error: "location_id required" },
         { status: 400 }
@@ -29,8 +24,6 @@ export async function GET(req) {
     }
 
     const ctx = await getTenantContext(req);
-    console.log("🟢 [location-pulse] tenant:", ctx?.tenantId);
-
     if (!ctx?.tenantId) {
       return NextResponse.json(
         { ok: false, error: "unauthorized" },
@@ -54,24 +47,19 @@ export async function GET(req) {
       [locationId, ctx.tenantId]
     );
 
-    console.log("🟢 [location-pulse] rows:", rows);
-
     if (!rows.length) {
-      console.warn("🟡 [location-pulse] no clip found");
       return NextResponse.json(
         { ok: false, error: "no clip found for location" },
         { status: 404 }
       );
     }
 
-    console.log("✅ [location-pulse] resolved key:", rows[0].object_key);
-
     return NextResponse.json({
       ok: true,
       key: rows[0].object_key,
     });
   } catch (err) {
-    console.error("🔥 [location-pulse] ERROR", err);
+    console.error("🔥 [location-pulse] resolver error", err);
     return NextResponse.json(
       { ok: false, error: "internal error" },
       { status: 500 }
