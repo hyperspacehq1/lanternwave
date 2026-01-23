@@ -58,15 +58,14 @@ export async function PUT(req) {
     const result = await query(
       `
       UPDATE account_preferences
-         SET audio =
-           COALESCE(audio, '{}'::jsonb)
-           || jsonb_build_object($1::text, $2),
-             updated_at = NOW()
-       WHERE tenant_id = $3
-       RETURNING tenant_id, audio
-      `,
-      [key, value, ctx.tenantId]
-    );
+     SET audio =
+       COALESCE(audio, '{}'::jsonb)
+       || jsonb_build_object($1::text, to_jsonb($2)),
+         updated_at = NOW()
+   WHERE tenant_id = $3
+  `,
+  [key, value, ctx.tenantId]
+);
 
     console.log("[account-audio][PUT] SQL RESULT:", result);
 
