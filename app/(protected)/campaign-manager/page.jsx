@@ -184,15 +184,10 @@ else {
       ),
     }));
 
-setSelectedByType((p) => {
-  const list = p[activeType] || [];
-  const stillExists = list.some((r) => r.id === saved.id);
-
-  return {
-    ...p,
-    [activeType]: stillExists ? saved : null,
-  };
-});    
+setSelectedByType((p) => ({
+  ...p,
+  [activeType]: saved,
+})); 
 
 
     if (activeType === "npcs" && __pendingImageClipId) {
