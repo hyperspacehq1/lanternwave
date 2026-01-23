@@ -38,27 +38,28 @@ export async function GET(req) {
     const userId = ctx.user.id;
 
     const { rows } = await query(
-      `
-      SELECT beacons
-        FROM account_preferences
-       WHERE tenant_id = $1
-         AND user_id   = $2
-       ORDER BY updated_at DESC
-       LIMIT 1
-      `,
-      [tenantId, userId]
-    );
+  `
+  SELECT beacons, audio
+    FROM account_preferences
+   WHERE tenant_id = $1
+     AND user_id   = $2
+   ORDER BY updated_at DESC
+   LIMIT 1
+  `,
+  [tenantId, userId]
+);
 
-    return NextResponse.json({
-      ok: true,
-      account: {
-        username: ctx.user.username,
-        tenant_id: tenantId,
-        user_id: userId,
-        beacons: rows[0]?.beacons ?? {},
-      },
-      debug,
-    });
+return NextResponse.json({
+  ok: true,
+  account: {
+    username: ctx.user.username,
+    tenant_id: tenantId,
+    user_id: userId,
+    beacons: rows[0]?.beacons ?? {},
+    audio: rows[0]?.audio ?? { player_enabled: false },
+  },
+  debug,
+});
   } catch (err) {
     console.error("🔥 /api/account GET ERROR", {
       ...debug,
