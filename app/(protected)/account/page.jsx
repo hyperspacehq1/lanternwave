@@ -19,6 +19,9 @@ export default function AccountPage() {
   const [plan, setPlan] = useState("observer");
   const [campaignCount, setCampaignCount] = useState(null);
   const [usedBytes, setUsedBytes] = useState(null);
+  const [audioSettings, setAudioSettings] = useState({
+  player_enabled: false,
+});
 
   const loadingRef = useRef(false);
 
@@ -44,6 +47,7 @@ export default function AccountPage() {
 
         setUsername(accountData.account.username);
         setBeacons(accountData.account.beacons ?? {});
+        setAudioSettings(accountData.account.audio ?? { player_enabled: false });
         setPlan(getCurrentPlan());
       } catch (err) {
         console.error("ACCOUNT LOAD ERROR:", err);
@@ -113,6 +117,21 @@ export default function AccountPage() {
       body: JSON.stringify({ key, enabled }),
     }).catch(() => {});
   };
+
+
+/* ------------------------------
+   Update Audio Settings (optimistic)
+------------------------------ */
+const updateAudioSetting = (key, value) => {
+  setAudioSettings((prev) => ({ ...prev, [key]: value }));
+
+  fetch("/api/account/audio", {
+    method: "PUT",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ key, value }),
+  }).catch(() => {});
+};
 
   const planDef = PLANS[plan];
 
@@ -258,6 +277,43 @@ export default function AccountPage() {
                 </form>
               )}
             </div>
+
+{/* ---------------- Audio ---------------- */}
+<h2 className="account-section-title">Audio</h2>
+
+<div className="account-panel">
+  <div className="account-row">
+    <label className="account-label">
+  <span className="beacon-checkbox">
+    <input
+      type="checkbox"
+      checked={!!audioSettings.player_enabled}
+      onChange={(e) =>
+        updateAudioSetting("player_enabled", e.target.checked)
+      }
+    />
+  </span>
+
+  <span className="beacon-label-text">
+    Enable Player Page Audio Output
+  </span>
+
+  <Tooltip content={TOOLTIPS.account.audio_player}>
+    <span
+      className="beacon-tooltip-icon"
+      aria-label="More info"
+    >
+      ⓘ
+    </span>
+  </Tooltip>
+</label>
+  </div>
+
+  <div className="account-status">
+    When enabled, audio will play on the Player Page in addition
+    to the GM Controller.
+  </div>
+</div>
 
             {/* ---------------- Beacons ---------------- */}
             <h2 className="account-section-title">Beacons</h2>

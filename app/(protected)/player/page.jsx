@@ -27,11 +27,7 @@ async function getNowPlaying() {
     credentials: "include",
   });
 
-  if (!res.ok) {
-    console.warn("[Player] now-playing fetch failed:", res.status);
-    return null;
-  }
-
+  if (!res.ok) return null;
   const data = await res.json();
   return data?.nowPlaying ?? null;
 }
@@ -46,45 +42,39 @@ async function getPlayerPulse() {
 }
 
 /* ================================
-   🔑 TIMING SYNC
+   Video timing sync only
 ================================ */
-function syncMediaToNowPlaying(mediaEl, updatedAt) {
-  if (!mediaEl || !updatedAt || mediaEl.__synced) return;
+function syncVideoToNowPlaying(videoEl, updatedAt) {
+  if (!videoEl || !updatedAt || videoEl.__synced) return;
 
   const startedAt = new Date(updatedAt).getTime();
   const elapsed = (Date.now() - startedAt) / 1000;
 
   if (elapsed > 0 && !Number.isNaN(elapsed)) {
-    mediaEl.currentTime = elapsed;
-    mediaEl.__synced = true;
+    videoEl.currentTime = elapsed;
+    videoEl.__synced = true;
   }
 }
 
 /* ================================
-   Player Page
+   Player Page (mirrored)
 ================================ */
 export default function PlayerPage() {
   const [nowPlaying, setNowPlaying] = useState(null);
   const [playerPulse, setPlayerPulse] = useState(null);
-
-  // For cross-fade images
   const [prevImageKey, setPrevImageKey] = useState(null);
 
   const mediaRef = useRef(null);
   const pollDelayRef = useRef(1200);
 
   /* -------------------------------
-     Poll: Now Playing (adaptive)
+     Poll: Now Playing
   -------------------------------- */
   useEffect(() => {
     let cancelled = false;
     let timeoutId = null;
 
     async function poll() {
-      if (document.hidden) {
-        pollDelayRef.current = 5000;
-      }
-
       try {
         const data = await getNowPlaying();
         if (cancelled) return;
@@ -113,7 +103,7 @@ export default function PlayerPage() {
   }, []);
 
   /* -------------------------------
-     Poll: Player Pulse (sanity)
+     Poll: Player Pulse
   -------------------------------- */
   useEffect(() => {
     let cancelled = false;
@@ -154,7 +144,7 @@ export default function PlayerPage() {
       </button>
 
       {/* -------------------------------
-          Background Media (Images)
+          Images
       -------------------------------- */}
       {type === "image" && (
         <div className="lw-preview-frame">
@@ -175,25 +165,36 @@ export default function PlayerPage() {
         </div>
       )}
 
-      {key && type === "audio" && <audio ref={mediaRef} src={url} autoPlay />}
-
+      {/* -------------------------------
+          Video (muted, synced)
+      -------------------------------- */}
       {key && type === "video" && (
         <div className="lw-preview-frame">
           <video
             ref={mediaRef}
             src={url}
             autoPlay
+            muted
             playsInline
             className="lw-preview-media"
             onLoadedMetadata={() =>
-              syncMediaToNowPlaying(mediaRef.current, nowPlaying?.updatedAt)
+              syncVideoToNowPlaying(mediaRef.current, nowPlaying?.updatedAt)
             }
           />
         </div>
       )}
 
       {/* -------------------------------
-          Player Pulse (Sanity) — PORTAL
+          Audio (mirrored — visual only)
+      -------------------------------- */}
+      {key && type === "audio" && (
+        <div className="lw-player-audio-indicator">
+          ♪ Now Playing
+        </div>
+      )}
+
+      {/* -------------------------------
+          Player Pulse — PORTAL
       -------------------------------- */}
       {playerPulse &&
         typeof document !== "undefined" &&
