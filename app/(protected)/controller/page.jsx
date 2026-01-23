@@ -486,13 +486,12 @@ export default function ControllerPage() {
 
             {previewKey && previewType === "video" && (
               <video
-                className="lw-preview-media"
-                src={previewUrl}
-                muted
-                autoPlay
-                loop={!!audio?.loop}
-                playsInline
-              />
+  className="lw-preview-media"
+  src={previewUrl}
+  autoPlay
+  loop={!!audio?.loop}
+  playsInline
+/>
             )}
 
             {showWaveform && (
