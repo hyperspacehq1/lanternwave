@@ -55,16 +55,21 @@ export async function PUT(req) {
   try {
     console.log("[account-audio][PUT] BEFORE SQL");
 
-    const result = await query(
-      `
-      UPDATE account_preferences
+   const result = await query(
+  `
+  UPDATE account_preferences
      SET audio =
-       COALESCE(audio, '{}'::jsonb)
-       || jsonb_build_object($1::text, to_jsonb($2)),
+       jsonb_set(
+         COALESCE(audio, '{}'::jsonb),
+         ARRAY[$1]::text[],
+         $2::jsonb,
+         true
+       ),
          updated_at = NOW()
    WHERE tenant_id = $3
+   RETURNING tenant_id, audio
   `,
-  [key, value, ctx.tenantId]
+  [key, JSON.stringify(value), ctx.tenantId]
 );
 
     console.log("[account-audio][PUT] SQL RESULT:", result);
