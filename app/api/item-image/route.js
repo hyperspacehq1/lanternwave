@@ -6,37 +6,29 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /* ============================================================
-   GET — fetch existing Item image (by item_id)
+   GET — load current item image
 ============================================================ */
 export async function GET(req) {
   const { searchParams } = new URL(req.url);
   const itemId = searchParams.get("item_id");
 
   if (!itemId) {
-    return NextResponse.json(
-      { ok: false, error: "missing item_id" },
-      { status: 400 }
-    );
+    return NextResponse.json({ ok: false }, { status: 400 });
   }
 
   const ctx = await getTenantContext(req);
-  if (!ctx?.tenantId) {
-    return NextResponse.json(
-      { ok: false, error: "unauthorized" },
-      { status: 401 }
-    );
-  }
 
   const { rows } = await query(
     `
     SELECT clip_id
-    FROM item_clips
-    WHERE item_id = $1
-      AND deleted_at IS NULL
-    ORDER BY created_at DESC
-    LIMIT 1
+      FROM item_clips
+     WHERE tenant_id = $1
+       AND item_id = $2
+       AND deleted_at IS NULL
+     ORDER BY created_at DESC
+     LIMIT 1
     `,
-    [itemId]
+    [ctx.tenantId, itemId]
   );
 
   return NextResponse.json({
@@ -46,33 +38,51 @@ export async function GET(req) {
 }
 
 /* ============================================================
-   POST — attach image to Item
+   POST — attach image to item
 ============================================================ */
 export async function POST(req) {
   const body = await req.json();
-  const { item_id, clip_id } = body || {};
+  const { item_id, clip_id } = body;
 
   if (!item_id || !clip_id) {
-    return NextResponse.json(
-      { ok: false, error: "missing item_id or clip_id" },
-      { status: 400 }
-    );
+    return NextResponse.json({ ok: false }, { status: 400 });
   }
 
   const ctx = await getTenantContext(req);
-  if (!ctx?.tenantId) {
-    return NextResponse.json(
-      { ok: false, error: "unauthorized" },
-      { status: 401 }
-    );
-  }
 
   await query(
     `
-    INSERT INTO item_clips (item_id, clip_id)
-    VALUES ($1, $2)
+    INSERT INTO item_clips (tenant_id, item_id, clip_id)
+    VALUES ($1, $2, $3)
     `,
-    [item_id, clip_id]
+    [ctx.tenantId, item_id, clip_id]
+  );
+
+  return NextResponse.json({ ok: true });
+}
+
+/* ============================================================
+   DELETE — remove image from item (SOFT DELETE)
+============================================================ */
+export async function DELETE(req) {
+  const { searchParams } = new URL(req.url);
+  const itemId = searchParams.get("item_id");
+
+  if (!itemId) {
+    return NextResponse.json({ ok: false }, { status: 400 });
+  }
+
+  const ctx = await getTenantContext(req);
+
+  await query(
+    `
+    UPDATE item_clips
+       SET deleted_at = NOW()
+     WHERE tenant_id = $1
+       AND item_id = $2
+       AND deleted_at IS NULL
+    `,
+    [ctx.tenantId, itemId]
   );
 
   return NextResponse.json({ ok: true });
