@@ -1,4 +1,3 @@
-import { sanitizeRow, sanitizeRows } from "@/lib/api/sanitize";
 import { query } from "@/lib/db";
 import { v4 as uuid } from "uuid";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
@@ -73,17 +72,7 @@ export async function GET(req) {
     [tenantId, campaignId]
   );
 
-  return Response.json(
-    sanitizeRows(rows, {
-      firstName: 100,
-      lastName: 100,
-      characterName: 100,
-      notes: 2000,
-      phone: 50,
-      email: 120,
-      sanity: true,
-    })
-  );
+  return Response.json(rows);
 }
 
 /* -----------------------------------------------------------
@@ -100,104 +89,81 @@ export async function POST(req) {
   const tenantId = ctx.tenantId;
   const body = await req.json();
 
-  const campaignId = body.campaign_id ?? body.campaignId ?? null;
+  const campaignId = body.campaign_id ?? null;
   if (!campaignId) {
     return Response.json({ error: "campaign_id is required" }, { status: 400 });
   }
 
   try {
-    if (!body.first_name && !body.firstName) {
+    if (!body.first_name) {
       throw new Error("first_name is required");
     }
 
-    const firstName = validateString(
-      body.first_name ?? body.firstName,
-      100,
-      "first_name"
-    );
-
-    const lastName = validateOptionalString(
-      body.last_name ?? body.lastName,
-      100,
-      "last_name"
-    );
-
+    const firstName = validateString(body.first_name, 100, "first_name");
+    const lastName = validateOptionalString(body.last_name, 100, "last_name");
     const characterName = validateOptionalString(
-  body.character_name ?? body.characterName,
-  100,
-  "character_name"
-);
-
+      body.character_name,
+      100,
+      "character_name"
+    );
     const notes = validateOptionalString(body.notes, 2000, "notes");
     const phone = validateOptionalString(body.phone, 50, "phone");
     const email = validateOptionalString(body.email, 120, "email");
     const sanity = validateOptionalInt(body.sanity, "sanity");
 
-    const newPlayerId = uuid();
+    const playerId = uuid();
 
-const { rows } = await query(
-  `
-  INSERT INTO players (
-    id,
-    tenant_id,
-    campaign_id,
-    first_name,
-    last_name,
-    character_name,
-    notes,
-    phone,
-    email,
-    sanity
-  )
-  VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
-  RETURNING *
-  `,
-  [
-    newPlayerId,
-    tenantId,
-    campaignId,
-    firstName,
-    lastName,
-    characterName,
-    notes,
-    phone,
-    email,
-    sanity,
-  ]
-);
+    const { rows } = await query(
+      `
+      INSERT INTO players (
+        id,
+        tenant_id,
+        campaign_id,
+        first_name,
+        last_name,
+        character_name,
+        notes,
+        phone,
+        email,
+        sanity
+      )
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+      RETURNING *
+      `,
+      [
+        playerId,
+        tenantId,
+        campaignId,
+        firstName,
+        lastName,
+        characterName,
+        notes,
+        phone,
+        email,
+        sanity,
+      ]
+    );
 
-// ✅ Seed player_sanity ON CREATE (no triggers)
-if (Number.isInteger(sanity)) {
-  await query(
-    `
-    INSERT INTO player_sanity (
-      id,
-      tenant_id,
-      campaign_id,
-      player_id,
-      base_sanity,
-      current_sanity,
-      created_at,
-      updated_at
-    )
-    VALUES ($1,$2,$3,$4,$5,$5,NOW(),NOW())
-    `,
-    [uuid(), tenantId, campaignId, newPlayerId, sanity]
-  );
-}
+    if (Number.isInteger(sanity)) {
+      await query(
+        `
+        INSERT INTO player_sanity (
+          id,
+          tenant_id,
+          campaign_id,
+          player_id,
+          base_sanity,
+          current_sanity,
+          created_at,
+          updated_at
+        )
+        VALUES ($1,$2,$3,$4,$5,$5,NOW(),NOW())
+        `,
+        [uuid(), tenantId, campaignId, playerId, sanity]
+      );
+    }
 
-return Response.json(
-  sanitizeRow(rows[0], {
-    firstName: 100,
-    lastName: 100,
-    characterName: 100,
-    notes: 2000,
-    phone: 50,
-    email: 120,
-    sanity: true,
-  }),
-  { status: 201 }
-);
+    return Response.json(rows[0], { status: 201 });
   } catch (e) {
     return Response.json({ error: e.message }, { status: 400 });
   }
@@ -219,27 +185,27 @@ export async function PUT(req) {
   const id = searchParams.get("id");
   const body = await req.json();
 
-  if (!id) return Response.json({ error: "id required" }, { status: 400 });
+  if (!id) {
+    return Response.json({ error: "id required" }, { status: 400 });
+  }
 
   try {
     const sets = [];
     const values = [tenantId, id];
     let i = 3;
 
-    const fieldMap = {
-      first_name: ["firstName", 100],
-      last_name: ["lastName", 100],
-      character_name: ["characterName", 100],
-      notes: ["notes", 2000],
-      phone: ["phone", 50],
-      email: ["email", 120],
+    const fields = {
+      first_name: 100,
+      last_name: 100,
+      character_name: 100,
+      notes: 2000,
+      phone: 50,
+      email: 120,
     };
 
-    for (const col in fieldMap) {
-      const [camel, max] = fieldMap[col];
-      if (hasOwn(body, col) || hasOwn(body, camel)) {
-        const raw = body[col] ?? body[camel];
-        const val = validateOptionalString(raw, max, col);
+    for (const col in fields) {
+      if (hasOwn(body, col)) {
+        const val = validateOptionalString(body[col], fields[col], col);
         sets.push(`${col} = $${i++}`);
         values.push(val);
       }
@@ -271,19 +237,7 @@ export async function PUT(req) {
       values
     );
 
-    return Response.json(
-      rows[0]
-        ? sanitizeRow(rows[0], {
-            firstName: 100,
-            lastName: 100,
-            characterName: 100,
-            notes: 2000,
-            phone: 50,
-            email: 120,
-            sanity: true,
-          })
-        : null
-    );
+    return Response.json(rows[0] ?? null);
   } catch (e) {
     return Response.json({ error: e.message }, { status: 400 });
   }
@@ -304,7 +258,9 @@ export async function DELETE(req) {
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
 
-  if (!id) return Response.json({ error: "id required" }, { status: 400 });
+  if (!id) {
+    return Response.json({ error: "id required" }, { status: 400 });
+  }
 
   const { rows } = await query(
     `
@@ -319,17 +275,5 @@ export async function DELETE(req) {
     [tenantId, id]
   );
 
-  return Response.json(
-    rows[0]
-      ? sanitizeRow(rows[0], {
-          firstName: 100,
-          lastName: 100,
-          characterName: 100,
-          notes: 2000,
-          phone: 50,
-          email: 120,
-          sanity: true,
-        })
-      : null
-  );
+  return Response.json(rows[0] ?? null);
 }

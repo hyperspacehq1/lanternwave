@@ -28,7 +28,7 @@ export default function PlayerForm({ record, onChange }) {
   }
 
   /* ------------------------------------------------------------
-     Update helper
+     Update helper (campaign-scoped)
   ------------------------------------------------------------ */
   const update = (field, value) => {
     onChange({
@@ -39,7 +39,7 @@ export default function PlayerForm({ record, onChange }) {
   };
 
   /* ------------------------------------------------------------
-     Pulse on record change
+     Visual pulse on record change
   ------------------------------------------------------------ */
   const [pulse, setPulse] = useState(false);
   useEffect(() => {
@@ -106,7 +106,7 @@ export default function PlayerForm({ record, onChange }) {
         />
       </div>
 
-      {/* Base Sanity */}
+      {/* Sanity (Base) */}
       <div className="cm-field">
         <label className="cm-label">Sanity (Base)</label>
         <input
