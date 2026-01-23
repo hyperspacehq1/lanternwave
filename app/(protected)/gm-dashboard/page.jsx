@@ -74,7 +74,7 @@ async function pulseNpcClip({ npcId, durationMs }) {
 
 async function pulseItemClip({ itemId, durationMs }) {
   // 1. resolve Item → clip key
-  const clipRes = await fetch(`/api/items/resolve-clip?item_id=${itemId}`, {
+ const clipRes = await fetch(`/api/item-pulse?item_id=${itemId}`, {
     credentials: "include",
   });
   if (!clipRes.ok) return;
