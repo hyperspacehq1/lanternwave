@@ -2,14 +2,27 @@
 
 import { useEffect, useState } from "react";
 
+/* ----------------------------------------------------------
+   Normalize API responses into arrays (defensive)
+---------------------------------------------------------- */
+function normalizeArrayResponse(data) {
+  if (Array.isArray(data)) return data;
+
+  if (data?.rows && Array.isArray(data.rows)) return data.rows;
+  if (data?.items && Array.isArray(data.items)) return data.items;
+  if (data?.players && Array.isArray(data.players)) return data.players;
+
+  return [];
+}
+
 export default function JoinPanel({
   title,
   encounterId,
   sessionId,
   locationId,
   campaignId,
-  joinPath,          // "npcs" | "sessions" | "encounters" | "events" | "locations"
-  idField,           // npc_id | session_id | encounter_id | event_id | location_id
+  joinPath,
+  idField,
   labelField = "name",
 }) {
   const [attached, setAttached] = useState([]);
@@ -74,7 +87,7 @@ export default function JoinPanel({
     fetch(baseUrl, { credentials: "include" })
       .then((r) => (r.ok ? r.json() : []))
       .then((data) => {
-        setAttached(Array.isArray(data) ? data : []);
+        setAttached(normalizeArrayResponse(data));
       })
       .catch(() => setAttached([]));
   }, [baseUrl]);
@@ -90,14 +103,14 @@ export default function JoinPanel({
     })
       .then((r) => (r.ok ? r.json() : []))
       .then((data) => {
+        const list = normalizeArrayResponse(data);
+
         const attachedIds = new Set(
           attached.map((r) => r[idField])
         );
 
         setAvailable(
-          Array.isArray(data)
-            ? data.filter((r) => !attachedIds.has(r[idField] ?? r.id))
-            : []
+          list.filter((r) => !attachedIds.has(r[idField] ?? r.id))
         );
       })
       .catch(() => setAvailable([]));
@@ -159,7 +172,7 @@ export default function JoinPanel({
         credentials: "include",
       }).then((r) => (r.ok ? r.json() : []));
 
-      setAttached(Array.isArray(refreshed) ? refreshed : []);
+      setAttached(normalizeArrayResponse(refreshed));
     } finally {
       setSelectedId("");
       setLoading(false);
@@ -217,7 +230,7 @@ export default function JoinPanel({
     if (!res.ok) return;
 
     setAttached((prev) =>
-      Array.isArray(prev) ? prev.filter((r) => r[idField] !== id) : []
+      prev.filter((r) => r[idField] !== id)
     );
   }
 
