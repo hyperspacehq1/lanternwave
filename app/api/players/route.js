@@ -122,9 +122,11 @@ export async function POST(req) {
       "last_name"
     );
 
-    if (!body.character_name && !body.characterName) {
-  throw new Error("character_name is required");
-}
+    const characterName = validateOptionalString(
+  body.character_name ?? body.characterName,
+  100,
+  "character_name"
+);
 
 const characterName = validateString(
   body.character_name ?? body.characterName,
