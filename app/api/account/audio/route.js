@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 export async function GET(req) {
   try {
     const ctx = await getTenantContext(req);
-    if (!ctx?.tenantId || !ctx?.userId) {
+    if (!ctx?.tenantId) {
       return NextResponse.json(
         { ok: false, error: "unauthorized" },
         { status: 401 }
@@ -67,7 +67,7 @@ export async function PUT(req) {
     }
 
     const ctx = await getTenantContext(req);
-    if (!ctx?.tenantId || !ctx?.userId) {
+    if (!ctx?.tenantId) {
       return NextResponse.json(
         { ok: false, error: "unauthorized" },
         { status: 401 }
