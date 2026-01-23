@@ -1,80 +1,51 @@
-import { NextResponse } from "next/server";
-import { query } from "@/lib/db";
-import { getTenantContext } from "@/lib/tenant/getTenantContext";
-
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
-
 export async function PUT(req) {
-  console.log("[account-audio][PUT] HIT");
-
   try {
-    const rawBody = await req.text();
-    console.log("[account-audio][PUT] raw body:", rawBody);
+    const body = await req.json();
+    const { key, value } = body || {};
 
-    let body;
-    try {
-      body = JSON.parse(rawBody);
-    } catch (e) {
-      console.error("[account-audio][PUT] JSON parse failed:", e);
+    if (typeof key !== "string") {
       return NextResponse.json(
-        { ok: false, error: "invalid json" },
+        { ok: false, error: "invalid key" },
         { status: 400 }
       );
     }
 
-    const { key, value } = body;
-    console.log("[account-audio][PUT] parsed:", { key, value, type: typeof value });
+    const ALLOWED_KEYS = ["player_enabled"];
+    if (!ALLOWED_KEYS.includes(key)) {
+      return NextResponse.json(
+        { ok: false, error: "unsupported audio setting" },
+        { status: 400 }
+      );
+    }
 
     const ctx = await getTenantContext(req);
-    console.log("[account-audio][PUT] ctx:", ctx);
-
     if (!ctx?.tenantId) {
-      console.error("[account-audio][PUT] NO TENANT");
       return NextResponse.json(
         { ok: false, error: "unauthorized" },
         { status: 401 }
       );
     }
 
-    console.log("[account-audio][PUT] ABOUT TO QUERY");
-
-    const result = await query(
+    await query(
       `
       UPDATE account_preferences
          SET audio =
            COALESCE(audio, '{}'::jsonb)
-           || jsonb_build_object($1, $2),
+           || jsonb_build_object($1::text, $2),
              updated_at = NOW()
        WHERE tenant_id = $3
-       RETURNING tenant_id, audio
       `,
-      [key, value, ctx.tenantId]
+      [key, !!value, ctx.tenantId]
     );
-
-    console.log("[account-audio][PUT] QUERY RESULT:", result);
 
     return NextResponse.json({
       ok: true,
-      debug: {
-        rowCount: result.rowCount,
-        rows: result.rows,
-      },
+      audio: { [key]: !!value },
     });
   } catch (err) {
-    console.error("[account-audio][PUT] 💥 ERROR:", err);
-    console.error("[account-audio][PUT] 💥 ERROR MESSAGE:", err?.message);
-    console.error("[account-audio][PUT] 💥 ERROR STACK:", err?.stack);
-
+    console.error("[account-audio][PUT] ERROR:", err);
     return NextResponse.json(
-      {
-        ok: false,
-        error: "internal server error",
-        debug: {
-          message: err?.message,
-          code: err?.code,
-        },
-      },
+      { ok: false, error: "internal server error" },
       { status: 500 }
     );
   }
