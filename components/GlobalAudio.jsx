@@ -19,9 +19,12 @@ export function GlobalAudioProvider({ children }) {
   const dataArrayRef = useRef(null);
   const sourceRef = useRef(null);
 
-  // Visualizer
+  // Visualizer / state
   const visualizerRef = useRef(null);
   const isPlayingRef = useRef(false);
+
+  // 🔒 NEW: play-cancellation token
+  const playTokenRef = useRef(0);
 
   const [currentKey, setCurrentKey] = useState(null);
   const [loop, setLoopState] = useState(false);
@@ -50,7 +53,6 @@ export function GlobalAudioProvider({ children }) {
 
   /* ------------------------------
      SAFARI / MOBILE RESUME FIX
-     (handles tab switch, sleep, focus)
   ------------------------------ */
   async function ensureAudioContextRunning() {
     const ctx = audioContextRef.current;
@@ -77,12 +79,15 @@ export function GlobalAudioProvider({ children }) {
   }
 
   /* ------------------------------
-     PLAY
+     PLAY (token-guarded)
   ------------------------------ */
   async function play(src, key) {
     if (!audioRef.current || !audioContextRef.current) return;
 
     const audio = audioRef.current;
+
+    // 🔒 Invalidate any previous play()
+    const token = ++playTokenRef.current;
 
     // Clean stop before replay
     audio.pause();
@@ -100,35 +105,45 @@ export function GlobalAudioProvider({ children }) {
 
     try {
       await audio.play();
+
+      // ❗ GUARD: ignore stale async play()
+      if (token !== playTokenRef.current) return;
+
       isPlayingRef.current = true;
       setCurrentKey(key);
     } catch (err) {
-      console.warn("[GlobalAudio.play] failed:", err);
-      isPlayingRef.current = false;
-      setCurrentKey(null);
+      if (token === playTokenRef.current) {
+        console.warn("[GlobalAudio.play] failed:", err);
+        isPlayingRef.current = false;
+        setCurrentKey(null);
+      }
     }
   }
 
   /* ------------------------------
-     STOP 
+     STOP (cancels in-flight play)
   ------------------------------ */
   function stop() {
-  if (!audioRef.current) return;
+    if (!audioRef.current) return;
 
-  const audio = audioRef.current;
+    // 🔒 Cancel any pending play()
+    playTokenRef.current++;
 
-  audio.pause();
+    const audio = audioRef.current;
 
-  try {
-    audio.currentTime = 0;
-  } catch {}
+    audio.pause();
 
-  // ✅ HARD STOP — REQUIRED FOR MP3
-  audio.src = "";
+    try {
+      audio.currentTime = 0;
+    } catch {}
 
-  isPlayingRef.current = false;
-  setCurrentKey(null);
-}
+    // ✅ HARD STOP — REQUIRED FOR MP3
+    audio.src = "";
+
+    isPlayingRef.current = false;
+    setCurrentKey(null);
+  }
+
   return (
     <AudioContextCtx.Provider
       value={{
