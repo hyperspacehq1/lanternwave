@@ -17,6 +17,9 @@ export async function GET(req) {
   }
 
   const ctx = await getTenantContext(req);
+  if (!ctx?.tenantId) {
+    return NextResponse.json({ ok: false }, { status: 401 });
+  }
 
   const { rows } = await query(
     `
@@ -41,14 +44,37 @@ export async function GET(req) {
    POST — attach image to item
 ============================================================ */
 export async function POST(req) {
-  const body = await req.json();
-  const { item_id, clip_id } = body;
-
-  if (!item_id || !clip_id) {
-    return NextResponse.json({ ok: false }, { status: 400 });
+  const ctx = await getTenantContext(req);
+  if (!ctx?.tenantId) {
+    return NextResponse.json({ ok: false }, { status: 401 });
   }
 
-  const ctx = await getTenantContext(req);
+  let item_id, clip_id;
+
+  // ✅ Support JSON body
+  try {
+    if (req.headers.get("content-type")?.includes("application/json")) {
+      const body = await req.json();
+      item_id = body?.item_id;
+      clip_id = body?.clip_id;
+    }
+  } catch {
+    // ignore — fallback below
+  }
+
+  // ✅ Support query params fallback
+  if (!item_id || !clip_id) {
+    const { searchParams } = new URL(req.url);
+    item_id ??= searchParams.get("item_id");
+    clip_id ??= searchParams.get("clip_id");
+  }
+
+  if (!item_id || !clip_id) {
+    return NextResponse.json(
+      { ok: false, error: "Missing item_id or clip_id" },
+      { status: 400 }
+    );
+  }
 
   await query(
     `
@@ -73,6 +99,9 @@ export async function DELETE(req) {
   }
 
   const ctx = await getTenantContext(req);
+  if (!ctx?.tenantId) {
+    return NextResponse.json({ ok: false }, { status: 401 });
+  }
 
   await query(
     `
