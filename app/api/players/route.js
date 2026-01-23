@@ -128,12 +128,6 @@ export async function POST(req) {
   "character_name"
 );
 
-const characterName = validateString(
-  body.character_name ?? body.characterName,
-  100,
-  "character_name"
-);
-
     const notes = validateOptionalString(body.notes, 2000, "notes");
     const phone = validateOptionalString(body.phone, 50, "phone");
     const email = validateOptionalString(body.email, 120, "email");
