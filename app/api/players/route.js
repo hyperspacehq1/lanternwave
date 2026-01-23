@@ -46,6 +46,9 @@ function validateOptionalInt(val, field) {
 /* -----------------------------------------------------------
    GET /api/players
 ------------------------------------------------------------ */
+/* -----------------------------------------------------------
+   GET /api/players?id=
+------------------------------------------------------------ */
 export async function GET(req) {
   let ctx;
   try {
@@ -56,23 +59,25 @@ export async function GET(req) {
 
   const tenantId = ctx.tenantId;
   const { searchParams } = new URL(req.url);
-  const campaignId = searchParams.get("campaign_id");
+  const id = searchParams.get("id");
 
-  if (!campaignId) return Response.json([]);
+  if (!id) {
+    return Response.json({ error: "id required" }, { status: 400 });
+  }
 
   const { rows } = await query(
     `
     SELECT *
       FROM players
      WHERE tenant_id = $1
-       AND campaign_id = $2
+       AND id = $2
        AND deleted_at IS NULL
-     ORDER BY created_at ASC
+     LIMIT 1
     `,
-    [tenantId, campaignId]
+    [tenantId, id]
   );
 
-  return Response.json(rows);
+  return Response.json(rows[0] ?? null);
 }
 
 /* -----------------------------------------------------------

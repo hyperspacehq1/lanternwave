@@ -35,7 +35,10 @@ function validateOptionalInt(val, field) {
 /* -----------------------------------------------------------
    GET /api/players/[id]
 ------------------------------------------------------------ */
-export async function GET(req, { params }) {
+/* -----------------------------------------------------------
+   GET /api/players?id=
+------------------------------------------------------------ */
+export async function GET(req) {
   let ctx;
   try {
     ctx = await getTenantContext(req);
@@ -44,7 +47,8 @@ export async function GET(req, { params }) {
   }
 
   const tenantId = ctx.tenantId;
-  const id = params?.id;
+  const { searchParams } = new URL(req.url);
+  const id = searchParams.get("id");
 
   if (!id) {
     return Response.json({ error: "id required" }, { status: 400 });
