@@ -23,10 +23,9 @@ export async function GET(req) {
       SELECT audio
         FROM account_preferences
        WHERE tenant_id = $1
-         AND user_id   = $2
        LIMIT 1
       `,
-      [ctx.tenantId, ctx.userId]
+      [ctx.tenantId]
     );
 
     return NextResponse.json({
@@ -82,9 +81,8 @@ export async function PUT(req) {
            || jsonb_build_object($1, $2::jsonb),
              updated_at = NOW()
        WHERE tenant_id = $3
-         AND user_id   = $4
       `,
-      [key, JSON.stringify(!!value), ctx.tenantId, ctx.userId]
+      [key, JSON.stringify(!!value), ctx.tenantId]
     );
 
     return NextResponse.json({
