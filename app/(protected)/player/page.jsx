@@ -188,11 +188,16 @@ export default function PlayerPage() {
           Audio (mirrored — visual only)
       -------------------------------- */}
       {key && type === "audio" && (
-        <div className="lw-player-audio-indicator">
-          ♪ Now Playing
-        </div>
-      )}
-
+  <div className="lw-player-audio">
+    <div className="lw-player-waves">
+      <span className="lw-wave" />
+      <span className="lw-wave" />
+      <span className="lw-wave" />
+      <span className="lw-wave" />
+      <span className="lw-wave" />
+    </div>
+  </div>
+)}
       {/* -------------------------------
           Player Pulse — PORTAL
       -------------------------------- */}
