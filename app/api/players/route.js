@@ -46,9 +46,6 @@ function validateOptionalInt(val, field) {
 /* -----------------------------------------------------------
    GET /api/players
 ------------------------------------------------------------ */
-/* -----------------------------------------------------------
-   GET /api/players?id=
------------------------------------------------------------- */
 export async function GET(req) {
   let ctx;
   try {
@@ -59,25 +56,46 @@ export async function GET(req) {
 
   const tenantId = ctx.tenantId;
   const { searchParams } = new URL(req.url);
-  const id = searchParams.get("id");
 
-  if (!id) {
-    return Response.json({ error: "id required" }, { status: 400 });
+  const id = searchParams.get("id");
+  const campaignId = searchParams.get("campaign_id");
+
+  // ✅ Single record by id
+  if (id) {
+    const { rows } = await query(
+      `
+      SELECT *
+        FROM players
+       WHERE tenant_id = $1
+         AND id = $2
+         AND deleted_at IS NULL
+       LIMIT 1
+      `,
+      [tenantId, id]
+    );
+
+    return Response.json(rows[0] ?? null);
   }
 
-  const { rows } = await query(
-    `
-    SELECT *
-      FROM players
-     WHERE tenant_id = $1
-       AND id = $2
-       AND deleted_at IS NULL
-     LIMIT 1
-    `,
-    [tenantId, id]
-  );
+  // ✅ List by campaign_id (this is what your page needs)
+  if (campaignId) {
+    const { rows } = await query(
+      `
+      SELECT *
+        FROM players
+       WHERE tenant_id = $1
+         AND campaign_id = $2
+         AND deleted_at IS NULL
+       ORDER BY created_at ASC
+      `,
+      [tenantId, campaignId]
+    );
 
-  return Response.json(rows[0] ?? null);
+    return Response.json(rows);
+  }
+
+  // If neither provided, behave safely (don’t 400 and kill the page)
+  return Response.json([]);
 }
 
 /* -----------------------------------------------------------
