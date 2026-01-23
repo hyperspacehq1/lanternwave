@@ -110,26 +110,25 @@ export function GlobalAudioProvider({ children }) {
   }
 
   /* ------------------------------
-     STOP (FIXED — DO NOT DETACH)
+     STOP 
   ------------------------------ */
   function stop() {
-    if (!audioRef.current) return;
+  if (!audioRef.current) return;
 
-    const audio = audioRef.current;
+  const audio = audioRef.current;
 
-    audio.pause();
-    try {
-      audio.currentTime = 0;
-    } catch {}
+  audio.pause();
 
-    // ❌ DO NOT remove src
-    // ❌ DO NOT call load()
-    // ❌ DO NOT disconnect MediaElementSource
+  try {
+    audio.currentTime = 0;
+  } catch {}
 
-    isPlayingRef.current = false;
-    setCurrentKey(null);
-  }
+  // ✅ HARD STOP — REQUIRED FOR MP3
+  audio.src = "";
 
+  isPlayingRef.current = false;
+  setCurrentKey(null);
+}
   return (
     <AudioContextCtx.Provider
       value={{
