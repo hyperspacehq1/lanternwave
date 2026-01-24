@@ -1288,18 +1288,18 @@ if (isJoinEntity) {
 };
 
   return (
-    <div
+ <div
   className={`gm-card ${open ? "is-open" : ""} ${
+    joinHighlights?.[entityKey]?.includes(String(item.id))
+      ? "gm-join-pulse"
+      : fadingJoins?.[entityKey]?.includes(String(item.id))
+      ? "gm-join-fade"
+      : ""
+  }`}
   draggable={draggable}
   onDragStart={onDragStart}
   onDragOver={onDragOver}
   onDrop={onDrop}
-  joinHighlights?.[entityKey]?.includes(String(item.id))
-    ? "gm-join-pulse"
-    : fadingJoins?.[entityKey]?.includes(String(item.id))
-    ? "gm-join-fade"
-    : ""
-}`}
 >
       <div
         className="gm-card-header"
