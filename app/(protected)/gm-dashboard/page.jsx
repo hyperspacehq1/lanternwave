@@ -1131,6 +1131,11 @@ useEffect(() => {
   <GMCard
     key={`${entityKey}-${item.id}`}
     item={item}
+    index={index}
+    draggable
+    onDragStart={(e) => onDragStart(e, index)}
+    onDragOver={onDragOver}
+    onDrop={(e) => onDrop(e, index)}
     entityKey={entityKey}
     forceOpen={forceOpen}
 showItemPulseBeacon={showItemPulseBeacon}
@@ -1158,6 +1163,11 @@ openJoinCountRef={openJoinCountRef}
 
 function GMCard({
   item,
+  index,
+  draggable,
+  onDragStart,
+  onDragOver,
+  onDrop,
   entityKey,
  showNpcPulseBeacon,
   showItemPulseBeacon,
@@ -1280,6 +1290,10 @@ if (isJoinEntity) {
   return (
     <div
   className={`gm-card ${open ? "is-open" : ""} ${
+  draggable={draggable}
+  onDragStart={onDragStart}
+  onDragOver={onDragOver}
+  onDrop={onDrop}
   joinHighlights?.[entityKey]?.includes(String(item.id))
     ? "gm-join-pulse"
     : fadingJoins?.[entityKey]?.includes(String(item.id))

@@ -594,3 +594,10 @@
   text-transform: none;
 }
 
+.gm-card-action-btn {
+  pointer-events: auto;
+}
+
+.gm-card {
+  user-select: none;
+}
