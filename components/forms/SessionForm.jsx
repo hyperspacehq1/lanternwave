@@ -141,6 +141,13 @@ export default function SessionForm({ record, onChange }) {
             joinPath="locations"
             idField="location_id"
           />
+         <JoinPanel
+           title="Items"
+           campaignId={campaign.id}
+           sessionId={record.id}
+           joinPath="items"
+           idField="item_id"
+          />
         </>
       )}
     </div>

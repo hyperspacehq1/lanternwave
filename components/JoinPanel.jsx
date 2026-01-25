@@ -46,7 +46,14 @@ export default function JoinPanel({
      Guard allowed joins
   ---------------------------------------------------------- */
   const VALID_ENCOUNTER_JOINS = new Set(["npcs", "sessions"]);
-  const VALID_SESSION_JOINS = new Set(["encounters", "events", "locations"]);
+
+  const VALID_SESSION_JOINS = new Set([
+  "encounters",
+  "events",
+  "locations",
+  "items", // ✅ ADD
+   ]);
+
   const VALID_LOCATION_JOINS = new Set(["items"]);
 
   if (
@@ -74,6 +81,10 @@ export default function JoinPanel({
     baseUrl = `/api/sessions-events?session_id=${scopeId}`;
   } else if (scopeType === "sessions" && joinPath === "locations") {
     baseUrl = `/api/sessions-locations?session_id=${scopeId}`;
+
+  } else if (scopeType === "sessions" && joinPath === "items") {
+    baseUrl = `/api/sessions-items?session_id=${scopeId}`;
+
   } else if (scopeType === "locations" && joinPath === "items") {
     baseUrl = `/api/locations-items?location_id=${scopeId}`;
   } else {
@@ -143,6 +154,9 @@ export default function JoinPanel({
         ? "/api/sessions-events"
         : isSessionLocations
         ? "/api/sessions-locations"
+        : isSessionItems
+        ? "/api/sessions-items"
+
         : isLocationItems
         ? "/api/locations-items"
         : baseUrl;
@@ -155,6 +169,10 @@ export default function JoinPanel({
         ? { session_id: scopeId, event_id: selectedId }
         : isSessionLocations
         ? { session_id: scopeId, location_id: selectedId }
+
+        : isSessionItems
+        ? { session_id: scopeId, item_id: selectedId }
+
         : isLocationItems
         ? { location_id: scopeId, item_id: selectedId }
         : { [idField]: selectedId };
@@ -193,6 +211,10 @@ export default function JoinPanel({
       scopeType === "sessions" && joinPath === "events";
     const isSessionLocations =
       scopeType === "sessions" && joinPath === "locations";
+
+    const isSessionItems =
+      scopeType === "sessions" && joinPath === "items";
+
     const isLocationItems =
       scopeType === "locations" && joinPath === "items";
 
@@ -204,6 +226,10 @@ export default function JoinPanel({
       ? "/api/sessions-events"
       : isSessionLocations
       ? "/api/sessions-locations"
+
+      : isSessionItems
+      ? "/api/sessions-items"
+
       : isLocationItems
       ? "/api/locations-items"
       : baseUrl;
@@ -216,6 +242,11 @@ export default function JoinPanel({
       ? { session_id: scopeId, event_id: id }
       : isSessionLocations
       ? { session_id: scopeId, location_id: id }
+
+      : isSessionItems
+      ? { session_id: scopeId, item_id: id }
+
+
       : isLocationItems
       ? { location_id: scopeId, item_id: id }
       : { [idField]: id };
