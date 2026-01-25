@@ -1388,9 +1388,10 @@ if (isJoinEntity) {
     title={hasImage ? "NPC Pulse (image available)" : "No image attached"}
     disabled={!hasImage}
     onClick={(e) => {
-        e.stopPropagation();
-        pulseItemClip({ itemId: item.id, durationMs: 10000 });
-      }}
+  e.stopPropagation();
+  if (!hasImage) return;
+  pulseItemClip({ itemId: item.id, durationMs: 10000 });
+}}
     >
       ◉
     </button>
@@ -1410,9 +1411,10 @@ if (isJoinEntity) {
     title={hasImage ? "NPC Pulse (image available)" : "No image attached"}
     disabled={!hasImage}
     onClick={(e) => {
-        e.stopPropagation();
-        pulseLocationClip({ locationId: item.id, durationMs: 10000 });
-      }}
+  e.stopPropagation();
+  if (!hasImage) return;
+  pulseLocationClip({ locationId: item.id, durationMs: 10000 });
+}}
     >
       ◉
     </button>
