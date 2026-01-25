@@ -205,6 +205,18 @@ setSelectedByType((p) => ({
   [activeType]: saved,
 })); 
 
+// ✅ Players: force list refresh so label updates immediately
+if (activeType === "players") {
+  const refreshed = await cmApi.list("players", {
+    campaign_id: campaignId,
+  });
+
+  setRecordsByType((p) => ({
+    ...p,
+    players: refreshed,
+  }));
+}
+
 
     if (activeType === "npcs" && __pendingImageClipId) {
       await fetch("/api/npc-image", {
