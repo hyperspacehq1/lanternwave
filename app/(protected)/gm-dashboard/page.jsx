@@ -1381,9 +1381,10 @@ if (isJoinEntity) {
     title={hasImage ? `${pulseLabel} (image available)` : "No image attached"}
     disabled={!hasImage}
     onClick={(e) => {
-    e.stopPropagation();
-    pulseNpcClip({ npcId: item.id, durationMs: 30000 });
-  }}
+  e.stopPropagation();
+  if (!hasImage) return;
+  pulseNpcClip({ npcId: item.id, durationMs: 30000 });
+}}
 >
  ◉
 </button>
