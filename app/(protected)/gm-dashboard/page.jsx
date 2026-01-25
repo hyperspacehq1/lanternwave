@@ -216,6 +216,10 @@ export default function GMDashboardPage() {
   const [encounters, setEncounters] = useState([]);
   const [locations, setLocations] = useState([]);
   const [items, setItems] = useState([]);
+const [npcImageIds, setNpcImageIds] = useState(new Set());
+const [itemImageIds, setItemImageIds] = useState(new Set());
+const [locationImageIds, setLocationImageIds] = useState(new Set());
+
 
  const [loading, setLoading] = useState(false);
 const [expandAll, _setExpandAll] = useState(null);
@@ -624,6 +628,36 @@ useEffect(() => {
     .catch(() => setSessionJoins(null));
 }, [selectedCampaign?.id]);
 
+useEffect(() => {
+  if (!selectedCampaign?.id) return;
+
+  fetch(`/api/npcs-with-images?campaign_id=${selectedCampaign.id}`, {
+    credentials: "include",
+    cache: "no-store",
+  })
+    .then(r => r.json())
+    .then(d =>
+      setNpcImageIds(new Set((d?.rows || []).map(r => String(r.id))))
+    );
+
+  fetch(`/api/items-with-images?campaign_id=${selectedCampaign.id}`, {
+    credentials: "include",
+    cache: "no-store",
+  })
+    .then(r => r.json())
+    .then(d =>
+      setItemImageIds(new Set((d?.rows || []).map(r => String(r.id))))
+    );
+
+  fetch(`/api/locations-with-images?campaign_id=${selectedCampaign.id}`, {
+    credentials: "include",
+    cache: "no-store",
+  })
+    .then(r => r.json())
+    .then(d =>
+      setLocationImageIds(new Set((d?.rows || []).map(r => String(r.id))))
+    );
+}, [selectedCampaign?.id]);
 
   /* =========================
      Load Data (fixed params)
@@ -857,9 +891,10 @@ openJoinCountRef={openJoinCountRef}
   joinHighlights={joinHighlights}
   resolveJoins={resolveJoins}
   clearJoins={clearJoins}
-openJoinCountRef={openJoinCountRef}  
-fadingJoins={fadingJoins}
+  openJoinCountRef={openJoinCountRef}  
+  fadingJoins={fadingJoins}
   forceOpen={expandAll}
+  imageIds={npcImageIds}
   campaignId={selectedCampaign.id}
   sessionId={selectedSession.id}
   schema={DISPLAY_SCHEMAS.npcs}
@@ -889,14 +924,15 @@ openJoinCountRef={openJoinCountRef}
   title="Locations"
   color="purple"
   entityKey="locations"
-items={filterBySession("locations", locations)}
+  items={filterBySession("locations", locations)}
   joinHighlights={joinHighlights}
   resolveJoins={resolveJoins}
   clearJoins={clearJoins}
-fadingJoins={fadingJoins}
-openJoinCountRef={openJoinCountRef}  
+  fadingJoins={fadingJoins}
+  openJoinCountRef={openJoinCountRef}  
   forceOpen={expandAll}
-showLocationPulseBeacon={showLocationPulseBeacon}
+  imageIds={locationImageIds}
+  showLocationPulseBeacon={showLocationPulseBeacon}
   campaignId={selectedCampaign.id}
   sessionId={selectedSession.id}
   schema={DISPLAY_SCHEMAS.locations}
@@ -912,10 +948,11 @@ showLocationPulseBeacon={showLocationPulseBeacon}
   joinHighlights={joinHighlights}
   resolveJoins={resolveJoins}
   clearJoins={clearJoins}
-fadingJoins={fadingJoins}
-openJoinCountRef={openJoinCountRef}  
+  fadingJoins={fadingJoins}
+  openJoinCountRef={openJoinCountRef}  
   forceOpen={expandAll}
-showItemPulseBeacon={showItemPulseBeacon}
+  imageIds={itemImageIds}
+  showItemPulseBeacon={showItemPulseBeacon}
   campaignId={selectedCampaign.id}
   sessionId={selectedSession.id}
   schema={DISPLAY_SCHEMAS.items}
@@ -973,6 +1010,7 @@ function GMColumn({
   showItemPulseBeacon,
   showLocationPulseBeacon,
   items,
+  imageIds, 
   campaignId,
   forceOpen,
   sessionId,
@@ -1138,13 +1176,14 @@ useEffect(() => {
     onDrop={(e) => onDrop(e, index)}
     entityKey={entityKey}
     forceOpen={forceOpen}
-showItemPulseBeacon={showItemPulseBeacon}
-showLocationPulseBeacon={showLocationPulseBeacon}
+    imageIds={imageIds}
+    showItemPulseBeacon={showItemPulseBeacon}
+    showLocationPulseBeacon={showLocationPulseBeacon}
     onOpenEditor={onOpenEditor}
     onOpenPanel={onOpenPanel}
     sessionId={sessionId}
     schema={schema}
-fadingJoins={fadingJoins}
+    fadingJoins={fadingJoins}
     showNpcPulseBeacon={showNpcPulseBeacon}
     joinHighlights={joinHighlights}
     resolveJoins={resolveJoins}
@@ -1169,10 +1208,11 @@ function GMCard({
   onDragOver,
   onDrop,
   entityKey,
- showNpcPulseBeacon,
+  showNpcPulseBeacon,
   showItemPulseBeacon,
   showLocationPulseBeacon,
   forceOpen,
+  imageIds,
   onOpenEditor,
   onOpenPanel,
   sessionId,
@@ -1184,6 +1224,8 @@ function GMCard({
 openJoinCountRef,
 }) {
 
+  const hasImage =
+  imageIds instanceof Set && imageIds.has(String(item?.id));
   const hydratedRef = useRef(false);  
   const [open, setOpen] = useState(false);
   const contentRef = useRef(null);
@@ -1318,9 +1360,12 @@ if (isJoinEntity) {
 
 <button
   type="button"
-  className="gm-card-action-btn npc-pulse-btn npc-pulse-long"
-  title="NPC Pulse (long)"
-  onClick={(e) => {
+ className={`gm-card-action-btn npc-pulse-btn ${
+      hasImage ? "gm-pulse-ready" : "gm-pulse-disabled"
+    }`}
+    title={hasImage ? "NPC Pulse (image available)" : "No image attached"}
+    disabled={!hasImage}
+    onClick={(e) => {
     e.stopPropagation();
     pulseNpcClip({ npcId: item.id, durationMs: 30000 });
   }}
@@ -1337,9 +1382,12 @@ if (isJoinEntity) {
   >
     <button
       type="button"
-      className="gm-card-action-btn npc-pulse-btn"
-      title="Item Pulse"
-      onClick={(e) => {
+ className={`gm-card-action-btn npc-pulse-btn ${
+      hasImage ? "gm-pulse-ready" : "gm-pulse-disabled"
+    }`}
+    title={hasImage ? "NPC Pulse (image available)" : "No image attached"}
+    disabled={!hasImage}
+    onClick={(e) => {
         e.stopPropagation();
         pulseItemClip({ itemId: item.id, durationMs: 10000 });
       }}
@@ -1356,9 +1404,12 @@ if (isJoinEntity) {
   >
     <button
       type="button"
-      className="gm-card-action-btn npc-pulse-btn"
-      title="Location Pulse"
-      onClick={(e) => {
+ className={`gm-card-action-btn npc-pulse-btn ${
+      hasImage ? "gm-pulse-ready" : "gm-pulse-disabled"
+    }`}
+    title={hasImage ? "NPC Pulse (image available)" : "No image attached"}
+    disabled={!hasImage}
+    onClick={(e) => {
         e.stopPropagation();
         pulseLocationClip({ locationId: item.id, durationMs: 10000 });
       }}
