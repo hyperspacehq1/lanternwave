@@ -17,8 +17,11 @@
   justify-content: space-between;
   align-items: center;
   padding: 10px 14px;
-  background: #f5c542;
-  color: #000;
+
+  background: #000;                 /* black bar */
+  color: #f5c542;                   /* yellow text */
+
+  border-bottom: 1px solid #f5c542; /* yellow outline */
   cursor: grab;
   user-select: none;
 }

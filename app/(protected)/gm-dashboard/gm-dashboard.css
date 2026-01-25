@@ -447,9 +447,13 @@
 .cm-join-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.35rem 0;
+  gap: 1rem;                 /* space between name + button */
+  margin-bottom: 0.5rem;
+}
+
+/* Keep Remove button from drifting right */
+.cm-join-row .cm-join-remove {
+  margin-left: 483px;        /* ← your requested offset */
 }
 
 .cm-join-name {

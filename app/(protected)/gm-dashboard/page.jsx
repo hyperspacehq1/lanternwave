@@ -863,7 +863,7 @@ fadingJoins={fadingJoins}
   campaignId={selectedCampaign.id}
   sessionId={selectedSession.id}
   schema={DISPLAY_SCHEMAS.npcs}
-  showNpcPulseBeacon
+  showNpcPulseBeacon={showNpcPulseBeacon}
   onOpenPanel={openPanel}
   onOpenEditor={(id) => router.push(editorPathFor("npcs", id))}
 />
