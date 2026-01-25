@@ -96,8 +96,10 @@ export default function CampaignForm({ record, onChange }) {
       {/* --------------------------------------------- */}
       <div className={`cm-campaign-header ${pulse ? "pulse" : ""}`}>
         <div className="cm-context-line">
-          <strong>Campaign:</strong>{" "}
-          {record.name || "Unnamed Campaign"}
+         <strong>Campaign:</strong>{" "}
+{record._isNew
+  ? "New Campaign"
+  : record.name || "Unnamed Campaign"}
         </div>
       </div>
 

@@ -63,7 +63,10 @@ export default function EventForm({ record, onChange }) {
         </div>
         <div className="cm-context-line">
           <strong>Event:</strong>{" "}
-          {record.name || "Unnamed Event"}
+         <strong>Event:</strong>{" "}
+{record._isNew
+  ? "New Event"
+  : record.name || "Unnamed Event"}
         </div>
       </div>
 

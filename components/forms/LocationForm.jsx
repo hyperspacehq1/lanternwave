@@ -212,7 +212,10 @@ export default function LocationForm({ record, onChange }) {
           <strong>Campaign:</strong> {campaign.name}
         </div>
         <div className="cm-context-line">
-          <strong>Location:</strong> {record.name || "Unnamed Location"}
+        <strong>Location:</strong>{" "}
+{record._isNew
+  ? "New Location"
+  : record.name || "Unnamed Location"}
         </div>
       </div>
 

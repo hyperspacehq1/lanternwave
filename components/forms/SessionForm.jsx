@@ -63,8 +63,10 @@ export default function SessionForm({ record, onChange }) {
           <strong>Campaign:</strong> {campaign.name}
         </div>
         <div className="cm-context-line">
-          <strong>Session:</strong>{" "}
-          {record.name || "Unnamed Session"}
+         <strong>Session:</strong>{" "}
+{record._isNew
+  ? "New Session"
+  : record.name || "Unnamed Session"}
         </div>
       </div>
 

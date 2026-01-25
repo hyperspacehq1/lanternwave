@@ -59,7 +59,9 @@ export default function EncounterForm({ record, onChange }) {
         </div>
         <div className="cm-context-line">
           <strong>Encounter:</strong>{" "}
-          {record.name || "Unnamed Encounter"}
+{record._isNew
+  ? "New Encounter"
+  : record.name || "Unnamed Encounter"}
         </div>
       </div>
 
