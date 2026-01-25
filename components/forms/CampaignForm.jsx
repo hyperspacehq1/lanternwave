@@ -61,13 +61,13 @@ export default function CampaignForm({ record, onChange }) {
   // --------------------------------------------------
   // Unified update helper
   // --------------------------------------------------
-  const update = (field, value) => {
-    onChange({
-      ...record,
-      [field]: value,
-      campaign_id: campaign.id,
-    });
-  };
+ const update = (field, value) => {
+  onChange({
+    ...record,
+    [field]: value,
+    // Campaigns do NOT depend on campaign context
+  });
+};
 
   // --------------------------------------------------
   // Pulse animation on record change
