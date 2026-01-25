@@ -22,49 +22,6 @@ const CONTAINER_TYPES = [
 
 const PAGE_VERSION = "1.01";
 
-/* ------------------------------------------------------------
-   Record label resolver (NEW)
------------------------------------------------------------- */
-function getRecordLabel(type, r) {
-  // New (unsaved) records
-  if (r._isNew) {
-    switch (type) {
-      case "campaigns":
-        return "New Campaign";
-      case "sessions":
-        return "New Session";
-      case "events":
-        return "New Event";
-      case "encounters":
-        return "New Encounter";
-      case "locations":
-        return "New Location";
-      case "npcs":
-        return "New NPC";
-      case "items":
-        return "New Item";
-      case "players":
-        return "New Player";
-      default:
-        return "New Record";
-    }
-  }
-
-  // Existing records
-  switch (type) {
-    case "players":
-      return (
-        r.character_name ||
-        `${r.first_name || ""} ${r.last_name || ""}`.trim() ||
-        "(unnamed)"
-      );
-
-    default:
-      return r.name || "(unnamed)";
-  }
-}
-
-
 export default function CampaignManagerPage() {
   const { campaign, setCampaignContext } = useCampaignContext();
 
