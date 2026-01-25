@@ -75,6 +75,27 @@ export async function GET(req) {
     result.events[k].push(String(row.session_id));
   }
 
+/* -------------------------------
+   Items ↔ Sessions
+-------------------------------- */
+const items = await query(
+  `
+  SELECT si.item_id, si.session_id
+  FROM session_items si
+  JOIN items i ON i.id = si.item_id
+  WHERE si.tenant_id = $1
+    AND i.campaign_id = $2
+    AND si.deleted_at IS NULL
+  `,
+  [tenantId, campaignId]
+);
+
+for (const row of items.rows) {
+  const k = String(row.item_id);
+  if (!result.items[k]) result.items[k] = [];
+  result.items[k].push(String(row.session_id));
+}
+
   /* -------------------------------
      Locations ↔ Sessions
   -------------------------------- */
