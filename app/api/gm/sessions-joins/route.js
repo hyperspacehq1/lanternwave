@@ -27,10 +27,11 @@ export async function GET(req) {
   }
 
   const result = {
-    encounters: {},
-    events: {},
-    locations: {},
-  };
+  encounters: {},
+  events: {},
+  locations: {},
+  items: {}, // ✅ ADD
+};
 
   /* -------------------------------
      Encounters ↔ Sessions
