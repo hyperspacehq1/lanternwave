@@ -178,12 +178,27 @@ else {
       ? await cmApi.create(activeType, payload)
       : await cmApi.update(activeType, id, payload);
 
-    setRecordsByType((p) => ({
+    setRecordsByType((p) => {
+  const list = p[activeType] || [];
+
+  // NEW record: replace the temp row
+  if (_isNew) {
+    return {
       ...p,
-      [activeType]: p[activeType].map((r) =>
-        r.id === (_isNew ? id : saved.id) ? saved : r
+      [activeType]: list.map((r) =>
+        r.id === id ? saved : r
       ),
-    }));
+    };
+  }
+
+  // EXISTING record: normal update
+  return {
+    ...p,
+    [activeType]: list.map((r) =>
+      r.id === saved.id ? saved : r
+    ),
+  };
+});
 
 setSelectedByType((p) => ({
   ...p,
