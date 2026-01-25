@@ -75,7 +75,10 @@ export default function NpcForm({ record, onChange }) {
           <strong>Campaign:</strong> {campaign.name}
         </div>
         <div className="cm-context-line">
-          <strong>NPC:</strong> {record.name || "Unnamed NPC"}
+          <strong>Item:</strong>{" "}
+{record._isNew
+  ? "New NPC"
+  : record.name || "Unnamed NPC"}
         </div>
       </div>
 

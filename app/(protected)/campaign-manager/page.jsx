@@ -334,6 +334,8 @@ const confirmCampaignDelete = async () => {
   ? r.character_name ||
     `${r.first_name || ""} ${r.last_name || ""}`.trim() ||
     "(unnamed)"
+: r._isNew
+  ? `New ${activeType.slice(0, -1)}`
   : r.name || "(unnamed)"}
 </div>
 ))}

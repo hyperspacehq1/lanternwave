@@ -62,7 +62,10 @@ export default function ItemForm({ record, onChange }) {
           <strong>Campaign:</strong> {campaign.name}
         </div>
         <div className="cm-context-line">
-          <strong>Item:</strong> {record.name || "Unnamed Item"}
+          <strong>Item:</strong>{" "}
+{record._isNew
+  ? "New Item"
+  : record.name || "Unnamed Item"}
         </div>
       </div>
 
