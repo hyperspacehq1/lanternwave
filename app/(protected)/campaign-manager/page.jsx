@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from "uuid";
 import { cmApi } from "@/lib/cm/api";
 import { getFormComponent } from "@/components/forms";
 import { useCampaignContext } from "@/lib/campaign/campaignContext";
-import { getRecordLabel } from "@/lib/cm/labels";
+import { getRecordLabel, getPlayerLabel } from "@/lib/cm/labels";
 
 import "./campaign-manager.css";
 
@@ -332,9 +332,7 @@ const confirmCampaignDelete = async () => {
         }}
       >
         {activeType === "players"
-          ? r.character_name ||
-            `${r.first_name || ""} ${r.last_name || ""}`.trim() ||
-            "(unnamed)"
+          ? getPlayerLabel(r)
           : getRecordLabel(activeType, r)}
       </div>
     ))}
