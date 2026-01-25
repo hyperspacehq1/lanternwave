@@ -1315,17 +1315,6 @@ if (isJoinEntity) {
     className="npc-pulse-actions"
     style={{ marginLeft: "auto", display: "inline-flex", gap: 6 }}
   >
-  <button
-  type="button"
-  className="gm-card-action-btn npc-pulse-btn npc-pulse-short"
-  title="NPC Pulse (short)"
-  onClick={(e) => {
-    e.stopPropagation();
-    pulseNpcClip({ npcId: item.id, durationMs: 500 });
-  }}
->
-  ◉
-</button>
 
 <button
   type="button"
@@ -1336,7 +1325,7 @@ if (isJoinEntity) {
     pulseNpcClip({ npcId: item.id, durationMs: 30000 });
   }}
 >
-  ◎
+ ◉
 </button>
   </span>
 )}
