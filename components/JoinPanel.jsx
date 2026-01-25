@@ -243,11 +243,11 @@ export default function JoinPanel({
           <li key={r[idField]} className="cm-join-row">
             <span className="cm-join-name">{r[labelField]}</span>
             <button
-              className="cm-button cm-join-remove danger"
-              onClick={() => detach(r)}
-            >
-              Remove
-            </button>
+  className="cm-btn cm-join-remove danger"
+  onClick={() => detach(r)}
+>
+  Remove
+</button>
           </li>
         ))}
 

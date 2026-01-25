@@ -746,3 +746,22 @@
     0 0 10px rgba(255, 59, 59, 0.35);
 }
 
+/* Space between join field and REMOVE button */
+.cm-join-remove-row {
+  margin-top: 0.75rem;
+}
+
+/* JoinPanel row spacing */
+.cm-join-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+/* Space before Add / Link controls */
+.cm-join-controls {
+  margin-top: 0.75rem;
+}
+
+
