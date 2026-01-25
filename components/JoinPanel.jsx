@@ -136,15 +136,17 @@ export default function JoinPanel({
     setLoading(true);
     try {
       const isEncounterNpcs =
-        scopeType === "encounters" && joinPath === "npcs";
-      const isSessionEncounters =
-        scopeType === "sessions" && joinPath === "encounters";
-      const isSessionEvents =
-        scopeType === "sessions" && joinPath === "events";
-      const isSessionLocations =
-        scopeType === "sessions" && joinPath === "locations";
-      const isLocationItems =
-        scopeType === "locations" && joinPath === "items";
+  scopeType === "encounters" && joinPath === "npcs";
+const isSessionEncounters =
+  scopeType === "sessions" && joinPath === "encounters";
+const isSessionEvents =
+  scopeType === "sessions" && joinPath === "events";
+const isSessionLocations =
+  scopeType === "sessions" && joinPath === "locations";
+const isSessionItems =
+  scopeType === "sessions" && joinPath === "items";
+const isLocationItems =
+  scopeType === "locations" && joinPath === "items";
 
       const postUrl = isEncounterNpcs
         ? "/api/encounters-npcs"
