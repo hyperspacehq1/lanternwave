@@ -268,8 +268,65 @@ export default function LocationForm({ record, onChange }) {
         />
       </div>
 
-      {/* Color + Sensory + Address + JoinPanel (UNCHANGED BELOW) */}
-      {/* … everything below this point is byte-for-byte preserved … */}
+{/* AI: Color Detail */}
+<div className="cm-field">
+  <label className="cm-label">Color Detail</label>
+  <textarea
+    className="cm-textarea"
+    rows={6}
+    value={colorDetailToTextareaValue(record.color_detail)}
+    onChange={(e) =>
+      update("color_detail", {
+        bullets: e.target.value
+          .split("\n")
+          .map((l) => l.replace(/^•\s*/, "").trim())
+          .filter(Boolean),
+      })
+    }
+  />
+
+  <div className="cm-inline-actions">
+    <button
+      type="button"
+      className="cm-btn small"
+      disabled={!canUseAI || colorLoading}
+      onClick={(e) => {
+        triggerEcho(e);
+        generateColorDetail();
+      }}
+    >
+      {colorLoading ? "Generating…" : "Generate Color Detail"}
+    </button>
+  </div>
+</div>
+
+{/* AI: Sensory */}
+<div className="cm-field">
+  <label className="cm-label">Sensory</label>
+  <textarea
+    className="cm-textarea"
+    rows={6}
+    value={sensoryToTextareaValue(record.sensory)}
+    onChange={(e) => update("sensory", e.target.value)}
+  />
+
+  <div className="cm-inline-actions">
+    <button
+      type="button"
+      className="cm-btn small"
+      disabled={!canUseAI || sensoryLoading}
+      onClick={(e) => {
+        triggerEcho(e);
+        generateSensory();
+      }}
+    >
+      {sensoryLoading ? "Generating…" : "Generate Sensory"}
+    </button>
+  </div>
+</div>
+
+{aiError && <div className="cm-error">{aiError}</div>}
+
 
       {/* Address toggle */}
       <div className="cm-field">
