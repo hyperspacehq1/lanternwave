@@ -628,35 +628,41 @@ useEffect(() => {
     .catch(() => setSessionJoins(null));
 }, [selectedCampaign?.id]);
 
+/* =========================
+   PULSE for GOLD Buttons
+========================= */
+
 useEffect(() => {
-  if (!selectedCampaign?.id) return;
+  if (!selectedCampaign?.id) {
+    setNpcImageIds(new Set());
+    setItemImageIds(new Set());
+    setLocationImageIds(new Set());
+    return;
+  }
 
-  fetch(`/api/npcs-with-images?campaign_id=${selectedCampaign.id}`, {
+  fetch(`/api/npcs-with-pulse-images?campaign_id=${selectedCampaign.id}`, {
     credentials: "include",
     cache: "no-store",
   })
-    .then(r => r.json())
-    .then(d =>
-      setNpcImageIds(new Set((d?.rows || []).map(r => String(r.id))))
-    );
+    .then((r) => (r.ok ? r.json() : null))
+    .then((d) => setNpcImageIds(new Set(d?.npcIds || [])))
+    .catch(() => setNpcImageIds(new Set()));
 
-  fetch(`/api/items-with-images?campaign_id=${selectedCampaign.id}`, {
+  fetch(`/api/items-with-pulse-images?campaign_id=${selectedCampaign.id}`, {
     credentials: "include",
     cache: "no-store",
   })
-    .then(r => r.json())
-    .then(d =>
-      setItemImageIds(new Set((d?.rows || []).map(r => String(r.id))))
-    );
+    .then((r) => (r.ok ? r.json() : null))
+    .then((d) => setItemImageIds(new Set(d?.itemIds || [])))
+    .catch(() => setItemImageIds(new Set()));
 
-  fetch(`/api/locations-with-images?campaign_id=${selectedCampaign.id}`, {
+  fetch(`/api/locations-with-pulse-images?campaign_id=${selectedCampaign.id}`, {
     credentials: "include",
     cache: "no-store",
   })
-    .then(r => r.json())
-    .then(d =>
-      setLocationImageIds(new Set((d?.rows || []).map(r => String(r.id))))
-    );
+    .then((r) => (r.ok ? r.json() : null))
+    .then((d) => setLocationImageIds(new Set(d?.locationIds || [])))
+    .catch(() => setLocationImageIds(new Set()));
 }, [selectedCampaign?.id]);
 
   /* =========================
