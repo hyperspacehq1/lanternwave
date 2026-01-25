@@ -601,3 +601,49 @@
 .gm-card {
   user-select: none;
 }
+
+/* =========================================================
+   GM AI / Echo JSON Rendering (FIX)
+   ========================================================= */
+
+/* Contain and wrap JSON safely */
+.gm-json {
+  max-width: 100%;
+  overflow-x: auto;
+  white-space: pre-wrap;       /* wrap long lines */
+  word-break: break-word;      /* never overflow container */
+
+  padding: 10px 12px;
+  margin: 0;
+
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(108, 197, 240, 0.45);
+  border-radius: 6px;
+
+  font-family: system-ui, "MU-TH-UR", monospace;
+  font-size: 13px;
+  line-height: 1.45;
+
+  color: rgb(108, 197, 240);   /* 🔵 AI echo blue */
+}
+
+/* Echo fields (Sensory / Color Detail) */
+.gm-field--echo .gm-json {
+  animation: gm-echo-pulse 2.6s ease-in-out infinite;
+}
+
+/* Subtle AI pulse (no seizure, no distraction) */
+@keyframes gm-echo-pulse {
+  0% {
+    box-shadow:
+      0 0 0 rgba(108, 197, 240, 0),
+      inset 0 0 0 rgba(108, 197, 240, 0);
+  }
+  50% {
+    box-shadow:
+      0 0 14px rgba(108, 197, 240, 0.45),
+      inset 0 0 6px rgba(108, 197, 240, 0.35);
+  }
+  100% {
+    box-shadow:
+      0 0

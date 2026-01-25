@@ -145,7 +145,21 @@ export default function LocationForm({ record, onChange }) {
         return;
       }
 
-      update("color_detail", data.color_detail);
+    const saveRes = await fetch(`/api/locations?id=${record.id}`, {
+  method: "PUT",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ color_detail: data.color_detail }),
+});
+
+const saved = await saveRes.json().catch(() => null);
+
+if (!saveRes.ok || !saved) {
+  setAiError("Generated color detail, but failed to save.");
+  return;
+}
+
+update("color_detail", saved.color_detail);
+
     } catch (e) {
       setAiError(String(e?.message || e));
     } finally {
@@ -288,7 +302,7 @@ export default function LocationForm({ record, onChange }) {
   <div className="cm-inline-actions">
     <button
       type="button"
-      className="cm-btn small"
+      className="cm-btn small ai-echo-btn"
       disabled={!canUseAI || colorLoading}
       onClick={(e) => {
         triggerEcho(e);
@@ -313,7 +327,7 @@ export default function LocationForm({ record, onChange }) {
   <div className="cm-inline-actions">
     <button
       type="button"
-      className="cm-btn small"
+      className="cm-btn small ai-echo-btn"
       disabled={!canUseAI || sensoryLoading}
       onClick={(e) => {
         triggerEcho(e);
