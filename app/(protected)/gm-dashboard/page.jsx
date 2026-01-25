@@ -1226,6 +1226,15 @@ openJoinCountRef,
 
   const hasImage =
   imageIds instanceof Set && imageIds.has(String(item?.id));
+  const pulseLabel =
+  entityKey === "npcs"
+    ? "NPC Pulse"
+    : entityKey === "items"
+    ? "Item Pulse"
+    : entityKey === "locations"
+    ? "Location Pulse"
+    : "Pulse";
+
   const hydratedRef = useRef(false);  
   const [open, setOpen] = useState(false);
   const contentRef = useRef(null);
@@ -1363,7 +1372,7 @@ if (isJoinEntity) {
  className={`gm-card-action-btn npc-pulse-btn ${
       hasImage ? "gm-pulse-ready" : "gm-pulse-disabled"
     }`}
-    title={hasImage ? "NPC Pulse (image available)" : "No image attached"}
+    title={hasImage ? `${pulseLabel} (image available)` : "No image attached"}
     disabled={!hasImage}
     onClick={(e) => {
     e.stopPropagation();
@@ -1385,7 +1394,7 @@ if (isJoinEntity) {
  className={`gm-card-action-btn npc-pulse-btn ${
       hasImage ? "gm-pulse-ready" : "gm-pulse-disabled"
     }`}
-    title={hasImage ? "NPC Pulse (image available)" : "No image attached"}
+    title={hasImage ? `${pulseLabel} (image available)` : "No image attached"}
     disabled={!hasImage}
     onClick={(e) => {
   e.stopPropagation();
@@ -1408,7 +1417,7 @@ if (isJoinEntity) {
  className={`gm-card-action-btn npc-pulse-btn ${
       hasImage ? "gm-pulse-ready" : "gm-pulse-disabled"
     }`}
-    title={hasImage ? "NPC Pulse (image available)" : "No image attached"}
+    title={hasImage ? `${pulseLabel} (image available)` : "No image attached"}
     disabled={!hasImage}
     onClick={(e) => {
   e.stopPropagation();
