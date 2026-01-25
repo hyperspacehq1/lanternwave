@@ -6,6 +6,7 @@ import { v4 as uuidv4 } from "uuid";
 import { cmApi } from "@/lib/cm/api";
 import { getFormComponent } from "@/components/forms";
 import { useCampaignContext } from "@/lib/campaign/campaignContext";
+import { getRecordLabel } from "@/lib/cm/labels";
 
 import "./campaign-manager.css";
 
@@ -310,34 +311,34 @@ const confirmCampaignDelete = async () => {
             </button>
           </div>
 
-          <div className="cm-content">
-            {/* MIDDLE COLUMN — LIST */}
-            <section className="cm-list">
-              {(recordsByType[activeType] || []).map((r) => (
-                <div
-                  key={r.id}
-                  className={`cm-list-item ${
-                    selectedRecord?.id === r.id ? "selected" : ""
-                  }`}
-                  onClick={() => {
-  setSelectedByType((p) => ({
-    ...p,
-    [activeType]: r,
-  }));
+<div className="cm-content">
+  {/* MIDDLE COLUMN — LIST */}
+  <section className="cm-list">
+    {(recordsByType[activeType] || []).map((r) => (
+      <div
+        key={r.id}
+        className={`cm-list-item ${
+          selectedRecord?.id === r.id ? "selected" : ""
+        }`}
+        onClick={() => {
+          setSelectedByType((p) => ({
+            ...p,
+            [activeType]: r,
+          }));
 
-  if (activeType === "campaigns") {
-  setCampaignContext({ campaign: r });
-}
-}}
->
-  {activeType === "players"
-  ? r.character_name ||
-    `${r.first_name || ""} ${r.last_name || ""}`.trim() ||
-    "(unnamed)"
-  : r.name || "(unnamed)"}
-</div>
-))}
-</section>
+          if (activeType === "campaigns") {
+            setCampaignContext({ campaign: r });
+          }
+        }}
+      >
+        {activeType === "players"
+          ? r.character_name ||
+            `${r.first_name || ""} ${r.last_name || ""}`.trim() ||
+            "(unnamed)"
+          : getRecordLabel(activeType, r)}
+      </div>
+    ))}
+  </section>
 
             {/* RIGHT COLUMN — DETAIL */}
             <section className="cm-detail">
