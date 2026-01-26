@@ -7,9 +7,7 @@ import "./database-manager.css";
 
 function Badge({ status }) {
   return (
-    <span
-      className={`inline-flex items-center px-2 py-1 text-xs rounded status-${status}`}
-    >
+    <span className={`inline-flex items-center px-2 py-1 text-xs rounded status-${status}`}>
       {status.toUpperCase()}
     </span>
   );
@@ -48,9 +46,7 @@ export default function DatabaseManagerPage() {
         cache: "no-store",
       });
       const data = await res.json();
-      if (data?.ok) {
-        setRuns(data.runs || []);
-      }
+      if (data?.ok) setRuns(data.runs || []);
     } finally {
       setLoading(false);
     }
@@ -78,61 +74,59 @@ export default function DatabaseManagerPage() {
 
   return (
     <div className="db-manager space-y-6">
-  <div className="db-manager__content">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-bold">Database Manager</h1>
-          <div className="text-sm text-white/60 mt-1">
-            Manual database health checks (last 7 days)
+      <div className="db-manager__content">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-xl font-bold">Database Manager</h1>
+            <div className="text-sm text-white/60 mt-1">
+              Manual database health checks (last 7 days)
+            </div>
           </div>
+
+          <button
+            type="button"
+            className="px-3 py-2 rounded-lg border border-white/15 bg-white/5 hover:bg-white/10 text-sm"
+            onClick={runNow}
+            disabled={loading}
+          >
+            {loading ? "Running…" : "Run Health Check"}
+          </button>
         </div>
 
-        <button
-          type="button"
-          className="px-3 py-2 rounded-lg border border-white/15 bg-white/5 hover:bg-white/10 text-sm"
-          onClick={runNow}
-          disabled={loading}
-        >
-          {loading ? "Running…" : "Run Health Check"}
-        </button>
-      </div>
-
-      {/* Latest overall */}
-      {latest ? (
-        <Card
-          title="Latest Run"
-          status={latest.overall_status}
-          subtitle={new Date(latest.created_at).toLocaleString()}
-        >
-          <pre className="text-xs whitespace-pre-wrap opacity-80">
-            {JSON.stringify(latest.payload?.summary || {}, null, 2)}
-          </pre>
-        </Card>
-      ) : (
-        <div className="text-sm opacity-60">
-          No health checks have been run yet.
-        </div>
-      )}
-
-      {/* Individual checks */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {latest?.payload?.checks?.map((check) => (
+        {/* Latest overall */}
+        {latest ? (
           <Card
-            key={check.key}
-            title={check.title}
-            status={check.status}
-            subtitle={check.note || null}
+            title="Latest Run"
+            status={latest.overall_status}
+            subtitle={new Date(latest.created_at).toLocaleString()}
           >
             <pre className="text-xs whitespace-pre-wrap opacity-80">
-              {JSON.stringify(check.metrics || {}, null, 2)}
+              {JSON.stringify(latest.payload?.summary || {}, null, 2)}
             </pre>
           </Card>
-        ))}
-     return (
-  <div className="db-manager space-y-6">
-    <div className="db-manager__content">
-      {/* everything else unchanged */}
+        ) : (
+          <div className="text-sm opacity-60">
+            No health checks have been run yet.
+          </div>
+        )}
+
+        {/* Individual checks */}
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {latest?.payload?.checks?.map((check) => (
+            <Card
+              key={check.key}
+              title={check.title}
+              status={check.status}
+              subtitle={check.note || null}
+            >
+              <pre className="text-xs whitespace-pre-wrap opacity-80">
+                {JSON.stringify(check.metrics || {}, null, 2)}
+              </pre>
+            </Card>
+          ))}
+        </div>
+      </div>
     </div>
-  </div>
-);
+  );
+}
