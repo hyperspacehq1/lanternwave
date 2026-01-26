@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import "./database-manager.css";
 
 /* ---------- UI primitives ---------- */
 
@@ -76,7 +77,8 @@ export default function DatabaseManagerPage() {
   }, []);
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="db-manager space-y-6">
+  <div className="db-manager__content">
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
@@ -127,7 +129,10 @@ export default function DatabaseManagerPage() {
             </pre>
           </Card>
         ))}
-      </div>
+     return (
+  <div className="db-manager space-y-6">
+    <div className="db-manager__content">
+      {/* everything else unchanged */}
     </div>
-  );
-}
+  </div>
+);
