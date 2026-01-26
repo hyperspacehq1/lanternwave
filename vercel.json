@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/admin/db-health/run",
+      "schedule": "0 0 * * *"
+    }
+  ]
+}
