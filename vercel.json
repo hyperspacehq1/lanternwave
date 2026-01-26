@@ -1,7 +1,7 @@
 {
   "crons": [
     {
-      "path": "/api/admin/db-health/run",
+      "path": "/api/cron/db-health",
       "schedule": "0 0 * * *"
     }
   ]
