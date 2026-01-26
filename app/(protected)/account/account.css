@@ -259,7 +259,8 @@
 
 .account-action {
   font-size: 11px;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.12em;\
+  font-weight: 600;
   text-transform: uppercase;
   background: transparent;
   color: #f5c542;
@@ -295,10 +296,6 @@
 .account-action[disabled] {
   pointer-events: none;
   border-style: dashed;
-}
-
-.account-password-form button {
-  margin-top: 0.25rem;
 }
 
 .beacon-tooltip-icon {

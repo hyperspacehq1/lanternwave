@@ -13,9 +13,7 @@ export default function MobileUnsupportedPage() {
         </p>
 
         <p style={{ marginTop: 12 }}>
-          LanternWave does not support mobile phones due to the
-          complexity of the user interface and the volume of
-          screens and data.
+          LanternWave does not support mobile phones.
         </p>
 
         <p style={{ marginTop: 12 }}>
