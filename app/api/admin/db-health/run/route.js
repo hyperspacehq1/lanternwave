@@ -4,10 +4,7 @@ import { query } from "@/lib/db/db";
 export async function POST() {
   try {
     // Connection usage
-    const connections = await query<{
-      total: number;
-      active: number;
-    }>(`
+    const connections = await query(`
       SELECT
         COUNT(*)::int AS total,
         SUM(CASE WHEN state = 'active' THEN 1 ELSE 0 END)::int AS active
@@ -15,7 +12,7 @@ export async function POST() {
     `);
 
     // Database size
-    const size = await query<{ bytes: number }>(`
+    const size = await query(`
       SELECT pg_database_size(current_database()) AS bytes
     `);
 
