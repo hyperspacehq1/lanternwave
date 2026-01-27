@@ -73,10 +73,10 @@ export async function POST(req) {
 
   const playerNameById = {};
   for (const p of playerRows) {
-    playerNameById[p.id] =
-      p.character_name ||
-      `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() ||
-      "Unknown";
+playerNameById[p.id] =
+  p.character_name ||
+  p.name ||
+  "Unknown";
   }
 
   const pulsePlayers = [];
