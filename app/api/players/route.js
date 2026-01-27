@@ -79,16 +79,16 @@ export async function GET(req) {
 
   if (campaignId) {
     const { rows } = await query(
-      `
-      SELECT *
-        FROM players
-       WHERE tenant_id = $1
-         AND campaign_id = $2
-         AND deleted_at IS NULL
-       ORDER BY created_at ASC
-      `,
-      [ctx.tenantId, campaignId]
-    );
+  `
+  SELECT *
+    FROM players
+   WHERE tenant_id = $1
+     AND campaign_id = $2
+     AND deleted_at IS NULL
+   ORDER BY created_at ASC
+  `,
+  [ctx.tenantId, campaignId]
+);
     return Response.json(rows);
   }
 
