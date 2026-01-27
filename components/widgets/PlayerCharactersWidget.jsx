@@ -690,12 +690,12 @@ const hasSelection = selectedIds.length > 0;
                   />
 
                   <div className="player-widget__text">
-                    <div className="player-widget__character">
-                      {p.character_name || "—"}
-                    </div>
-                    <div className="player-widget__name">
-                      {`${p.first_name ?? ""} ${p.last_name ?? ""}`.trim()}
-                    </div>
+<div className="player-widget__character">
+  {p.character_name || p.name || "—"}
+</div>
+<div className="player-widget__name">
+  {p.name || "—"}
+</div>
                   </div>
 
                   {/* ✅ SANITY INLINE (value + stacked arrows on the RIGHT) */}

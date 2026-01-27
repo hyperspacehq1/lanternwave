@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from "uuid";
 import { cmApi } from "@/lib/cm/api";
 import { getFormComponent } from "@/components/forms";
 import { useCampaignContext } from "@/lib/campaign/campaignContext";
-import { getRecordLabel, getPlayerLabel } from "@/lib/cm/labels";
+import { getRecordLabel } from "@/lib/cm/labels";
 
 import "./campaign-manager.css";
 
@@ -205,19 +205,6 @@ setSelectedByType((p) => ({
   [activeType]: saved,
 })); 
 
-// ✅ Players: force list refresh so label updates immediately
-if (activeType === "players") {
-  const refreshed = await cmApi.list("players", {
-    campaign_id: campaignId,
-  });
-
-  setRecordsByType((p) => ({
-    ...p,
-    players: refreshed,
-  }));
-}
-
-
     if (activeType === "npcs" && __pendingImageClipId) {
       await fetch("/api/npc-image", {
         method: "POST",
@@ -358,9 +345,7 @@ const confirmCampaignDelete = async () => {
           }
         }}
       >
-        {activeType === "players"
-          ? getPlayerLabel(r)
-          : getRecordLabel(activeType, r)}
+         {getRecordLabel(activeType, r)}
       </div>
     ))}
   </section>

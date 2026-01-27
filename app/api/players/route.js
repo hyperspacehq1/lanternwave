@@ -13,10 +13,14 @@ function validateString(val, max, field) {
   if (typeof val !== "string") {
     throw new Error(`${field} must be a string`);
   }
-  if (val.length > max) {
+  const trimmed = val.trim();
+  if (!trimmed) {
+    throw new Error(`${field} is required`);
+  }
+  if (trimmed.length > max) {
     throw new Error(`${field} max ${max} chars`);
   }
-  return val.trim();
+  return trimmed;
 }
 
 function validateOptionalString(val, max, field) {
@@ -54,13 +58,10 @@ export async function GET(req) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const tenantId = ctx.tenantId;
   const { searchParams } = new URL(req.url);
-
   const id = searchParams.get("id");
   const campaignId = searchParams.get("campaign_id");
 
-  // ✅ Single record by id
   if (id) {
     const { rows } = await query(
       `
@@ -71,13 +72,11 @@ export async function GET(req) {
          AND deleted_at IS NULL
        LIMIT 1
       `,
-      [tenantId, id]
+      [ctx.tenantId, id]
     );
-
     return Response.json(rows[0] ?? null);
   }
 
-  // ✅ List by campaign_id (this is what your page needs)
   if (campaignId) {
     const { rows } = await query(
       `
@@ -88,13 +87,11 @@ export async function GET(req) {
          AND deleted_at IS NULL
        ORDER BY created_at ASC
       `,
-      [tenantId, campaignId]
+      [ctx.tenantId, campaignId]
     );
-
     return Response.json(rows);
   }
 
-  // If neither provided, behave safely (don’t 400 and kill the page)
   return Response.json([]);
 }
 
@@ -109,20 +106,15 @@ export async function POST(req) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const tenantId = ctx.tenantId;
   const body = await req.json();
+  const campaignId = body.campaign_id;
 
-  const campaignId = body.campaign_id ?? null;
   if (!campaignId) {
     return Response.json({ error: "campaign_id is required" }, { status: 400 });
   }
 
   try {
-    if (!body.first_name) {
-      throw new Error("first_name is required");
-    }
-
-    const firstName = validateString(body.first_name, 100, "first_name");
+    const name = validateString(body.name, 100, "name");
     const lastName = validateOptionalString(body.last_name, 100, "last_name");
     const characterName = validateOptionalString(
       body.character_name,
@@ -142,7 +134,7 @@ export async function POST(req) {
         id,
         tenant_id,
         campaign_id,
-        first_name,
+        name,
         last_name,
         character_name,
         notes,
@@ -155,9 +147,9 @@ export async function POST(req) {
       `,
       [
         playerId,
-        tenantId,
+        ctx.tenantId,
         campaignId,
-        firstName,
+        name,
         lastName,
         characterName,
         notes,
@@ -182,7 +174,7 @@ export async function POST(req) {
         )
         VALUES ($1,$2,$3,$4,$5,$5,NOW(),NOW())
         `,
-        [uuid(), tenantId, campaignId, playerId, sanity]
+        [uuid(), ctx.tenantId, campaignId, playerId, sanity]
       );
     }
 
@@ -203,7 +195,6 @@ export async function PUT(req) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const tenantId = ctx.tenantId;
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
   const body = await req.json();
@@ -214,11 +205,11 @@ export async function PUT(req) {
 
   try {
     const sets = [];
-    const values = [tenantId, id];
+    const values = [ctx.tenantId, id];
     let i = 3;
 
     const fields = {
-      first_name: 100,
+      name: 100,
       last_name: 100,
       character_name: 100,
       notes: 2000,
@@ -277,7 +268,6 @@ export async function DELETE(req) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const tenantId = ctx.tenantId;
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
 
@@ -295,7 +285,7 @@ export async function DELETE(req) {
        AND deleted_at IS NULL
      RETURNING *
     `,
-    [tenantId, id]
+    [ctx.tenantId, id]
   );
 
   return Response.json(rows[0] ?? null);

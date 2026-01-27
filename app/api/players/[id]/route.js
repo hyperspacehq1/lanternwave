@@ -35,9 +35,6 @@ function validateOptionalInt(val, field) {
 /* -----------------------------------------------------------
    GET /api/players/[id]
 ------------------------------------------------------------ */
-/* -----------------------------------------------------------
-   GET /api/players?id=
------------------------------------------------------------- */
 export async function GET(req) {
   let ctx;
   try {
@@ -46,7 +43,6 @@ export async function GET(req) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const tenantId = ctx.tenantId;
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
 
@@ -63,7 +59,7 @@ export async function GET(req) {
        AND deleted_at IS NULL
      LIMIT 1
     `,
-    [tenantId, id]
+    [ctx.tenantId, id]
   );
 
   return Response.json(rows[0] ?? null);
@@ -80,7 +76,6 @@ export async function PUT(req, { params }) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const tenantId = ctx.tenantId;
   const id = params?.id;
   const body = await req.json();
 
@@ -90,11 +85,11 @@ export async function PUT(req, { params }) {
 
   try {
     const sets = [];
-    const values = [tenantId, id];
+    const values = [ctx.tenantId, id];
     let i = 3;
 
     const fields = {
-      first_name: 100,
+      name: 100,              // ✅ canonical identity
       last_name: 100,
       character_name: 100,
       notes: 2000,
@@ -146,7 +141,7 @@ export async function PUT(req, { params }) {
          WHERE tenant_id = $2
            AND player_id = $3
         `,
-        [rows[0].sanity, tenantId, rows[0].id]
+        [rows[0].sanity, ctx.tenantId, rows[0].id]
       );
     }
 
@@ -167,7 +162,6 @@ export async function DELETE(req, { params }) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const tenantId = ctx.tenantId;
   const id = params?.id;
 
   if (!id) {
@@ -184,7 +178,7 @@ export async function DELETE(req, { params }) {
        AND deleted_at IS NULL
      RETURNING *
     `,
-    [tenantId, id]
+    [ctx.tenantId, id]
   );
 
   return Response.json(rows[0] ?? null);

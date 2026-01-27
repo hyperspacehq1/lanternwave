@@ -23,7 +23,7 @@ export default function JoinPanel({
   campaignId,
   joinPath,
   idField,
-  labelField = "name",
+  labelField = "name", // string OR function
 }) {
   const [attached, setAttached] = useState([]);
   const [available, setAvailable] = useState([]);
@@ -48,11 +48,11 @@ export default function JoinPanel({
   const VALID_ENCOUNTER_JOINS = new Set(["npcs", "sessions"]);
 
   const VALID_SESSION_JOINS = new Set([
-  "encounters",
-  "events",
-  "locations",
-  "items", // ✅ ADD
-   ]);
+    "encounters",
+    "events",
+    "locations",
+    "items",
+  ]);
 
   const VALID_LOCATION_JOINS = new Set(["items"]);
 
@@ -81,10 +81,8 @@ export default function JoinPanel({
     baseUrl = `/api/sessions-events?session_id=${scopeId}`;
   } else if (scopeType === "sessions" && joinPath === "locations") {
     baseUrl = `/api/sessions-locations?session_id=${scopeId}`;
-
   } else if (scopeType === "sessions" && joinPath === "items") {
     baseUrl = `/api/sessions-items?session_id=${scopeId}`;
-
   } else if (scopeType === "locations" && joinPath === "items") {
     baseUrl = `/api/locations-items?location_id=${scopeId}`;
   } else {
@@ -136,17 +134,17 @@ export default function JoinPanel({
     setLoading(true);
     try {
       const isEncounterNpcs =
-  scopeType === "encounters" && joinPath === "npcs";
-const isSessionEncounters =
-  scopeType === "sessions" && joinPath === "encounters";
-const isSessionEvents =
-  scopeType === "sessions" && joinPath === "events";
-const isSessionLocations =
-  scopeType === "sessions" && joinPath === "locations";
-const isSessionItems =
-  scopeType === "sessions" && joinPath === "items";
-const isLocationItems =
-  scopeType === "locations" && joinPath === "items";
+        scopeType === "encounters" && joinPath === "npcs";
+      const isSessionEncounters =
+        scopeType === "sessions" && joinPath === "encounters";
+      const isSessionEvents =
+        scopeType === "sessions" && joinPath === "events";
+      const isSessionLocations =
+        scopeType === "sessions" && joinPath === "locations";
+      const isSessionItems =
+        scopeType === "sessions" && joinPath === "items";
+      const isLocationItems =
+        scopeType === "locations" && joinPath === "items";
 
       const postUrl = isEncounterNpcs
         ? "/api/encounters-npcs"
@@ -158,7 +156,6 @@ const isLocationItems =
         ? "/api/sessions-locations"
         : isSessionItems
         ? "/api/sessions-items"
-
         : isLocationItems
         ? "/api/locations-items"
         : baseUrl;
@@ -171,10 +168,8 @@ const isLocationItems =
         ? { session_id: scopeId, event_id: selectedId }
         : isSessionLocations
         ? { session_id: scopeId, location_id: selectedId }
-
         : isSessionItems
         ? { session_id: scopeId, item_id: selectedId }
-
         : isLocationItems
         ? { location_id: scopeId, item_id: selectedId }
         : { [idField]: selectedId };
@@ -213,10 +208,8 @@ const isLocationItems =
       scopeType === "sessions" && joinPath === "events";
     const isSessionLocations =
       scopeType === "sessions" && joinPath === "locations";
-
     const isSessionItems =
       scopeType === "sessions" && joinPath === "items";
-
     const isLocationItems =
       scopeType === "locations" && joinPath === "items";
 
@@ -228,10 +221,8 @@ const isLocationItems =
       ? "/api/sessions-events"
       : isSessionLocations
       ? "/api/sessions-locations"
-
       : isSessionItems
       ? "/api/sessions-items"
-
       : isLocationItems
       ? "/api/locations-items"
       : baseUrl;
@@ -244,11 +235,8 @@ const isLocationItems =
       ? { session_id: scopeId, event_id: id }
       : isSessionLocations
       ? { session_id: scopeId, location_id: id }
-
       : isSessionItems
       ? { session_id: scopeId, item_id: id }
-
-
       : isLocationItems
       ? { location_id: scopeId, item_id: id }
       : { [idField]: id };
@@ -274,13 +262,17 @@ const isLocationItems =
       <ul className="cm-join-list">
         {attached.map((r) => (
           <li key={r[idField]} className="cm-join-row">
-            <span className="cm-join-name">{r[labelField]}</span>
+            <span className="cm-join-name">
+              {typeof labelField === "function"
+                ? labelField(r)
+                : r[labelField]}
+            </span>
             <button
-  className="cm-btn cm-join-remove danger"
-  onClick={() => detach(r)}
->
-  Remove
-</button>
+              className="cm-btn cm-join-remove danger"
+              onClick={() => detach(r)}
+            >
+              Remove
+            </button>
           </li>
         ))}
 
@@ -301,7 +293,9 @@ const isLocationItems =
               key={r.id ?? r[idField]}
               value={r.id ?? r[idField]}
             >
-              {r[labelField]}
+              {typeof labelField === "function"
+                ? labelField(r)
+                : r[labelField]}
             </option>
           ))}
         </select>
