@@ -12,7 +12,6 @@ function roll(max) {
   return Math.floor(Math.random() * max) + 1;
 }
 
-/* VALUE TABLE */
 function computeLoss(rollType, passed) {
   switch (rollType) {
     case "1d2":
@@ -44,42 +43,14 @@ export async function POST(req) {
   const tenantId = ctx.tenantId;
   const body = await req.json();
 
-  const {
-    player_id: playerId,
-    campaign_id: campaignId,
-    roll_type: rollType,
-  } = body;
+  const { player_id: playerId, roll_type: rollType } = body;
 
-  if (!playerId || !campaignId || !rollType) {
+  if (!playerId || !rollType) {
     return Response.json(
-      { error: "player_id, campaign_id, and roll_type are required" },
+      { error: "player_id and roll_type are required" },
       { status: 400 }
     );
   }
-
-  /* ---------------------------------------------------------
-     Resolve player names (for pulse)
-  --------------------------------------------------------- */
-  const { rows: playerRows } = await query(
-    `
-    SELECT id, character_name, first_name, last_name
-    FROM players
-    WHERE tenant_id = $1
-      AND campaign_id = $2
-      AND deleted_at IS NULL
-    `,
-    [tenantId, campaignId]
-  );
-
-  const playerNameById = {};
-  for (const p of playerRows) {
-playerNameById[p.id] =
-  p.character_name ||
-  p.name ||
-  "Unknown";
-  }
-
-  const pulsePlayers = [];
 
   try {
     await query("BEGIN");
@@ -89,26 +60,48 @@ playerNameById[p.id] =
     ------------------------------------------------------- */
     const sanityRes = await query(
       `
-      SELECT base_sanity, current_sanity
+      SELECT base_sanity, current_sanity, campaign_id
       FROM player_sanity
       WHERE tenant_id = $1
-        AND campaign_id = $2
-        AND player_id = $3
+        AND player_id = $2
       LIMIT 1
       `,
-      [tenantId, campaignId, playerId]
+      [tenantId, playerId]
     );
 
     if (!sanityRes.rows.length) {
       throw new Error("Player sanity row not found");
     }
 
-    const baseSanity = sanityRes.rows[0].base_sanity;
-    const currentSanity = sanityRes.rows[0].current_sanity;
+    const {
+      base_sanity: baseSanity,
+      current_sanity: currentSanity,
+      campaign_id: campaignId,
+    } = sanityRes.rows[0];
 
     if (!Number.isInteger(baseSanity)) {
       throw new Error("Player base sanity not set");
     }
+
+    /* -------------------------------------------------------
+       Resolve player name (FOR PULSE ONLY)
+    ------------------------------------------------------- */
+    const playerRes = await query(
+      `
+      SELECT character_name, name
+      FROM players
+      WHERE tenant_id = $1
+        AND id = $2
+        AND deleted_at IS NULL
+      LIMIT 1
+      `,
+      [tenantId, playerId]
+    );
+
+    const displayName =
+      playerRes.rows[0]?.character_name ||
+      playerRes.rows[0]?.name ||
+      "Unknown";
 
     /* -------------------------------------------------------
        SANITY ROLL
@@ -158,28 +151,15 @@ playerNameById[p.id] =
       SET current_sanity = $1,
           updated_at = NOW()
       WHERE tenant_id = $2
-        AND campaign_id = $3
-        AND player_id = $4
+        AND player_id = $3
       `,
-      [sanityAfter, tenantId, campaignId, playerId]
+      [sanityAfter, tenantId, playerId]
     );
 
     /* -------------------------------------------------------
        Pulse (only if SAN lost)
     ------------------------------------------------------- */
     if (loss > 0) {
-      pulsePlayers.push({
-        name: playerNameById[playerId] || "Unknown",
-        sanity: sanityAfter,
-      });
-    }
-
-    await query("COMMIT");
-
-    /* -------------------------------------------------------
-       Emit player viewer pulse (10s)
-    ------------------------------------------------------- */
-    if (pulsePlayers.length) {
       const expiresAt = new Date(Date.now() + 10_000);
 
       await query(
@@ -196,12 +176,19 @@ playerNameById[p.id] =
           tenantId,
           {
             title: "Sanity",
-            players: pulsePlayers,
+            players: [
+              {
+                name: displayName,
+                sanity: sanityAfter,
+              },
+            ],
           },
           expiresAt,
         ]
       );
     }
+
+    await query("COMMIT");
 
     return Response.json({
       player_id: playerId,
@@ -216,6 +203,6 @@ playerNameById[p.id] =
     });
   } catch (e) {
     await query("ROLLBACK");
-    return Response.json({ error: e.message }, { status: 400 });
+    return Response.json({ error: e.message }, { status: 500 });
   }
 }
