@@ -326,7 +326,7 @@ const updateAudioSetting = (key, value) => {
   ["location_pulse", "Location Pulse Beacon (GM Dashboard)"],
   [
     "player_sanity_tracker",
-    "Player Sanity Tracker (GM Dashboard)",
+    "Cthulhu 7th Ed. Player Sanity Tracker (GM Dashboard)",
   ],
 ].map(([key, label]) => (
                 <div className="account-row" key={key}>

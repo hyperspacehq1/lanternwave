@@ -331,3 +331,42 @@
 .lw-main .lw-btn {
   white-space: nowrap;
 }
+
+/* ------------------------------
+   MEDIA PACKS
+------------------------------ */
+.lw-main .lw-media-packs {
+  margin-top: 0.6rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--lw-border-muted);
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.lw-main .lw-media-packs-title {
+  font-family: var(--font-terminal);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  color: var(--lw-green-muted);
+}
+
+.lw-main .lw-media-pack {
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid var(--lw-border-muted);
+  border-radius: 4px;
+  padding: 0.35rem 0.5rem;
+  text-align: left;
+  font-family: var(--font-terminal);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: var(--lw-green-muted);
+  cursor: pointer;
+}
+
+.lw-main .lw-media-pack:hover {
+  border-color: var(--lw-green-primary);
+  color: var(--lw-green-primary);
+  box-shadow: 0 0 6px rgba(108, 197, 240, 0.35);
+}
+
