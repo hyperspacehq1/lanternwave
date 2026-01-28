@@ -1,6 +1,7 @@
 import { query } from "@/lib/db";
 import { v4 as uuid } from "uuid";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
+import { sanitizeRow, sanitizeRows } from "@/lib/api/sanitize";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,54 +11,43 @@ function hasOwn(obj, key) {
 }
 
 function validateString(val, max, field) {
-  if (typeof val !== "string") {
-    throw new Error(`${field} must be a string`);
-  }
+  if (typeof val !== "string") throw new Error(`${field} must be a string`);
   const trimmed = val.trim();
-  if (!trimmed) {
-    throw new Error(`${field} is required`);
-  }
-  if (trimmed.length > max) {
-    throw new Error(`${field} max ${max} chars`);
-  }
+  if (!trimmed) throw new Error(`${field} is required`);
+  if (trimmed.length > max) throw new Error(`${field} max ${max} chars`);
   return trimmed;
 }
 
 function validateOptionalString(val, max, field) {
   if (val === null || val === undefined) return null;
-
-  if (typeof val === "string") {
-    const trimmed = val.trim();
-    if (trimmed === "") return null;
-    if (trimmed.length > max) {
-      throw new Error(`${field} max ${max} chars`);
-    }
-    return trimmed;
-  }
-
-  throw new Error(`${field} must be a string`);
+  if (typeof val !== "string") throw new Error(`${field} must be a string`);
+  const trimmed = val.trim();
+  if (!trimmed) return null;
+  if (trimmed.length > max) throw new Error(`${field} max ${max} chars`);
+  return trimmed;
 }
 
 function validateOptionalInt(val, field) {
   if (val === null || val === undefined) return null;
   const n = Number(val);
-  if (!Number.isInteger(n)) {
-    throw new Error(`${field} must be an integer`);
-  }
+  if (!Number.isInteger(n)) throw new Error(`${field} must be an integer`);
   return n;
 }
+
+const SANITIZE_SCHEMA = {
+  name: 100,
+  last_name: 100,
+  character_name: 100,
+  notes: 2000,
+  phone: 50,
+  email: 120,
+};
 
 /* -----------------------------------------------------------
    GET /api/players
 ------------------------------------------------------------ */
 export async function GET(req) {
-  let ctx;
-  try {
-    ctx = await getTenantContext(req);
-  } catch {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+  const ctx = await getTenantContext(req);
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
   const campaignId = searchParams.get("campaign_id");
@@ -74,22 +64,26 @@ export async function GET(req) {
       `,
       [ctx.tenantId, id]
     );
-    return Response.json(rows[0] ?? null);
+
+    return Response.json(
+      rows[0] ? sanitizeRow(rows[0], SANITIZE_SCHEMA) : null
+    );
   }
 
   if (campaignId) {
     const { rows } = await query(
-  `
-  SELECT *
-    FROM players
-   WHERE tenant_id = $1
-     AND campaign_id = $2
-     AND deleted_at IS NULL
-   ORDER BY created_at ASC
-  `,
-  [ctx.tenantId, campaignId]
-);
-    return Response.json(rows);
+      `
+      SELECT *
+        FROM players
+       WHERE tenant_id = $1
+         AND campaign_id = $2
+         AND deleted_at IS NULL
+       ORDER BY created_at ASC
+      `,
+      [ctx.tenantId, campaignId]
+    );
+
+    return Response.json(sanitizeRows(rows, SANITIZE_SCHEMA));
   }
 
   return Response.json([]);
@@ -99,24 +93,18 @@ export async function GET(req) {
    POST /api/players
 ------------------------------------------------------------ */
 export async function POST(req) {
-  let ctx;
-  try {
-    ctx = await getTenantContext(req);
-  } catch {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+  const ctx = await getTenantContext(req);
   const body = await req.json();
-  const campaignId = body.campaign_id;
 
-  if (!campaignId) {
+  if (!body.campaign_id) {
     return Response.json({ error: "campaign_id is required" }, { status: 400 });
   }
 
   try {
     const name = validateString(body.name, 100, "name");
-    const lastName = validateOptionalString(body.last_name, 100, "last_name");
-    const characterName = validateOptionalString(
+
+    const last_name = validateOptionalString(body.last_name, 100, "last_name");
+    const character_name = validateOptionalString(
       body.character_name,
       100,
       "character_name"
@@ -126,7 +114,7 @@ export async function POST(req) {
     const email = validateOptionalString(body.email, 120, "email");
     const sanity = validateOptionalInt(body.sanity, "sanity");
 
-    const playerId = uuid();
+    const id = uuid();
 
     const { rows } = await query(
       `
@@ -146,12 +134,12 @@ export async function POST(req) {
       RETURNING *
       `,
       [
-        playerId,
+        id,
         ctx.tenantId,
-        campaignId,
+        body.campaign_id,
         name,
-        lastName,
-        characterName,
+        last_name,
+        character_name,
         notes,
         phone,
         email,
@@ -174,11 +162,14 @@ export async function POST(req) {
         )
         VALUES ($1,$2,$3,$4,$5,$5,NOW(),NOW())
         `,
-        [uuid(), ctx.tenantId, campaignId, playerId, sanity]
+        [uuid(), ctx.tenantId, body.campaign_id, id, sanity]
       );
     }
 
-    return Response.json(rows[0], { status: 201 });
+    return Response.json(
+      sanitizeRow(rows[0], SANITIZE_SCHEMA),
+      { status: 201 }
+    );
   } catch (e) {
     return Response.json({ error: e.message }, { status: 400 });
   }
@@ -188,20 +179,12 @@ export async function POST(req) {
    PUT /api/players?id=
 ------------------------------------------------------------ */
 export async function PUT(req) {
-  let ctx;
-  try {
-    ctx = await getTenantContext(req);
-  } catch {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+  const ctx = await getTenantContext(req);
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
   const body = await req.json();
 
-  if (!id) {
-    return Response.json({ error: "id required" }, { status: 400 });
-  }
+  if (!id) return Response.json({ error: "id required" }, { status: 400 });
 
   try {
     const sets = [];
@@ -232,10 +215,7 @@ export async function PUT(req) {
     }
 
     if (!sets.length) {
-      return Response.json(
-        { error: "No valid fields provided" },
-        { status: 400 }
-      );
+      return Response.json({ error: "No valid fields provided" }, { status: 400 });
     }
 
     const { rows } = await query(
@@ -251,7 +231,9 @@ export async function PUT(req) {
       values
     );
 
-    return Response.json(rows[0] ?? null);
+    return Response.json(
+      rows[0] ? sanitizeRow(rows[0], SANITIZE_SCHEMA) : null
+    );
   } catch (e) {
     return Response.json({ error: e.message }, { status: 400 });
   }
@@ -261,19 +243,11 @@ export async function PUT(req) {
    DELETE /api/players?id=
 ------------------------------------------------------------ */
 export async function DELETE(req) {
-  let ctx;
-  try {
-    ctx = await getTenantContext(req);
-  } catch {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+  const ctx = await getTenantContext(req);
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
 
-  if (!id) {
-    return Response.json({ error: "id required" }, { status: 400 });
-  }
+  if (!id) return Response.json({ error: "id required" }, { status: 400 });
 
   const { rows } = await query(
     `
@@ -288,5 +262,7 @@ export async function DELETE(req) {
     [ctx.tenantId, id]
   );
 
-  return Response.json(rows[0] ?? null);
+  return Response.json(
+    rows[0] ? sanitizeRow(rows[0], SANITIZE_SCHEMA) : null
+  );
 }
