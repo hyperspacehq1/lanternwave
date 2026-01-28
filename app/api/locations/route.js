@@ -76,6 +76,8 @@ export async function GET(req) {
       description: 10000,
       notes: 10000,
       world: 2000,
+      color_detail: 10000,
+      sensory: 10000,
     })
   );
 }
@@ -174,6 +176,8 @@ export async function POST(req) {
         description: 10000,
         notes: 10000,
         world: 2000,
+        color_detail: 10000,
+        sensory: 10000,
       }),
       { status: 201 }
     );
@@ -217,6 +221,8 @@ export async function PUT(req) {
       addressState: 120,
       addressZip: 120,
       addressCountry: 120,
+      color_detail: 10000,
+      sensory: 10000,
     };
 
     for (const key in stringFields) {
@@ -267,6 +273,8 @@ export async function PUT(req) {
             description: 10000,
             notes: 10000,
             world: 2000,
+            color_detail: 10000,
+            sensory: 10000,
           })
         : null
     );
@@ -314,6 +322,8 @@ export async function DELETE(req) {
           description: 10000,
           notes: 10000,
           world: 2000,
+          color_detail: 10000,
+          sensory: 10000,
         })
       : null
   );
