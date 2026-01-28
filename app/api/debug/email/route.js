@@ -1,9 +1,4 @@
 import { NextResponse } from "next/server";
-import {
-  sendWelcomeEmail,
-  sendPasswordResetEmail,
-  sendForgotUsernameEmail,
-} from "@/lib/server/email";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,6 +13,13 @@ export async function POST(req) {
         { status: 400 }
       );
     }
+
+    // Lazy import to avoid build-time coupling
+    const {
+      sendWelcomeEmail,
+      sendPasswordResetEmail,
+      sendForgotUsernameEmail,
+    } = await import("@/lib/server/email");
 
     const userAgent = "Debug Page / Manual Trigger";
 
@@ -63,7 +65,7 @@ export async function POST(req) {
   } catch (err) {
     console.error("EMAIL DEBUG FAILED", err);
     return NextResponse.json(
-      { error: err.message || "Email send failed" },
+      { error: err?.message || "Email send failed" },
       { status: 500 }
     );
   }

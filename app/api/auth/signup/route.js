@@ -101,7 +101,27 @@ export async function POST(req) {
 
     await query("COMMIT");
 
-    // ✅ Stateless signed cookie (Option A)
+    /* --------------------------------
+       SEND WELCOME EMAIL (NON-BLOCKING)
+       -------------------------------- */
+    try {
+      const { sendWelcomeEmail } = await import("@/lib/server/email");
+
+      await sendWelcomeEmail({
+        to: email,
+        username,
+        userAgent: req.headers.get("user-agent"),
+      });
+
+      console.log("WELCOME EMAIL SENT", { email });
+    } catch (emailErr) {
+      console.error("WELCOME EMAIL FAILED", {
+        email,
+        error: emailErr?.message,
+      });
+    }
+
+    // ✅ Stateless signed cookie
     const token = signSession({ userId, tenantId });
 
     const res = NextResponse.json({
