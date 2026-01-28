@@ -3,7 +3,7 @@ import {
   sendWelcomeEmail,
   sendPasswordResetEmail,
   sendForgotUsernameEmail,
-} from "@/lib/email";
+} from "@/lib/server/email";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

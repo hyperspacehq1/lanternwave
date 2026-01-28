@@ -89,7 +89,7 @@ export async function POST(req) {
     const resetUrl = `https://lanternwave.com/reset-password?code=${code}`;
 
     try {
-      const { sendPasswordResetEmail } = await import("@/lib/email");
+      const { sendPasswordResetEmail } = await import("@/lib/server/email");
 
       await sendPasswordResetEmail({
         to: email,

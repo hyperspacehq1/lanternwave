@@ -47,7 +47,7 @@ export async function POST(req) {
 
       try {
         // ✅ LAZY IMPORT (BUILD SAFE)
-        const { sendForgotUsernameEmail } = await import("@/lib/email");
+        const { sendForgotUsernameEmail } = await import("@/lib/server/email");
 
         await sendForgotUsernameEmail({
           to: email,
