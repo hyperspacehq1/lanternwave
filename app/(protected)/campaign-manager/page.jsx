@@ -175,9 +175,7 @@ else {
      PLAYERS FIX
   ------------------------------------------------------------ */
 
-const payload = { ...selectedRecord };
-delete payload._isNew;
-delete payload.__pendingImageClipId;
+const { _isNew, id, __pendingImageClipId, ...payload } = selectedRecord;
 
   /* ------------------------------------------------------------
        PLAYERS FIX
@@ -195,7 +193,7 @@ delete payload.__pendingImageClipId;
     return {
       ...p,
       [activeType]: list.map((r) =>
-        r.id === id ? saved : r
+        r.id === id ? { ...r, ...saved } : r
       ),
     };
   }
@@ -204,7 +202,7 @@ delete payload.__pendingImageClipId;
   return {
     ...p,
     [activeType]: list.map((r) =>
-      r.id === saved.id ? saved : r
+     r.id === saved.id ? { ...r, ...saved } : r
     ),
   };
 });
