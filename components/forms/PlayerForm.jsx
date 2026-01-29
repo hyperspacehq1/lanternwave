@@ -7,17 +7,6 @@ export default function PlayerForm({ record, onChange }) {
   const { campaign } = useCampaignContext();
 
   /* ---------------------------------------------
-     GLOBAL DEBUG — render snapshot
-  --------------------------------------------- */
-  console.group("[PlayerForm] render");
-  console.log("record:", record);
-  console.log("record keys:", record ? Object.keys(record) : null);
-  console.log("record.last_name:", record?.last_name);
-  console.log("record.character_name:", record?.character_name);
-  console.log("record type:", typeof record);
-  console.groupEnd();
-
-  /* ---------------------------------------------
      Guards
   --------------------------------------------- */
   if (!campaign) {
@@ -39,39 +28,15 @@ export default function PlayerForm({ record, onChange }) {
   }
 
   /* ---------------------------------------------
-     Campaign-scoped update helper (with debug)
+     Campaign-scoped update helper
   --------------------------------------------- */
   const update = (field, value) => {
-    const next = {
+    onChange({
       ...record,
       [field]: value,
       campaign_id: campaign.id,
-    };
-
-    console.group("[PlayerForm.update]");
-    console.log("field:", field);
-    console.log("value:", value);
-    console.log("before.last_name:", record.last_name);
-    console.log("before.character_name:", record.character_name);
-    console.log("after.last_name:", next.last_name);
-    console.log("after.character_name:", next.character_name);
-    console.log("next keys:", Object.keys(next));
-    console.groupEnd();
-
-    onChange(next);
+    });
   };
-
-  /* ---------------------------------------------
-     Detect record object replacement (after save)
-  --------------------------------------------- */
-  useEffect(() => {
-    console.group("[PlayerForm] record changed");
-    console.log("record.id:", record.id);
-    console.log("record:", record);
-    console.log("last_name:", record.last_name);
-    console.log("character_name:", record.character_name);
-    console.groupEnd();
-  }, [record]);
 
   /* ---------------------------------------------
      Visual pulse on record change

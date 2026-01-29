@@ -19,16 +19,15 @@ function validateString(val, max, field) {
   }
 }
 
-function validateProperties(input) {
-  if (input === null || input === undefined) return null;
-  if (typeof input !== "object") {
-    throw new Error("properties must be an object");
+function validatePropertiesText(val) {
+  if (val === null || val === undefined) return null;
+  if (typeof val !== "string") {
+    throw new Error("properties must be a string");
   }
-  const size = JSON.stringify(input).length;
-  if (size > 20000) {
-    throw new Error("properties payload too large");
+  if (val.length > 20000) {
+    throw new Error("properties too long");
   }
-  return input;
+  return val;
 }
 
 /* -----------------------------------------------------------
@@ -104,7 +103,7 @@ export async function POST(req) {
       validateString(itemType, 120, "itemType");
     }
 
-    const properties = validateProperties(body.properties ?? null);
+    const properties = validatePropertiesText(body.properties ?? null);
 
     const { rows } = await query(
       `
@@ -192,7 +191,7 @@ export async function PUT(req) {
 
     if (hasOwn(body, "properties")) {
       sets.push(`properties = $${i++}`);
-      values.push(validateProperties(body.properties));
+      values.push(validatePropertiesText(body.properties));
     }
 
     if (!sets.length) {

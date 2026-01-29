@@ -138,27 +138,16 @@ export default function ItemForm({ record, onChange }) {
       </div>
 
       {/* Properties */}
-      <div className="cm-field">
-        <label className="cm-label">Properties</label>
-        <textarea
-          className="cm-textarea"
-          value={
-            record.properties
-              ? JSON.stringify(record.properties, null, 2)
-              : ""
-          }
-          onChange={(e) => {
-            try {
-              update(
-                "properties",
-                e.target.value ? JSON.parse(e.target.value) : null
-              );
-            } catch {
-              // allow partial JSON while typing
-            }
-          }}
-        />
-      </div>
-    </div>
-  );
-}
+<div className="cm-field">
+  <label className="cm-label">Properties</label>
+  <textarea
+    className="cm-textarea"
+    value={record.properties || ""}
+    onChange={(e) =>
+      update(
+        "properties",
+        e.target.value === "" ? null : e.target.value
+      )
+    }
+  />
+</div>
