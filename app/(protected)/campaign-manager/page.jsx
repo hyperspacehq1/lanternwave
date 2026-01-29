@@ -171,7 +171,9 @@ else {
   const handleSave = async () => {
     if (!selectedRecord) return;
 
-    const { _isNew, id, __pendingImageClipId, ...payload } = selectedRecord;
+const payload = { ...selectedRecord };
+delete payload._isNew;
+delete payload.__pendingImageClipId;
 
     const saved = _isNew
       ? await cmApi.create(activeType, payload)
