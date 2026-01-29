@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from "uuid";
 import { cmApi } from "@/lib/cm/api";
 import { getFormComponent } from "@/components/forms";
 import { useCampaignContext } from "@/lib/campaign/campaignContext";
-import { getRecordLabel } from "@/lib/cm/labels";
+import { getRecordLabel, getPlayerLabel } from "@/lib/cm/labels";
 
 import "./campaign-manager.css";
 
@@ -80,9 +80,10 @@ useEffect(() => {
       // -------------------------------
       else {
         if (!campaignId) {
-  setRecordsByType((p) => ({ ...p, [activeType]: [] }));
-  list = [];
-}
+          setRecordsByType((p) => ({ ...p, [activeType]: [] }));
+          return;
+        }
+
         if (activeType === "npcs") {
   const res = await fetch(
     `/api/npcs-with-images?campaign_id=${campaignId}`,
@@ -142,7 +143,7 @@ else {
   return () => {
     cancelled = true;
   };
-}, [activeType, campaignId]);
+}, [activeType, campaignId, campaign]);
 
   /* ------------------------------------------------------------
      CRUD
@@ -171,15 +172,7 @@ else {
   const handleSave = async () => {
     if (!selectedRecord) return;
 
-  /* ------------------------------------------------------------
-     PLAYERS FIX
-  ------------------------------------------------------------ */
-
-const { _isNew, id, __pendingImageClipId, ...payload } = selectedRecord;
-
-  /* ------------------------------------------------------------
-       PLAYERS FIX
-  ------------------------------------------------------------ */
+    const { _isNew, id, __pendingImageClipId, ...payload } = selectedRecord;
 
     const saved = _isNew
       ? await cmApi.create(activeType, payload)
@@ -193,7 +186,7 @@ const { _isNew, id, __pendingImageClipId, ...payload } = selectedRecord;
     return {
       ...p,
       [activeType]: list.map((r) =>
-        r.id === id ? { ...r, ...saved } : r
+        r.id === id ? saved : r
       ),
     };
   }
@@ -202,7 +195,7 @@ const { _isNew, id, __pendingImageClipId, ...payload } = selectedRecord;
   return {
     ...p,
     [activeType]: list.map((r) =>
-     r.id === saved.id ? { ...r, ...saved } : r
+      r.id === saved.id ? saved : r
     ),
   };
 });
@@ -211,6 +204,19 @@ setSelectedByType((p) => ({
   ...p,
   [activeType]: saved,
 })); 
+
+// ✅ Players: force list refresh so label updates immediately
+if (activeType === "players") {
+  const refreshed = await cmApi.list("players", {
+    campaign_id: campaignId,
+  });
+
+  setRecordsByType((p) => ({
+    ...p,
+    players: refreshed,
+  }));
+}
+
 
     if (activeType === "npcs" && __pendingImageClipId) {
       await fetch("/api/npc-image", {
@@ -352,7 +358,9 @@ const confirmCampaignDelete = async () => {
           }
         }}
       >
-         {getRecordLabel(activeType, r)}
+        {activeType === "players"
+          ? getPlayerLabel(r)
+          : getRecordLabel(activeType, r)}
       </div>
     ))}
   </section>
