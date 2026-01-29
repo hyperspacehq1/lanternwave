@@ -90,7 +90,7 @@ export async function GET(req) {
 }
 
 /* -----------------------------------------------------------
-   POST /api/players
+   POST /api/players  ✅ FULLY HYDRATED
 ------------------------------------------------------------ */
 export async function POST(req) {
   const ctx = await getTenantContext(req);
@@ -101,8 +101,9 @@ export async function POST(req) {
   }
 
   try {
-    const name = validateString(body.name, 100, "name");
+    const id = uuid();
 
+    const name = validateString(body.name, 100, "name");
     const last_name = validateOptionalString(body.last_name, 100, "last_name");
     const character_name = validateOptionalString(
       body.character_name,
@@ -112,10 +113,11 @@ export async function POST(req) {
     const notes = validateOptionalString(body.notes, 2000, "notes");
     const phone = validateOptionalString(body.phone, 50, "phone");
     const email = validateOptionalString(body.email, 120, "email");
-    const sanity = validateOptionalInt(body.sanity, "sanity");
 
-    const id = uuid();
+    // 🔑 base sanity: user value OR default (50 via DB)
+    const baseSanity = validateOptionalInt(body.sanity, "sanity");
 
+    /* 1️⃣ Create player */
     const { rows } = await query(
       `
       INSERT INTO players (
@@ -143,28 +145,42 @@ export async function POST(req) {
         notes,
         phone,
         email,
-        sanity,
+        baseSanity, // may be null → DB default = 50
       ]
     );
 
-    if (Number.isInteger(sanity)) {
-      await query(
-        `
-        INSERT INTO player_sanity (
-          id,
-          tenant_id,
-          campaign_id,
-          player_id,
-          base_sanity,
-          current_sanity,
-          created_at,
-          updated_at
-        )
-        VALUES ($1,$2,$3,$4,$5,$5,NOW(),NOW())
-        `,
-        [uuid(), ctx.tenantId, body.campaign_id, id, sanity]
-      );
-    }
+    /* 2️⃣ ALWAYS create player_sanity (Items-style invariant) */
+    await query(
+      `
+      INSERT INTO player_sanity (
+        id,
+        tenant_id,
+        campaign_id,
+        player_id,
+        base_sanity,
+        current_sanity,
+        created_at,
+        updated_at
+      )
+      VALUES (
+        $1,
+        $2,
+        $3,
+        $4,
+        COALESCE($5, 50),
+        COALESCE($5, 50),
+        NOW(),
+        NOW()
+      )
+      `,
+      [
+        uuid(),
+        ctx.tenantId,
+        body.campaign_id,
+        id,
+        baseSanity,
+      ]
+    );
 
     return Response.json(
       sanitizeRow(rows[0], SANITIZE_SCHEMA),
@@ -176,7 +192,7 @@ export async function POST(req) {
 }
 
 /* -----------------------------------------------------------
-   PUT /api/players?id=
+   PUT /api/players?id=   (no sanity side effects)
 ------------------------------------------------------------ */
 export async function PUT(req) {
   const ctx = await getTenantContext(req);
@@ -208,14 +224,11 @@ export async function PUT(req) {
       }
     }
 
-    if (hasOwn(body, "sanity")) {
-      const val = validateOptionalInt(body.sanity, "sanity");
-      sets.push(`sanity = $${i++}`);
-      values.push(val);
-    }
-
     if (!sets.length) {
-      return Response.json({ error: "No valid fields provided" }, { status: 400 });
+      return Response.json(
+        { error: "No valid fields provided" },
+        { status: 400 }
+      );
     }
 
     const { rows } = await query(
@@ -266,3 +279,4 @@ export async function DELETE(req) {
     rows[0] ? sanitizeRow(rows[0], SANITIZE_SCHEMA) : null
   );
 }
+

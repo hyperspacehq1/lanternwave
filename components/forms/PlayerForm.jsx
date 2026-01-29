@@ -114,7 +114,9 @@ export default function PlayerForm({ record, onChange }) {
           min={0}
           max={99}
           value={Number.isInteger(record.sanity) ? record.sanity : ""}
+          disabled={!isNewPlayer}
           onChange={(e) =>
+            isNewPlayer &&
             update(
               "sanity",
               e.target.value === "" ? null : Number(e.target.value)
