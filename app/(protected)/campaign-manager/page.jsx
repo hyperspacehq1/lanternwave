@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from "uuid";
 import { cmApi } from "@/lib/cm/api";
 import { getFormComponent } from "@/components/forms";
 import { useCampaignContext } from "@/lib/campaign/campaignContext";
-import { getRecordLabel, getPlayerLabel } from "@/lib/cm/labels";
+import { getRecordLabel } from "@/lib/cm/labels";
 
 import "./campaign-manager.css";
 
@@ -21,7 +21,7 @@ const CONTAINER_TYPES = [
   { id: "players", label: "Players" },
 ];
 
-const PAGE_VERSION = "1.01";
+const PAGE_VERSION = "1.02";
 
 export default function CampaignManagerPage() {
   const { campaign, setCampaignContext } = useCampaignContext();
