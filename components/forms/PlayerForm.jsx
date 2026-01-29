@@ -30,12 +30,12 @@ export default function PlayerForm({ record, onChange }) {
   /* ---------------------------------------------
      Campaign-scoped update helper
   --------------------------------------------- */
-  const update = (field, value) => {
-  onChange((prev) => ({
-    ...prev,
+const update = (field, value) => {
+  onChange({
+    ...record,
     [field]: value,
     campaign_id: campaign.id,
-  }));
+  });
 };
 
   /* ---------------------------------------------
