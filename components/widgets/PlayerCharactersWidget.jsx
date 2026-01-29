@@ -34,7 +34,7 @@ export default function PlayerCharactersWidget({ campaignId }) {
   const [sanityNotice, setSanityNotice] = useState("");
 
   /* -----------------------------------------------------------
-     ✅ FEATURE GATING — Account Page Beacon (SOURCE OF TRUTH)
+     ✅ FEATURE GATING — Beacons 1234556789
   ------------------------------------------------------------ */
   useEffect(() => {
     fetch("/api/account", {
@@ -175,7 +175,7 @@ export default function PlayerCharactersWidget({ campaignId }) {
   }
 
   /* -----------------------------------------------------------
-     Load players
+     Load players Load
   ------------------------------------------------------------ */
   useEffect(() => {
     if (!campaignId) return;

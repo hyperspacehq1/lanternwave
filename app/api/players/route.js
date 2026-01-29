@@ -18,7 +18,6 @@ function validateRequiredString(val, max, field) {
   return trimmed;
 }
 
-// ✅ Items-style optional: accept empty -> null, accept missing -> null
 function parseOptionalString(val) {
   if (val === null || val === undefined) return null;
   if (typeof val !== "string") return null;
@@ -33,10 +32,10 @@ function parseOptionalInt(val, field) {
   return n;
 }
 
-const SANITIZE_SCHEMA = {
+const PLAYER_SANITIZE = {
   name: 100,
-  last_name: 100,
-  character_name: 100,
+  last_name: 500,
+  character_name: 500,
   sanity: true,
   current_sanity: true,
   notes: 2000,
@@ -46,7 +45,7 @@ const SANITIZE_SCHEMA = {
   initiative_bonus: true,
 };
 
-/* ---------------- GET /api/players ---------------- */
+/* ---------------- GET ---------------- */
 export async function GET(req) {
   const ctx = await getTenantContext(req);
   const { searchParams } = new URL(req.url);
@@ -55,38 +54,36 @@ export async function GET(req) {
 
   if (id) {
     const { rows } = await query(
-      `
-      SELECT *
-        FROM players
-       WHERE tenant_id = $1
-         AND id = $2
-         AND deleted_at IS NULL
-       LIMIT 1
-      `,
+      `SELECT *
+         FROM players
+        WHERE tenant_id = $1
+          AND id = $2
+          AND deleted_at IS NULL
+        LIMIT 1`,
       [ctx.tenantId, id]
     );
-    return Response.json(rows[0] ? sanitizeRow(rows[0], SANITIZE_SCHEMA) : null);
-  }
 
-  if (campaignId) {
-    const { rows } = await query(
-      `
-      SELECT *
-        FROM players
-       WHERE tenant_id = $1
-         AND campaign_id = $2
-         AND deleted_at IS NULL
-       ORDER BY created_at ASC
-      `,
-      [ctx.tenantId, campaignId]
+    return Response.json(
+      rows[0] ? sanitizeRow(rows[0], PLAYER_SANITIZE) : null
     );
-    return Response.json(sanitizeRows(rows, SANITIZE_SCHEMA));
   }
 
-  return Response.json([]);
+  if (!campaignId) return Response.json([]);
+
+  const { rows } = await query(
+    `SELECT *
+       FROM players
+      WHERE tenant_id = $1
+        AND campaign_id = $2
+        AND deleted_at IS NULL
+      ORDER BY created_at ASC`,
+    [ctx.tenantId, campaignId]
+  );
+
+  return Response.json(sanitizeRows(rows, PLAYER_SANITIZE));
 }
 
-/* ---------------- POST /api/players ---------------- */
+/* ---------------- POST ---------------- */
 export async function POST(req) {
   const ctx = await getTenantContext(req);
   const body = await req.json();
@@ -97,11 +94,8 @@ export async function POST(req) {
 
   try {
     const id = uuid();
-
-    // ✅ only required field (Items parity)
     const name = validateRequiredString(body.name, 100, "name");
 
-    // ✅ all optional (Items parity)
     const last_name = parseOptionalString(body.last_name);
     const character_name = parseOptionalString(body.character_name);
     const notes = parseOptionalString(body.notes);
@@ -112,53 +106,38 @@ export async function POST(req) {
     const current_sanity =
       parseOptionalInt(body.current_sanity, "current_sanity") ?? sanity;
 
-    const initiative_score =
-      parseOptionalInt(body.initiative_score, "initiative_score") ?? null;
-    const initiative_bonus =
-      parseOptionalInt(body.initiative_bonus, "initiative_bonus") ?? null;
+    const initiative_score = parseOptionalInt(body.initiative_score, "initiative_score");
+    const initiative_bonus = parseOptionalInt(body.initiative_bonus, "initiative_bonus");
 
     const { rows } = await query(
-      `
-      INSERT INTO players (
+      `INSERT INTO players (
         id, tenant_id, campaign_id,
         name, last_name, character_name,
         sanity, current_sanity,
         notes, phone, email,
         initiative_score, initiative_bonus
       )
-      VALUES (
-        $1,$2,$3,
-        $4,$5,$6,
-        $7,$8,
-        $9,$10,$11,
-        $12,$13
-      )
-      RETURNING *
-      `,
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+      RETURNING *`,
       [
-        id,
-        ctx.tenantId,
-        body.campaign_id,
-        name,
-        last_name,
-        character_name,
-        sanity,
-        current_sanity,
-        notes,
-        phone,
-        email,
-        initiative_score,
-        initiative_bonus,
+        id, ctx.tenantId, body.campaign_id,
+        name, last_name, character_name,
+        sanity, current_sanity,
+        notes, phone, email,
+        initiative_score, initiative_bonus,
       ]
     );
 
-    return Response.json(sanitizeRow(rows[0], SANITIZE_SCHEMA), { status: 201 });
+    return Response.json(
+      sanitizeRow(rows[0], PLAYER_SANITIZE),
+      { status: 201 }
+    );
   } catch (e) {
     return Response.json({ error: e.message }, { status: 400 });
   }
 }
 
-/* ---------------- PUT /api/players?id= ---------------- */
+/* ---------------- PUT ---------------- */
 export async function PUT(req) {
   const ctx = await getTenantContext(req);
   const { searchParams } = new URL(req.url);
@@ -172,36 +151,21 @@ export async function PUT(req) {
     const values = [ctx.tenantId, id];
     let i = 3;
 
-    // ✅ name optional on PUT, but if provided must be valid
     if (hasOwn(body, "name")) {
       sets.push(`name = $${i++}`);
       values.push(validateRequiredString(body.name, 100, "name"));
     }
 
-    const optionalStrings = [
-      "last_name",
-      "character_name",
-      "notes",
-      "phone",
-      "email",
-    ];
-    for (const field of optionalStrings) {
-      if (!hasOwn(body, field)) continue;
-      sets.push(`${field} = $${i++}`);
-      values.push(parseOptionalString(body[field]));
+    for (const f of ["last_name","character_name","notes","phone","email"]) {
+      if (!hasOwn(body, f)) continue;
+      sets.push(`${f} = $${i++}`);
+      values.push(parseOptionalString(body[f]));
     }
 
-    const optionalInts = [
-      "sanity",
-      "current_sanity",
-      "initiative_score",
-      "initiative_bonus",
-    ];
-    for (const field of optionalInts) {
-      if (!hasOwn(body, field)) continue;
-      sets.push(`${field} = $${i++}`);
-      const v = parseOptionalInt(body[field], field);
-      values.push(v);
+    for (const f of ["sanity","current_sanity","initiative_score","initiative_bonus"]) {
+      if (!hasOwn(body, f)) continue;
+      sets.push(`${f} = $${i++}`);
+      values.push(parseOptionalInt(body[f], f));
     }
 
     if (!sets.length) {
@@ -209,25 +173,25 @@ export async function PUT(req) {
     }
 
     const { rows } = await query(
-      `
-      UPDATE players
-         SET ${sets.join(", ")},
-             updated_at = NOW()
-       WHERE tenant_id = $1
-         AND id = $2
-         AND deleted_at IS NULL
-       RETURNING *
-      `,
+      `UPDATE players
+          SET ${sets.join(", ")},
+              updated_at = NOW()
+        WHERE tenant_id = $1
+          AND id = $2
+          AND deleted_at IS NULL
+        RETURNING *`,
       values
     );
 
-    return Response.json(rows[0] ? sanitizeRow(rows[0], SANITIZE_SCHEMA) : null);
+    return Response.json(
+      rows[0] ? sanitizeRow(rows[0], PLAYER_SANITIZE) : null
+    );
   } catch (e) {
     return Response.json({ error: e.message }, { status: 400 });
   }
 }
 
-/* ---------------- DELETE /api/players?id= ---------------- */
+/* ---------------- DELETE (SOFT) ---------------- */
 export async function DELETE(req) {
   const ctx = await getTenantContext(req);
   const { searchParams } = new URL(req.url);
@@ -236,17 +200,17 @@ export async function DELETE(req) {
   if (!id) return Response.json({ error: "id required" }, { status: 400 });
 
   const { rows } = await query(
-    `
-    UPDATE players
-       SET deleted_at = NOW(),
-           updated_at = NOW()
-     WHERE tenant_id = $1
-       AND id = $2
-       AND deleted_at IS NULL
-     RETURNING *
-    `,
+    `UPDATE players
+        SET deleted_at = NOW(),
+            updated_at = NOW()
+      WHERE tenant_id = $1
+        AND id = $2
+        AND deleted_at IS NULL
+      RETURNING *`,
     [ctx.tenantId, id]
   );
 
-  return Response.json(rows[0] ? sanitizeRow(rows[0], SANITIZE_SCHEMA) : null);
+  return Response.json(
+    rows[0] ? sanitizeRow(rows[0], PLAYER_SANITIZE) : null
+  );
 }

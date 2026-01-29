@@ -30,7 +30,7 @@ export function GlobalAudioProvider({ children }) {
   const [loop, setLoopState] = useState(false);
 
   /* ------------------------------
-     INIT WEB AUDIO (ONCE)
+     INIT WEB AUDIO
   ------------------------------ */
   useEffect(() => {
     console.log("[GlobalAudio] useEffect init");
