@@ -10,27 +10,33 @@ function hasOwn(obj, key) {
   return Object.prototype.hasOwnProperty.call(obj, key);
 }
 
-function validateString(val, max, field) {
-  if (typeof val !== "string") throw new Error(`${field} must be a string`);
+function validateRequiredString(val, max, field) {
+  if (typeof val !== "string") {
+    throw new Error(`${field} must be a string`);
+  }
   const trimmed = val.trim();
-  if (!trimmed) throw new Error(`${field} is required`);
-  if (trimmed.length > max) throw new Error(`${field} max ${max} chars`);
+  if (!trimmed) {
+    throw new Error(`${field} is required`);
+  }
+  if (trimmed.length > max) {
+    throw new Error(`${field} max ${max} chars`);
+  }
   return trimmed;
 }
 
-function validateOptionalString(val, max, field) {
+function parseOptionalString(val) {
   if (val === null || val === undefined) return null;
-  if (typeof val !== "string") throw new Error(`${field} must be a string`);
+  if (typeof val !== "string") return null;
   const trimmed = val.trim();
-  if (!trimmed) return null;
-  if (trimmed.length > max) throw new Error(`${field} max ${max} chars`);
-  return trimmed;
+  return trimmed || null;
 }
 
-function validateOptionalInt(val, field) {
-  if (val === null || val === undefined) return null;
+function parseOptionalInt(val) {
+  if (val === null || val === undefined || val === "") return null;
   const n = Number(val);
-  if (!Number.isInteger(n)) throw new Error(`${field} must be an integer`);
+  if (!Number.isInteger(n)) {
+    throw new Error("must be an integer");
+  }
   return n;
 }
 
@@ -38,6 +44,8 @@ const SANITIZE_SCHEMA = {
   name: 100,
   last_name: 100,
   character_name: 100,
+  sanity: true,
+  current_sanity: true,
   notes: 2000,
   phone: 50,
   email: 120,
@@ -97,24 +105,27 @@ export async function POST(req) {
   const body = await req.json();
 
   if (!body.campaign_id) {
-    return Response.json({ error: "campaign_id is required" }, { status: 400 });
+    return Response.json(
+      { error: "campaign_id is required" },
+      { status: 400 }
+    );
   }
 
   try {
     const id = uuid();
 
-    const name = validateString(body.name, 100, "name");
-    const last_name = validateOptionalString(body.last_name, 100, "last_name");
-    const character_name = validateOptionalString(
-      body.character_name,
-      100,
-      "character_name"
-    );
-    const notes = validateOptionalString(body.notes, 2000, "notes");
-    const phone = validateOptionalString(body.phone, 50, "phone");
-    const email = validateOptionalString(body.email, 120, "email");
+    // REQUIRED
+    const name = validateRequiredString(body.name, 100, "name");
 
-    const baseSanity = validateOptionalInt(body.sanity, "sanity") ?? 0;
+    // OPTIONAL — EXACTLY LIKE LOCATIONS
+    const last_name = parseOptionalString(body.last_name);
+    const character_name = parseOptionalString(body.character_name);
+    const notes = parseOptionalString(body.notes);
+    const phone = parseOptionalString(body.phone);
+    const email = parseOptionalString(body.email);
+
+    const sanity =
+      parseOptionalInt(body.sanity) ?? 50; // DB default fallback
 
     const { rows } = await query(
       `
@@ -125,13 +136,15 @@ export async function POST(req) {
         name,
         last_name,
         character_name,
+        sanity,
+        current_sanity,
         notes,
         phone,
-        email,
-        sanity,
-        current_sanity
+        email
       )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$10)
+      VALUES (
+        $1,$2,$3,$4,$5,$6,$7,$7,$8,$9,$10
+      )
       RETURNING *
       `,
       [
@@ -141,10 +154,10 @@ export async function POST(req) {
         name,
         last_name,
         character_name,
+        sanity,
         notes,
         phone,
         email,
-        baseSanity,
       ]
     );
 
@@ -166,36 +179,42 @@ export async function PUT(req) {
   const id = searchParams.get("id");
   const body = await req.json();
 
-  if (!id) return Response.json({ error: "id required" }, { status: 400 });
+  if (!id) {
+    return Response.json({ error: "id required" }, { status: 400 });
+  }
 
   try {
     const sets = [];
     const values = [ctx.tenantId, id];
     let i = 3;
 
-    const fields = {
-      name: 100,
-      last_name: 100,
-      character_name: 100,
-      notes: 2000,
-      phone: 50,
-      email: 120,
-      sanity: "int",
-      current_sanity: "int",
-    };
+    if (hasOwn(body, "name")) {
+      sets.push(`name = $${i++}`);
+      values.push(validateRequiredString(body.name, 100, "name"));
+    }
 
-    for (const col in fields) {
-      if (!hasOwn(body, col)) continue;
+    const optionalStrings = [
+      "last_name",
+      "character_name",
+      "notes",
+      "phone",
+      "email",
+    ];
 
-      if (fields[col] === "int") {
-        const val = validateOptionalInt(body[col], col);
-        sets.push(`${col} = $${i++}`);
-        values.push(val ?? 0);
-      } else {
-        const val = validateOptionalString(body[col], fields[col], col);
-        sets.push(`${col} = $${i++}`);
-        values.push(val);
-      }
+    for (const field of optionalStrings) {
+      if (!hasOwn(body, field)) continue;
+      sets.push(`${field} = $${i++}`);
+      values.push(parseOptionalString(body[field]));
+    }
+
+    if (hasOwn(body, "sanity")) {
+      sets.push(`sanity = $${i++}`);
+      values.push(parseOptionalInt(body.sanity) ?? 50);
+    }
+
+    if (hasOwn(body, "current_sanity")) {
+      sets.push(`current_sanity = $${i++}`);
+      values.push(parseOptionalInt(body.current_sanity) ?? 0);
     }
 
     if (!sets.length) {
@@ -234,7 +253,9 @@ export async function DELETE(req) {
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
 
-  if (!id) return Response.json({ error: "id required" }, { status: 400 });
+  if (!id) {
+    return Response.json({ error: "id required" }, { status: 400 });
+  }
 
   const { rows } = await query(
     `

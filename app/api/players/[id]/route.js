@@ -5,10 +5,46 @@ import { sanitizeRow } from "@/lib/api/sanitize";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+function hasOwn(obj, key) {
+  return Object.prototype.hasOwnProperty.call(obj, key);
+}
+
+function validateRequiredString(val, max, field) {
+  if (typeof val !== "string") {
+    throw new Error(`${field} must be a string`);
+  }
+  const trimmed = val.trim();
+  if (!trimmed) {
+    throw new Error(`${field} is required`);
+  }
+  if (trimmed.length > max) {
+    throw new Error(`${field} max ${max} chars`);
+  }
+  return trimmed;
+}
+
+function parseOptionalString(val) {
+  if (val === null || val === undefined) return null;
+  if (typeof val !== "string") return null;
+  const trimmed = val.trim();
+  return trimmed || null;
+}
+
+function parseOptionalInt(val, field) {
+  if (val === null || val === undefined || val === "") return null;
+  const n = Number(val);
+  if (!Number.isInteger(n)) {
+    throw new Error(`${field} must be an integer`);
+  }
+  return n;
+}
+
 const SANITIZE_SCHEMA = {
   name: 100,
   last_name: 100,
   character_name: 100,
+  sanity: true,
+  current_sanity: true,
   notes: 2000,
   phone: 50,
   email: 120,
@@ -59,46 +95,36 @@ export async function PUT(req, { params }) {
     const values = [ctx.tenantId, id];
     let i = 3;
 
-    const fields = {
-      name: "string",
-      last_name: "string",
-      character_name: "string",
-      notes: "string",
-      phone: "string",
-      email: "string",
-      sanity: "int",          // base sanity
-      current_sanity: "int",  // live sanity
-    };
+    // REQUIRED
+    if (hasOwn(body, "name")) {
+      sets.push(`name = $${i++}`);
+      values.push(validateRequiredString(body.name, 100, "name"));
+    }
 
-    for (const col in fields) {
-      if (!Object.prototype.hasOwnProperty.call(body, col)) continue;
+    // OPTIONAL STRINGS — SAME PATTERN AS ITEMS
+    const optionalStrings = [
+      "last_name",
+      "character_name",
+      "notes",
+      "phone",
+      "email",
+    ];
 
-      if (fields[col] === "int") {
-        const val =
-          body[col] === null || body[col] === undefined
-            ? 0
-            : Number(body[col]);
+    for (const field of optionalStrings) {
+      if (!hasOwn(body, field)) continue;
+      sets.push(`${field} = $${i++}`);
+      values.push(parseOptionalString(body[field]));
+    }
 
-        if (!Number.isInteger(val)) {
-          return Response.json(
-            { error: `${col} must be an integer` },
-            { status: 400 }
-          );
-        }
+    // OPTIONAL INTS
+    if (hasOwn(body, "sanity")) {
+      sets.push(`sanity = $${i++}`);
+      values.push(parseOptionalInt(body.sanity, "sanity") ?? 50);
+    }
 
-        sets.push(`${col} = $${i++}`);
-        values.push(val);
-      } else {
-        const val =
-          body[col] === null
-            ? null
-            : typeof body[col] === "string"
-            ? body[col].trim()
-            : null;
-
-        sets.push(`${col} = $${i++}`);
-        values.push(val);
-      }
+    if (hasOwn(body, "current_sanity")) {
+      sets.push(`current_sanity = $${i++}`);
+      values.push(parseOptionalInt(body.current_sanity, "current_sanity") ?? 0);
     }
 
     if (!sets.length) {
