@@ -23,6 +23,7 @@ function validateRequiredString(val, max, field) {
   return trimmed;
 }
 
+// ✅ Items-style optional string handling
 function parseOptionalString(val) {
   if (val === null || val === undefined) return null;
   if (typeof val !== "string") return null;
@@ -48,6 +49,8 @@ const SANITIZE_SCHEMA = {
   notes: 2000,
   phone: 50,
   email: 120,
+  initiative_score: true,
+  initiative_bonus: true,
 };
 
 /* -----------------------------------------------------------
@@ -95,13 +98,13 @@ export async function PUT(req, { params }) {
     const values = [ctx.tenantId, id];
     let i = 3;
 
-    // REQUIRED
+    // ✅ name optional on PUT, but must be valid if present
     if (hasOwn(body, "name")) {
       sets.push(`name = $${i++}`);
       values.push(validateRequiredString(body.name, 100, "name"));
     }
 
-    // OPTIONAL STRINGS — SAME PATTERN AS ITEMS
+    // ✅ optional strings — EXACT Items behavior
     const optionalStrings = [
       "last_name",
       "character_name",
@@ -116,15 +119,18 @@ export async function PUT(req, { params }) {
       values.push(parseOptionalString(body[field]));
     }
 
-    // OPTIONAL INTS
-    if (hasOwn(body, "sanity")) {
-      sets.push(`sanity = $${i++}`);
-      values.push(parseOptionalInt(body.sanity, "sanity") ?? 50);
-    }
+    // ✅ optional ints
+    const optionalInts = [
+      "sanity",
+      "current_sanity",
+      "initiative_score",
+      "initiative_bonus",
+    ];
 
-    if (hasOwn(body, "current_sanity")) {
-      sets.push(`current_sanity = $${i++}`);
-      values.push(parseOptionalInt(body.current_sanity, "current_sanity") ?? 0);
+    for (const field of optionalInts) {
+      if (!hasOwn(body, field)) continue;
+      sets.push(`${field} = $${i++}`);
+      values.push(parseOptionalInt(body[field], field));
     }
 
     if (!sets.length) {
