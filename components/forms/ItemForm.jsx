@@ -137,19 +137,21 @@ export default function ItemForm({ record, onChange }) {
         />
       </div>
 
-      {/* Properties */}
-<div className="cm-field">
-  <label className="cm-label">Properties</label>
-  <textarea
-    className="cm-textarea"
-    value={record.properties || ""}
-    onChange={(e) =>
-      update(
-        "properties",
-        e.target.value === "" ? null : e.target.value
-      )
-    }
-  />
-</div>
- );
+            {/* Properties */}
+      <div className="cm-field">
+        <label className="cm-label">Properties</label>
+        <textarea
+          className="cm-textarea"
+          value={record.properties || ""}
+          onChange={(e) =>
+            update(
+              "properties",
+              e.target.value === "" ? null : e.target.value
+            )
+          }
+        />
+      </div>
+
+    </div>
+  );
 }
