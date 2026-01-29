@@ -114,7 +114,7 @@ export default function PlayerForm({ record, onChange }) {
         <label className="cm-label">Last Name</label>
         <input
           className="cm-input"
-          value={record.last_name || ""}
+          value={record.last_name ?? record.lastName ?? ""}
           onChange={(e) => update("last_name", e.target.value)}
         />
       </div>
@@ -124,7 +124,7 @@ export default function PlayerForm({ record, onChange }) {
         <label className="cm-label">Character Name</label>
         <input
           className="cm-input"
-          value={record.character_name || ""}
+          value={record.character_name ?? record.characterName ?? ""}
           onChange={(e) => update("character_name", e.target.value)}
         />
       </div>
