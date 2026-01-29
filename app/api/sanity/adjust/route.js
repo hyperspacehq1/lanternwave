@@ -24,12 +24,13 @@ export async function POST(req) {
 
   const { rows } = await query(
     `
-    UPDATE player_sanity
+    UPDATE players
        SET current_sanity = current_sanity + $1,
            updated_at = NOW()
      WHERE tenant_id = $2
        AND campaign_id = $3
-       AND player_id = $4
+       AND id = $4
+       AND deleted_at IS NULL
      RETURNING current_sanity
     `,
     [delta, ctx.tenantId, campaign_id, player_id]

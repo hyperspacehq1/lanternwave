@@ -7,7 +7,7 @@ export default function PlayerForm({ record, onChange }) {
   const { campaign } = useCampaignContext();
 
   /* ---------------------------------------------
-     Guards (MATCH ItemForm)
+     Guards
   --------------------------------------------- */
   if (!campaign) {
     return (
@@ -27,8 +27,6 @@ export default function PlayerForm({ record, onChange }) {
     );
   }
 
-  const isNewPlayer = record._isNew;
-
   /* ---------------------------------------------
      Campaign-scoped update helper
   --------------------------------------------- */
@@ -46,42 +44,33 @@ export default function PlayerForm({ record, onChange }) {
   const [pulse, setPulse] = useState(false);
   useEffect(() => {
     setPulse(true);
-    const t = setTimeout(() => setPulse(false), 800);
+    const t = setTimeout(() => setPulse(false), 1200);
     return () => clearTimeout(t);
   }, [record.id]);
-
-  const nameInvalid = !record.name?.trim();
 
   /* ---------------------------------------------
      Render
   --------------------------------------------- */
   return (
     <div className="cm-detail-form">
-      {/* Header (MATCH ItemForm) */}
+      {/* Header */}
       <div className={`cm-campaign-header ${pulse ? "pulse" : ""}`}>
         <div className="cm-context-line">
           <strong>Campaign:</strong> {campaign.name}
         </div>
         <div className="cm-context-line">
           <strong>Player:</strong>{" "}
-          {isNewPlayer
-            ? "New Player"
-            : record.character_name || record.name || "Unnamed Player"}
+          {record._isNew ? "New Player" : record.name || "Unnamed Player"}
         </div>
       </div>
 
-      {/* First Name (maps to `name`) */}
-      <div className="cm-field" data-required data-invalid={nameInvalid}>
-        <label className="cm-label">
-          First Name <span style={{ color: "red" }}>(Required)</span>
-        </label>
+      {/* First Name */}
+      <div className="cm-field">
+        <label className="cm-label">Name (First Name) *</label>
         <input
           className="cm-input"
           value={record.name || ""}
           onChange={(e) => update("name", e.target.value)}
-          style={{
-            borderColor: nameInvalid ? "red" : undefined,
-          }}
         />
       </div>
 
@@ -105,18 +94,16 @@ export default function PlayerForm({ record, onChange }) {
         />
       </div>
 
-      {/* Sanity (Base) */}
+      {/* Base Sanity */}
       <div className="cm-field">
-        <label className="cm-label">Sanity (Base)</label>
+        <label className="cm-label">Base Sanity</label>
         <input
           type="number"
           className="cm-input"
           min={0}
           max={99}
           value={Number.isInteger(record.sanity) ? record.sanity : ""}
-          disabled={!isNewPlayer}
           onChange={(e) =>
-            isNewPlayer &&
             update(
               "sanity",
               e.target.value === "" ? null : Number(e.target.value)
@@ -124,7 +111,7 @@ export default function PlayerForm({ record, onChange }) {
           }
         />
         <div className="cm-field-help">
-          Base SAN used to calculate starting and percentage thresholds.
+          Base sanity used as the starting and reset value.
         </div>
       </div>
 
@@ -152,7 +139,6 @@ export default function PlayerForm({ record, onChange }) {
       <div className="cm-field">
         <label className="cm-label">Email</label>
         <input
-          type="email"
           className="cm-input"
           value={record.email || ""}
           onChange={(e) => update("email", e.target.value)}
@@ -198,6 +184,12 @@ export default function PlayerForm({ record, onChange }) {
           }
         />
       </div>
+
+      {record._isNew && (
+        <div className="cm-muted">
+          Save the player before using them in encounters or sessions.
+        </div>
+      )}
     </div>
   );
 }

@@ -90,7 +90,7 @@ export async function GET(req) {
 }
 
 /* -----------------------------------------------------------
-   POST /api/players  ✅ FULLY HYDRATED
+   POST /api/players
 ------------------------------------------------------------ */
 export async function POST(req) {
   const ctx = await getTenantContext(req);
@@ -114,10 +114,8 @@ export async function POST(req) {
     const phone = validateOptionalString(body.phone, 50, "phone");
     const email = validateOptionalString(body.email, 120, "email");
 
-    // 🔑 base sanity: user value OR default (50 via DB)
-    const baseSanity = validateOptionalInt(body.sanity, "sanity");
+    const baseSanity = validateOptionalInt(body.sanity, "sanity") ?? 0;
 
-    /* 1️⃣ Create player */
     const { rows } = await query(
       `
       INSERT INTO players (
@@ -130,9 +128,10 @@ export async function POST(req) {
         notes,
         phone,
         email,
-        sanity
+        sanity,
+        current_sanity
       )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$10)
       RETURNING *
       `,
       [
@@ -145,39 +144,6 @@ export async function POST(req) {
         notes,
         phone,
         email,
-        baseSanity, // may be null → DB default = 50
-      ]
-    );
-
-    /* 2️⃣ ALWAYS create player_sanity (Items-style invariant) */
-    await query(
-      `
-      INSERT INTO player_sanity (
-        id,
-        tenant_id,
-        campaign_id,
-        player_id,
-        base_sanity,
-        current_sanity,
-        created_at,
-        updated_at
-      )
-      VALUES (
-        $1,
-        $2,
-        $3,
-        $4,
-        COALESCE($5, 50),
-        COALESCE($5, 50),
-        NOW(),
-        NOW()
-      )
-      `,
-      [
-        uuid(),
-        ctx.tenantId,
-        body.campaign_id,
-        id,
         baseSanity,
       ]
     );
@@ -192,7 +158,7 @@ export async function POST(req) {
 }
 
 /* -----------------------------------------------------------
-   PUT /api/players?id=   (no sanity side effects)
+   PUT /api/players?id=
 ------------------------------------------------------------ */
 export async function PUT(req) {
   const ctx = await getTenantContext(req);
@@ -214,10 +180,18 @@ export async function PUT(req) {
       notes: 2000,
       phone: 50,
       email: 120,
+      sanity: "int",
+      current_sanity: "int",
     };
 
     for (const col in fields) {
-      if (hasOwn(body, col)) {
+      if (!hasOwn(body, col)) continue;
+
+      if (fields[col] === "int") {
+        const val = validateOptionalInt(body[col], col);
+        sets.push(`${col} = $${i++}`);
+        values.push(val ?? 0);
+      } else {
         const val = validateOptionalString(body[col], fields[col], col);
         sets.push(`${col} = $${i++}`);
         values.push(val);
@@ -279,4 +253,3 @@ export async function DELETE(req) {
     rows[0] ? sanitizeRow(rows[0], SANITIZE_SCHEMA) : null
   );
 }
-

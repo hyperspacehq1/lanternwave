@@ -60,10 +60,14 @@ export async function POST(req) {
     ------------------------------------------------------- */
     const sanityRes = await query(
       `
-      SELECT base_sanity, current_sanity, campaign_id
-      FROM player_sanity
+      SELECT
+        sanity AS base_sanity,
+        current_sanity,
+        campaign_id
+      FROM players
       WHERE tenant_id = $1
-        AND player_id = $2
+        AND id = $2
+        AND deleted_at IS NULL
       LIMIT 1
       `,
       [tenantId, playerId]
@@ -147,11 +151,12 @@ export async function POST(req) {
     ------------------------------------------------------- */
     await query(
       `
-      UPDATE player_sanity
-      SET current_sanity = $1,
-          updated_at = NOW()
-      WHERE tenant_id = $2
-        AND player_id = $3
+      UPDATE players
+         SET current_sanity = $1,
+             updated_at = NOW()
+       WHERE tenant_id = $2
+         AND id = $3
+         AND deleted_at IS NULL
       `,
       [sanityAfter, tenantId, playerId]
     );

@@ -22,12 +22,13 @@ export async function GET(req) {
   const { rows } = await query(
     `
     SELECT
-      player_id,
-      base_sanity,
+      id AS player_id,
+      sanity AS base_sanity,
       current_sanity
-    FROM player_sanity
+    FROM players
     WHERE tenant_id = $1
       AND campaign_id = $2
+      AND deleted_at IS NULL
     `,
     [ctx.tenantId, campaignId]
   );

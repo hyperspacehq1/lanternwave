@@ -80,10 +80,9 @@ useEffect(() => {
       // -------------------------------
       else {
         if (!campaignId) {
-          setRecordsByType((p) => ({ ...p, [activeType]: [] }));
-          return;
-        }
-
+  setRecordsByType((p) => ({ ...p, [activeType]: [] }));
+  list = [];
+}
         if (activeType === "npcs") {
   const res = await fetch(
     `/api/npcs-with-images?campaign_id=${campaignId}`,
@@ -143,7 +142,7 @@ else {
   return () => {
     cancelled = true;
   };
-}, [activeType, campaignId, campaign]);
+}, [activeType, campaignId]);
 
   /* ------------------------------------------------------------
      CRUD

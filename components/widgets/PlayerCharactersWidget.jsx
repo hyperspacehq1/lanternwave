@@ -189,9 +189,23 @@ export default function PlayerCharactersWidget({ campaignId }) {
       .then((d) => {
         const list = Array.isArray(d) ? d : [];
         setPlayers(list);
-        if (!order.length) setOrder(list.map((p) => p.id));
+         if (!order.length) setOrder(list.map((p) => p.id));
 
-        setSanityState((prev) => prev);
+        setSanityState((prev) => {
+          const next = { ...prev };
+          for (const p of list) {
+            const pid = p.id;
+            next[pid] = {
+              base: Math.trunc(Number(p.sanity ?? 0)),
+              current: Math.trunc(
+                Number(p.current_sanity ?? p.sanity ?? 0)
+              ),
+              lastLoss: next[pid]?.lastLoss ?? 0,
+              lastUpdatedAt: Date.now(),
+            };
+          }
+          return next;
+        });
       })
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -201,34 +215,10 @@ export default function PlayerCharactersWidget({ campaignId }) {
     .map((id) => players.find((p) => p.id === id))
     .filter(Boolean);
 
-  useEffect(() => {
-    if (!campaignId || !sanityEnabled) return;
-
-    fetch(`/api/sanity/list?campaign_id=${campaignId}`, {
-      credentials: "include",
-      cache: "no-store",
-    })
-      .then((r) => r.json())
-      .then((rows) => {
-        if (!Array.isArray(rows)) return;
-
-        setSanityState((prev) => {
-          // ✅ If sanity already exists, do NOT overwrite it
-          if (Object.keys(prev).length) return prev;
-
-          const next = {};
-          for (const r of rows) {
-            next[r.player_id] = {
-              base: Number(r.base_sanity),
-              current: Number(r.current_sanity),
-              lastLoss: 0,
-              lastUpdatedAt: Date.now(),
-            };
-          }
-          return next;
-        });
-      })
-      .catch(() => {});
+    useEffect(() => {
+    // sanity is loaded from /api/players now (players.sanity + players.current_sanity)
+    // keep this effect only as a compatibility stub
+    return;
   }, [campaignId, sanityEnabled]);
 
   /* -----------------------------------------------------------

@@ -28,11 +28,12 @@ export async function POST(req) {
   try {
     await query(
       `
-      update player_sanity
-      set current_sanity = base_sanity,
-          updated_at = now()
-      where tenant_id = $1
-        and campaign_id = $2
+      UPDATE players
+         SET current_sanity = sanity,
+             updated_at = NOW()
+       WHERE tenant_id = $1
+         AND campaign_id = $2
+         AND deleted_at IS NULL
       `,
       [ctx.tenantId, campaign_id]
     );
