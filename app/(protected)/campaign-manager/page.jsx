@@ -171,9 +171,17 @@ else {
   const handleSave = async () => {
     if (!selectedRecord) return;
 
+  /* ------------------------------------------------------------
+     PLAYERS FIX
+  ------------------------------------------------------------ */
+
 const payload = { ...selectedRecord };
 delete payload._isNew;
 delete payload.__pendingImageClipId;
+
+  /* ------------------------------------------------------------
+       PLAYERS FIX
+  ------------------------------------------------------------ */
 
     const saved = _isNew
       ? await cmApi.create(activeType, payload)
