@@ -113,8 +113,6 @@ export async function PUT(req, { params }) {
       description: 10000,
       notes: 10000,
       world: 2000,
-      color_detail: 10000,
-      sensory: 10000,
     };
 
     for (const key in fields) {

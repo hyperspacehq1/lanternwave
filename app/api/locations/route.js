@@ -221,8 +221,6 @@ export async function PUT(req) {
       addressState: 120,
       addressZip: 120,
       addressCountry: 120,
-      color_detail: 10000,
-      sensory: 10000,
     };
 
     for (const key in stringFields) {
