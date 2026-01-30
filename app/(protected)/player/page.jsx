@@ -204,27 +204,36 @@ export default function PlayerPage() {
       {playerPulse &&
         typeof document !== "undefined" &&
         createPortal(
-          <div
-            key={playerPulse?.title + JSON.stringify(playerPulse.players)}
-            className="lw-player-sanity-pulse lw-player-sanity-pulse--animate"
-            role="status"
-            aria-live="polite"
-          >
-            <strong>{playerPulse.title}</strong>
-            <ul>
-              {playerPulse.players.map((p, idx) => (
-                <li key={p.player_id || idx}>
-                  {p.character_name && (
-                    <span className="lw-player-character-name">
-                      {p.character_name}:{" "}
-                    </span>
-                  )}
-                  SAN {p.current}
-                  {p.loss ? ` (-${p.loss})` : ""}
-                </li>
-              ))}
-            </ul>
-          </div>,
+          <>
+            {/* Backdrop vignette */}
+            <div
+              key={`backdrop-${playerPulse?.title + JSON.stringify(playerPulse.players)}`}
+              className="lw-player-sanity-backdrop"
+            />
+            
+            {/* Main pulse */}
+            <div
+              key={playerPulse?.title + JSON.stringify(playerPulse.players)}
+              className="lw-player-sanity-pulse lw-player-sanity-pulse--animate"
+              role="status"
+              aria-live="polite"
+            >
+              <strong>{playerPulse.title}</strong>
+              <ul>
+                {playerPulse.players.map((p, idx) => (
+                  <li key={p.player_id || idx}>
+                    {p.character_name && (
+                      <span className="lw-player-character-name">
+                        {p.character_name}:{" "}
+                      </span>
+                    )}
+                    SAN {p.current}
+                    {p.loss ? ` (-${p.loss})` : ""}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </>,
           document.body
         )}
     </div>

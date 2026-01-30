@@ -219,6 +219,29 @@
 /* =========================
    PLAYER SANITY PULSE (HUD)
 ========================= */
+
+/* Backdrop vignette layer */
+.lw-player-sanity-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 999999;
+  background:
+    radial-gradient(circle at center,
+      rgba(0,0,0,0.0) 0%,
+      rgba(0,0,0,0.55) 55%,
+      rgba(0,0,0,0.85) 100%);
+  backdrop-filter: blur(2px);
+  animation: lw-backdrop-fade 5s ease-in-out forwards;
+}
+
+@keyframes lw-backdrop-fade {
+  0% { opacity: 0 }
+  15% { opacity: 1 }
+  85% { opacity: 1 }
+  100% { opacity: 0 }
+}
+
+/* Main pulse container */
 .lw-player-sanity-pulse {
   position: fixed;
   top: 50%;
@@ -232,12 +255,19 @@
   border-radius: 30px;
 
   border: 3px solid rgba(108, 196, 23, 0.55);
+  
+  /* Layered dirty glow with inset bleed */
   box-shadow:
-    0 0 30px rgba(108, 196, 23, 0.35),
-    0 0 72px rgba(0, 0, 0, 0.85);
+    0 0 12px rgba(108,196,23,0.35),
+    0 0 40px rgba(108,196,23,0.18),
+    inset 0 0 22px rgba(108,196,23,0.18),
+    inset 0 0 80px rgba(0,0,0,0.6);
 
   font-size: 42px;
   letter-spacing: 0.05em;
+  
+  /* Subtle hue shift for ominous feel */
+  filter: hue-rotate(8deg) brightness(.92);
 }
 
 .lw-player-sanity-pulse strong {
