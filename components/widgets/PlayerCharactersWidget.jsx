@@ -326,8 +326,10 @@ const hasSelection = selectedIds.length > 0;
             Math.trunc(Number(data.sanity_loss ?? 0))
           );
 
+          const player = players.find((p) => p.id === playerId);
           pulseResults.push({
             player_id: playerId,
+            character_name: player?.character_name || player?.name || null,
             current: Math.trunc(Number(data.current_sanity)),
             loss: Math.trunc(Number(data.sanity_loss ?? 0)),
           });
