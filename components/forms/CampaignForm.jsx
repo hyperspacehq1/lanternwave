@@ -107,7 +107,7 @@ export default function CampaignForm({ record, onChange }) {
       {/* Campaign Name */}
       {/* --------------------------------------------- */}
       <div className="cm-field">
-        <label className="cm-label">Campaign Name</label>
+        <label className="cm-label">Campaign Name (Required)</label>
         <input
           className="cm-input"
           value={record.name || ""}

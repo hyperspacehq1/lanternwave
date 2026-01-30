@@ -88,7 +88,7 @@ export default function EventForm({ record, onChange }) {
           Event Name
       --------------------------------------------- */}
       <div className="cm-field">
-        <label className="cm-label">Name</label>
+        <label className="cm-label">Name (Required)</label>
         <input
           ref={nameInputRef}
           className="cm-input"

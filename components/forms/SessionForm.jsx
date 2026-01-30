@@ -88,7 +88,7 @@ export default function SessionForm({ record, onChange }) {
           Session Name
       --------------------------------------------- */}
       <div className="cm-field">
-        <label className="cm-label">Session Name</label>
+        <label className="cm-label">Session Name (Required)</label>
         <input
           ref={nameInputRef}
           className="cm-input"

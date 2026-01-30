@@ -80,7 +80,7 @@ export default function PlayerForm({ record, onChange }) {
 
       {/* First Name */}
       <div className="cm-field">
-        <label className="cm-label">Name (First Name) *</label>
+        <label className="cm-label">First Name (Required)</label>
         <input
           ref={nameInputRef}
           className="cm-input"
