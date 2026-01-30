@@ -346,7 +346,7 @@ const hasSelection = selectedIds.length > 0;
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           players: pulseResults,
-          durationMs: 2000,
+          durationMs: 5000,
         }),
       }).catch(() => {});
     }

@@ -221,31 +221,31 @@
 ========================= */
 .lw-player-sanity-pulse {
   position: fixed;
-  top: 18px;
+  top: 50%;
   left: 50%;
-  transform: translateX(-50%);
+  transform: translate(-50%, -50%);
   z-index: 1000000;
 
   background: rgba(0, 0, 0, 0.88);
   color: #fff;
-  padding: 14px 18px;
-  border-radius: 10px;
+  padding: 42px 54px;
+  border-radius: 30px;
 
-  border: 1px solid rgba(108, 196, 23, 0.55);
+  border: 3px solid rgba(108, 196, 23, 0.55);
   box-shadow:
-    0 0 10px rgba(108, 196, 23, 0.35),
-    0 0 24px rgba(0, 0, 0, 0.85);
+    0 0 30px rgba(108, 196, 23, 0.35),
+    0 0 72px rgba(0, 0, 0, 0.85);
 
-  font-size: 14px;
+  font-size: 42px;
   letter-spacing: 0.05em;
 }
 
 .lw-player-sanity-pulse strong {
   display: block;
-  margin-bottom: 6px;
+  margin-bottom: 18px;
   text-transform: uppercase;
   letter-spacing: 0.18em;
-  font-size: 11px;
+  font-size: 33px;
   color: #6cc417;
 }
 
@@ -256,7 +256,7 @@
 }
 
 .lw-player-sanity-pulse li {
-  font-size: 13px;
+  font-size: 39px;
   line-height: 1.4;
 }
 
@@ -273,7 +273,7 @@
 
 .lw-player-sanity-pulse--animate {
   animation:
-    lw-sanity-fade 2.4s ease-in-out forwards,
+    lw-sanity-fade 5s ease-in-out forwards,
     lw-sanity-shake 0.45s ease-out 0.35s;
 }
 
@@ -281,34 +281,34 @@
 @keyframes lw-sanity-fade {
   0% {
     opacity: 0;
-    transform: translateX(-50%) scale(0.96);
+    transform: translate(-50%, -50%) scale(0.96);
   }
 
   12% {
     opacity: 1;
-    transform: translateX(-50%) scale(1);
+    transform: translate(-50%, -50%) scale(1);
   }
 
   85% {
     opacity: 1;
-    transform: translateX(-50%) scale(1);
+    transform: translate(-50%, -50%) scale(1);
   }
 
   100% {
     opacity: 0;
-    transform: translateX(-50%) scale(1.02);
+    transform: translate(-50%, -50%) scale(1.02);
   }
 }
 
 /* Panic shake */
 @keyframes lw-sanity-shake {
-  0%   { transform: translateX(-50%) translateX(0); }
-  15%  { transform: translateX(-50%) translateX(-3px); }
-  30%  { transform: translateX(-50%) translateX(3px); }
-  45%  { transform: translateX(-50%) translateX(-2px); }
-  60%  { transform: translateX(-50%) translateX(2px); }
-  75%  { transform: translateX(-50%) translateX(-1px); }
-  100% { transform: translateX(-50%) translateX(0); }
+  0%   { transform: translate(-50%, -50%) translateX(0); }
+  15%  { transform: translate(-50%, -50%) translateX(-3px); }
+  30%  { transform: translate(-50%, -50%) translateX(3px); }
+  45%  { transform: translate(-50%, -50%) translateX(-2px); }
+  60%  { transform: translate(-50%, -50%) translateX(2px); }
+  75%  { transform: translate(-50%, -50%) translateX(-1px); }
+  100% { transform: translate(-50%, -50%) translateX(0); }
 }
 
 /* ===============================
