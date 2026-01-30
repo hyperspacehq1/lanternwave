@@ -57,7 +57,11 @@ export default function ItemForm({ record, onChange }) {
   --------------------------------------------- */
   useEffect(() => {
     if (record._isNew && nameInputRef.current) {
-      nameInputRef.current.focus();
+      // Small delay to ensure DOM is ready
+      const timer = setTimeout(() => {
+        nameInputRef.current?.focus();
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [record._isNew, record.id]);
 

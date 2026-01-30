@@ -6,6 +6,7 @@ import JoinPanel from "@/components/JoinPanel";
 
 export default function SessionForm({ record, onChange }) {
   const { campaign } = useCampaignContext();
+  const nameInputRef = React.useRef(null);
 
   /* ------------------------------------------------------------
      Guard: No campaign selected
@@ -53,6 +54,19 @@ export default function SessionForm({ record, onChange }) {
     return () => clearTimeout(t);
   }, [record.id]);
 
+  /* ------------------------------------------------------------
+     Auto-focus name field for new records
+  ------------------------------------------------------------ */
+  useEffect(() => {
+    if (record._isNew && nameInputRef.current) {
+      // Small delay to ensure DOM is ready
+      const timer = setTimeout(() => {
+        nameInputRef.current?.focus();
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+  }, [record._isNew, record.id]);
+
   return (
     <div className="cm-detail-form">
       {/* ---------------------------------------------
@@ -76,6 +90,7 @@ export default function SessionForm({ record, onChange }) {
       <div className="cm-field">
         <label className="cm-label">Session Name</label>
         <input
+          ref={nameInputRef}
           className="cm-input"
           type="text"
           value={record.name || ""}
