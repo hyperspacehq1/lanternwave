@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import { useCampaignContext } from "@/lib/campaign/campaignContext";
 import JoinPanel from "@/components/JoinPanel";
 import AssetAttachment from "@/components/AssetAttachment";
 
 export default function LocationForm({ record, onChange }) {
   const { campaign } = useCampaignContext();
+  const nameInputRef = useRef(null);
 
   /* ---------------------------------------------
      Guards
@@ -49,6 +50,15 @@ export default function LocationForm({ record, onChange }) {
     const t = setTimeout(() => setPulse(false), 1200);
     return () => clearTimeout(t);
   }, [record.id]);
+
+  /* ---------------------------------------------
+     Auto-focus name field for new records
+  --------------------------------------------- */
+  useEffect(() => {
+    if (record._isNew && nameInputRef.current) {
+      nameInputRef.current.focus();
+    }
+  }, [record._isNew, record.id]);
 
   /* ---------------------------------------------
      Address toggle
@@ -246,6 +256,7 @@ update("color_detail", saved.color_detail);
       <div className="cm-field">
         <label className="cm-label">Name *</label>
         <input
+          ref={nameInputRef}
           className="cm-input"
           value={record.name || ""}
           onChange={(e) => update("name", e.target.value)}

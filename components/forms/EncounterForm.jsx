@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useCampaignContext } from "@/lib/campaign/campaignContext";
 import JoinPanel from "@/components/JoinPanel";
 
 export default function EncounterForm({ record, onChange }) {
   const { campaign } = useCampaignContext();
+  const nameInputRef = useRef(null);
 
   /* ------------------------------------------------------------
      Guards
@@ -50,6 +51,15 @@ export default function EncounterForm({ record, onChange }) {
     return () => clearTimeout(t);
   }, [record.id]);
 
+  /* ------------------------------------------------------------
+     Auto-focus name field for new records
+  ------------------------------------------------------------ */
+  useEffect(() => {
+    if (record._isNew && nameInputRef.current) {
+      nameInputRef.current.focus();
+    }
+  }, [record._isNew, record.id]);
+
   return (
     <div className="cm-detail-form">
       {/* Header */}
@@ -69,6 +79,7 @@ export default function EncounterForm({ record, onChange }) {
       <div className="cm-field">
         <label className="cm-label">Name</label>
         <input
+          ref={nameInputRef}
           className="cm-input"
           value={record.name || ""}
           onChange={(e) => update("name", e.target.value)}

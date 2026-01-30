@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useCampaignContext } from "@/lib/campaign/campaignContext";
 
 export default function PlayerForm({ record, onChange }) {
   const { campaign } = useCampaignContext();
+  const nameInputRef = useRef(null);
 
   /* ---------------------------------------------
      Guards
@@ -49,6 +50,15 @@ export default function PlayerForm({ record, onChange }) {
   }, [record.id]);
 
   /* ---------------------------------------------
+     Auto-focus name field for new records
+  --------------------------------------------- */
+  useEffect(() => {
+    if (record._isNew && nameInputRef.current) {
+      nameInputRef.current.focus();
+    }
+  }, [record._isNew, record.id]);
+
+  /* ---------------------------------------------
      Render
   --------------------------------------------- */
   return (
@@ -68,6 +78,7 @@ export default function PlayerForm({ record, onChange }) {
       <div className="cm-field">
         <label className="cm-label">Name (First Name) *</label>
         <input
+          ref={nameInputRef}
           className="cm-input"
           value={record.name || ""}
           onChange={(e) => update("name", e.target.value)}
