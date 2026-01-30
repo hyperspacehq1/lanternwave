@@ -185,7 +185,7 @@ export default function PlayerPage() {
       )}
 
       {/* -------------------------------
-          Audio (mirrored — visual only)
+          Audio (mirrored – visual only)
       -------------------------------- */}
       {key && type === "audio" && (
   <div className="lw-player-audio">
@@ -199,7 +199,7 @@ export default function PlayerPage() {
   </div>
 )}
       {/* -------------------------------
-          Player Pulse — PORTAL
+          Player Pulse – PORTAL
       -------------------------------- */}
       {playerPulse &&
         typeof document !== "undefined" &&
@@ -212,8 +212,13 @@ export default function PlayerPage() {
           >
             <strong>{playerPulse.title}</strong>
             <ul>
-              {playerPulse.players.map((p) => (
-                <li key={p.player_id}>
+              {playerPulse.players.map((p, idx) => (
+                <li key={p.player_id || idx}>
+                  {p.character_name && (
+                    <span className="lw-player-character-name">
+                      {p.character_name}:{" "}
+                    </span>
+                  )}
                   SAN {p.current}
                   {p.loss ? ` (-${p.loss})` : ""}
                 </li>

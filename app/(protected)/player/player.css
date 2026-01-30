@@ -1,9 +1,9 @@
 /* ============================================================
-   PLAYER VIEW — ISOLATED STYLES
+   PLAYER VIEW – ISOLATED STYLES
    This file MUST NOT affect global layout or header styles
    ============================================================ */
 
-/* Root player wrapper — isolated from app shell */
+/* Root player wrapper – isolated from app shell */
 .lw-player {
   width: 100%;
   height: 100vh;
@@ -260,6 +260,13 @@
   line-height: 1.4;
 }
 
+/* Character name styling */
+.lw-player-character-name {
+  color: #9ed87e;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
 /* =========================
    SANITY PULSE ANIMATION
 ========================= */
@@ -305,7 +312,7 @@
 }
 
 /* ===============================
-   PLAYER VIEW — HELP TOOLTIP
+   PLAYER VIEW – HELP TOOLTIP
 =============================== */
 
 .lw-player .lw-tooltip {
@@ -361,7 +368,7 @@
 }
 
 /* ===============================
-   PLAYER VIEW — ANCHORED TOOLTIP
+   PLAYER VIEW – ANCHORED TOOLTIP
 =============================== */
 
 .lw-player-help {
@@ -410,4 +417,3 @@
   opacity: 1;
   transform: translateY(0) scale(1);
 }
-
