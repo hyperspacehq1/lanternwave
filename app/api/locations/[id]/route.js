@@ -77,8 +77,6 @@ export async function GET(req, { params }) {
           description: 10000,
           notes: 10000,
           world: 2000,
-          color_detail: 10000,
-          sensory: 10000,
         })
       : null
   );
@@ -162,8 +160,6 @@ export async function PUT(req, { params }) {
             description: 10000,
             notes: 10000,
             world: 2000,
-            color_detail: 10000,
-            sensory: 10000,
           })
         : null
     );
@@ -210,8 +206,6 @@ export async function DELETE(req, { params }) {
           description: 10000,
           notes: 10000,
           world: 2000,
-          color_detail: 10000,
-          sensory: 10000,
         })
       : null
   );
