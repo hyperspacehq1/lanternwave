@@ -46,6 +46,7 @@
   border: 1px dashed var(--lw-border-muted);
   border-radius: 6px;
   padding: 0.6rem 0.8rem;
+  weight: 400px
   font-family: var(--font-terminal);
   font-size: 10px;
   letter-spacing: 0.12em;
