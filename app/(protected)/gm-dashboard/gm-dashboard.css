@@ -222,7 +222,7 @@
 .gm-floating-body {
   padding: 0.75rem;
   overflow-y: auto;
-  font-size: 11px;
+  font-size: 13px;
   color: var(--lw-green-muted);
 }
 
@@ -565,7 +565,7 @@
   font-weight: 400;
   color: rgb(211, 226, 233);
   font-size: 13px;
-  line-height: normal;
+  line-height: 1.4;
 }
 
 /* =========================
