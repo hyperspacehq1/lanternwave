@@ -46,12 +46,14 @@
   border: 1px dashed var(--lw-border-muted);
   border-radius: 6px;
   padding: 0.6rem 0.8rem;
-  weight: 400px
+  width: 400px;
   font-family: var(--font-terminal);
   font-size: 10px;
+  font-weight: 600;
   letter-spacing: 0.12em;
   color: var(--lw-green-muted);
   cursor: pointer;
+  animation: filePulseGlow 2s ease-in-out infinite;
 }
 
 .lw-main .lw-file-button:hover {
@@ -222,6 +224,24 @@
   100% { opacity: 0; }
 }
 
+@keyframes filePulseGlow {
+  0% { 
+    color: var(--lw-green-muted);
+    text-shadow: 0 0 4px rgba(108, 197, 240, 0.3);
+    border-color: var(--lw-border-muted);
+  }
+  50% { 
+    color: var(--lw-green-primary);
+    text-shadow: 0 0 12px rgba(108, 197, 240, 0.8);
+    border-color: var(--lw-green-primary);
+  }
+  100% { 
+    color: var(--lw-green-muted);
+    text-shadow: 0 0 4px rgba(108, 197, 240, 0.3);
+    border-color: var(--lw-border-muted);
+  }
+}
+
 /* ------------------------------
    AUDIO VISUALIZER (RESTORED)
 ------------------------------ */
@@ -370,4 +390,3 @@
   color: var(--lw-green-primary);
   box-shadow: 0 0 6px rgba(108, 197, 240, 0.35);
 }
-
