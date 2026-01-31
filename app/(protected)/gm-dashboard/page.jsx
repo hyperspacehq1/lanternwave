@@ -150,18 +150,44 @@ async function pulseLocationClip({ locationId, durationMs }) {
 /* =========================
    Record Rendering (Field View)
 ========================= */
-function renderValue(value, type) {
+function renderValue(value, type, key) {
   if (value === null || value === undefined) return null;
 
   // empty string → hide
   if (typeof value === "string" && value.trim() === "") return null;
+
+  // Handle sensory field
+  if (key === "sensory" && typeof value === "object") {
+    const parts = [];
+    if (value.hear) parts.push(`Hear:\n${value.hear}`);
+    if (value.smell) parts.push(`Smell:\n${value.smell}`);
+    
+    if (parts.length === 0) return null;
+    
+    return (
+      <div className="gm-text" style={{ whiteSpace: "pre-wrap" }}>
+        {parts.join("\n\n")}
+      </div>
+    );
+  }
+
+  // Handle color_detail field
+  if (key === "color_detail" && typeof value === "object") {
+    if (!Array.isArray(value.bullets) || value.bullets.length === 0) return null;
+    
+    return (
+      <div className="gm-text" style={{ whiteSpace: "pre-wrap" }}>
+        {value.bullets.map((bullet) => `• ${bullet}`).join("\n")}
+      </div>
+    );
+  }
 
   // explicit json rendering (pretty)
   if (type === "json") {
     return <pre className="gm-json">{JSON.stringify(value, null, 2)}</pre>;
   }
 
-  // if value is an object/array and schema didn’t specify json, still show it safely
+  // if value is an object/array and schema didn't specify json, still show it safely
   if (typeof value === "object") {
     return <pre className="gm-json">{JSON.stringify(value, null, 2)}</pre>;
   }
@@ -175,7 +201,7 @@ function RecordView({ record, schema }) {
   return (
     <div className="gm-record">
       {schema.map(({ key, label, type, font }) => {
-        const rendered = renderValue(record[key], type);
+        const rendered = renderValue(record[key], type, key);
         if (!rendered) return null;
 
         return (

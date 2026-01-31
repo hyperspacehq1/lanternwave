@@ -299,7 +299,7 @@ update("color_detail", saved.color_detail);
 
 {/* AI: Color Detail */}
 <div className="cm-field">
-  <label className="cm-label">Color Detail</label>
+  <label className="cm-label">Detail Echoes</label>
   <textarea
     className="cm-textarea"
     rows={6}
@@ -331,7 +331,7 @@ update("color_detail", saved.color_detail);
 
 {/* AI: Sensory */}
 <div className="cm-field">
-  <label className="cm-label">Sensory</label>
+  <label className="cm-label">Sensory Echoes</label>
   <textarea
     className="cm-textarea"
     rows={6}
