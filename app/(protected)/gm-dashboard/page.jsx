@@ -262,7 +262,7 @@ const [fadingJoins, setFadingJoins] = useState({});
 /* -------- Active join source (ownership) -------- */
 const [activeJoinSource, setActiveJoinSource] = useState(null);
 const joinsTokenRef = useRef(0);
-const DEBUG_GM_JOINS = true;
+const DEBUG_GM_JOINS = false;
 const openJoinCountRef = useRef(0);
 const [sessionJoins, setSessionJoins] = useState(null);
 // shape: { entityKey, recordId } | null
@@ -327,7 +327,6 @@ y: clamp(clickY - 20, 16, window.innerHeight - 240 - 16),
    Resolve joined records
 ========================= */
 async function resolveJoins(entityKey, recordId) {
-
   // 🔒 Guard: prevent re-resolving the same join source
   if (
     activeJoinSource?.entityKey === entityKey &&
@@ -336,68 +335,33 @@ async function resolveJoins(entityKey, recordId) {
     return;
   }
 
-const myToken = ++joinsTokenRef.current;
+  const myToken = ++joinsTokenRef.current;
+  if (!["sessions", "encounters", "locations"].includes(entityKey)) return;
 
-if (!["sessions", "encounters", "locations"].includes(entityKey)) return;
-
-if (DEBUG_GM_JOINS) {
-  console.groupCollapsed("[GM JOINS] resolveJoins", {
-    entityKey,
-    recordId,
-    myToken,
-  });
-}
-
-try {
-  const url = `/api/gm/joins?entity=${entityKey}&id=${recordId}&debug=1`;
-  const res = await fetch(url, { credentials: "include" });
-
-  if (DEBUG_GM_JOINS) {
-    console.log("[GM JOINS] status", res.status);
-  }
-
-  if (!res.ok) {
-    if (DEBUG_GM_JOINS) console.groupEnd();
-    return;
-  }
-
-  const data = await res.json();
-
-  if (DEBUG_GM_JOINS) {
-    console.log("[GM JOINS] raw response", data);
-  }
-
-  setActiveJoinSource({ entityKey, recordId });
-
-  const next = {};
-  Object.entries(data.joined || {}).forEach(([k, ids]) => {
-    next[k] = Array.isArray(ids) ? ids.map(String) : [];
-  });
-
-  if (DEBUG_GM_JOINS) {
-    console.log("[GM JOINS] normalized joinHighlights", next);
-  }
-
-  if (myToken !== joinsTokenRef.current) {
-    if (DEBUG_GM_JOINS) {
-      console.warn("[GM JOINS] dropped due to token mismatch", {
-        myToken,
-        current: joinsTokenRef.current,
-      });
-      console.groupEnd();
+  try {
+    const url = `/api/gm/joins?entity=${entityKey}&id=${recordId}`;
+    const res = await fetch(url, { credentials: "include" });
+    
+    if (!res.ok) {
+      return;
     }
-    return;
-  }
 
- setJoinHighlights(next);
+    const data = await res.json();
+    setActiveJoinSource({ entityKey, recordId });
 
-if (DEBUG_GM_JOINS) console.groupEnd();
-} catch (e) {
-  if (DEBUG_GM_JOINS) {
-    console.error("[GM JOINS] error", e);
-    console.groupEnd();
+    const next = {};
+    Object.entries(data.joined || {}).forEach(([k, ids]) => {
+      next[k] = Array.isArray(ids) ? ids.map(String) : [];
+    });
+
+    if (myToken !== joinsTokenRef.current) {
+      return;
+    }
+
+    setJoinHighlights(next);
+  } catch (e) {
+    // Silent error handling - joins will simply not resolve
   }
-}
 }
 
 function clearJoins(source) {
@@ -413,19 +377,19 @@ function clearJoins(source) {
     ) {
       return current;
     }
-joinsTokenRef.current += 1;
+
+    joinsTokenRef.current += 1;
    
-// 🌫️ mark current joins as fading
-setFadingJoins((prev) => ({ ...prev, ...joinHighlights }));
+    // 🌫️ mark current joins as fading
+    setFadingJoins((prev) => ({ ...prev, ...joinHighlights }));
 
-// clear active highlights immediately
-setJoinHighlights({});
+    // clear active highlights immediately
+    setJoinHighlights({});
 
-// remove fade markers after animation completes
-setTimeout(() => {
-  setFadingJoins({});
-}, 650);
-
+    // remove fade markers after animation completes
+    setTimeout(() => {
+      setFadingJoins({});
+    }, 650);
 
     return null;
   });
