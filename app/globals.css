@@ -138,6 +138,23 @@ body {
   color: var(--lw-green-primary);
 }
 
+/* Expand click zone upward for fullscreen compatibility */
+.lw-nav-link {
+  position: relative;
+}
+
+.lw-nav-link::before {
+  content: "";
+  position: absolute;
+  top: -24px;        /* expand upward to capture clicks above button */
+  left: 0;
+  right: 0;
+  height: 24px;
+  pointer-events: auto;
+  /* Uncomment below to visualize the expanded zone during testing */
+  /* background: rgba(255, 0, 0, 0.1); */
+}
+
 /* ------------------------------
    MAIN CONTENT
 ------------------------------ */
