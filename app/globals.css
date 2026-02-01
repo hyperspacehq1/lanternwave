@@ -125,6 +125,19 @@ body {
   cursor: pointer;
   text-decoration: none;
   transition: all 0.15s ease;
+  
+  /* Extend clickable area upward invisibly */
+  position: relative;
+}
+
+.lw-nav-link::before {
+  content: "";
+  position: absolute;
+  top: -8px; /* Extend 8px above the button */
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: inherit;
 }
 
 .lw-nav-link:hover {

@@ -17,7 +17,7 @@ export default function Header({ variant = "app" }) {
     { label: "GM Dashboard", href: "/gm-dashboard" },
     { label: "Campaign Manager", href: "/campaign-manager" },
     { label: "Media Controller", href: "/controller" },
-    { label: "Player", href: "/player" },
+    { label: "Player Viewer", href: "/player" },
     { label: "My Account", href: "/account" },
   ];
 
