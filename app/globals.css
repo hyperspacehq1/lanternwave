@@ -114,6 +114,7 @@ body {
 }
 
 .lw-nav-link {
+  position: relative;  /* Added for click zone expansion */
   font-family: var(--font-terminal);
   font-size: 11px;
   letter-spacing: 0.12em;
@@ -139,20 +140,23 @@ body {
 }
 
 /* Expand click zone upward for fullscreen compatibility */
-.lw-nav-link {
-  position: relative;
-}
-
 .lw-nav-link::before {
   content: "";
   position: absolute;
-  top: -24px;        /* expand upward to capture clicks above button */
+  top: -24px;
   left: 0;
   right: 0;
-  height: 24px;
+  bottom: 0;           /* extends down to cover the button too */
+  height: auto;        /* let bottom control the height */
   pointer-events: auto;
-  /* Uncomment below to visualize the expanded zone during testing */
-  /* background: rgba(255, 0, 0, 0.1); */
+  z-index: 1;          /* ensure it's above other elements */
+  /* background: rgba(255, 0, 0, 0.1); */ /* Uncomment to visualize */
+}
+
+/* Ensure button text is above the ::before layer */
+.lw-nav-link > * {
+  position: relative;
+  z-index: 2;
 }
 
 /* ------------------------------
