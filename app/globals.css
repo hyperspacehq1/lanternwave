@@ -114,7 +114,7 @@ body {
 }
 
 .lw-nav-link {
-  position: relative;  /* Added for click zone expansion */
+  position: relative;
   font-family: var(--font-terminal);
   font-size: 11px;
   letter-spacing: 0.12em;
@@ -122,7 +122,8 @@ body {
   background: transparent;
   border: 1px solid var(--lw-border-muted);
   border-radius: 999px;
-  padding: 0.35rem 0.7rem;
+  padding: 24px 0.7rem 0.35rem 0.7rem;  /* Add 24px top padding */
+  margin-top: -24px;                      /* Pull back up visually */
   cursor: pointer;
   text-decoration: none;
   transition: all 0.15s ease;
@@ -137,26 +138,6 @@ body {
   border-color: var(--lw-green-primary);
   box-shadow: 0 0 0 1px var(--lw-green-primary) inset;
   color: var(--lw-green-primary);
-}
-
-/* Expand click zone upward for fullscreen compatibility */
-.lw-nav-link::before {
-  content: "";
-  position: absolute;
-  top: -24px;
-  left: 0;
-  right: 0;
-  bottom: 0;           /* extends down to cover the button too */
-  height: auto;        /* let bottom control the height */
-  pointer-events: auto;
-  z-index: 1;          /* ensure it's above other elements */
-  background: rgba(255, 0, 0, 0.1);  /* Uncomment to visualize */
-}
-
-/* Ensure button text is above the ::before layer */
-.lw-nav-link > * {
-  position: relative;
-  z-index: 2;
 }
 
 /* ------------------------------
