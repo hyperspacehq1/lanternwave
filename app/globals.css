@@ -72,6 +72,7 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 0 1.25rem;
+  margin-top: 24px;  /* ADD THIS LINE - pushes header down from browser's hotzone */
   background: #000000;
   border-bottom: 1px solid var(--lw-border-muted);
 
@@ -122,8 +123,7 @@ body {
   background: transparent;
   border: 1px solid var(--lw-border-muted);
   border-radius: 999px;
-  padding: 24px 0.7rem 0.35rem 0.7rem;  /* Add 24px top padding */
-  margin-top: -24px;                      /* Pull back up visually */
+  padding: 0.35rem 0.7rem;  /* back to original */
   cursor: pointer;
   text-decoration: none;
   transition: all 0.15s ease;
@@ -145,7 +145,7 @@ body {
 ------------------------------ */
 .lw-main {
   width: 100%;
-  min-height: calc(100vh - var(--lw-header-height));
+  min-height: calc(100vh - var(--lw-header-height) - 24px);
   display: flex;
   flex-direction: column;
   background: #000000;
