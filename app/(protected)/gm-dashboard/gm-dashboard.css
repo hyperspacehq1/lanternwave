@@ -139,7 +139,7 @@
 }
 
 .gm-card.is-open .gm-card-body-wrapper {
-  max-height: 800px;
+  max-height: none;
   opacity: 1;
 }
 
