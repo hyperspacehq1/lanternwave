@@ -111,8 +111,6 @@ body {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding-top: 14px; 
-  padding-bottom: 14px;
 }
 
 .lw-nav-link {
@@ -501,3 +499,5 @@ button {
   line-height: normal;
   color: rgb(229, 255, 227);
 }
+
+
