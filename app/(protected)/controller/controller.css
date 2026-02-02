@@ -298,6 +298,22 @@
   will-change: box-shadow, transform;
 }
 
+/* Disabled loop button for VIDEO and IMAGE clips */
+.lw-main .lw-btn.loop-btn[disabled] {
+  color: rgb(160, 188, 205);
+  border-color: rgb(160, 188, 205);
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+  animation: none;
+}
+
+.lw-main .lw-btn.loop-btn[disabled]:hover {
+  color: rgb(160, 188, 205);
+  border-color: rgb(160, 188, 205);
+  box-shadow: none;
+}
+
 @keyframes loopPulse {
   0%   { box-shadow: 0 0 4px rgba(108,197,240,0.4); }
   50%  { box-shadow: 0 0 10px rgba(108,197,240,0.9); }

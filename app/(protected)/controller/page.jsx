@@ -427,7 +427,7 @@ export default function ControllerPage() {
                       className={`lw-btn loop-btn ${
                         audio?.loop && isNow ? "active" : ""
                       }`}
-                      disabled={isBusy}
+                      disabled={isBusy || clipTypeFromKey(key) === "video" || clipTypeFromKey(key) === "image"}
                       onClick={() => {
                         if (!audio?.setLoop) return;
                         audio.setLoop(!audio.loop);
