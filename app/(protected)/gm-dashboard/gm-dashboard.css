@@ -399,6 +399,12 @@
   background-repeat: no-repeat;
 }
 
+.gm-toolbar select option {
+  background: #000;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.75);
+}
+
 /* =========================================================
    GM CARD ACTION GROUP SPACING
 ========================================================= */
