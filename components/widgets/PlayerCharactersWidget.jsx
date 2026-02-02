@@ -483,7 +483,7 @@ const hasSelection = selectedIds.length > 0;
       onPointerUp={onPointerUp}
     >
       <div className="player-widget__header" onPointerDown={onDragStart}>
-        <div className="player-widget__title">Players</div>
+        <div className="player-widget__title">Players </div>
 
         <div className="player-widget__controls">
           {sanityEnabled && (
