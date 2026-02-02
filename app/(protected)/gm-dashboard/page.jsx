@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import "./gm-dashboard.css";
 import PlayerCharactersWidget from "@/components/widgets/PlayerCharactersWidget";
 import { DISPLAY_SCHEMAS as BASE_SCHEMAS } from "@/lib/gm/displaySchemas";
+import CustomDropdown from "@/components/CustomDropdown";
 
 /* =========================
    LocalStorage Keys
@@ -790,39 +791,31 @@ const filterBySession = (entityKey, rows) => {
     <div className="gm-page">
       {/* ---------------- Toolbar (restored left/right layout) ---------------- */}
       <div className="gm-toolbar" style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        {/* Left group: selects */}
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <select
-            value={selectedCampaign?.id || ""}
-            onChange={(e) => {
-              const next = campaigns.find((c) => c.id === e.target.value) || null;
-              setSelectedCampaign(next);
-            }}
-          >
-            <option value="">Select Campaign</option>
-            {campaigns.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+      
+       {/* Left group: selects */}
+<div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+  <CustomDropdown
+    value={selectedCampaign?.name || ""}
+    options={campaigns.map(c => ({ id: c.id, name: c.name }))}
+    onSelect={(cId) => {
+      const next = campaigns.find((c) => c.id === cId) || null;
+      setSelectedCampaign(next);
+    }}
+    disabled={campaigns.length === 0}
+    placeholder="Select Campaign"
+  />
 
-          <select
-            value={selectedSession?.id || ""}
-            disabled={!selectedCampaign}
-            onChange={(e) => {
-              const next = sessions.find((s) => s.id === e.target.value) || null;
-              setSelectedSession(next);
-            }}
-          >
-            <option value="">Select Session</option>
-            {sessions.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-        </div>
+  <CustomDropdown
+    value={selectedSession?.name || ""}
+    options={sessions.map(s => ({ id: s.id, name: s.name }))}
+    onSelect={(sId) => {
+      const next = sessions.find((s) => s.id === sId) || null;
+      setSelectedSession(next);
+    }}
+    disabled={!selectedCampaign || sessions.length === 0}
+    placeholder="Select Session"
+  />
+</div>
 
         {/* Right group: actions */}
 <div
