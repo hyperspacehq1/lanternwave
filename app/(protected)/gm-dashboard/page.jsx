@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import "./gm-dashboard.css";
 import PlayerCharactersWidget from "@/components/widgets/PlayerCharactersWidget";
 import { DISPLAY_SCHEMAS as BASE_SCHEMAS } from "@/lib/gm/displaySchemas";
-import CustomDropdown from "@/components/CustomDropdown.jsx";
+import CustomDropdown from "@/components/dropdown/CustomDropdown";
 
 /* =========================
    LocalStorage Keys
