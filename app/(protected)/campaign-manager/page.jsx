@@ -7,7 +7,6 @@ import { cmApi } from "@/lib/cm/api";
 import { getFormComponent } from "@/components/forms";
 import { useCampaignContext } from "@/lib/campaign/campaignContext";
 import { getRecordLabel } from "@/lib/cm/labels";
-import CustomDropdown from "@/components/CustomDropdown";
 
 import "./campaign-manager.css";
 
