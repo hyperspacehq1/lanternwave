@@ -525,6 +525,14 @@ export default function ControllerPage() {
                 autoPlay
                 loop={!!audio?.loop}
                 playsInline
+                onEnded={async () => {
+                  // Auto-stop when video ends (if not looping)
+                  if (!audio?.loop) {
+                    await setNowPlaying(null);
+                    setNowPlayingState(null);
+                    audio.stop();
+                  }
+                }}
               />
             )}
 
