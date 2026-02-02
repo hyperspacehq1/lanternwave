@@ -224,7 +224,7 @@ function RecordView({ record, schema }) {
   );
 }
 
-* =========================
+/* =========================
    Custom Dropdown Component
 ========================= */
 function CustomDropdown({
