@@ -73,7 +73,8 @@ export async function GET(req) {
     }
 
     else if (entity === "locations") {
-      const { rows } = await query(
+      // Fetch items
+      const { rows: itemRows } = await query(
         `
         SELECT item_id::text AS item_id
           FROM location_items
@@ -84,8 +85,23 @@ export async function GET(req) {
         [tenantId, id]
       );
 
-      result.joined.items = rows.map((r) => r.item_id);
-      if (debug) result.debug.location_items_count = rows.length;
+      result.joined.items = itemRows.map((r) => r.item_id);
+      if (debug) result.debug.location_items_count = itemRows.length;
+
+      // Fetch npcs
+      const { rows: npcRows } = await query(
+        `
+        SELECT npc_id::text AS npc_id
+          FROM location_npcs
+         WHERE tenant_id = $1
+           AND location_id = $2
+           AND deleted_at IS NULL
+        `,
+        [tenantId, id]
+      );
+
+      result.joined.npcs = npcRows.map((r) => r.npc_id);
+      if (debug) result.debug.location_npcs_count = npcRows.length;
     }
 
     else {
