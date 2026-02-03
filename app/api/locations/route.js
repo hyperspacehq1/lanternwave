@@ -75,7 +75,7 @@ export async function GET(req) {
       name: 120,
       description: 10000,
       notes: 10000,
-      world: 5000,
+      world: 2000,
     })
   );
 }
@@ -110,7 +110,7 @@ export async function POST(req) {
       validateString(body.notes, 10000, "notes");
 
     if (hasOwn(body, "world") && body.world !== null)
-      validateString(body.world, 200, "world");
+      validateString(body.world, 2,000, "world");
 
     const addressFields = [
       "addressStreet",
@@ -173,7 +173,7 @@ export async function POST(req) {
         name: 120,
         description: 10000,
         notes: 10000,
-        world: 5000,
+        world: 2000,
       }),
       { status: 201 }
     );
@@ -211,7 +211,7 @@ export async function PUT(req) {
       name: 120,
       description: 10000,
       notes: 10000,
-      world: 5000,
+      world: 2000,
       addressStreet: 120,
       addressCity: 120,
       addressState: 120,
