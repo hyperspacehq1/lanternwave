@@ -270,8 +270,8 @@ update("color_detail", saved.color_detail);
       {/* World */}
       <div className="cm-field">
         <label className="cm-label">Setting Summary</label>
-        <input
-          className="cm-input"
+        <textarea
+          className="cm-textarea"
           value={record.world || ""}
           onChange={(e) => update("world", e.target.value)}
         />
