@@ -399,13 +399,23 @@ update("color_detail", saved.color_detail);
       )}
 
       {!record._isNew && (
-        <JoinPanel
-          title="Items"
-          campaignId={campaign.id}
-          locationId={record.id}
-          joinPath="items"
-          idField="item_id"
-        />
+        <>
+          <JoinPanel
+            title="Items"
+            campaignId={campaign.id}
+            locationId={record.id}
+            joinPath="items"
+            idField="item_id"
+          />
+
+          <JoinPanel
+            title="NPCs"
+            campaignId={campaign.id}
+            locationId={record.id}
+            joinPath="npcs"
+            idField="npc_id"
+          />
+        </>
       )}
     </div>
   );

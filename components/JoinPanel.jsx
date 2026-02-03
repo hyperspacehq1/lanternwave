@@ -54,7 +54,7 @@ export default function JoinPanel({
     "items",
   ]);
 
-  const VALID_LOCATION_JOINS = new Set(["items"]);
+  const VALID_LOCATION_JOINS = new Set(["items", "npcs"]);
 
   if (
     (scopeType === "encounters" && !VALID_ENCOUNTER_JOINS.has(joinPath)) ||
@@ -85,6 +85,8 @@ export default function JoinPanel({
     baseUrl = `/api/sessions-items?session_id=${scopeId}`;
   } else if (scopeType === "locations" && joinPath === "items") {
     baseUrl = `/api/locations-items?location_id=${scopeId}`;
+  } else if (scopeType === "locations" && joinPath === "npcs") {
+    baseUrl = `/api/locations-npcs?location_id=${scopeId}`;
   } else {
     baseUrl = `/api/${scopeType}/${scopeId}/${joinPath}`;
   }
@@ -145,6 +147,8 @@ export default function JoinPanel({
         scopeType === "sessions" && joinPath === "items";
       const isLocationItems =
         scopeType === "locations" && joinPath === "items";
+      const isLocationNpcs =
+        scopeType === "locations" && joinPath === "npcs";
 
       const postUrl = isEncounterNpcs
         ? "/api/encounters-npcs"
@@ -158,6 +162,8 @@ export default function JoinPanel({
         ? "/api/sessions-items"
         : isLocationItems
         ? "/api/locations-items"
+        : isLocationNpcs
+        ? "/api/locations-npcs"
         : baseUrl;
 
       const payload = isEncounterNpcs
@@ -172,6 +178,8 @@ export default function JoinPanel({
         ? { session_id: scopeId, item_id: selectedId }
         : isLocationItems
         ? { location_id: scopeId, item_id: selectedId }
+        : isLocationNpcs
+        ? { location_id: scopeId, npc_id: selectedId }
         : { [idField]: selectedId };
 
       const res = await fetch(postUrl, {
@@ -212,6 +220,8 @@ export default function JoinPanel({
       scopeType === "sessions" && joinPath === "items";
     const isLocationItems =
       scopeType === "locations" && joinPath === "items";
+    const isLocationNpcs =
+      scopeType === "locations" && joinPath === "npcs";
 
     const deleteUrl = isEncounterNpcs
       ? "/api/encounters-npcs"
@@ -225,6 +235,8 @@ export default function JoinPanel({
       ? "/api/sessions-items"
       : isLocationItems
       ? "/api/locations-items"
+      : isLocationNpcs
+      ? "/api/locations-npcs"
       : baseUrl;
 
     const payload = isEncounterNpcs
@@ -239,6 +251,8 @@ export default function JoinPanel({
       ? { session_id: scopeId, item_id: id }
       : isLocationItems
       ? { location_id: scopeId, item_id: id }
+      : isLocationNpcs
+      ? { location_id: scopeId, npc_id: id }
       : { [idField]: id };
 
     const res = await fetch(deleteUrl, {
