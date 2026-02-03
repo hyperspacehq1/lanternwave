@@ -75,7 +75,7 @@ export async function GET(req) {
       name: 120,
       description: 10000,
       notes: 10000,
-      world: 2000,
+      world: 5000,
     })
   );
 }
@@ -173,7 +173,7 @@ export async function POST(req) {
         name: 120,
         description: 10000,
         notes: 10000,
-        world: 2000,
+        world: 5000,
       }),
       { status: 201 }
     );
@@ -211,7 +211,7 @@ export async function PUT(req) {
       name: 120,
       description: 10000,
       notes: 10000,
-      world: 2000,
+      world: 5000,
       addressStreet: 120,
       addressCity: 120,
       addressState: 120,
