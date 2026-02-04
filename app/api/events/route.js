@@ -1,3 +1,6 @@
+
+Copy
+
 import { sanitizeRow, sanitizeRows } from "@/lib/api/sanitize";
 import { query } from "@/lib/db";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
@@ -131,22 +134,18 @@ export async function POST(req) {
     INSERT INTO events (
       tenant_id,
       campaign_id,
-      session_id,
-      encounter_id,
       name,
       description,
       event_type,
       priority,
       search_body
     )
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+    VALUES ($1,$2,$3,$4,$5,$6,$7)
     RETURNING *
     `,
     [
       tenantId,
       campaignId,
-      body.session_id ?? body.sessionId ?? null,
-      body.encounter_id ?? body.encounterId ?? null,
       name,
       description,
       body.event_type ?? body.eventType ?? null,

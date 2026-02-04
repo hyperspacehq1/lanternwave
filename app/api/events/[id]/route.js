@@ -1,90 +1,101 @@
+import { sanitizeRow } from "@/lib/api/sanitize";
 import { query } from "@/lib/db";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function POST(req, { params }) {
+/* -----------------------------------------------------------
+   GET /api/events/[id]
+------------------------------------------------------------ */
+export async function GET(req, { params }) {
   let ctx;
   try {
     ctx = await getTenantContext(req);
-  } catch (err) {
-    console.error("AUTH ERROR", err);
+  } catch {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // 🔍 STEP 1: log raw params
-  console.error("🔎 RAW PARAMS", params);
+  const tenantId = ctx.tenantId;
+  const id = params?.id;
 
-  const sessionId = params?.id;
-  const body = await req.json();
-  const event_id = body?.event_id;
-
-  // 🔍 STEP 2: log resolved values
-  console.error("🔎 RESOLVED VALUES", {
-    tenantId: ctx?.tenantId,
-    sessionId,
-    event_id,
-    sessionIdType: typeof sessionId,
-    sessionIdLength: sessionId?.length,
-  });
-
-  // 🔥 STEP 3: hard stop if sessionId is falsy
-  if (!sessionId) {
-    return Response.json(
-      {
-        error: "sessionId is falsy before DB insert",
-        debug: { params, sessionId },
-      },
-      { status: 500 }
-    );
+  if (!id) {
+    return Response.json({ error: "id required" }, { status: 400 });
   }
 
-  if (!event_id) {
-    return Response.json(
-      { error: "event_id required", debug: body },
-      { status: 400 }
-    );
+  const { rows } = await query(
+    `
+    SELECT id,
+           campaign_id,
+           name,
+           description,
+           event_type,
+           priority,
+           search_body,
+           created_at,
+           updated_at
+      FROM events
+     WHERE tenant_id = $1
+       AND id = $2
+       AND deleted_at IS NULL
+     LIMIT 1
+    `,
+    [tenantId, id]
+  );
+
+  if (!rows.length) {
+    return Response.json({ error: "Event not found" }, { status: 404 });
   }
 
+  return Response.json(
+    sanitizeRow(rows[0], {
+      name: 200,
+      description: 20000,
+      searchBody: 20000,
+    })
+  );
+}
+
+/* -----------------------------------------------------------
+   DELETE /api/events/[id]   (SOFT DELETE)
+------------------------------------------------------------ */
+export async function DELETE(req, { params }) {
+  let ctx;
   try {
-    // 🔍 STEP 4: force Postgres to echo inputs
-    const { rows } = await query(
-      `
-      INSERT INTO session_events (
-        tenant_id,
-        session_id,
-        event_id
-      )
-      VALUES ($1, $2::uuid, $3::uuid)
-      RETURNING
-        tenant_id,
-        session_id,
-        event_id
-      `,
-      [ctx.tenantId, sessionId, event_id]
-    );
-
-    console.error("✅ INSERT RESULT", rows[0]);
-
-    return Response.json({ ok: true, row: rows[0] });
-  } catch (err) {
-    console.error("❌ INSERT FAILED", {
-      message: err.message,
-      code: err.code,
-      detail: err.detail,
-    });
-
-    return Response.json(
-      {
-        error: "DB insert failed",
-        db: {
-          message: err.message,
-          code: err.code,
-          detail: err.detail,
-        },
-      },
-      { status: 500 }
-    );
+    ctx = await getTenantContext(req);
+  } catch {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const tenantId = ctx.tenantId;
+  const id = params?.id;
+
+  if (!id) {
+    return Response.json({ error: "id required" }, { status: 400 });
+  }
+
+  const { rows } = await query(
+    `
+    UPDATE events
+       SET deleted_at = NOW(),
+           updated_at = NOW()
+     WHERE tenant_id = $1
+       AND id = $2
+       AND deleted_at IS NULL
+     RETURNING *
+    `,
+    [tenantId, id]
+  );
+
+  if (!rows.length) {
+    return Response.json({ error: "Event not found" }, { status: 404 });
+  }
+
+  return Response.json(
+    sanitizeRow(rows[0], {
+      name: 200,
+      description: 20000,
+      searchBody: 20000,
+    })
+  );
 }
