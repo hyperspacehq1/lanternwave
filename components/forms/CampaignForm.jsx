@@ -90,7 +90,7 @@ export default function CampaignForm({ record, onChange }) {
   }, [record.campaignPackage]);
 
   return (
-    <div className="cm-detail-form">
+    <div className="cm-detail-form campaign-form-custom">
       {/* --------------------------------------------- */}
       {/* Header */}
       {/* --------------------------------------------- */}
@@ -187,57 +187,65 @@ export default function CampaignForm({ record, onChange }) {
       </div>
 
       <style jsx>{`
-        .cm-select {
+        /* Override all other select styles with higher specificity */
+        .campaign-form-custom :global(.cm-select),
+        .campaign-form-custom :global(.cm-field select.cm-select) {
           /* Reset default select styling */
-          appearance: none;
-          -webkit-appearance: none;
-          -moz-appearance: none;
+          appearance: none !important;
+          -webkit-appearance: none !important;
+          -moz-appearance: none !important;
           
-          /* Custom styling matching your requirements */
-          width: fit-content;
-          min-width: 200px;
-          max-width: 100%;
-          padding: 8px 32px 8px 12px;
+          /* Custom styling - width fits content */
+          width: fit-content !important;
+          min-width: 200px !important;
+          max-width: 100% !important;
+          padding: 8px 32px 8px 12px !important;
           
-          /* Colors */
-          background-color: transparent;
-          color: rgb(229, 255, 227);
-          border: 1px solid rgb(163, 197, 159);
-          outline: none;
+          /* Colors as specified */
+          background-color: transparent !important;
+          color: rgb(229, 255, 227) !important;
+          border: 1px solid rgb(163, 197, 159) !important;
+          outline: none !important;
           
-          /* Typography */
-          font-family: system-ui, -apple-system, "system-ui", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-          font-size: 13px;
-          font-weight: 400;
-          font-style: normal;
-          line-height: normal;
+          /* Typography as specified */
+          font-family: system-ui, -apple-system, "system-ui", "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+          font-size: 13px !important;
+          font-weight: 400 !important;
+          font-style: normal !important;
+          line-height: normal !important;
           
           /* Layout */
-          border-radius: 4px;
-          cursor: pointer;
+          border-radius: 4px !important;
+          cursor: pointer !important;
           
-          /* Custom dropdown arrow */
-          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='rgb(229, 255, 227)' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
-          background-repeat: no-repeat;
-          background-position: right 10px center;
+          /* Custom dropdown arrow - matches text color */
+          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='rgb(229, 255, 227)' d='M6 9L1 4h10z'/%3E%3C/svg%3E") !important;
+          background-repeat: no-repeat !important;
+          background-position: right 10px center !important;
         }
         
-        .cm-select:hover {
-          border-color: rgb(180, 210, 177);
+        /* Hover state */
+        .campaign-form-custom :global(.cm-select:hover),
+        .campaign-form-custom :global(.cm-field select.cm-select:hover) {
+          border-color: rgb(180, 210, 177) !important;
         }
         
-        .cm-select:focus {
-          border-color: rgb(163, 197, 159);
-          box-shadow: 0 0 0 2px rgba(163, 197, 159, 0.2);
+        /* Focus state */
+        .campaign-form-custom :global(.cm-select:focus),
+        .campaign-form-custom :global(.cm-field select.cm-select:focus) {
+          border-color: rgb(163, 197, 159) !important;
+          box-shadow: 0 0 0 2px rgba(163, 197, 159, 0.2) !important;
         }
         
         /* Option styling */
-        .cm-select option {
-          background-color: rgb(30, 40, 30);
-          color: rgb(229, 255, 227);
-          padding: 8px;
+        .campaign-form-custom :global(.cm-select option),
+        .campaign-form-custom :global(.cm-field select.cm-select option) {
+          background-color: rgb(30, 40, 30) !important;
+          color: rgb(229, 255, 227) !important;
+          padding: 8px !important;
         }
       `}</style>
     </div>
   );
 }
+

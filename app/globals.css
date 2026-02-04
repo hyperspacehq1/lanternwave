@@ -506,74 +506,79 @@ button {
 
 /* Apply to all select elements with cm-select class or within cm-detail-form */
 .cm-select,
-.cm-detail-form select {
+.cm-detail-form select.cm-select,
+.cm-field select.cm-select {
   /* Reset default select styling */
-  appearance: none;
-  -webkit-appearance: none;
-  -moz-appearance: none;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
   
   /* Custom styling - width fits content */
-  width: fit-content;
-  min-width: 200px;
-  max-width: 100%;
-  padding: 8px 32px 8px 12px;
+  width: fit-content !important;
+  min-width: 200px !important;
+  max-width: 100% !important;
+  padding: 8px 32px 8px 12px !important;
   
   /* Colors as specified */
-  background-color: transparent;
-  color: rgb(229, 255, 227);
-  border: 1px solid rgb(163, 197, 159);
-  outline: none;
+  background-color: transparent !important;
+  color: rgb(229, 255, 227) !important;
+  border: 1px solid rgb(163, 197, 159) !important;
+  outline: none !important;
   
   /* Typography as specified */
-  font-family: system-ui, -apple-system, "system-ui", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  font-size: 13px;
-  font-weight: 400;
-  font-style: normal;
-  line-height: normal;
+  font-family: system-ui, -apple-system, "system-ui", "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  font-style: normal !important;
+  line-height: normal !important;
   
   /* Layout */
-  border-radius: 4px;
-  cursor: pointer;
+  border-radius: 4px !important;
+  cursor: pointer !important;
   
   /* Custom dropdown arrow - matches text color */
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='rgb(229, 255, 227)' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 10px center;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='rgb(229, 255, 227)' d='M6 9L1 4h10z'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 10px center !important;
 }
 
 /* Hover state */
 .cm-select:hover,
-.cm-detail-form select:hover {
-  border-color: rgb(180, 210, 177);
+.cm-detail-form select.cm-select:hover,
+.cm-field select.cm-select:hover {
+  border-color: rgb(180, 210, 177) !important;
 }
 
 /* Focus state */
 .cm-select:focus,
-.cm-detail-form select:focus {
-  border-color: rgb(163, 197, 159);
-  box-shadow: 0 0 0 2px rgba(163, 197, 159, 0.2);
+.cm-detail-form select.cm-select:focus,
+.cm-field select.cm-select:focus {
+  border-color: rgb(163, 197, 159) !important;
+  box-shadow: 0 0 0 2px rgba(163, 197, 159, 0.2) !important;
 }
 
 /* Disabled state */
 .cm-select:disabled,
-.cm-detail-form select:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.cm-detail-form select.cm-select:disabled,
+.cm-field select.cm-select:disabled {
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
 }
 
 /* Option styling */
 .cm-select option,
-.cm-detail-form select option {
-  background-color: rgb(30, 40, 30);
-  color: rgb(229, 255, 227);
-  padding: 8px;
+.cm-detail-form select.cm-select option,
+.cm-field select.cm-select option {
+  background-color: rgb(30, 40, 30) !important;
+  color: rgb(229, 255, 227) !important;
+  padding: 8px !important;
 }
 
 /* Multiple select (if needed) */
 .cm-select[multiple],
-.cm-detail-form select[multiple] {
-  background-image: none;
-  padding: 8px 12px;
-  height: auto;
+.cm-detail-form select.cm-select[multiple],
+.cm-field select.cm-select[multiple] {
+  background-image: none !important;
+  padding: 8px 12px !important;
+  height: auto !important;
 }
-
