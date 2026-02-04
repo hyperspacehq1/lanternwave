@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from "react";
 import { useCampaignContext } from "@/lib/campaign/campaignContext";
-import CustomDropdown from "@/components/CustomDropdown";
 
 const RPG_GAMES = [
   "ALIEN: The Roleplaying Game",
@@ -44,15 +43,6 @@ const RPG_GAMES = [
   "XYZ-Custom Campaign Codex",
 ];
 
-// Transform RPG_GAMES into options format
-const RPG_GAME_OPTIONS = RPG_GAMES.map(game => ({ value: game, label: game }));
-
-// Campaign Package options
-const PACKAGE_OPTIONS = [
-  { value: "standard", label: "Standard" },
-  { value: "premium", label: "Premium" },
-];
-
 export default function CampaignForm({ record, onChange }) {
   const { campaign } = useCampaignContext();
 
@@ -71,13 +61,13 @@ export default function CampaignForm({ record, onChange }) {
   // --------------------------------------------------
   // Unified update helper
   // --------------------------------------------------
-  const update = (field, value) => {
-    onChange({
-      ...record,
-      [field]: value,
-      // Campaigns do NOT depend on campaign context
-    });
-  };
+ const update = (field, value) => {
+  onChange({
+    ...record,
+    [field]: value,
+    // Campaigns do NOT depend on campaign context
+  });
+};
 
   // --------------------------------------------------
   // Pulse animation on record change
@@ -100,16 +90,16 @@ export default function CampaignForm({ record, onChange }) {
   }, [record.campaignPackage]);
 
   return (
-    <div className="cm-detail-form" style={{ overflow: "visible" }}>
+    <div className="cm-detail-form">
       {/* --------------------------------------------- */}
       {/* Header */}
       {/* --------------------------------------------- */}
       <div className={`cm-campaign-header ${pulse ? "pulse" : ""}`}>
         <div className="cm-context-line">
-          <strong>Campaign:</strong>{" "}
-          {record._isNew
-            ? "New Campaign"
-            : record.name || "Unnamed Campaign"}
+         <strong>Campaign:</strong>{" "}
+{record._isNew
+  ? "New Campaign"
+  : record.name || "Unnamed Campaign"}
         </div>
       </div>
 
@@ -165,35 +155,35 @@ export default function CampaignForm({ record, onChange }) {
       {/* --------------------------------------------- */}
       {/* Campaign Package */}
       {/* --------------------------------------------- */}
-      <div className="cm-field" style={{ overflow: "visible", position: "relative", zIndex: 10 }}>
+      <div className="cm-field">
         <label className="cm-label">Campaign Package</label>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <CustomDropdown
-            value={record.campaignPackage || "standard"}
-            onChange={(value) => update("campaignPackage", value)}
-            options={PACKAGE_OPTIONS}
-            placeholder="Select package"
-          />
-        </div>
+        <select
+          className="cm-input"
+          value={record.campaignPackage || "standard"}
+          onChange={(e) => update("campaignPackage", e.target.value)}
+        >
+          <option value="standard">Standard</option>
+          <option value="premium">Premium</option>
+        </select>
       </div>
 
       {/* --------------------------------------------- */}
       {/* RPG Game */}
       {/* --------------------------------------------- */}
-      <div className="cm-field" style={{ overflow: "visible", position: "relative", zIndex: 9 }}>
+      <div className="cm-field">
         <label className="cm-label">RPG Game</label>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <CustomDropdown
-            value={record.rpgGame || ""}
-            onChange={(value) => update("rpgGame", value || null)}
-            options={[
-              { value: "", label: "Select a game…" },
-              ...RPG_GAME_OPTIONS
-            ]}
-            placeholder="Select a game…"
-            preferredDirection="up"
-          />
-        </div>
+        <select
+          className="cm-input"
+          value={record.rpgGame || ""}
+          onChange={(e) => update("rpgGame", e.target.value || null)}
+        >
+          <option value="">Select a game…</option>
+          {RPG_GAMES.map((g) => (
+            <option key={g} value={g}>
+              {g}
+            </option>
+          ))}
+        </select>
       </div>
     </div>
   );

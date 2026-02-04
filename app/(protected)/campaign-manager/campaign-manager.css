@@ -194,7 +194,6 @@
   border: 1px solid var(--lw-border-muted);
   padding: 1.5rem;
   overflow-y: auto;
-  overflow-x: visible; /* Allow dropdowns to overflow horizontally */
 }
 
 .cm-detail-empty {
@@ -774,44 +773,3 @@
   font-weight: 600;
 }
 
-/* ============================================================
-   DROPDOWN OVERFLOW FIX - Added for CustomDropdown component
-   Ensures dropdown menus appear above other content
-   ============================================================ */
-
-/* Allow dropdowns to overflow their containers */
-.cm-detail-form {
-  overflow: visible !important;
-}
-
-.cm-field {
-  overflow: visible !important;
-  position: relative;
-}
-
-/* Critical: Remove overflow-x restriction from detail panel
-   Note: overflow-y: auto and overflow-x: visible don't work together,
-   so we need to ensure the dropdown portal renders outside this container */
-.cm-detail {
-  overflow-y: auto;
-  overflow-x: clip; /* Changed from visible - allows dropdown to escape */
-  position: relative;
-}
-
-/* Fix for the content container */
-.cm-content {
-  overflow: visible;
-  position: relative;
-}
-
-/* When a field is focused/active, raise its z-index */
-.cm-field:focus-within {
-  z-index: 100;
-  position: relative;
-}
-
-/* Specific fix for dropdown fields - remove clipping */
-.cm-field:has(.custom-dropdown) {
-  overflow: visible !important;
-  position: static !important;
-}
