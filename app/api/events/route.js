@@ -1,6 +1,3 @@
-
-Copy
-
 import { sanitizeRow, sanitizeRows } from "@/lib/api/sanitize";
 import { query } from "@/lib/db";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
@@ -203,16 +200,17 @@ export async function PUT(req) {
   }
 
   if (hasOwn(body, "search_body") || hasOwn(body, "searchBody")) {
-  const sb = body.search_body ?? body.searchBody;
+    const sb = body.search_body ?? body.searchBody;
 
-  // ignore undefined (means "not edited")
-  if (sb !== undefined && typeof sb !== "string" && sb !== null) {
-    return Response.json(
-      { error: "search_body must be a string" },
-      { status: 400 }
-    );
+    // ignore undefined (means "not edited")
+    if (sb !== undefined && typeof sb !== "string" && sb !== null) {
+      return Response.json(
+        { error: "search_body must be a string" },
+        { status: 400 }
+      );
+    }
   }
-}
+  
   if (hasOwn(body, "priority") && !Number.isInteger(body.priority)) {
     return Response.json({ error: "priority must be an integer" }, { status: 400 });
   }
@@ -253,49 +251,6 @@ export async function PUT(req) {
      RETURNING *
     `,
     values
-  );
-
-  return Response.json(
-    rows[0]
-      ? sanitizeRow(rows[0], {
-          name: 200,
-          description: 20000,
-          searchBody: 20000,
-        })
-      : null
-  );
-}
-
-/* -----------------------------------------------------------
-   DELETE /api/events?id=   (SOFT DELETE)
------------------------------------------------------------- */
-export async function DELETE(req) {
-  let ctx;
-  try {
-    ctx = await getTenantContext(req);
-  } catch {
-    return Response.json({ error: "unauthorized" }, { status: 401 });
-  }
-
-  const tenantId = ctx.tenantId;
-  const { searchParams } = new URL(req.url);
-  const id = searchParams.get("id");
-
-  if (!id) {
-    return Response.json({ error: "id required" }, { status: 400 });
-  }
-
-  const { rows } = await query(
-    `
-    UPDATE events
-       SET deleted_at = NOW(),
-           updated_at = NOW()
-     WHERE tenant_id = $1
-       AND id = $2
-       AND deleted_at IS NULL
-     RETURNING *
-    `,
-    [tenantId, id]
   );
 
   return Response.json(
