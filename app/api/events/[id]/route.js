@@ -19,9 +19,7 @@ export async function GET(req, { params }) {
   const tenantId = ctx.tenantId;
   const id = params?.id;
 
-  if (!id) {
-    return Response.json({ error: "id required" }, { status: 400 });
-  }
+  if (!id) return Response.json({ error: "id required" }, { status: 400 });
 
   const { rows } = await query(
     `
@@ -43,16 +41,14 @@ export async function GET(req, { params }) {
     [tenantId, id]
   );
 
-  if (!rows.length) {
-    return Response.json({ error: "Event not found" }, { status: 404 });
-  }
-
   return Response.json(
-    sanitizeRow(rows[0], {
-      name: 200,
-      description: 20000,
-      searchBody: 20000,
-    })
+    rows[0]
+      ? sanitizeRow(rows[0], {
+          name: 200,
+          description: 20000,
+          searchBody: 20000,
+        })
+      : null
   );
 }
 
@@ -70,9 +66,7 @@ export async function DELETE(req, { params }) {
   const tenantId = ctx.tenantId;
   const id = params?.id;
 
-  if (!id) {
-    return Response.json({ error: "id required" }, { status: 400 });
-  }
+  if (!id) return Response.json({ error: "id required" }, { status: 400 });
 
   const { rows } = await query(
     `
@@ -87,15 +81,13 @@ export async function DELETE(req, { params }) {
     [tenantId, id]
   );
 
-  if (!rows.length) {
-    return Response.json({ error: "Event not found" }, { status: 404 });
-  }
-
   return Response.json(
-    sanitizeRow(rows[0], {
-      name: 200,
-      description: 20000,
-      searchBody: 20000,
-    })
+    rows[0]
+      ? sanitizeRow(rows[0], {
+          name: 200,
+          description: 20000,
+          searchBody: 20000,
+        })
+      : null
   );
 }
