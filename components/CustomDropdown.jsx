@@ -1,8 +1,11 @@
 import React, { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 
 export default function CustomDropdown({ value, onChange, options, placeholder = "Select..." }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0, width: 0 });
   const dropdownRef = useRef(null);
+  const buttonRef = useRef(null);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -15,6 +18,18 @@ export default function CustomDropdown({ value, onChange, options, placeholder =
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Update menu position when opened
+  useEffect(() => {
+    if (isOpen && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setMenuPosition({
+        top: rect.bottom + window.scrollY + 4,
+        left: rect.left + window.scrollX,
+        width: rect.width,
+      });
+    }
+  }, [isOpen]);
+
   // Get the display text for the selected value
   const selectedOption = options.find(opt => opt.value === value);
   const displayText = selectedOption ? selectedOption.label : placeholder;
@@ -23,6 +38,7 @@ export default function CustomDropdown({ value, onChange, options, placeholder =
     <div ref={dropdownRef} style={{ position: "relative", width: "fit-content" }}>
       {/* Dropdown trigger button */}
       <button
+        ref={buttonRef}
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         style={{
@@ -70,14 +86,14 @@ export default function CustomDropdown({ value, onChange, options, placeholder =
         </svg>
       </button>
 
-      {/* Dropdown menu */}
-      {isOpen && (
+      {/* Dropdown menu - rendered with Portal to escape overflow constraints */}
+      {isOpen && typeof document !== 'undefined' && createPortal(
         <div
           style={{
             position: "absolute",
-            top: "calc(100% + 4px)",
-            left: 0,
-            right: 0,
+            top: `${menuPosition.top}px`,
+            left: `${menuPosition.left}px`,
+            width: `${menuPosition.width}px`,
             backgroundColor: "rgb(30, 40, 30)",
             border: "1px solid rgb(163, 197, 159)",
             borderRadius: "4px",
@@ -119,9 +135,9 @@ export default function CustomDropdown({ value, onChange, options, placeholder =
               {option.label}
             </div>
           ))}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
 }
-
