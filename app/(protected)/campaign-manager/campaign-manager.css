@@ -773,3 +773,32 @@
   font-weight: 600;
 }
 
+/* ============================================================
+   DROPDOWN OVERFLOW FIX - Added for CustomDropdown component
+   Ensures dropdown menus appear above other content
+   ============================================================ */
+
+/* Allow dropdowns to overflow their containers */
+.cm-detail-form {
+  overflow: visible !important;
+}
+
+.cm-field {
+  overflow: visible !important;
+}
+
+/* Ensure detail panel allows overflow */
+.cm-detail {
+  overflow-y: auto;
+  overflow-x: visible !important;
+}
+
+/* Fix for the content container */
+.cm-content {
+  overflow: visible;
+}
+
+/* When a field is focused/active, raise its z-index */
+.cm-field:focus-within {
+  z-index: 100;
+}

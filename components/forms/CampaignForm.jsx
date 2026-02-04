@@ -100,7 +100,7 @@ export default function CampaignForm({ record, onChange }) {
   }, [record.campaignPackage]);
 
   return (
-    <div className="cm-detail-form">
+    <div className="cm-detail-form" style={{ overflow: "visible" }}>
       {/* --------------------------------------------- */}
       {/* Header */}
       {/* --------------------------------------------- */}
@@ -165,7 +165,7 @@ export default function CampaignForm({ record, onChange }) {
       {/* --------------------------------------------- */}
       {/* Campaign Package */}
       {/* --------------------------------------------- */}
-      <div className="cm-field">
+      <div className="cm-field" style={{ overflow: "visible", position: "relative", zIndex: 10 }}>
         <label className="cm-label">Campaign Package</label>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <CustomDropdown
@@ -180,7 +180,7 @@ export default function CampaignForm({ record, onChange }) {
       {/* --------------------------------------------- */}
       {/* RPG Game */}
       {/* --------------------------------------------- */}
-      <div className="cm-field">
+      <div className="cm-field" style={{ overflow: "visible", position: "relative", zIndex: 9 }}>
         <label className="cm-label">RPG Game</label>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <CustomDropdown

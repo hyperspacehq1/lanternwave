@@ -83,7 +83,7 @@ export default function CustomDropdown({ value, onChange, options, placeholder =
             borderRadius: "4px",
             maxHeight: "300px",
             overflowY: "auto",
-            zIndex: 1000,
+            zIndex: 9999,
             boxShadow: "0 4px 12px rgba(0, 0, 0, 0.5)",
           }}
         >
