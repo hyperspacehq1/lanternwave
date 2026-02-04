@@ -191,6 +191,7 @@ export default function CampaignForm({ record, onChange }) {
               ...RPG_GAME_OPTIONS
             ]}
             placeholder="Select a game…"
+            preferredDirection="up"
           />
         </div>
       </div>

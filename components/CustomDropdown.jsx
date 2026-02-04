@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 
-export default function CustomDropdown({ value, onChange, options, placeholder = "Select..." }) {
+export default function CustomDropdown({ value, onChange, options, placeholder = "Select...", preferredDirection = "auto" }) {
   const [isOpen, setIsOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0, width: 0 });
+  const [dropDirection, setDropDirection] = useState("down"); // "up" or "down"
   const dropdownRef = useRef(null);
   const buttonRef = useRef(null);
 
@@ -22,13 +23,41 @@ export default function CustomDropdown({ value, onChange, options, placeholder =
   useEffect(() => {
     if (isOpen && buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
-      setMenuPosition({
-        top: rect.bottom + window.scrollY + 4,
-        left: rect.left + window.scrollX,
-        width: rect.width,
-      });
+      const maxMenuHeight = 300; // matches maxHeight in menu styles
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      
+      let direction = "down";
+      
+      // Determine direction based on preference and available space
+      if (preferredDirection === "up") {
+        direction = "up";
+      } else if (preferredDirection === "down") {
+        direction = "down";
+      } else {
+        // Auto: choose based on available space
+        direction = spaceBelow < maxMenuHeight && spaceAbove > spaceBelow ? "up" : "down";
+      }
+      
+      setDropDirection(direction);
+      
+      if (direction === "up") {
+        setMenuPosition({
+          top: rect.top + window.scrollY - 4, // Position above button
+          left: rect.left + window.scrollX,
+          width: rect.width,
+          bottom: true, // Flag to indicate drop-up positioning
+        });
+      } else {
+        setMenuPosition({
+          top: rect.bottom + window.scrollY + 4,
+          left: rect.left + window.scrollX,
+          width: rect.width,
+          bottom: false,
+        });
+      }
     }
-  }, [isOpen]);
+  }, [isOpen, preferredDirection]);
 
   // Get the display text for the selected value
   const selectedOption = options.find(opt => opt.value === value);
@@ -91,7 +120,10 @@ export default function CustomDropdown({ value, onChange, options, placeholder =
         <div
           style={{
             position: "absolute",
-            top: `${menuPosition.top}px`,
+            ...(menuPosition.bottom 
+              ? { bottom: `calc(100vh - ${menuPosition.top}px)` } 
+              : { top: `${menuPosition.top}px` }
+            ),
             left: `${menuPosition.left}px`,
             width: `${menuPosition.width}px`,
             backgroundColor: "rgb(30, 40, 30)",
