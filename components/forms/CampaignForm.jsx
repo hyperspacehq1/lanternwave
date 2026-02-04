@@ -61,13 +61,13 @@ export default function CampaignForm({ record, onChange }) {
   // --------------------------------------------------
   // Unified update helper
   // --------------------------------------------------
- const update = (field, value) => {
-  onChange({
-    ...record,
-    [field]: value,
-    // Campaigns do NOT depend on campaign context
-  });
-};
+  const update = (field, value) => {
+    onChange({
+      ...record,
+      [field]: value,
+      // Campaigns do NOT depend on campaign context
+    });
+  };
 
   // --------------------------------------------------
   // Pulse animation on record change
@@ -96,10 +96,10 @@ export default function CampaignForm({ record, onChange }) {
       {/* --------------------------------------------- */}
       <div className={`cm-campaign-header ${pulse ? "pulse" : ""}`}>
         <div className="cm-context-line">
-         <strong>Campaign:</strong>{" "}
-{record._isNew
-  ? "New Campaign"
-  : record.name || "Unnamed Campaign"}
+          <strong>Campaign:</strong>{" "}
+          {record._isNew
+            ? "New Campaign"
+            : record.name || "Unnamed Campaign"}
         </div>
       </div>
 
@@ -158,7 +158,7 @@ export default function CampaignForm({ record, onChange }) {
       <div className="cm-field">
         <label className="cm-label">Campaign Package</label>
         <select
-          className="cm-input"
+          className="cm-select"
           value={record.campaignPackage || "standard"}
           onChange={(e) => update("campaignPackage", e.target.value)}
         >
@@ -173,7 +173,7 @@ export default function CampaignForm({ record, onChange }) {
       <div className="cm-field">
         <label className="cm-label">RPG Game</label>
         <select
-          className="cm-input"
+          className="cm-select"
           value={record.rpgGame || ""}
           onChange={(e) => update("rpgGame", e.target.value || null)}
         >
@@ -185,6 +185,59 @@ export default function CampaignForm({ record, onChange }) {
           ))}
         </select>
       </div>
+
+      <style jsx>{`
+        .cm-select {
+          /* Reset default select styling */
+          appearance: none;
+          -webkit-appearance: none;
+          -moz-appearance: none;
+          
+          /* Custom styling matching your requirements */
+          width: fit-content;
+          min-width: 200px;
+          max-width: 100%;
+          padding: 8px 32px 8px 12px;
+          
+          /* Colors */
+          background-color: transparent;
+          color: rgb(229, 255, 227);
+          border: 1px solid rgb(163, 197, 159);
+          outline: none;
+          
+          /* Typography */
+          font-family: system-ui, -apple-system, "system-ui", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+          font-size: 13px;
+          font-weight: 400;
+          font-style: normal;
+          line-height: normal;
+          
+          /* Layout */
+          border-radius: 4px;
+          cursor: pointer;
+          
+          /* Custom dropdown arrow */
+          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='rgb(229, 255, 227)' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+          background-repeat: no-repeat;
+          background-position: right 10px center;
+        }
+        
+        .cm-select:hover {
+          border-color: rgb(180, 210, 177);
+        }
+        
+        .cm-select:focus {
+          border-color: rgb(163, 197, 159);
+          box-shadow: 0 0 0 2px rgba(163, 197, 159, 0.2);
+        }
+        
+        /* Option styling */
+        .cm-select option {
+          background-color: rgb(30, 40, 30);
+          color: rgb(229, 255, 227);
+          padding: 8px;
+        }
+      `}</style>
     </div>
   );
 }
