@@ -1,0 +1,43 @@
+/* JSON Export layout */
+
+.json-export {
+  padding-left: 2rem;
+  padding-right: 2rem;
+}
+
+/* Optional: cap line length on very wide screens */
+.json-export__content {
+  max-width: 1400px;
+}
+
+/* Input and select styling */
+.json-export input,
+.json-export select {
+  transition: all 0.2s ease;
+}
+
+.json-export input:focus,
+.json-export select:focus {
+  outline: none;
+  border-color: rgba(59, 130, 246, 0.5);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Button hover effects */
+.json-export button {
+  transition: all 0.2s ease;
+}
+
+/* Status animation */
+.json-export .bg-blue-600 {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
