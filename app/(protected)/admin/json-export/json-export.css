@@ -1,43 +1,248 @@
-/* JSON Export layout */
+/* ============================================================
+   JSON EXPORT â€" LANTERNWAVE STYLING
+   Spacious, terminal-inspired export interface
+   ============================================================ */
 
+/* ------------------------------
+   LAYOUT
+------------------------------ */
 .json-export {
-  padding-left: 2rem;
-  padding-right: 2rem;
+  padding: 2rem;
+  background: var(--lw-bg-black, #000000);
+  min-height: 100vh;
+  color: var(--lw-text-main, rgb(229, 255, 227));
+  font-family: var(--font-terminal, system-ui);
 }
 
-/* Optional: cap line length on very wide screens */
 .json-export__content {
-  max-width: 1400px;
+  max-width: 800px;
+  margin: 0 auto;
 }
 
-/* Input and select styling */
-.json-export input,
+/* ------------------------------
+   TYPOGRAPHY
+------------------------------ */
+.json-export h1 {
+  font-family: var(--font-terminal, system-ui);
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--lw-green-primary, rgb(108, 196, 23));
+  margin-bottom: 1.5rem;
+}
+
+.json-export h2 {
+  font-family: var(--font-terminal, system-ui);
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--lw-green-muted, rgb(163, 197, 159));
+  margin-bottom: 2rem;
+  margin-top: 0;
+}
+
+/* ------------------------------
+   FORM GROUPS
+------------------------------ */
+.json-export-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin-top: 2.5rem;
+}
+
+.json-export-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.json-export-label {
+  font-family: var(--font-terminal, system-ui);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--lw-green-muted, rgb(163, 197, 159));
+  text-transform: uppercase;
+}
+
+/* ------------------------------
+   INPUTS & SELECT
+------------------------------ */
+.json-export input[type="text"],
+.json-export input[type="number"],
 .json-export select {
+  width: 100%;
+  min-width: 400px;
+  padding: 12px 16px;
+  
+  font-family: var(--font-ui, system-ui);
+  font-size: 14px;
+  line-height: 1.4;
+  
+  background: #000000;
+  color: var(--lw-text-main, rgb(229, 255, 227));
+  
+  border: 1px solid var(--lw-border-muted, rgba(163, 197, 159, 0.25));
+  border-radius: 4px;
+  
   transition: all 0.2s ease;
+}
+
+.json-export input[type="text"]::placeholder,
+.json-export input[type="number"]::placeholder {
+  color: rgba(163, 197, 159, 0.4);
 }
 
 .json-export input:focus,
 .json-export select:focus {
   outline: none;
-  border-color: rgba(59, 130, 246, 0.5);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  border-color: var(--lw-green-primary, rgb(108, 196, 23));
+  box-shadow: 0 0 0 3px rgba(108, 196, 23, 0.15);
 }
 
-/* Button hover effects */
+.json-export input:hover,
+.json-export select:hover {
+  border-color: var(--lw-green-muted, rgb(163, 197, 159));
+}
+
+/* Custom select arrow */
+.json-export select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='rgb(229, 255, 227)' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 40px;
+  cursor: pointer;
+}
+
+/* ------------------------------
+   BUTTONS
+------------------------------ */
+.json-export-buttons {
+  display: flex;
+  gap: 1rem;
+  margin-top: 2.5rem;
+  flex-wrap: wrap;
+}
+
 .json-export button {
+  padding: 12px 24px;
+  
+  font-family: var(--font-terminal, system-ui);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  
+  border-radius: 4px;
+  cursor: pointer;
+  
   transition: all 0.2s ease;
 }
 
-/* Status animation */
-.json-export .bg-blue-600 {
+/* Primary button (Generate) */
+.json-export button[type="submit"],
+.json-export .btn-primary {
+  background: var(--lw-green-primary, rgb(108, 196, 23));
+  color: #000000;
+  border: 1px solid var(--lw-green-primary, rgb(108, 196, 23));
+}
+
+.json-export button[type="submit"]:hover,
+.json-export .btn-primary:hover {
+  background: rgb(88, 176, 3);
+  border-color: rgb(88, 176, 3);
+  box-shadow: 0 0 16px rgba(108, 196, 23, 0.4);
+  transform: translateY(-1px);
+}
+
+.json-export button[type="submit"]:active,
+.json-export .btn-primary:active {
+  transform: translateY(0);
+}
+
+/* Secondary button (Reset) */
+.json-export button[type="reset"],
+.json-export .btn-secondary {
+  background: transparent;
+  color: var(--lw-green-muted, rgb(163, 197, 159));
+  border: 1px solid var(--lw-border-muted, rgba(163, 197, 159, 0.25));
+}
+
+.json-export button[type="reset"]:hover,
+.json-export .btn-secondary:hover {
+  border-color: var(--lw-green-primary, rgb(108, 196, 23));
+  color: var(--lw-green-primary, rgb(108, 196, 23));
+  box-shadow: 0 0 0 1px var(--lw-green-primary, rgb(108, 196, 23)) inset;
+}
+
+/* ------------------------------
+   STATUS MESSAGES
+------------------------------ */
+.json-export-status {
+  margin-top: 2rem;
+  padding: 16px 20px;
+  border-radius: 4px;
+  font-family: var(--font-ui, system-ui);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.json-export-status.success {
+  background: rgba(108, 196, 23, 0.1);
+  border: 1px solid rgba(108, 196, 23, 0.3);
+  color: var(--lw-green-primary, rgb(108, 196, 23));
+}
+
+.json-export-status.error {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: rgb(248, 113, 113);
+}
+
+.json-export-status.loading {
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  color: rgb(96, 165, 250);
   animation: pulse 2s ease-in-out infinite;
 }
 
+/* ------------------------------
+   ANIMATIONS
+------------------------------ */
 @keyframes pulse {
   0%, 100% {
     opacity: 1;
   }
   50% {
-    opacity: 0.8;
+    opacity: 0.7;
+  }
+}
+
+/* ------------------------------
+   RESPONSIVE
+------------------------------ */
+@media (max-width: 640px) {
+  .json-export {
+    padding: 1.5rem 1rem;
+  }
+  
+  .json-export h1 {
+    font-size: 24px;
+  }
+  
+  .json-export input[type="text"],
+  .json-export input[type="number"],
+  .json-export select {
+    min-width: 100%;
+  }
+  
+  .json-export-buttons {
+    flex-direction: column;
+  }
+  
+  .json-export button {
+    width: 100%;
   }
 }
