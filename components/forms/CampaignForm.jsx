@@ -51,6 +51,13 @@ export default function CampaignForm({ record, onChange }) {
   // --------------------------------------------------
   const [campaignPackages, setCampaignPackages] = useState([]);
   const [packagesLoading, setPackagesLoading] = useState(true);
+  const [packagesError, setPackagesError] = useState(null);
+
+  // --------------------------------------------------
+  // Template Import Status
+  // --------------------------------------------------
+  const [importStatus, setImportStatus] = useState(null); // 'loading', 'success', 'error', 'warning'
+  const [importMessage, setImportMessage] = useState("");
 
   // --------------------------------------------------
   // Guard
@@ -71,7 +78,6 @@ export default function CampaignForm({ record, onChange }) {
     onChange({
       ...record,
       [field]: value,
-      // Campaigns do NOT depend on campaign context
     });
   };
 
@@ -91,12 +97,27 @@ export default function CampaignForm({ record, onChange }) {
   // --------------------------------------------------
   useEffect(() => {
     async function fetchPackages() {
+      console.log("[CampaignForm] Fetching campaign packages...");
+      
       try {
         const res = await fetch("/api/campaign-packages");
+        
+        console.log("[CampaignForm] Campaign packages response status:", res.status);
+        
+        if (!res.ok) {
+          throw new Error(`Failed to fetch packages: ${res.status} ${res.statusText}`);
+        }
+        
         const data = await res.json();
+        console.log("[CampaignForm] Campaign packages loaded:", data);
+        
         setCampaignPackages(data);
+        setPackagesError(null);
+        
       } catch (error) {
-        console.error("Failed to load campaign packages:", error);
+        console.error("[CampaignForm] Failed to load campaign packages:", error);
+        setPackagesError(error.message);
+        
         // Fallback to standard option
         setCampaignPackages([
           {
@@ -112,6 +133,32 @@ export default function CampaignForm({ record, onChange }) {
 
     fetchPackages();
   }, []);
+
+  // --------------------------------------------------
+  // Monitor template selection changes
+  // --------------------------------------------------
+  useEffect(() => {
+    if (record.campaignPackage) {
+      console.log("[CampaignForm] Template selected:", record.campaignPackage);
+      
+      const selectedTemplate = campaignPackages.find(
+        pkg => pkg.value === record.campaignPackage
+      );
+      
+      if (selectedTemplate) {
+        console.log("[CampaignForm] Template details:", selectedTemplate);
+        
+        // Show info about template
+        if (selectedTemplate.filename) {
+          setImportStatus("info");
+          setImportMessage(`Template "${selectedTemplate.label}" will be imported when you save.`);
+        } else {
+          setImportStatus(null);
+          setImportMessage("");
+        }
+      }
+    }
+  }, [record.campaignPackage, campaignPackages]);
 
   // --------------------------------------------------
   // Defaults
@@ -135,6 +182,27 @@ export default function CampaignForm({ record, onChange }) {
             : record.name || "Unnamed Campaign"}
         </div>
       </div>
+
+      {/* --------------------------------------------- */}
+      {/* Packages Loading Error */}
+      {/* --------------------------------------------- */}
+      {packagesError && (
+        <div className="cm-alert cm-alert-error">
+          <strong>Warning:</strong> Could not load campaign templates. 
+          {packagesError}
+          <br />
+          Only "Standard" option is available.
+        </div>
+      )}
+
+      {/* --------------------------------------------- */}
+      {/* Import Status Messages */}
+      {/* --------------------------------------------- */}
+      {importStatus && importMessage && (
+        <div className={`cm-alert cm-alert-${importStatus}`}>
+          {importMessage}
+        </div>
+      )}
 
       {/* --------------------------------------------- */}
       {/* Campaign Name */}
@@ -189,11 +257,14 @@ export default function CampaignForm({ record, onChange }) {
       {/* Campaign Package - Now Dynamic! */}
       {/* --------------------------------------------- */}
       <div className="cm-field">
-        <label className="cm-label">Campaign Package</label>
+        <label className="cm-label">Campaign Template</label>
         <select
           className="cm-input"
           value={record.campaignPackage || "standard"}
-          onChange={(e) => update("campaignPackage", e.target.value)}
+          onChange={(e) => {
+            console.log("[CampaignForm] User selected template:", e.target.value);
+            update("campaignPackage", e.target.value);
+          }}
           disabled={packagesLoading}
         >
           {packagesLoading ? (
@@ -206,10 +277,18 @@ export default function CampaignForm({ record, onChange }) {
             ))
           )}
         </select>
+        
         {/* Show description of selected package */}
         {!packagesLoading && record.campaignPackage && (
           <div className="cm-field-hint">
             {campaignPackages.find(p => p.value === record.campaignPackage)?.description}
+          </div>
+        )}
+        
+        {/* Debug info in development */}
+        {process.env.NODE_ENV === 'development' && record.campaignPackage !== 'standard' && (
+          <div className="cm-field-hint" style={{ fontSize: '11px', opacity: 0.7, marginTop: '4px' }}>
+            <strong>Debug:</strong> Template file: {campaignPackages.find(p => p.value === record.campaignPackage)?.filename || 'none'}
           </div>
         )}
       </div>
@@ -232,6 +311,24 @@ export default function CampaignForm({ record, onChange }) {
           ))}
         </select>
       </div>
+
+      {/* --------------------------------------------- */}
+      {/* Debug Panel (Development Only) */}
+      {/* --------------------------------------------- */}
+      {process.env.NODE_ENV === 'development' && (
+        <details style={{ marginTop: '20px', padding: '10px', background: '#f5f5f5', borderRadius: '4px' }}>
+          <summary style={{ cursor: 'pointer', fontWeight: 'bold' }}>Debug Info</summary>
+          <pre style={{ fontSize: '11px', marginTop: '10px', overflow: 'auto' }}>
+            {JSON.stringify({
+              campaignPackage: record.campaignPackage,
+              availablePackages: campaignPackages.length,
+              packagesLoading,
+              packagesError,
+              selectedTemplate: campaignPackages.find(p => p.value === record.campaignPackage),
+            }, null, 2)}
+          </pre>
+        </details>
+      )}
     </div>
   );
 }
