@@ -1,10 +1,10 @@
 import { Suspense } from "react";
-import ResetPasswordClient from "./ResetPasswordClient";
+import ForgotPasswordClient from "./ForgotPasswordClient";
 import "../auth.css";
 
 export const dynamic = "force-dynamic";
 
-export default function ResetPasswordPage() {
+export default function ForgotPasswordPage() {
   return (
     <main className="lw-main">
       <div className="lw-auth">
@@ -26,7 +26,7 @@ export default function ResetPasswordPage() {
             </div>
           }
         >
-          <ResetPasswordClient />
+          <ForgotPasswordClient />
         </Suspense>
       </div>
     </main>
