@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import "../auth.css";
 
@@ -117,15 +117,5 @@ function ResetPasswordForm() {
 }
 
 export default function ResetPasswordClient() {
-  return (
-    <Suspense fallback={
-      <div className="lw-auth-card">
-        <h1 className="lw-auth-title">Set New Password</h1>
-        <div style={{ textAlign: 'center', padding: '2rem' }}>Loading...</div>
-      </div>
-    }>
-      <ResetPasswordForm />
-    </Suspense>
-  );
+  return <ResetPasswordForm />;
 }
-
