@@ -45,6 +45,12 @@ const RPG_GAMES = [
 
 export default function CampaignForm({ record, onChange }) {
   const { campaign } = useCampaignContext();
+  
+  // --------------------------------------------------
+  // Campaign Packages State
+  // --------------------------------------------------
+  const [campaignPackages, setCampaignPackages] = useState([]);
+  const [packagesLoading, setPackagesLoading] = useState(true);
 
   // --------------------------------------------------
   // Guard
@@ -61,13 +67,13 @@ export default function CampaignForm({ record, onChange }) {
   // --------------------------------------------------
   // Unified update helper
   // --------------------------------------------------
- const update = (field, value) => {
-  onChange({
-    ...record,
-    [field]: value,
-    // Campaigns do NOT depend on campaign context
-  });
-};
+  const update = (field, value) => {
+    onChange({
+      ...record,
+      [field]: value,
+      // Campaigns do NOT depend on campaign context
+    });
+  };
 
   // --------------------------------------------------
   // Pulse animation on record change
@@ -79,6 +85,33 @@ export default function CampaignForm({ record, onChange }) {
     const t = setTimeout(() => setPulse(false), 800);
     return () => clearTimeout(t);
   }, [record.id]);
+
+  // --------------------------------------------------
+  // Fetch Campaign Packages
+  // --------------------------------------------------
+  useEffect(() => {
+    async function fetchPackages() {
+      try {
+        const res = await fetch("/api/campaign-packages");
+        const data = await res.json();
+        setCampaignPackages(data);
+      } catch (error) {
+        console.error("Failed to load campaign packages:", error);
+        // Fallback to standard option
+        setCampaignPackages([
+          {
+            value: "standard",
+            label: "Standard (Blank Campaign)",
+            description: "Start with an empty campaign and build it manually.",
+          },
+        ]);
+      } finally {
+        setPackagesLoading(false);
+      }
+    }
+
+    fetchPackages();
+  }, []);
 
   // --------------------------------------------------
   // Defaults
@@ -96,10 +129,10 @@ export default function CampaignForm({ record, onChange }) {
       {/* --------------------------------------------- */}
       <div className={`cm-campaign-header ${pulse ? "pulse" : ""}`}>
         <div className="cm-context-line">
-         <strong>Campaign:</strong>{" "}
-{record._isNew
-  ? "New Campaign"
-  : record.name || "Unnamed Campaign"}
+          <strong>Campaign:</strong>{" "}
+          {record._isNew
+            ? "New Campaign"
+            : record.name || "Unnamed Campaign"}
         </div>
       </div>
 
@@ -153,7 +186,7 @@ export default function CampaignForm({ record, onChange }) {
       </div>
 
       {/* --------------------------------------------- */}
-      {/* Campaign Package */}
+      {/* Campaign Package - Now Dynamic! */}
       {/* --------------------------------------------- */}
       <div className="cm-field">
         <label className="cm-label">Campaign Package</label>
@@ -161,10 +194,24 @@ export default function CampaignForm({ record, onChange }) {
           className="cm-input"
           value={record.campaignPackage || "standard"}
           onChange={(e) => update("campaignPackage", e.target.value)}
+          disabled={packagesLoading}
         >
-          <option value="standard">Standard</option>
-          <option value="premium">Premium</option>
+          {packagesLoading ? (
+            <option value="standard">Loading templates...</option>
+          ) : (
+            campaignPackages.map((pkg) => (
+              <option key={pkg.value} value={pkg.value}>
+                {pkg.label}
+              </option>
+            ))
+          )}
         </select>
+        {/* Show description of selected package */}
+        {!packagesLoading && record.campaignPackage && (
+          <div className="cm-field-hint">
+            {campaignPackages.find(p => p.value === record.campaignPackage)?.description}
+          </div>
+        )}
       </div>
 
       {/* --------------------------------------------- */}
@@ -188,3 +235,4 @@ export default function CampaignForm({ record, onChange }) {
     </div>
   );
 }
+
