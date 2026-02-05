@@ -1,10 +1,19 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
 import { rateLimit } from "@/lib/rateLimit";
+import crypto from "crypto";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+/**
+ * POST /api/auth/forgot-password
+ *
+ * Body:
+ * {
+ *   email: string
+ * }
+ */
 export async function POST(req) {
   try {
     /* -------------------------
@@ -16,7 +25,7 @@ export async function POST(req) {
 
       await rateLimit({
         ip,
-        route: "forgot-username",
+        route: "forgot-password",
       });
     } catch {
       // Never block auth on rate-limit infra
@@ -33,7 +42,7 @@ export async function POST(req) {
        ------------------------- */
     const result = await query(
       `
-      SELECT username
+      SELECT id, email, username
       FROM users
       WHERE LOWER(email) = LOWER($1)
         AND deleted_at IS NULL
@@ -43,21 +52,46 @@ export async function POST(req) {
     );
 
     if (result.rows.length) {
-      const { username } = result.rows[0];
+      const user = result.rows[0];
 
+      /* -------------------------
+         Generate reset code
+         ------------------------- */
+      const resetCode = crypto.randomBytes(32).toString("hex");
+      const expiresAt = new Date(Date.now() + 3600000); // 1 hour from now
+
+      // Store reset code in email_verifications table
+      await query(
+        `
+        INSERT INTO email_verifications (user_id, code, expires_at)
+        VALUES ($1, $2, $3)
+        `,
+        [user.id, resetCode, expiresAt]
+      );
+
+      /* -------------------------
+         Build reset URL
+         ------------------------- */
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://lanternwave.com";
+      const resetUrl = `${baseUrl}/reset-password?code=${resetCode}`;
+
+      /* -------------------------
+         Send reset email
+         ------------------------- */
       try {
         // ✅ LAZY IMPORT (BUILD SAFE)
-        const { sendForgotUsernameEmail } = await import("@/lib/server/email");
+        const { sendPasswordResetEmail } = await import("@/lib/server/email");
 
-        await sendForgotUsernameEmail({
+        await sendPasswordResetEmail({
           to: email,
-          username,
+          resetUrl: resetUrl, // ✅ This matches your email.js parameter name
+          username: user.username,
           userAgent: req.headers.get("user-agent"),
         });
 
-        console.log("FORGOT USERNAME EMAIL SENT", { email });
+        console.log("PASSWORD RESET EMAIL SENT", { email });
       } catch (emailErr) {
-        console.error("FORGOT USERNAME EMAIL FAILED", {
+        console.error("PASSWORD RESET EMAIL FAILED", {
           email,
           error: emailErr?.message,
         });
@@ -65,13 +99,12 @@ export async function POST(req) {
     }
 
     /* -------------------------
-       Always return OK
+       Always return OK (security best practice)
        ------------------------- */
     return NextResponse.json({ ok: true });
 
   } catch (err) {
-    console.error("FORGOT USERNAME ERROR:", err);
+    console.error("FORGOT PASSWORD ERROR:", err);
     return NextResponse.json({ ok: true });
   }
 }
-
