@@ -55,7 +55,7 @@ export default function SignupPage() {
         return;
       }
 
-      router.push("/gm-dashboard");
+      router.push("/?account_created=1");
     } catch (err) {
       console.error("SIGNUP NETWORK ERROR", err);
       setError("Network or server error — see console");

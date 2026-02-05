@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import "../auth.css";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -11,6 +10,12 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [success] = useState(() => {
+    if (typeof window !== "undefined") {
+      return new URLSearchParams(window.location.search).get("account_created") === "1";
+    }
+    return false;
+  });
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -94,6 +99,7 @@ export default function LoginPage() {
               className="lw-auth-input"
             />
 
+            {success && <div className="lw-auth-success">Account created! Sign in below.</div>}
             {error && <div className="lw-auth-error">{error}</div>}
 
             <button

@@ -582,3 +582,9 @@ button {
   padding: 8px 12px !important;
   height: auto !important;
 }
+
+.lw-auth-success {
+  color: #4ade80;
+  font-size: 0.9rem;
+  text-align: center;
+}
