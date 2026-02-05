@@ -1,59 +1,39 @@
 import { NextResponse } from "next/server";
-import crypto from "crypto";
 import { query } from "@/lib/db";
 import { rateLimit } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/**
- * POST /api/auth/forgot-password
- */
 export async function POST(req) {
   try {
-    /* --------------------------------
-       SAFE rate limiting
-       -------------------------------- */
-    let limit = { ok: true };
-
+    /* -------------------------
+       Rate limit
+       ------------------------- */
     try {
       const ip =
         req.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
 
-      limit = await rateLimit({
+      await rateLimit({
         ip,
-        route: "forgot-password",
+        route: "forgot-username",
       });
-    } catch (err) {
-      // Rate limiting must NEVER break password recovery
-      console.warn("Rate limit skipped (forgot-password):", err);
+    } catch {
+      // Never block auth on rate-limit infra
     }
 
-    if (!limit.ok) {
-      return NextResponse.json(
-        { error: "Too many requests. Try again later." },
-        { status: 429 }
-      );
-    }
-
-    /* --------------------------------
-       Parse request
-       -------------------------------- */
     const { email } = await req.json();
 
     if (!email) {
-      return NextResponse.json(
-        { error: "Email required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ ok: true });
     }
 
-    /* --------------------------------
-       Find user (no enumeration)
-       -------------------------------- */
-    const userRes = await query(
+    /* -------------------------
+       Lookup user (no enumeration)
+       ------------------------- */
+    const result = await query(
       `
-      SELECT id, first_name
+      SELECT username
       FROM users
       WHERE LOWER(email) = LOWER($1)
         AND deleted_at IS NULL
@@ -62,64 +42,36 @@ export async function POST(req) {
       [email]
     );
 
-    // Always return ok to prevent enumeration
-    if (!userRes.rows.length) {
-      return NextResponse.json({ ok: true });
+    if (result.rows.length) {
+      const { username } = result.rows[0];
+
+      try {
+        // ✅ LAZY IMPORT (BUILD SAFE)
+        const { sendForgotUsernameEmail } = await import("@/lib/server/email");
+
+        await sendForgotUsernameEmail({
+          to: email,
+          username,
+          userAgent: req.headers.get("user-agent"),
+        });
+
+        console.log("FORGOT USERNAME EMAIL SENT", { email });
+      } catch (emailErr) {
+        console.error("FORGOT USERNAME EMAIL FAILED", {
+          email,
+          error: emailErr?.message,
+        });
+      }
     }
 
-    const { id: userId, first_name } = userRes.rows[0];
-
-    /* --------------------------------
-       Generate reset token
-       -------------------------------- */
-    const code = crypto.randomBytes(32).toString("hex");
-    const expiresAt = new Date(Date.now() + 1000 * 60 * 60); // 1 hour
-
-    await query(
-      `
-      INSERT INTO email_verifications (user_id, code, expires_at)
-      VALUES ($1, $2, $3)
-      `,
-      [userId, code, expiresAt]
-    );
-
-    /* --------------------------------
-       Send reset email (LAZY IMPORT)
-       -------------------------------- */
-    const resetUrl = `https://lanternwave.com/reset-password?code=${code}`;
-
-    try {
-      const { sendPasswordResetEmail } = await import("@/lib/server/email");
-
-      await sendPasswordResetEmail({
-        to: email,
-        resetUrl,
-        username: first_name,
-        userAgent: req.headers.get("user-agent"),
-      });
-
-      console.log("PASSWORD RESET EMAIL SENT", {
-        email,
-        userId,
-      });
-    } catch (emailErr) {
-      console.error("PASSWORD RESET EMAIL FAILED", {
-        email,
-        userId,
-        error: emailErr?.message,
-      });
-
-      // preserve existing behavior
-      throw emailErr;
-    }
-
+    /* -------------------------
+       Always return OK
+       ------------------------- */
     return NextResponse.json({ ok: true });
-  } catch (err) {
-    console.error("FORGOT PASSWORD ERROR:", err);
 
-    return NextResponse.json(
-      { error: "Server error" },
-      { status: 500 }
-    );
+  } catch (err) {
+    console.error("FORGOT USERNAME ERROR:", err);
+    return NextResponse.json({ ok: true });
   }
 }
+
