@@ -2,6 +2,7 @@ import { sanitizeRow, sanitizeRows } from "@/lib/api/sanitize";
 import { query } from "@/lib/db";
 import { fromDb } from "@/lib/campaignMapper";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
+import { applyTemplate } from "@/lib/campaignImporter";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -92,6 +93,7 @@ export async function GET(req) {
 
 /* -----------------------------
    POST /api/campaigns
+   Now with template import support
 ----------------------------- */
 export async function POST(req) {
   let ctx;
@@ -101,7 +103,7 @@ export async function POST(req) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Plan enforcement (unchanged)
+  // Plan enforcement
   const { getCurrentPlan, getPlanLimits } = await import("@/lib/plans");
   const plan = getCurrentPlan(ctx);
   const { maxCampaigns } = getPlanLimits(plan);
@@ -147,6 +149,7 @@ export async function POST(req) {
     return Response.json({ error: "Invalid RPG game" }, { status: 400 });
   }
 
+  // Create the campaign first
   const { rows } = await query(
     `
     INSERT INTO campaigns (
@@ -172,8 +175,26 @@ export async function POST(req) {
     ]
   );
 
+  const newCampaign = rows[0];
+
+  // If a template is specified (and it's not "standard"), apply it
+  if (campaignPackage && campaignPackage !== "standard") {
+    try {
+      const templateResult = await applyTemplate(
+        ctx.tenantId, 
+        newCampaign.id, 
+        campaignPackage
+      );
+      console.log("Template applied:", templateResult);
+    } catch (error) {
+      console.error("Failed to apply template:", error);
+      // Don't fail campaign creation if template fails
+      // Campaign exists, just without template data
+    }
+  }
+
   return Response.json(
-    sanitizeRow(fromDb(rows[0]), {
+    sanitizeRow(fromDb(newCampaign), {
       name: 120,
       description: 10000,
       worldSetting: 10000,
@@ -267,7 +288,6 @@ export async function PUT(req) {
 
 /* -----------------------------
    DELETE /api/campaigns?id=
-   (MATCHES LOCATIONS BEHAVIOR)
 ----------------------------- */
 export async function DELETE(req) {
   let ctx;
@@ -297,7 +317,6 @@ export async function DELETE(req) {
     [ctx.tenantId, id]
   );
 
-  // IMPORTANT: no throw, no 404 – same contract as Locations
   return Response.json(
     rows[0]
       ? sanitizeRow(fromDb(rows[0]), {
@@ -311,3 +330,4 @@ export async function DELETE(req) {
       : null
   );
 }
+

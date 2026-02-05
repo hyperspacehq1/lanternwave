@@ -135,40 +135,17 @@ export async function PUT(req, { params }) {
 /* -----------------------------
    DELETE /api/campaigns/[id]
 ----------------------------- */
-export async function DELETE(req, ctxArg) {
-  console.log("=== CAMPAIGN DELETE HIT ===");
-
-  console.log("raw ctxArg:", ctxArg);
-
+export async function DELETE(req, { params }) {
   let ctx;
   try {
     ctx = await getTenantContext(req);
-  } catch (e) {
-    console.log("getTenantContext FAILED", e);
+  } catch {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  console.log("tenantId:", ctx?.tenantId);
-  console.log("userId:", ctx?.user?.id);
-
-  const url = new URL(req.url);
-  console.log("req.url:", req.url);
-  console.log("searchParams:", Object.fromEntries(url.searchParams.entries()));
-
-  const params = ctxArg?.params;
-  console.log("params:", params);
-  console.log("params?.id:", params?.id);
-  console.log("params?.campaign_id:", params?.campaign_id);
-
-  const id =
-    params?.id ??
-    params?.campaign_id ??
-    url.searchParams.get("id");
-
-  console.log("FINAL RESOLVED id:", id);
+  const id = params?.id;
 
   if (!id) {
-    console.log("❌ ABORTING: id is missing");
     return Response.json({ error: "id required" }, { status: 400 });
   }
 
@@ -185,13 +162,9 @@ export async function DELETE(req, ctxArg) {
     [id, ctx.tenantId]
   );
 
-  console.log("rows returned:", rows);
-
   if (!rows.length) {
-    console.log("❌ UPDATE MATCHED ZERO ROWS");
     return Response.json({ error: "Not found" }, { status: 404 });
   }
 
-  console.log("✅ DELETE SUCCESS");
   return Response.json({ ok: true });
 }
