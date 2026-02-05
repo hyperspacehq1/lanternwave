@@ -77,17 +77,30 @@ export async function POST(req) {
       );
     }
 
+    // Get campaign_id from the session
+    const sessionResult = await query(
+      `SELECT campaign_id FROM sessions WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+      [session_id, tenantId]
+    );
+
+    if (!sessionResult.rows.length) {
+      return Response.json({ error: "Session not found" }, { status: 404 });
+    }
+
+    const campaignId = sessionResult.rows[0].campaign_id;
+
     await query(
       `
       INSERT INTO session_encounters (
         tenant_id,
+        campaign_id,
         session_id,
         encounter_id,
         created_at
       )
-      VALUES ($1, $2, $3, NOW())
+      VALUES ($1, $2, $3, $4, NOW())
       `,
-      [tenantId, session_id, encounter_id]
+      [tenantId, campaignId, session_id, encounter_id]
     );
 
     return Response.json({ ok: true }, { status: 201 });

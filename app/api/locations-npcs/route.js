@@ -78,17 +78,30 @@ export async function POST(req) {
       );
     }
 
+    // Get campaign_id from the location
+    const locationResult = await query(
+      `SELECT campaign_id FROM locations WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+      [location_id, tenantId]
+    );
+
+    if (!locationResult.rows.length) {
+      return Response.json({ error: "Location not found" }, { status: 404 });
+    }
+
+    const campaignId = locationResult.rows[0].campaign_id;
+
     await query(
       `
       INSERT INTO location_npcs (
         tenant_id,
+        campaign_id,
         location_id,
         npc_id,
         created_at
       )
-      VALUES ($1, $2, $3, NOW())
+      VALUES ($1, $2, $3, $4, NOW())
       `,
-      [tenantId, location_id, npc_id]
+      [tenantId, campaignId, location_id, npc_id]
     );
 
     return Response.json({ ok: true }, { status: 201 });
