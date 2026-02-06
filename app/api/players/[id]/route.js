@@ -42,6 +42,7 @@ const PLAYER_SANITIZE = {
   email: 120,
   initiative_score: true,
   initiative_bonus: true,
+  initiative_current: true,
 };
 
 /* -------- GET -------- */
@@ -90,7 +91,7 @@ export async function PUT(req, { params }) {
       values.push(parseOptionalString(body[f]));
     }
 
-    for (const f of ["sanity","current_sanity","initiative_score","initiative_bonus"]) {
+    for (const f of ["sanity","current_sanity","initiative_score","initiative_bonus","initiative_current"]) {
       if (!hasOwn(body, f)) continue;
       sets.push(`${f} = $${i++}`);
       values.push(parseOptionalInt(body[f], f));
