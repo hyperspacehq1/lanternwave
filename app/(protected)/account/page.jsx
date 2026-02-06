@@ -298,7 +298,7 @@ const updateAudioSetting = (key, value) => {
     Enable Player Page Audio Output
   </span>
 
-  <Tooltip content={TOOLTIPS.account.audio_player}>
+  <Tooltip content={{ body: TOOLTIPS.account.audio_player.body }}>
     <span
       className="beacon-tooltip-icon"
       aria-label="More info"
@@ -345,7 +345,7 @@ const updateAudioSetting = (key, value) => {
                       {label}
                     </span>
 
-                    <Tooltip content={TOOLTIPS.account[key]}>
+                    <Tooltip content={{ body: TOOLTIPS.account[key].body }}>
                       <span
                         className="beacon-tooltip-icon"
                         aria-label="More info"
@@ -365,3 +365,4 @@ const updateAudioSetting = (key, value) => {
     </div>
   );
 }
+
