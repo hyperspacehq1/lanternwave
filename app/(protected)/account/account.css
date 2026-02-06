@@ -248,6 +248,10 @@
     transition: none;
     animation: none;
   }
+
+  .upgrade-btn .upgrade-text {
+    transition: none;
+  }
 }
 
 .beacon-debug {
@@ -296,6 +300,24 @@
 .account-action[disabled] {
   pointer-events: none;
   border-style: dashed;
+}
+
+/* =========================
+   UPGRADE BUTTON ANIMATION
+   ========================= */
+
+.upgrade-btn .upgrade-text {
+  display: inline-block;
+  opacity: 1;
+  transition: opacity 0.3s ease;
+}
+
+.upgrade-btn.fading .upgrade-text {
+  opacity: 0;
+}
+
+.upgrade-btn:not([disabled]) {
+  cursor: pointer;
 }
 
 .beacon-tooltip-icon {

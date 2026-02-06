@@ -22,6 +22,7 @@ export default function AccountPage() {
   const [audioSettings, setAudioSettings] = useState({
   player_enabled: false,
 });
+  const [upgradeHint, setUpgradeHint] = useState(false);
 
   const loadingRef = useRef(false);
 
@@ -188,11 +189,20 @@ const updateAudioSetting = (key, value) => {
                 </div>
 
                 <button
-                  className="account-action"
-                  disabled
-                  title="Upgrades not available yet"
+                  className={`account-action upgrade-btn${upgradeHint === "fade-out" || upgradeHint === "fade-back" ? " fading" : ""}`}
+                  onClick={() => {
+                    if (upgradeHint) return;
+                    setUpgradeHint("fade-out");
+                    setTimeout(() => setUpgradeHint("hint"), 300);
+                    setTimeout(() => setUpgradeHint("fade-back"), 2000);
+                    setTimeout(() => setUpgradeHint(false), 2300);
+                  }}
                 >
-                  Upgrade
+                  <span className="upgrade-text">
+                    {upgradeHint === "hint" || upgradeHint === "fade-back"
+                      ? "Coming Soon"
+                      : "Upgrade"}
+                  </span>
                 </button>
               </div>
             </div>
