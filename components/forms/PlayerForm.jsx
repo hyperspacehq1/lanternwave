@@ -167,8 +167,8 @@ export default function PlayerForm({ record, onChange }) {
           type="number"
           className="cm-input"
           value={
-            Number.isInteger(record.initiative_score)
-              ? record.initiative_score
+            Number.isInteger(record.initiative_score ?? record.initiativeScore)
+              ? (record.initiative_score ?? record.initiativeScore)
               : ""
           }
           onChange={(e) =>
@@ -187,8 +187,8 @@ export default function PlayerForm({ record, onChange }) {
           type="number"
           className="cm-input"
           value={
-            Number.isInteger(record.initiative_bonus)
-              ? record.initiative_bonus
+            Number.isInteger(record.initiative_bonus ?? record.initiativeBonus)
+              ? (record.initiative_bonus ?? record.initiativeBonus)
               : ""
           }
           onChange={(e) =>

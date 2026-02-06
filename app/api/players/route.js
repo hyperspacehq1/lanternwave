@@ -43,7 +43,7 @@ const PLAYER_SANITIZE = {
   email: 120,
   initiative_score: true,
   initiative_bonus: true,
-initiative_current: true,
+  initiative_current: true,
 };
 
 /* ---------------- GET ---------------- */
@@ -107,8 +107,8 @@ export async function POST(req) {
     const current_sanity =
       parseOptionalInt(body.current_sanity, "current_sanity") ?? sanity;
 
-    const initiative_score = parseOptionalInt(body.initiative_score, "initiative_score");
-    const initiative_bonus = parseOptionalInt(body.initiative_bonus, "initiative_bonus");
+    const initiative_score = parseOptionalInt(body.initiative_score, "initiative_score") ?? 0;
+    const initiative_bonus = parseOptionalInt(body.initiative_bonus, "initiative_bonus") ?? 0;
 
     const { rows } = await query(
       `INSERT INTO players (
