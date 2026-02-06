@@ -338,6 +338,10 @@ const updateAudioSetting = (key, value) => {
     "player_sanity_tracker",
     "Cthulhu 7th Ed. Player Sanity Tracker (GM Dashboard)",
   ],
+  [
+    "player_initiative_tracker",
+    "Player Initiative Tracker (GM Dashboard)",
+  ],
 ].map(([key, label]) => (
                 <div className="account-row" key={key}>
                   <label className="account-label">

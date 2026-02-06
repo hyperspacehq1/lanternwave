@@ -33,6 +33,18 @@ export default function PlayerCharactersWidget({ campaignId }) {
   // ✅ NEW: notice text shown when attempting to roll with no selection
   const [sanityNotice, setSanityNotice] = useState("");
 
+  // 🎯 Initiative UI
+  const [initiativeMode, setInitiativeMode] = useState(false);
+  const [initiativeEnabled, setInitiativeEnabled] = useState(false);
+
+  // initiativeState[playerId] = { score, bonus, current }
+  const [initiativeState, setInitiativeState] = useState({});
+
+  // initiativeFlash[playerId] = { key, value, tone }
+  const [initiativeFlash, setInitiativeFlash] = useState({});
+
+  const [initiativeNotice, setInitiativeNotice] = useState("");
+
   /* -----------------------------------------------------------
      ✅ FEATURE GATING — Beacons 1234556789
   ------------------------------------------------------------ */
@@ -44,8 +56,9 @@ export default function PlayerCharactersWidget({ campaignId }) {
       .then((r) => r.json())
       .then((d) => {
         setSanityEnabled(!!d?.account?.beacons?.player_sanity_tracker);
+        setInitiativeEnabled(!!d?.account?.beacons?.player_initiative_tracker);
       })
-      .catch(() => setSanityEnabled(false));
+      .catch(() => { setSanityEnabled(false); setInitiativeEnabled(false); });
   }, []);
 
   /* -----------------------------------------------------------
@@ -65,6 +78,7 @@ export default function PlayerCharactersWidget({ campaignId }) {
       setOrder(s.order || []);
       if (s.pos) setPos(s.pos);
       setSanityMode(!!s.sanityMode);
+      setInitiativeMode(!!s.initiativeMode);
     } catch {}
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -81,6 +95,7 @@ export default function PlayerCharactersWidget({ campaignId }) {
           order,
           pos,
           sanityMode,
+          initiativeMode,
           ...next,
         })
       );
@@ -202,6 +217,19 @@ export default function PlayerCharactersWidget({ campaignId }) {
               ),
               lastLoss: next[pid]?.lastLoss ?? 0,
               lastUpdatedAt: Date.now(),
+            };
+          }
+          return next;
+        });
+
+        setInitiativeState((prev) => {
+          const next = { ...prev };
+          for (const p of list) {
+            const pid = p.id;
+            next[pid] = {
+              score: Math.trunc(Number(p.initiative_score ?? 0)),
+              bonus: Math.trunc(Number(p.initiative_bonus ?? 0)),
+              current: Math.trunc(Number(p.initiative_current ?? 0)),
             };
           }
           return next;
@@ -464,6 +492,100 @@ const hasSelection = selectedIds.length > 0;
   }
 
   /* -----------------------------------------------------------
+     Initiative helpers
+  ------------------------------------------------------------ */
+  function showInitiativeFlash(playerId, value) {
+    const k = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+    setInitiativeFlash((prev) => ({
+      ...prev,
+      [playerId]: { key: k, tone: "blue", value: `INT ${value}` },
+    }));
+
+    setTimeout(() => {
+      setInitiativeFlash((prev) => {
+        const next = { ...prev };
+        if (next[playerId]?.key === k) delete next[playerId];
+        return next;
+      });
+    }, 2000);
+  }
+
+  async function rollInitiativeForAll(rollType) {
+    if (!campaignId || !initiativeEnabled) return;
+
+    if (initiativeNotice) setInitiativeNotice("");
+
+    try {
+      const res = await fetch("/api/initiative/roll", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          campaign_id: campaignId,
+          roll_type: rollType,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || "Initiative roll failed");
+
+      if (Array.isArray(data.players)) {
+        setInitiativeState((prev) => {
+          const next = { ...prev };
+          for (const r of data.players) {
+            next[r.player_id] = {
+              ...(next[r.player_id] || {}),
+              current: r.initiative_current,
+            };
+          }
+          return next;
+        });
+
+        for (const r of data.players) {
+          showInitiativeFlash(r.player_id, r.initiative_current);
+        }
+      }
+    } catch {
+      setInitiativeNotice("Initiative roll failed.");
+    }
+  }
+
+  async function resetAllInitiative() {
+    if (!campaignId) return;
+
+    const ok = window.confirm(
+      "Reset initiative for ALL players in this campaign?"
+    );
+    if (!ok) return;
+
+    try {
+      const res = await fetch("/api/initiative/reset", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ campaign_id: campaignId }),
+      });
+
+      if (!res.ok) throw new Error("Reset failed");
+
+      setInitiativeState((prev) => {
+        const next = { ...prev };
+        for (const id in next) {
+          const s = next[id];
+          next[id] = {
+            ...s,
+            current: (s.score || 0) + (s.bonus || 0),
+          };
+        }
+        return next;
+      });
+    } catch {
+      alert("Failed to reset initiative");
+    }
+  }
+
+  /* -----------------------------------------------------------
      RENDER
   ------------------------------------------------------------ */
   return (
@@ -486,6 +608,34 @@ const hasSelection = selectedIds.length > 0;
         <div className="player-widget__title">Players </div>
 
         <div className="player-widget__controls">
+          {initiativeEnabled && (
+            <span
+              className={`player-widget__icon player-widget__icon--initiative ${initiativeMode ? "active" : ""}`}
+              onPointerDown={(e) => e.stopPropagation()}
+              title="Initiative Mode"
+              onClick={() => {
+                const v = !initiativeMode;
+                setInitiativeMode(v);
+                persistUI({ initiativeMode: v });
+              }}
+            >
+              <svg
+                className="player-widget__initiative-icon"
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="#6cc5f0"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+              </svg>
+            </span>
+          )}
+
           {sanityEnabled && (
             <span
               className={`player-widget__icon ${sanityMode ? "active" : ""}`}
@@ -535,6 +685,85 @@ const hasSelection = selectedIds.length > 0;
 
       {!collapsed && (
         <div className="player-widget__body">
+          {/* 🎯 INITIATIVE BAR (above sanity bar) */}
+          {initiativeEnabled && initiativeMode && (
+            <div
+              className="player-widget__initbar"
+              onPointerDown={(e) => e.stopPropagation()}
+            >
+              {initiativeNotice && (
+                <div
+                  className="player-widget__init-notice"
+                  role="status"
+                  aria-live="polite"
+                >
+                  {initiativeNotice}
+                </div>
+              )}
+
+              <div className="player-widget__initbar-actions">
+                <button
+                  type="button"
+                  className="player-widget__initbtn"
+                  onClick={() => rollInitiativeForAll("1d6")}
+                >
+                  1D6
+                </button>
+                <button
+                  type="button"
+                  className="player-widget__initbtn"
+                  onClick={() => rollInitiativeForAll("2d6")}
+                >
+                  2D6
+                </button>
+                <button
+                  type="button"
+                  className="player-widget__initbtn"
+                  onClick={() => rollInitiativeForAll("1d8")}
+                >
+                  1D8
+                </button>
+                <button
+                  type="button"
+                  className="player-widget__initbtn"
+                  onClick={() => rollInitiativeForAll("1d10")}
+                >
+                  1D10
+                </button>
+                <button
+                  type="button"
+                  className="player-widget__initbtn"
+                  onClick={() => rollInitiativeForAll("1d20")}
+                >
+                  1D20
+                </button>
+
+                <button
+                  type="button"
+                  className="player-widget__initbtn"
+                  title="Reset all initiative"
+                  onClick={resetAllInitiative}
+                >
+                  <svg
+                    className="player-widget__reset-icon"
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="#6cc5f0"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <polyline points="23 4 23 10 17 10" />
+                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          )}
+
           {sanityEnabled && sanityMode && (
             <div
               className="player-widget__sanitybar"
@@ -723,6 +952,29 @@ const hasSelection = selectedIds.length > 0;
       </div>
     </div>
   )}
+
+  {/* 🎯 INITIATIVE INLINE */}
+  {initiativeEnabled && initiativeMode && (() => {
+    const ini = initiativeState[p.id];
+    const iFlash = initiativeFlash[p.id];
+    return (
+      <div className="player-widget__init-inline">
+        {iFlash && (
+          <div
+            key={iFlash.key}
+            className="player-widget__flash player-widget__flash--blue"
+          >
+            <span className="player-widget__flash-value">
+              {iFlash.value}
+            </span>
+          </div>
+        )}
+        <div className="player-widget__initval">
+          INT {ini?.current ?? "—"}
+        </div>
+      </div>
+    );
+  })()}
 
   <button
     type="button"

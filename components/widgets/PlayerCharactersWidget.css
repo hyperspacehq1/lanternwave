@@ -453,3 +453,117 @@
   .player-widget__sanbtn:disabled:hover {
   background: #000;
 }
+
+/* ================= INITIATIVE BAR ================= */
+
+.player-widget__initbar {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  padding: 10px;
+  margin-bottom: 10px;
+  border: 1px solid rgba(108, 197, 240, 0.35);
+  border-radius: 6px;
+  background: #070707;
+  width: 100%;
+  max-width: min(100%, 520px);
+}
+
+.player-widget__initbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  overflow: visible;
+}
+
+.player-widget__initbar-actions::-webkit-scrollbar {
+  display: none;
+}
+
+/* ================= INITIATIVE BUTTON ================= */
+
+.player-widget__initbtn {
+  background: #000;
+  color: #6cc5f0;
+  border: 1px solid rgba(108, 197, 240, 0.65);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+.player-widget__initbtn:hover {
+  background: #111;
+}
+
+.player-widget__initbtn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* ================= INITIATIVE NOTICE ================= */
+
+.player-widget__init-notice {
+  margin-bottom: 4px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 800;
+  text-align: center;
+  color: #000;
+  background: #6cc5f0;
+  border-radius: 6px;
+
+  animation: sanity-notice-pop 180ms ease-out;
+}
+
+/* ================= INITIATIVE HEADER ICON ================= */
+
+.player-widget__icon--initiative {
+  border-color: #6cc5f0;
+}
+
+.player-widget__icon--initiative.active {
+  box-shadow: 0 0 0 2px rgba(108, 197, 240, 0.35);
+}
+
+.player-widget__initiative-icon {
+  width: 16px;
+  height: 16px;
+  display: block;
+  pointer-events: none;
+}
+
+/* ================= INITIATIVE INLINE VALUE ================= */
+
+.player-widget__init-inline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 0;
+  position: relative;
+}
+
+.player-widget__initval {
+  font-weight: 800;
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(108, 197, 240, 0.25);
+  background: rgba(0, 0, 0, 0.65);
+  color: #6cc5f0;
+  white-space: nowrap;
+}
+
+/* ================= INITIATIVE FLASH ================= */
+
+.player-widget__flash--blue .player-widget__flash-value {
+  color: #6cc5f0;
+}
