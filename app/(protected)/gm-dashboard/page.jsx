@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import "./gm-dashboard.css";
 import PlayerCharactersWidget from "@/components/widgets/PlayerCharactersWidget";
+import GettingStartedWidget from "@/components/video/GettingStartedWidget";
 import { DISPLAY_SCHEMAS as BASE_SCHEMAS } from "@/lib/gm/displaySchemas";
 
 /* =========================
@@ -1041,8 +1042,10 @@ openJoinCountRef={openJoinCountRef}
   />
 ))}
 
-      {/* Beacon-controlled widget */}
+ {/* Beacon-controlled widget */}
       {selectedCampaign?.id && showPlayersBeacon && <PlayerCharactersWidget campaignId={selectedCampaign.id} />}
+
+      <GettingStartedWidget />
     </div>
   );
 }
