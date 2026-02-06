@@ -10,21 +10,12 @@ export const dynamic = "force-dynamic";
    Sets hide_getting_started = true for the user
 -------------------------------------------------- */
 export async function POST(req) {
-  const debug = {
-    cookieHeader: req.headers.get("cookie"),
-  };
-
   let ctx;
   try {
     ctx = await getTenantContext(req);
   } catch (err) {
-    console.warn("🛑 /api/account/dismiss-getting-started AUTH FAILED", {
-      ...debug,
-      error: err?.message,
-    });
-
     return NextResponse.json(
-      { ok: false, error: "Unauthorized", debug },
+      { ok: false, error: "Unauthorized" },
       { status: 401 }
     );
   }
@@ -43,13 +34,8 @@ export async function POST(req) {
 
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error("🔥 /api/account/dismiss-getting-started POST ERROR", {
-      ...debug,
-      error: err,
-    });
-
     return NextResponse.json(
-      { ok: false, error: "Failed to dismiss getting started", debug },
+      { ok: false, error: "Failed to dismiss getting started" },
       { status: 500 }
     );
   }

@@ -8,7 +8,6 @@ export const dynamic = "force-dynamic";
    GET /api/gm/joins
    ?entity=sessions|encounters|locations
    &id=<record_id>
-   [&debug=1]
 ------------------------------------------------------------ */
 export async function GET(req) {
   let ctx;
@@ -23,7 +22,6 @@ export async function GET(req) {
 
   const entity = searchParams.get("entity");
   const id = searchParams.get("id");
-  const debug = searchParams.get("debug") === "1";
 
   if (!entity || !id) {
     return Response.json(
@@ -36,7 +34,6 @@ export async function GET(req) {
     entity,
     id,
     joined: {},
-    ...(debug ? { debug: {} } : {}),
   };
 
   try {
@@ -53,7 +50,6 @@ export async function GET(req) {
       );
 
       result.joined.encounters = rows.map((r) => r.encounter_id);
-      if (debug) result.debug.session_encounters_count = rows.length;
     }
 
     else if (entity === "encounters") {
@@ -69,11 +65,9 @@ export async function GET(req) {
       );
 
       result.joined.npcs = rows.map((r) => r.npc_id);
-      if (debug) result.debug.encounter_npcs_count = rows.length;
     }
 
     else if (entity === "locations") {
-      // Fetch items
       const { rows: itemRows } = await query(
         `
         SELECT item_id::text AS item_id
@@ -86,9 +80,7 @@ export async function GET(req) {
       );
 
       result.joined.items = itemRows.map((r) => r.item_id);
-      if (debug) result.debug.location_items_count = itemRows.length;
 
-      // Fetch npcs
       const { rows: npcRows } = await query(
         `
         SELECT npc_id::text AS npc_id
@@ -101,7 +93,6 @@ export async function GET(req) {
       );
 
       result.joined.npcs = npcRows.map((r) => r.npc_id);
-      if (debug) result.debug.location_npcs_count = npcRows.length;
     }
 
     else {

@@ -21,8 +21,6 @@ function signSession(payload) {
 
 export async function POST(req) {
   try {
-    console.log("🔐 LOGIN START");
-
     const ip =
       req.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
 
@@ -36,7 +34,7 @@ export async function POST(req) {
         );
       }
     } catch (e) {
-      console.warn("⚠️ rateLimit failed", e);
+      // rateLimit failure is non-fatal; proceed with login
     }
 
     const { emailOrUsername, password } = await req.json();
@@ -111,13 +109,7 @@ export async function POST(req) {
       tenantId,
     });
 
-    const res = NextResponse.json({
-      ok: true,
-      debug: {
-        userId: user.id,
-        tenantId,
-      },
-    });
+    const res = NextResponse.json({ ok: true });
 
     res.cookies.set("lw_session", token, {
       httpOnly: true,
@@ -127,12 +119,10 @@ export async function POST(req) {
       maxAge: 60 * 60 * 24 * 30,
     });
 
-    console.log("✅ LOGIN SUCCESS");
     return res;
   } catch (err) {
-    console.error("🔥 LOGIN FAILED", err);
     return NextResponse.json(
-      { error: "LOGIN_FAILED", message: err.message },
+      { error: "Login failed" },
       { status: 500 }
     );
   }
