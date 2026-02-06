@@ -13,7 +13,7 @@ import "./GettingStartedWidget.css";
    1. Hidden forever  → user clicked "Don't show again"
                          → persisted to `users.hide_getting_started` via API
    2. Hidden this session → user clicked ✕
-                         → sessionStorage flag
+                         → module-level flag (resets on full page load / login)
    3. Visible          → new login / new session, flag not set in DB
 
    Props
@@ -27,7 +27,9 @@ import "./GettingStartedWidget.css";
    • onDismissForever – callback after the API confirms the flag was saved
    ────────────────────────────────────────────────────────────── */
 
-const SESSION_KEY = "lw:gettingStarted:dismissed";
+/* Module-level flag — survives SPA navigation but resets on
+   full page load (i.e. login), which is exactly what we want. */
+let dismissedThisSession = false;
 
 export default function GettingStartedWidget({
   videoSrc = "/videos/lanternwave.mp4",
@@ -50,13 +52,15 @@ export default function GettingStartedWidget({
         if (hidden) return;
 
         // 2️⃣ Check session flag
-        try {
-          if (sessionStorage.getItem(SESSION_KEY)) return;
-        } catch {}
+        if (dismissedThisSession) return;
 
         setVisible(true);
       })
-      .catch(() => setDbDismissed(false));
+      .catch(() => {
+        setDbDismissed(false);
+        if (dismissedThisSession) return;
+        setVisible(true);
+      });
   }, []);
 
   /* ── Video state ───────────────────────────────────── */
@@ -215,7 +219,7 @@ export default function GettingStartedWidget({
 
   /* ── Dismiss handlers ──────────────────────────────── */
   function dismissSession() {
-    try { sessionStorage.setItem(SESSION_KEY, "1"); } catch {}
+    dismissedThisSession = true;
     setVisible(false);
   }
 
@@ -226,7 +230,7 @@ export default function GettingStartedWidget({
         credentials: "include",
       });
     } catch {}
-    try { sessionStorage.setItem(SESSION_KEY, "1"); } catch {}
+    dismissedThisSession = true;
     setDbDismissed(true);
     setVisible(false);
     onDismissForever?.();
@@ -273,7 +277,7 @@ export default function GettingStartedWidget({
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
         >
-          <div className="gs-widget__title">Getting Started</div>
+          <div className="gs-widget__title">Quick Overview</div>
 
           <div className="gs-widget__header-controls">
             <button
@@ -494,4 +498,5 @@ export default function GettingStartedWidget({
     </>
   );
 }
+
 
