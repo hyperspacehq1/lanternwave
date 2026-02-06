@@ -1,0 +1,363 @@
+/* ═══════════════════════════════════════════════════════════
+   GettingStartedWidget  –  Gold / Black overlay theme
+   Matches PlayerCharactersWidget design language.
+   ═══════════════════════════════════════════════════════════ */
+
+/* ================= BACKDROP ================= */
+
+.gs-widget__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(2px);
+}
+
+/* ================= WIDGET SHELL ================= */
+
+.gs-widget {
+  background: #000;
+  color: #fff;
+  border: 1px solid #f5c542;
+  border-radius: 8px;
+  box-shadow: 0 0 32px rgba(0, 0, 0, 0.9);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial,
+    sans-serif;
+  overflow: hidden;
+  width: min(640px, calc(100vw - 32px));
+  transition: width 220ms ease, max-width 220ms ease;
+}
+
+.gs-widget--fullscreen {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  border-radius: 0;
+  z-index: 10000;
+}
+
+/* ================= HEADER ================= */
+
+.gs-widget__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: #000;
+  color: #f5c542;
+  border-bottom: 1px solid #f5c542;
+  cursor: grab;
+  user-select: none;
+}
+
+.gs-widget__header:active {
+  cursor: grabbing;
+}
+
+.gs-widget__title {
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-size: 13px;
+}
+
+.gs-widget__header-controls {
+  display: flex;
+  gap: 10px;
+}
+
+.gs-widget__icon {
+  background: #000;
+  border: 1px solid #f5c542;
+  border-radius: 4px;
+  padding: 4px 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.gs-widget__icon:hover {
+  background: #111;
+}
+
+/* ================= VIDEO AREA ================= */
+
+.gs-widget__video-wrap {
+  position: relative;
+  width: 100%;
+  background: #0a0a0a;
+  cursor: pointer;
+  line-height: 0;
+}
+
+.gs-widget__video-wrap video {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.gs-widget--fullscreen .gs-widget__video-wrap video {
+  height: calc(100vh - 150px);
+  object-fit: contain;
+}
+
+.gs-widget__play-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.35);
+  transition: opacity 160ms ease;
+}
+
+.gs-widget__play-overlay:hover {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+/* ================= PROGRESS BAR ================= */
+
+.gs-widget__progress {
+  position: relative;
+  height: 6px;
+  background: rgba(245, 197, 66, 0.15);
+  cursor: pointer;
+}
+
+.gs-widget__progress:hover {
+  height: 8px;
+}
+
+.gs-widget__progress-fill {
+  height: 100%;
+  background: #f5c542;
+  border-radius: 0 3px 3px 0;
+  transition: width 80ms linear;
+}
+
+.gs-widget__step-marker {
+  position: absolute;
+  top: 0;
+  width: 3px;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.45);
+  transform: translateX(-1px);
+  pointer-events: none;
+}
+
+/* ================= CONTROLS BAR ================= */
+
+.gs-widget__controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 12px;
+  background: #000;
+  border-top: 1px solid rgba(245, 197, 66, 0.2);
+}
+
+.gs-widget__controls-left,
+.gs-widget__controls-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.gs-widget__ctrl-btn {
+  background: none;
+  border: none;
+  color: #f5c542;
+  cursor: pointer;
+  padding: 5px 6px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gs-widget__ctrl-btn:hover {
+  background: rgba(245, 197, 66, 0.1);
+}
+
+.gs-widget__ctrl-btn.active {
+  box-shadow: 0 0 0 2px rgba(245, 197, 66, 0.35);
+}
+
+.gs-widget__speed-btn {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  min-width: 32px;
+  text-align: center;
+}
+
+.gs-widget__time {
+  font-size: 12px;
+  color: rgba(245, 197, 66, 0.8);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  margin-left: 4px;
+}
+
+/* ================= STEP BAR ================= */
+
+.gs-widget__steps {
+  padding: 10px 14px;
+  border-top: 1px solid rgba(245, 197, 66, 0.2);
+  background: #050505;
+}
+
+.gs-widget__steps-list {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+
+.gs-widget__steps-list::-webkit-scrollbar {
+  height: 4px;
+}
+
+.gs-widget__steps-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.gs-widget__steps-list::-webkit-scrollbar-thumb {
+  background: rgba(245, 197, 66, 0.3);
+  border-radius: 2px;
+}
+
+.gs-widget__step-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #000;
+  color: rgba(245, 197, 66, 0.6);
+  border: 1px solid rgba(245, 197, 66, 0.25);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: border-color 140ms ease, color 140ms ease;
+}
+
+.gs-widget__step-btn:hover {
+  border-color: rgba(245, 197, 66, 0.55);
+  color: #f5c542;
+}
+
+.gs-widget__step-btn.active {
+  border-color: #f5c542;
+  color: #f5c542;
+  background: rgba(245, 197, 66, 0.08);
+}
+
+.gs-widget__step-btn.done {
+  color: #8df58a;
+  border-color: rgba(141, 245, 138, 0.35);
+}
+
+.gs-widget__step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(245, 197, 66, 0.12);
+  font-size: 11px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.gs-widget__step-btn.active .gs-widget__step-num {
+  background: rgba(245, 197, 66, 0.25);
+}
+
+.gs-widget__step-btn.done .gs-widget__step-num {
+  background: rgba(141, 245, 138, 0.2);
+}
+
+.gs-widget__step-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gs-widget__step-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+/* ================= CTA BUTTON ================= */
+
+.gs-widget__cta-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #000;
+  background: #f5c542;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 120ms ease;
+}
+
+.gs-widget__cta-btn:hover {
+  background: #ffd866;
+}
+
+/* ================= NEXT STEP BUTTON ================= */
+
+.gs-widget__next-btn {
+  padding: 7px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #f5c542;
+  background: #000;
+  border: 1px solid #f5c542;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+
+.gs-widget__next-btn:hover {
+  background: #111;
+}
+
+/* ================= RESPONSIVE ================= */
+
+@media (max-width: 500px) {
+  .gs-widget {
+    width: calc(100vw - 16px);
+  }
+
+  .gs-widget__controls {
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 6px 8px;
+  }
+
+  .gs-widget__steps-list {
+    gap: 4px;
+  }
+
+  .gs-widget__step-btn {
+    padding: 5px 8px;
+    font-size: 11px;
+  }
+}

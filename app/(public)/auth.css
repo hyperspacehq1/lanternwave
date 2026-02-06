@@ -194,3 +194,9 @@
 .lw-legal ul {
   margin-left: 1.25rem;
 }
+
+.lw-auth-success {
+  color: #4ade80;
+  font-size: 0.9rem;
+  text-align: center;
+}

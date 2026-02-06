@@ -49,6 +49,11 @@ export async function GET(req) {
   [tenantId, userId]
 );
 
+const userFlags = await query(
+  `SELECT hide_getting_started FROM users WHERE id = $1 LIMIT 1`,
+  [userId]
+);
+
 return NextResponse.json({
   ok: true,
   account: {
@@ -57,6 +62,7 @@ return NextResponse.json({
     user_id: userId,
     beacons: rows[0]?.beacons ?? {},
     audio: rows[0]?.audio ?? { player_enabled: false },
+    hide_getting_started: userFlags.rows[0]?.hide_getting_started ?? false,
   },
   debug,
 });
