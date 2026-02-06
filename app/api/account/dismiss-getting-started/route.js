@@ -30,7 +30,6 @@ export async function POST(req) {
   }
 
   try {
-    const tenantId = ctx.tenantId;
     const userId = ctx.user.id;
 
     await query(
@@ -38,9 +37,8 @@ export async function POST(req) {
       UPDATE users
          SET hide_getting_started = TRUE
        WHERE id = $1
-         AND tenant_id = $2
       `,
-      [userId, tenantId]
+      [userId]
     );
 
     return NextResponse.json({ ok: true });
