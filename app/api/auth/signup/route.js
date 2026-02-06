@@ -112,8 +112,6 @@ export async function POST(req) {
         username,
         userAgent: req.headers.get("user-agent"),
       });
-
-      console.log("WELCOME EMAIL SENT", { email });
     } catch (emailErr) {
       console.error("WELCOME EMAIL FAILED", {
         email,
@@ -124,10 +122,7 @@ export async function POST(req) {
     // ✅ Stateless signed cookie
     const token = signSession({ userId, tenantId });
 
-    const res = NextResponse.json({
-      ok: true,
-      debug: { userId, tenantId },
-    });
+    const res = NextResponse.json({ ok: true });
 
     res.cookies.set("lw_session", token, {
       httpOnly: true,

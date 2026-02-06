@@ -13,8 +13,6 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url);
     const itemId = searchParams.get("item_id");
 
-    console.log("[item-image][GET] item_id:", itemId);
-
     if (!itemId) {
       return NextResponse.json(
         { ok: false, error: "missing item_id" },
@@ -65,8 +63,6 @@ export async function POST(req) {
     const body = await req.json();
     const { item_id, clip_id } = body || {};
 
-    console.log("[item-image][POST] body:", body);
-
     if (!item_id || !clip_id) {
       return NextResponse.json(
         { ok: false, error: "missing item_id or clip_id" },
@@ -110,8 +106,6 @@ export async function DELETE(req) {
   try {
     const { searchParams } = new URL(req.url);
     const itemId = searchParams.get("item_id");
-
-    console.log("[item-image][DELETE] item_id:", itemId);
 
     if (!itemId) {
       return NextResponse.json(

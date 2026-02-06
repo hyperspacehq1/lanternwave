@@ -7,28 +7,15 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /* -------------------------------------------------
-   GET /api/account  (DEBUG ENABLED)
+   GET /api/account
 -------------------------------------------------- */
 export async function GET(req) {
-  const debug = {
-    cookieHeader: req.headers.get("cookie"),
-    userAgent: req.headers.get("user-agent"),
-    hasCookie: Boolean(req.headers.get("cookie")),
-  };
-
-  console.log("🧪 /api/account GET DEBUG", debug);
-
   let ctx;
   try {
     ctx = await getTenantContext(req);
-  } catch (err) {
-    console.warn("🛑 /api/account AUTH FAILED", {
-      ...debug,
-      error: err?.message,
-    });
-
+  } catch {
     return NextResponse.json(
-      { ok: false, error: "Unauthorized", debug },
+      { ok: false, error: "Unauthorized" },
       { status: 401 }
     );
   }
@@ -38,42 +25,38 @@ export async function GET(req) {
     const userId = ctx.user.id;
 
     const { rows } = await query(
-  `
-  SELECT beacons, audio
-    FROM account_preferences
-   WHERE tenant_id = $1
-     AND user_id   = $2
-   ORDER BY updated_at DESC
-   LIMIT 1
-  `,
-  [tenantId, userId]
-);
+      `
+      SELECT beacons, audio
+        FROM account_preferences
+       WHERE tenant_id = $1
+         AND user_id   = $2
+       ORDER BY updated_at DESC
+       LIMIT 1
+      `,
+      [tenantId, userId]
+    );
 
-const userFlags = await query(
-  `SELECT hide_getting_started FROM users WHERE id = $1 LIMIT 1`,
-  [userId]
-);
+    const userFlags = await query(
+      `SELECT hide_getting_started FROM users WHERE id = $1 LIMIT 1`,
+      [userId]
+    );
 
-return NextResponse.json({
-  ok: true,
-  account: {
-    username: ctx.user.username,
-    tenant_id: tenantId,
-    user_id: userId,
-    beacons: rows[0]?.beacons ?? {},
-    audio: rows[0]?.audio ?? { player_enabled: false },
-    hide_getting_started: userFlags.rows[0]?.hide_getting_started ?? false,
-  },
-  debug,
-});
-  } catch (err) {
-    console.error("🔥 /api/account GET ERROR", {
-      ...debug,
-      error: err,
+    return NextResponse.json({
+      ok: true,
+      account: {
+        username: ctx.user.username,
+        tenant_id: tenantId,
+        user_id: userId,
+        beacons: rows[0]?.beacons ?? {},
+        audio: rows[0]?.audio ?? { player_enabled: false },
+        hide_getting_started: userFlags.rows[0]?.hide_getting_started ?? false,
+      },
     });
+  } catch (err) {
+    console.error("/api/account GET ERROR", err);
 
     return NextResponse.json(
-      { ok: false, error: "Failed to load account", debug },
+      { ok: false, error: "Failed to load account" },
       { status: 500 }
     );
   }
@@ -83,16 +66,12 @@ return NextResponse.json({
    PUT /api/account
 -------------------------------------------------- */
 export async function PUT(req) {
-  const debug = {
-    cookieHeader: req.headers.get("cookie"),
-  };
-
   let ctx;
   try {
     ctx = await getTenantContext(req);
-  } catch (err) {
+  } catch {
     return NextResponse.json(
-      { ok: false, error: "Unauthorized", debug },
+      { ok: false, error: "Unauthorized" },
       { status: 401 }
     );
   }
@@ -105,7 +84,7 @@ export async function PUT(req) {
 
     if (!key || typeof enabled !== "boolean") {
       return NextResponse.json(
-        { ok: false, error: "Invalid beacon update", debug },
+        { ok: false, error: "Invalid beacon update" },
         { status: 400 }
       );
     }
@@ -150,9 +129,9 @@ export async function PUT(req) {
       beacons: insert.rows[0]?.beacons ?? {},
     });
   } catch (err) {
-    console.error("🔥 /api/account PUT ERROR", err);
+    console.error("/api/account PUT ERROR", err);
     return NextResponse.json(
-      { ok: false, error: "Failed to update beacon", debug },
+      { ok: false, error: "Failed to update beacon" },
       { status: 500 }
     );
   }
@@ -162,27 +141,23 @@ export async function PUT(req) {
    POST /api/account  (multipart upload)
 -------------------------------------------------- */
 export async function POST(req) {
-  const debug = {
-    cookieHeader: req.headers.get("cookie"),
-    contentType: req.headers.get("content-type"),
-  };
-
   let ctx;
   try {
     ctx = await getTenantContext(req);
   } catch {
     return NextResponse.json(
-      { error: "Unauthorized", debug },
+      { error: "Unauthorized" },
       { status: 401 }
     );
   }
 
   try {
     const tenantId = ctx.tenantId;
+    const contentType = req.headers.get("content-type");
 
-    if (!debug.contentType?.includes("multipart/form-data")) {
+    if (!contentType?.includes("multipart/form-data")) {
       return NextResponse.json(
-        { error: "Expected multipart/form-data", debug },
+        { error: "Expected multipart/form-data" },
         { status: 400 }
       );
     }
@@ -192,7 +167,7 @@ export async function POST(req) {
 
     if (!file) {
       return NextResponse.json(
-        { error: "No file received", debug },
+        { error: "No file received" },
         { status: 400 }
       );
     }
@@ -208,9 +183,9 @@ export async function POST(req) {
 
     return NextResponse.json({ success: true, result });
   } catch (err) {
-    console.error("🔥 /api/account POST ERROR", err);
+    console.error("/api/account POST ERROR", err);
     return NextResponse.json(
-      { error: err?.message || "Internal server error", debug },
+      { error: err?.message || "Internal server error" },
       { status: 500 }
     );
   }

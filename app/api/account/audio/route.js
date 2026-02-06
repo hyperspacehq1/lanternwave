@@ -1,7 +1,4 @@
 import { NextResponse } from "next/server";
-
-console.log("[account-audio] MODULE LOADED");
-
 import { query } from "@/lib/db";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 
@@ -9,87 +6,65 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function PUT(req) {
-  console.log("[account-audio][PUT] ENTRY");
-
-  // ---- Step 1: read body safely
-  let bodyText;
-  try {
-    bodyText = await req.text();
-    console.log("[account-audio][PUT] raw body:", bodyText);
-  } catch (e) {
-    console.error("[account-audio][PUT] FAILED TO READ BODY", e);
-    return NextResponse.json({ ok: false, step: "read-body" }, { status: 500 });
-  }
-
   let body;
   try {
-    body = JSON.parse(bodyText);
-    console.log("[account-audio][PUT] parsed body:", body);
-  } catch (e) {
-    console.error("[account-audio][PUT] JSON PARSE ERROR", e);
-    return NextResponse.json({ ok: false, step: "parse-json" }, { status: 400 });
+    body = await req.json();
+  } catch {
+    return NextResponse.json(
+      { ok: false, error: "Invalid JSON body" },
+      { status: 400 }
+    );
   }
 
   const { key, value } = body || {};
-  console.log("[account-audio][PUT] key/value:", key, value, typeof value);
 
-  // ---- Step 2: tenant context
+  if (!key || value === undefined) {
+    return NextResponse.json(
+      { ok: false, error: "key and value required" },
+      { status: 400 }
+    );
+  }
+
   let ctx;
   try {
     ctx = await getTenantContext(req);
-    console.log("[account-audio][PUT] ctx:", ctx);
-  } catch (e) {
-    console.error("[account-audio][PUT] getTenantContext CRASH", e);
+  } catch {
     return NextResponse.json(
-      { ok: false, step: "tenant-context" },
-      { status: 500 }
+      { ok: false, error: "Unauthorized" },
+      { status: 401 }
     );
   }
 
   if (!ctx?.tenantId) {
-    console.error("[account-audio][PUT] NO TENANT");
-    return NextResponse.json({ ok: false, step: "no-tenant" }, { status: 401 });
+    return NextResponse.json(
+      { ok: false, error: "Unauthorized" },
+      { status: 401 }
+    );
   }
 
-  // ---- Step 3: SQL execution
   try {
-    console.log("[account-audio][PUT] BEFORE SQL");
+    const result = await query(
+      `
+      UPDATE account_preferences
+         SET audio =
+           jsonb_set(
+             COALESCE(audio, '{}'::jsonb),
+             ARRAY[$1]::text[],
+             $2::jsonb,
+             true
+           ),
+             updated_at = NOW()
+       WHERE tenant_id = $3
+       RETURNING tenant_id, audio
+      `,
+      [key, JSON.stringify(value), ctx.tenantId]
+    );
 
-   const result = await query(
-  `
-  UPDATE account_preferences
-     SET audio =
-       jsonb_set(
-         COALESCE(audio, '{}'::jsonb),
-         ARRAY[$1]::text[],
-         $2::jsonb,
-         true
-       ),
-         updated_at = NOW()
-   WHERE tenant_id = $3
-   RETURNING tenant_id, audio
-  `,
-  [key, JSON.stringify(value), ctx.tenantId]
-);
-
-    console.log("[account-audio][PUT] SQL RESULT:", result);
-
-    return NextResponse.json({
-      ok: true,
-      debug: {
-        rowCount: result.rowCount,
-        rows: result.rows,
-      },
-    });
-  } catch (e) {
-    console.error("[account-audio][PUT] SQL CRASH", e);
+    return NextResponse.json({ ok: true, audio: result.rows[0]?.audio ?? {} });
+  } catch (err) {
+    console.error("[account-audio] PUT ERROR", err);
     return NextResponse.json(
-      {
-        ok: false,
-        step: "sql",
-        message: e.message,
-        code: e.code,
-      },
+      { ok: false, error: "Failed to update audio preferences" },
       { status: 500 }
     );
   }

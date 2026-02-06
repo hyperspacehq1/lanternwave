@@ -29,11 +29,6 @@ export default function ForgotUsernamePage() {
         data = { raw: text };
       }
 
-      console.log("FORGOT USERNAME RESPONSE", {
-        status: res.status,
-        data,
-      });
-
       // Always show success (no enumeration)
       setSubmitted(true);
     } catch (err) {

@@ -180,12 +180,11 @@ export async function POST(req) {
   // If a template is specified (and it's not "standard"), apply it
   if (campaignPackage && campaignPackage !== "standard") {
     try {
-      const templateResult = await applyTemplate(
-        ctx.tenantId, 
-        newCampaign.id, 
+      await applyTemplate(
+        ctx.tenantId,
+        newCampaign.id,
         campaignPackage
       );
-      console.log("Template applied:", templateResult);
     } catch (error) {
       console.error("Failed to apply template:", error);
       // Don't fail campaign creation if template fails
@@ -330,4 +329,3 @@ export async function DELETE(req) {
       : null
   );
 }
-

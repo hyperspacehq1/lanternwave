@@ -54,8 +54,6 @@ export async function POST(req) {
           username,
           userAgent: req.headers.get("user-agent"),
         });
-
-        console.log("FORGOT USERNAME EMAIL SENT", { email });
       } catch (emailErr) {
         console.error("FORGOT USERNAME EMAIL FAILED", {
           email,

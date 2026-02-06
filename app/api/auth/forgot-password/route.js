@@ -84,12 +84,10 @@ export async function POST(req) {
 
         await sendPasswordResetEmail({
           to: email,
-          resetUrl: resetUrl, // ✅ This matches your email.js parameter name
+          resetUrl: resetUrl,
           username: user.username,
           userAgent: req.headers.get("user-agent"),
         });
-
-        console.log("PASSWORD RESET EMAIL SENT", { email });
       } catch (emailErr) {
         console.error("PASSWORD RESET EMAIL FAILED", {
           email,
