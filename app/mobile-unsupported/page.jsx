@@ -1,8 +1,34 @@
+"use client";
+
+import { useRef, useEffect, useState } from "react";
+
 export const dynamic = "force-dynamic";
 
 export default function MobileUnsupportedPage() {
+  const videoRef = useRef(null);
+  const [needsTap, setNeedsTap] = useState(false);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    video.play().catch(() => {
+      // Autoplay was blocked — show a tap prompt
+      setNeedsTap(true);
+    });
+  }, []);
+
+  const handleTap = () => {
+    const video = videoRef.current;
+    if (video) {
+      video.play();
+      setNeedsTap(false);
+    }
+  };
+
   return (
     <div
+      onClick={needsTap ? handleTap : undefined}
       style={{
         minHeight: "100dvh",
         display: "flex",
@@ -12,10 +38,11 @@ export default function MobileUnsupportedPage() {
         backgroundColor: "#000",
         padding: "2rem",
         textAlign: "center",
+        cursor: needsTap ? "pointer" : "default",
       }}
     >
       <video
-        autoPlay
+        ref={videoRef}
         loop
         muted
         playsInline
@@ -27,6 +54,19 @@ export default function MobileUnsupportedPage() {
       >
         <source src="/lanternwave-logo.mp4" type="video/mp4" />
       </video>
+
+      {needsTap && (
+        <p
+          style={{
+            color: "rgba(255, 255, 255, 0.5)",
+            fontSize: "0.85rem",
+            marginBottom: "1rem",
+            fontFamily: "system-ui, sans-serif",
+          }}
+        >
+          Tap anywhere to play
+        </p>
+      )}
 
       <p
         style={{
