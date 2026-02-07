@@ -16,13 +16,28 @@ export default function MobileUnsupportedPage() {
     // iOS Safari will block autoplay unless the element is truly muted.
     video.muted = true;
 
-    video.play().catch(() => {
-      // Autoplay was blocked — show a tap prompt
-      setNeedsTap(true);
-    });
+    // Don't call video.play() here — iOS blocks play() inside useEffect
+    // because it's not considered a user gesture. Instead, rely on the
+    // `autoplay` attribute on the <video> tag. We only check if autoplay
+    // was blocked so we can show the tap prompt.
+    const onPlaying = () => setNeedsTap(false);
+    video.addEventListener("playing", onPlaying);
+
+    // If the video hasn't started after a short delay, assume autoplay was blocked
+    const timeout = setTimeout(() => {
+      if (video.paused) {
+        setNeedsTap(true);
+      }
+    }, 500);
+
+    return () => {
+      video.removeEventListener("playing", onPlaying);
+      clearTimeout(timeout);
+    };
   }, []);
 
   const handleTap = () => {
+    // .play() called directly from a user tap — iOS allows this
     const video = videoRef.current;
     if (video) {
       video.play();
@@ -45,19 +60,25 @@ export default function MobileUnsupportedPage() {
         cursor: needsTap ? "pointer" : "default",
       }}
     >
+      {/* 
+        iOS autoplay rules:
+        - autoplay + muted + playsInline + webkit-playsinline
+        - src directly on <video> (more reliable than nested <source>)
+      */}
       <video
         ref={videoRef}
+        src="/lanternwave-logo.mp4"
+        autoPlay
         loop
         muted
         playsInline
+        webkit-playsinline=""
         style={{
           maxWidth: "280px",
           width: "100%",
           marginBottom: "2rem",
         }}
-      >
-        <source src="/lanternwave-logo.mp4" type="video/mp4" />
-      </video>
+      />
 
       {needsTap && (
         <p
@@ -66,6 +87,7 @@ export default function MobileUnsupportedPage() {
             fontSize: "0.85rem",
             marginBottom: "1rem",
             fontFamily: "system-ui, sans-serif",
+            pointerEvents: "none", // prevent iOS tap interception
           }}
         >
           Tap anywhere to play
@@ -79,6 +101,7 @@ export default function MobileUnsupportedPage() {
           lineHeight: 1.5,
           maxWidth: "300px",
           fontFamily: "system-ui, sans-serif",
+          pointerEvents: "none", // prevent iOS tap interception
         }}
       >
         LanternWave is not available on mobile.
