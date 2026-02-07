@@ -75,7 +75,7 @@ export async function POST(req) {
       WHERE tenant_id = $1
         AND campaign_id = $2
         AND deleted_at IS NULL
-        AND ($3::text[] IS NULL OR id != ALL($3::text[]))
+        AND ($3::uuid[] IS NULL OR id != ALL($3::uuid[]))
       `,
       [tenantId, campaignId, excludeList.length ? excludeList : null]
     );
@@ -133,5 +133,3 @@ export async function POST(req) {
     return Response.json({ error: e.message }, { status: 500 });
   }
 }
-
-
