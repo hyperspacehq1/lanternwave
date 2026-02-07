@@ -12,6 +12,10 @@ export default function MobileUnsupportedPage() {
     const video = videoRef.current;
     if (!video) return;
 
+    // React doesn't reliably apply the `muted` attribute to the DOM.
+    // iOS Safari will block autoplay unless the element is truly muted.
+    video.muted = true;
+
     video.play().catch(() => {
       // Autoplay was blocked — show a tap prompt
       setNeedsTap(true);
