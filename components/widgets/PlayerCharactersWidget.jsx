@@ -1,1008 +1,135 @@
-"use client";
-
-import { useEffect, useMemo, useRef, useState } from "react";
-import "./PlayerCharactersWidget.css";
-
-export default function PlayerCharactersWidget({ campaignId }) {
-  const widgetRef = useRef(null);
-  const draggingId = useRef(null);
-
-  const [players, setPlayers] = useState([]);
-  const [loading, setLoading] = useState(false);
-
-  /* UI state */
-  const [collapsed, setCollapsed] = useState(false);
-
-  // 🔒 locked per requirement
-  const layout = "vertical";
-
-  const [inactive, setInactive] = useState({});
-  const [turns, setTurns] = useState({});
-  const [order, setOrder] = useState([]);
-
-  // 🧠 Sanity UI
-  const [sanityMode, setSanityMode] = useState(false);
-  const [sanityEnabled, setSanityEnabled] = useState(false);
-
-  // sanityState[playerId] = { base, current, lastLoss, lastUpdatedAt }
-  const [sanityState, setSanityState] = useState({});
-
-  // sanityFlash[playerId] = { key, textTop, textBottom, tone }
-  const [sanityFlash, setSanityFlash] = useState({});
-
-  // ✅ NEW: notice text shown when attempting to roll with no selection
-  const [sanityNotice, setSanityNotice] = useState("");
-
-  // 🎯 Initiative UI
-  const [initiativeMode, setInitiativeMode] = useState(false);
-  const [initiativeEnabled, setInitiativeEnabled] = useState(false);
-
-  // initiativeState[playerId] = { score, bonus, current }
-  const [initiativeState, setInitiativeState] = useState({});
-
-  // initiativeFlash[playerId] = { key, value, tone }
-  const [initiativeFlash, setInitiativeFlash] = useState({});
-
-  const [initiativeNotice, setInitiativeNotice] = useState("");
-
-  /* -----------------------------------------------------------
-     ✅ FEATURE GATING — Beacons 1234556789
-  ------------------------------------------------------------ */
-  useEffect(() => {
-    fetch("/api/account", {
-      credentials: "include",
-      cache: "no-store",
-    })
-      .then((r) => r.json())
-      .then((d) => {
-        setSanityEnabled(!!d?.account?.beacons?.player_sanity_tracker);
-        setInitiativeEnabled(!!d?.account?.beacons?.player_initiative_tracker);
-      })
-      .catch(() => { setSanityEnabled(false); setInitiativeEnabled(false); });
-  }, []);
-
-  /* -----------------------------------------------------------
-     UI persistence (NO feature flags here)
-  ------------------------------------------------------------ */
-  const storageKey = "lw:widget:players";
-  const [pos, setPos] = useState({ x: null, y: null });
-
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(storageKey);
-      if (!raw) return;
-      const s = JSON.parse(raw);
-      setCollapsed(!!s.collapsed);
-      setInactive(s.inactive || {});
-      setTurns(s.turns || {});
-      setOrder(s.order || []);
-      if (s.pos) setPos(s.pos);
-      setSanityMode(!!s.sanityMode);
-      setInitiativeMode(!!s.initiativeMode);
-    } catch {}
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  function persistUI(next) {
-    try {
-      localStorage.setItem(
-        storageKey,
-        JSON.stringify({
-          collapsed,
-          layout,
-          inactive,
-          turns,
-          order,
-          pos,
-          sanityMode,
-          initiativeMode,
-          ...next,
-        })
-      );
-    } catch {}
-  }
-
-  /* -----------------------------------------------------------
-     Drag logic (UNCHANGED)
-  ------------------------------------------------------------ */
-  const MARGIN = 16;
-  const dragging = useRef(false);
-  const dragOffset = useRef({ dx: 0, dy: 0 });
-
-  /* Auto-scroll while reordering players */
-  useEffect(() => {
-    function onMove(e) {
-      if (!draggingId.current) return;
-
-      const edge = 60;
-      const speed = 8;
-      const y = e.clientY;
-
-      if (y < edge) window.scrollBy(0, -speed);
-      else if (y > window.innerHeight - edge) window.scrollBy(0, speed);
-    }
-
-    window.addEventListener("pointermove", onMove);
-    return () => window.removeEventListener("pointermove", onMove);
-  }, []);
-
-  /* Global pointerup safety net */
-  useEffect(() => {
-    function stopDrag() {
-      draggingId.current = null;
-      dragging.current = false;
-
-      document
-        .querySelectorAll(".player-widget__player.dragging")
-        .forEach((el) => el.classList.remove("dragging"));
-    }
-
-    window.addEventListener("pointerup", stopDrag);
-    window.addEventListener("pointercancel", stopDrag);
-
-    return () => {
-      window.removeEventListener("pointerup", stopDrag);
-      window.removeEventListener("pointercancel", stopDrag);
-    };
-  }, []);
-
-  const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
-
-  function onDragStart(e) {
-    dragging.current = true;
-    const r = widgetRef.current.getBoundingClientRect();
-    dragOffset.current = {
-      dx: e.clientX - r.left,
-      dy: e.clientY - r.top,
-    };
-    widgetRef.current?.setPointerCapture(e.pointerId);
-  }
-
-  function onPointerMove(e) {
-    if (!dragging.current) return;
-
-    const r = widgetRef.current?.getBoundingClientRect();
-    const w = r?.width ?? 480;
-    const h = r?.height ?? 260;
-
-    const next = {
-      x: clamp(
-        e.clientX - dragOffset.current.dx,
-        MARGIN,
-        window.innerWidth - w - MARGIN
-      ),
-      y: clamp(
-        e.clientY - dragOffset.current.dy,
-        MARGIN,
-        window.innerHeight - h - MARGIN
-      ),
-    };
-
-    setPos(next);
-    persistUI({ pos: next });
-  }
-
-  function onPointerUp(e) {
-    dragging.current = false;
-    try {
-      widgetRef.current?.releasePointerCapture(e.pointerId);
-    } catch {}
-  }
-
-  /* -----------------------------------------------------------
-     Load players Load
-  ------------------------------------------------------------ */
-  useEffect(() => {
-    if (!campaignId) return;
-    setLoading(true);
-
-    fetch(`/api/players?campaign_id=${campaignId}`, {
-      credentials: "include",
-      cache: "no-store",
-    })
-      .then((r) => r.json())
-      .then((d) => {
-        const list = Array.isArray(d) ? d : [];
-        setPlayers(list);
-         if (!order.length) setOrder(list.map((p) => p.id));
-
-        setSanityState((prev) => {
-          const next = { ...prev };
-          for (const p of list) {
-            const pid = p.id;
-            next[pid] = {
-              base: Math.trunc(Number(p.sanity ?? 0)),
-              current: Math.trunc(
-                Number(p.current_sanity ?? p.sanity ?? 0)
-              ),
-              lastLoss: next[pid]?.lastLoss ?? 0,
-              lastUpdatedAt: Date.now(),
-            };
-          }
-          return next;
-        });
-
-        setInitiativeState((prev) => {
-          const next = { ...prev };
-          for (const p of list) {
-            const pid = p.id;
-            next[pid] = {
-              score: Math.trunc(Number(p.initiative_score ?? 0)),
-              bonus: Math.trunc(Number(p.initiative_bonus ?? 0)),
-              current: Math.trunc(Number(p.initiative_current ?? 0)),
-            };
-          }
-          return next;
-        });
-      })
-      .finally(() => setLoading(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [campaignId]);
-
-  const orderedPlayers = order
-    .map((id) => players.find((p) => p.id === id))
-    .filter(Boolean);
-
-    useEffect(() => {
-    // sanity is loaded from /api/players now (players.sanity + players.current_sanity)
-    // keep this effect only as a compatibility stub
-    return;
-  }, [campaignId, sanityEnabled]);
-
-  /* -----------------------------------------------------------
-     Sanity helpers
-  ------------------------------------------------------------ */
-  const selectedIds = useMemo(() => {
-  return orderedPlayers
-    .filter((p) => turns[p.id])
-    .map((p) => p.id);
-}, [orderedPlayers, turns]);
-
-const hasSelection = selectedIds.length > 0;
-
-  // ✅ Clear notice when selection changes (prevents sticky warning)
-  useEffect(() => {
-    if (sanityNotice && selectedIds.length) setSanityNotice("");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedIds.length]);
-
-  function computeSanTone(playerId) {
-    const s = sanityState[playerId];
-    if (
-      !s ||
-      !Number.isFinite(s.base) ||
-      !Number.isFinite(s.current) ||
-      s.base <= 0
-    )
-      return "muted";
-
-    if (s.lastLoss >= 5) return "yellow";
-    if (s.current / s.base >= 0.8) return "green";
-    return "red";
-  }
-
-  function showSanityFlash(playerId, tone, after, loss) {
-    const k = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-
-    setSanityFlash((prev) => ({
-  ...prev,
-  [playerId]: {
-    key: k,
-    tone,
-    value: `${loss ? `-${loss} / ` : ""}${after}`,
-  },
-}));
-
-    setTimeout(() => {
-      setSanityFlash((prev) => {
-        const next = { ...prev };
-        if (next[playerId]?.key === k) delete next[playerId];
-        return next;
-      });
-    }, 2000);
-  }
-
-  async function rollSanityForSelected(rollType) {
-    // ✅ RULE: require selection, show message instead of doing nothing
-    if (!selectedIds.length) {
-      setSanityNotice("Select one or more Players before rolling for Sanity.");
-      return;
-    }
-
-    // keep existing guards
-    if (!campaignId || !sanityEnabled) return;
-
-    // clear message once user acts correctly
-    if (sanityNotice) setSanityNotice("");
-
-    const pulseResults = [];
-
-    await Promise.all(
-      selectedIds.map(async (playerId) => {
-        try {
-          const res = await fetch("/api/sanity/roll", {
-            method: "POST",
-            credentials: "include",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              player_id: playerId,
-              campaign_id: campaignId,
-              roll_type: rollType,
-            }),
-          });
-
-          const data = await res.json().catch(() => ({}));
-          if (!res.ok) {
-            const msg = data?.error || "Sanity roll failed";
-            throw new Error(msg);
-          }
-
-          setSanityState((prev) => ({
-            ...prev,
-            [playerId]: {
-              base: Math.trunc(Number(data.base_sanity)),
-              current: Math.trunc(Number(data.current_sanity)),
-              lastLoss: Math.trunc(Number(data.sanity_loss ?? 0)),
-              lastUpdatedAt: Date.now(),
-            },
-          }));
-
-          showSanityFlash(
-            playerId,
-            computeSanTone(playerId),
-            Math.trunc(Number(data.current_sanity)),
-            Math.trunc(Number(data.sanity_loss ?? 0))
-          );
-
-          const player = players.find((p) => p.id === playerId);
-          pulseResults.push({
-            player_id: playerId,
-            character_name: player?.character_name || player?.name || null,
-            current: Math.trunc(Number(data.current_sanity)),
-            loss: Math.trunc(Number(data.sanity_loss ?? 0)),
-          });
-        } catch (e) {
-          showSanityFlash(playerId, "muted", "—", 0);
-        }
-      })
-    );
-
-    if (pulseResults.length) {
-      await fetch("/api/player-sanity-pulse", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          players: pulseResults,
-          durationMs: 5000,
-        }),
-      }).catch(() => {});
-    }
-  }
-
-  async function resetAllSanity() {
-    if (!campaignId) return;
-
-    const ok = window.confirm("Reset sanity for ALL players in this campaign?");
-    if (!ok) return;
-
-    try {
-      const res = await fetch("/api/sanity/reset", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ campaign_id: campaignId }),
-      });
-
-      if (!res.ok) throw new Error("Reset failed");
-
-      setSanityState((prev) => {
-        const next = { ...prev };
-        for (const id in next) {
-          if (!Number.isFinite(next[id]?.base)) continue;
-          next[id] = {
-            ...next[id],
-            current: next[id].base,
-            lastLoss: 0,
-            lastUpdatedAt: Date.now(),
-          };
-        }
-        return next;
-      });
-    } catch {
-      alert("Failed to reset sanity");
-    }
-  }
-
-  async function adjustSanity(playerId, delta) {
-    if (!campaignId) return;
-
-    // ✅ capture "before" reliably for rollback
-    let beforeCurrent;
-    setSanityState((prev) => {
-      const s = prev[playerId];
-      if (!s) return prev;
-
-      beforeCurrent = s.current;
-
-      return {
-        ...prev,
-        [playerId]: {
-          ...s,
-          current: Math.trunc(Number(s.current)) + delta,
-          lastLoss: delta < 0 ? Math.abs(delta) : 0,
-          lastUpdatedAt: Date.now(),
-        },
-      };
-    });
-
-    try {
-      const res = await fetch("/api/sanity/adjust", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          player_id: playerId,
-          campaign_id: campaignId,
-          delta,
-        }),
-      });
-
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        const msg = data?.error || "Adjust failed";
-        throw new Error(msg);
-      }
-
-      const newCurrent = Math.trunc(Number(data.current_sanity));
-
-      setSanityState((prev) => ({
-        ...prev,
-        [playerId]: {
-          ...(prev[playerId] || {}),
-          current: newCurrent,
-          lastUpdatedAt: Date.now(),
-        },
-      }));
-
-      showSanityFlash(
-        playerId,
-        computeSanTone(playerId),
-        newCurrent,
-        delta < 0 ? Math.abs(delta) : 0
-      );
-    } catch {
-      // ✅ rollback to exact "before" value
-      setSanityState((prev) => {
-        const s = prev[playerId];
-        if (!s) return prev;
-        const rolledBack =
-          typeof beforeCurrent === "number" ? beforeCurrent : s.current;
-        return {
-          ...prev,
-          [playerId]: {
-            ...s,
-            current: rolledBack,
-            lastLoss: 0,
-            lastUpdatedAt: Date.now(),
-          },
-        };
-      });
-    }
-  }
-
-  /* -----------------------------------------------------------
-     Initiative helpers
-  ------------------------------------------------------------ */
-  function showInitiativeFlash(playerId, value) {
-    const k = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-
-    setInitiativeFlash((prev) => ({
-      ...prev,
-      [playerId]: { key: k, tone: "blue", value: `INT ${value}` },
-    }));
-
-    setTimeout(() => {
-      setInitiativeFlash((prev) => {
-        const next = { ...prev };
-        if (next[playerId]?.key === k) delete next[playerId];
-        return next;
-      });
-    }, 2000);
-  }
-
-  async function rollInitiativeForAll(rollType) {
-    if (!campaignId || !initiativeEnabled) return;
-
-    if (initiativeNotice) setInitiativeNotice("");
-
-    try {
-      const res = await fetch("/api/initiative/roll", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          campaign_id: campaignId,
-          roll_type: rollType,
-        }),
-      });
-
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error || "Initiative roll failed");
-
-      if (Array.isArray(data.players)) {
-        setInitiativeState((prev) => {
-          const next = { ...prev };
-          for (const r of data.players) {
-            next[r.player_id] = {
-              ...(next[r.player_id] || {}),
-              current: r.initiative_current,
-            };
-          }
-          return next;
-        });
-
-        for (const r of data.players) {
-          showInitiativeFlash(r.player_id, r.initiative_current);
-        }
-      }
-    } catch {
-      setInitiativeNotice("Initiative roll failed.");
-    }
-  }
-
-  async function resetAllInitiative() {
-    if (!campaignId) return;
-
-    const ok = window.confirm(
-      "Reset initiative for ALL players in this campaign?"
-    );
-    if (!ok) return;
-
-    try {
-      const res = await fetch("/api/initiative/reset", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ campaign_id: campaignId }),
-      });
-
-      if (!res.ok) throw new Error("Reset failed");
-
-      setInitiativeState((prev) => {
-        const next = { ...prev };
-        for (const id in next) {
-          const s = next[id];
-          next[id] = {
-            ...s,
-            current: (s.score || 0) + (s.bonus || 0),
-          };
-        }
-        return next;
-      });
-    } catch {
-      alert("Failed to reset initiative");
-    }
-  }
-
-  /* -----------------------------------------------------------
-     RENDER
-  ------------------------------------------------------------ */
-  return (
-    <div
-      ref={widgetRef}
-      className="player-widget"
-      data-layout={layout}
-      style={{
-        position: "fixed",
-        zIndex: 9999,
-        left: pos.x ?? "auto",
-        top: pos.y ?? "auto",
-        right: pos.x == null ? MARGIN : "auto",
-        bottom: pos.y == null ? MARGIN : "auto",
-      }}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-    >
-      <div className="player-widget__header" onPointerDown={onDragStart}>
-        <div className="player-widget__title">Players </div>
-
-        <div className="player-widget__controls">
-          {initiativeEnabled && (
-            <span
-              className={`player-widget__icon player-widget__icon--initiative ${initiativeMode ? "active" : ""}`}
-              onPointerDown={(e) => e.stopPropagation()}
-              title="Initiative Mode"
-              onClick={() => {
-                const v = !initiativeMode;
-                setInitiativeMode(v);
-                persistUI({ initiativeMode: v });
-              }}
-            >
-              <svg
-                className="player-widget__initiative-icon"
-                xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="#6cc5f0"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-              </svg>
-            </span>
-          )}
-
-          {sanityEnabled && (
-            <span
-              className={`player-widget__icon ${sanityMode ? "active" : ""}`}
-              onPointerDown={(e) => e.stopPropagation()}
-              title="Sanity Mode"
-              onClick={() => {
-                const v = !sanityMode;
-                setSanityMode(v);
-                persistUI({ sanityMode: v });
-              }}
-            >
-              <img
-                src="/sanity.png"
-                alt="Sanity"
-                className="player-widget__sanity-icon"
-                draggable={false}
-              />
-            </span>
-          )}
-
-          <span
-            className="player-widget__icon"
-            title={collapsed ? "Expand" : "Collapse"}
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={() => {
-              const v = !collapsed;
-              setCollapsed(v);
-              persistUI({ collapsed: v });
-            }}
-          >
-            <span
-              style={{
-                display: "inline-block",
-                fontSize: 14,
-                lineHeight: 1,
-                color: "#f5c542",
-                transform: collapsed ? "rotate(-90deg)" : "rotate(0deg)",
-                transition: "transform 160ms ease",
-                userSelect: "none",
-              }}
-            >
-              ▾
-            </span>
-          </span>
-        </div>
-      </div>
-
-      {!collapsed && (
-        <div className="player-widget__body">
-          {/* 🎯 INITIATIVE BAR (above sanity bar) */}
-          {initiativeEnabled && initiativeMode && (
-            <div
-              className="player-widget__initbar"
-              onPointerDown={(e) => e.stopPropagation()}
-            >
-              {initiativeNotice && (
-                <div
-                  className="player-widget__init-notice"
-                  role="status"
-                  aria-live="polite"
-                >
-                  {initiativeNotice}
-                </div>
-              )}
-
-              <div className="player-widget__initbar-actions">
-                <button
-                  type="button"
-                  className="player-widget__initbtn"
-                  onClick={() => rollInitiativeForAll("1d6")}
-                >
-                  1D6
-                </button>
-                <button
-                  type="button"
-                  className="player-widget__initbtn"
-                  onClick={() => rollInitiativeForAll("2d6")}
-                >
-                  2D6
-                </button>
-                <button
-                  type="button"
-                  className="player-widget__initbtn"
-                  onClick={() => rollInitiativeForAll("1d8")}
-                >
-                  1D8
-                </button>
-                <button
-                  type="button"
-                  className="player-widget__initbtn"
-                  onClick={() => rollInitiativeForAll("1d10")}
-                >
-                  1D10
-                </button>
-                <button
-                  type="button"
-                  className="player-widget__initbtn"
-                  onClick={() => rollInitiativeForAll("1d20")}
-                >
-                  1D20
-                </button>
-
-                <button
-                  type="button"
-                  className="player-widget__initbtn"
-                  title="Reset all initiative"
-                  onClick={resetAllInitiative}
-                >
-                  <svg
-                    className="player-widget__reset-icon"
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="#6cc5f0"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <polyline points="23 4 23 10 17 10" />
-                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-          )}
-
-          {sanityEnabled && sanityMode && (
-            <div
-              className="player-widget__sanitybar"
-              onPointerDown={(e) => e.stopPropagation()}
-            >
-              {/* ✅ NEW NOTICE */}
-              {sanityNotice && (
-                <div
-                  className="player-widget__sanity-notice"
-                  role="status"
-                  aria-live="polite"
-                >
-                  {sanityNotice}
-                </div>
-              )}
-
-              <div
-  className={`player-widget__sanitybar-actions ${
-    hasSelection ? "" : "player-widget__sanitybar-actions--disabled"
-  }`}
->
-                <button
-                  type="button"
-                  className="player-widget__sanbtn"
- disabled={!hasSelection}
-                  onClick={() => rollSanityForSelected("1d2")}
-                >
-                  1D2
-                </button>
-                <button
-                  type="button"
-                  className="player-widget__sanbtn"
- disabled={!hasSelection}
-                  onClick={() => rollSanityForSelected("1d3")}
-                >
-                  1D3
-                </button>
-                <button
-                  type="button"
-                  className="player-widget__sanbtn"
- disabled={!hasSelection}
-                  onClick={() => rollSanityForSelected("1d6")}
-                >
-                  1D6
-                </button>
-                <button
-                  type="button"
-                  className="player-widget__sanbtn"
- disabled={!hasSelection}
-                  onClick={() => rollSanityForSelected("1d8")}
-                >
-                  1D8
-                </button>
-                <button
-                  type="button"
-                  className="player-widget__sanbtn"
- disabled={!hasSelection}
-                  onClick={() => rollSanityForSelected("1d20")}
-                >
-                  1D20
-                </button>
-
-                <button
-                  type="button"
-                  className="player-widget__sanbtn"
-                  title="Reset all sanity"
-                  onClick={resetAllSanity}
-                >
-                  <img
-                    src="/reset.png"
-                    alt="Reset"
-                    className="player-widget__reset-icon"
-                    draggable={false}
-                  />
-                </button>
-              </div>
-            </div>
-          )}
-
-          <ul className={`player-widget__list ${layout}`}>
-            {orderedPlayers.map((p) => {
-              const off = inactive[p.id];
-              const s = sanityState[p.id];
-              const tone = computeSanTone(p.id);
-              const flash = sanityFlash[p.id];
-
-              return (
-                <li
-                  key={p.id}
-                  className={`player-widget__player ${off ? "inactive" : ""}`}
-                  data-player-id={p.id}
-                  onPointerEnter={() => {
-                    if (!draggingId.current || draggingId.current === p.id)
-                      return;
-
-                    setOrder((prev) => {
-                      const next = [...prev];
-                      const from = next.indexOf(draggingId.current);
-                      const to = next.indexOf(p.id);
-                      if (from === to) return prev;
-
-                      next.splice(from, 1);
-                      next.splice(to, 0, draggingId.current);
-                      persistUI({ order: next });
-                      return next;
-                    });
-                  }}
-                >
-                  {flash && (
-  <div
-    key={flash.key}
-    className={`player-widget__flash player-widget__flash--${flash.tone}`}
-  >
-    <span className="player-widget__flash-value">
-      {flash.value}
-    </span>
-  </div>
-)}
-
-                  <span
-                    className="player-widget__drag"
-                    onPointerDown={(e) => {
-                      e.stopPropagation();
-                      draggingId.current = p.id;
-                      e.currentTarget.closest("li")?.classList.add("dragging");
-                    }}
-                    onPointerUp={(e) => {
-                      draggingId.current = null;
-                      e.currentTarget.closest("li")?.classList.remove("dragging");
-                    }}
-                  >
-                    ☰
-                  </span>
-
-                  <input
-                    className="player-widget__checkbox"
-                    type="checkbox"
-                    checked={!!turns[p.id]}
-                    onPointerDown={(e) => e.stopPropagation()}
-                    onChange={() => {
-                      const n = { ...turns, [p.id]: !turns[p.id] };
-                      setTurns(n);
-                      persistUI({ turns: n });
-                    }}
-                  />
-
-                  <div className="player-widget__text">
-<div className="player-widget__character">
-  {p.character_name || p.name || "—"}
-</div>
-<div className="player-widget__name">
-  {p.name || "—"}
-</div>
-                  </div>
-
-                  {/* ✅ SANITY INLINE (value + stacked arrows on the RIGHT) */}
-                  <div className="player-widget__actions">
-  {sanityEnabled && sanityMode && (
-    <div className="player-widget__sanity-inline">
-      <div
-        className={`player-widget__sanval player-widget__sanval--${tone}`}
-      >
-        SAN {Number.isFinite(s?.current) ? s.current : "—"}
-      </div>
-
-      <div className="player-widget__sanity-arrows">
-        <button
-          type="button"
-          className="player-widget__sanity-arrow"
-          title="Increase sanity"
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={() => adjustSanity(p.id, +1)}
-        >
-          ▲
-        </button>
-
-        <button
-          type="button"
-          className="player-widget__sanity-arrow"
-          title="Decrease sanity"
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={() => adjustSanity(p.id, -1)}
-        >
-          ▼
-        </button>
-      </div>
-    </div>
-  )}
-
-  {/* 🎯 INITIATIVE INLINE */}
-  {initiativeEnabled && initiativeMode && (() => {
-    const ini = initiativeState[p.id];
-    const iFlash = initiativeFlash[p.id];
-    return (
-      <div className="player-widget__init-inline">
-        {iFlash && (
-          <div
-            key={iFlash.key}
-            className="player-widget__flash player-widget__flash--blue"
-          >
-            <span className="player-widget__flash-value">
-              {iFlash.value}
-            </span>
-          </div>
-        )}
-        <div className="player-widget__initval">
-          INT {ini?.current ?? "—"}
-        </div>
-      </div>
-    );
-  })()}
-
-  <button
-    type="button"
-    className="player-widget__hidebtn"
-    onPointerDown={(e) => e.stopPropagation()}
-    title={off ? "Show player" : "Hide player"}
-    onClick={() => {
-      const n = { ...inactive, [p.id]: !off };
-      setInactive(n);
-      persistUI({ inactive: n });
-    }}
-  >
-    <img
-      src={off ? "/unhide.png" : "/hide.png"}
-      alt={off ? "Show" : "Hide"}
-      className="player-widget__hide-icon"
-      draggable={false}
-    />
-  </button>
-</div>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      )}
-    </div>
-  );
+import { query } from "@/lib/db";
+import { getTenantContext } from "@/lib/tenant/getTenantContext";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+/* -----------------------------------------------------------
+   Dice helpers
+------------------------------------------------------------ */
+function roll(max) {
+  return Math.floor(Math.random() * max) + 1;
 }
 
+function rollInitiative(rollType) {
+  switch (rollType) {
+    case "1d6":
+      return roll(6);
+    case "2d6":
+      return roll(6) + roll(6);
+    case "1d8":
+      return roll(8);
+    case "1d10":
+      return roll(10);
+    case "1d20":
+      return roll(20);
+    default:
+      throw new Error("Invalid roll_type");
+  }
+}
 
+/* -----------------------------------------------------------
+   POST /api/initiative/roll
+   Rolls initiative for ALL non-hidden players in a campaign.
+   Body: { campaign_id, roll_type }
+------------------------------------------------------------ */
+export async function POST(req) {
+  let ctx;
+  try {
+    ctx = await getTenantContext(req);
+  } catch {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const tenantId = ctx.tenantId;
+  const body = await req.json();
+
+  const { campaign_id: campaignId, roll_type: rollType, exclude_player_ids: excludeIds } = body;
+
+  if (!campaignId || !rollType) {
+    return Response.json(
+      { error: "campaign_id and roll_type are required" },
+      { status: 400 }
+    );
+  }
+
+  // IDs of hidden players sent from the client (localStorage)
+  const excludeList = Array.isArray(excludeIds) ? excludeIds : [];
+
+  try {
+    await query("BEGIN");
+
+    /* -------------------------------------------------------
+       Load all players in the campaign, excluding hidden ones
+    ------------------------------------------------------- */
+    const playersRes = await query(
+      `
+      SELECT
+        id,
+        character_name,
+        name,
+        initiative_score,
+        initiative_bonus,
+        initiative_current
+      FROM players
+      WHERE tenant_id = $1
+        AND campaign_id = $2
+        AND deleted_at IS NULL
+        AND ($3::text[] IS NULL OR id != ALL($3::text[]))
+      `,
+      [tenantId, campaignId, excludeList.length ? excludeList : null]
+    );
+
+    if (!playersRes.rows.length) {
+      await query("ROLLBACK");
+      return Response.json({ error: "No visible players found" }, { status: 404 });
+    }
+
+    const results = [];
+
+    for (const player of playersRes.rows) {
+      const startingInitiative =
+        (player.initiative_score || 0) + (player.initiative_bonus || 0);
+
+      const diceRoll = rollInitiative(rollType);
+      const initiativeCurrent = startingInitiative + diceRoll;
+
+      const displayName =
+        player.character_name || player.name || "Unknown";
+
+      /* -------------------------------------------------------
+         Update initiative_current in players table
+      ------------------------------------------------------- */
+      await query(
+        `
+        UPDATE players
+           SET initiative_current = $1,
+               updated_at = NOW()
+         WHERE tenant_id = $2
+           AND id = $3
+           AND deleted_at IS NULL
+        `,
+        [initiativeCurrent, tenantId, player.id]
+      );
+
+      results.push({
+        player_id: player.id,
+        name: displayName,
+        roll: diceRoll,
+        starting_initiative: startingInitiative,
+        initiative_current: initiativeCurrent,
+      });
+    }
+
+    await query("COMMIT");
+
+    return Response.json({
+      ok: true,
+      roll_type: rollType,
+      players: results,
+    });
+  } catch (e) {
+    await query("ROLLBACK");
+    return Response.json({ error: e.message }, { status: 500 });
+  }
+}

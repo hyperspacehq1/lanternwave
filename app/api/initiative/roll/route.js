@@ -44,7 +44,7 @@ export async function POST(req) {
   const tenantId = ctx.tenantId;
   const body = await req.json();
 
-  const { campaign_id: campaignId, roll_type: rollType } = body;
+  const { campaign_id: campaignId, roll_type: rollType, exclude_player_ids: excludeIds } = body;
 
   if (!campaignId || !rollType) {
     return Response.json(
@@ -53,11 +53,14 @@ export async function POST(req) {
     );
   }
 
+  // IDs of hidden players sent from the client (localStorage)
+  const excludeList = Array.isArray(excludeIds) ? excludeIds : [];
+
   try {
     await query("BEGIN");
 
     /* -------------------------------------------------------
-       Load all non-hidden players in the campaign
+       Load all players in the campaign, excluding hidden ones
     ------------------------------------------------------- */
     const playersRes = await query(
       `
@@ -72,9 +75,9 @@ export async function POST(req) {
       WHERE tenant_id = $1
         AND campaign_id = $2
         AND deleted_at IS NULL
-        AND is_hidden = false
+        AND ($3::text[] IS NULL OR id != ALL($3::text[]))
       `,
-      [tenantId, campaignId]
+      [tenantId, campaignId, excludeList.length ? excludeList : null]
     );
 
     if (!playersRes.rows.length) {
@@ -130,4 +133,3 @@ export async function POST(req) {
     return Response.json({ error: e.message }, { status: 500 });
   }
 }
-
