@@ -29,6 +29,7 @@ export async function GET(req) {
       id AS player_id,
       initiative_score,
       initiative_bonus,
+      (initiative_score + initiative_bonus) AS starting_initiative,
       initiative_current
     FROM players
     WHERE tenant_id = $1
@@ -40,4 +41,3 @@ export async function GET(req) {
 
   return NextResponse.json(rows);
 }
-

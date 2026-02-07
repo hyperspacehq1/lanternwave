@@ -221,19 +221,6 @@ export default function PlayerCharactersWidget({ campaignId }) {
           }
           return next;
         });
-
-        setInitiativeState((prev) => {
-          const next = { ...prev };
-          for (const p of list) {
-            const pid = p.id;
-            next[pid] = {
-              score: Math.trunc(Number(p.initiative_score ?? 0)),
-              bonus: Math.trunc(Number(p.initiative_bonus ?? 0)),
-              current: Math.trunc(Number(p.initiative_current ?? 0)),
-            };
-          }
-          return next;
-        });
       })
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -248,6 +235,38 @@ export default function PlayerCharactersWidget({ campaignId }) {
     // keep this effect only as a compatibility stub
     return;
   }, [campaignId, sanityEnabled]);
+
+  /* -----------------------------------------------------------
+     Load initiative data from /api/initiative/list
+  ------------------------------------------------------------ */
+  useEffect(() => {
+    if (!campaignId || !initiativeEnabled) return;
+
+    fetch(`/api/initiative/list?campaign_id=${campaignId}`, {
+      credentials: "include",
+      cache: "no-store",
+    })
+      .then((r) => r.json())
+      .then((rows) => {
+        if (!Array.isArray(rows)) return;
+
+        setInitiativeState((prev) => {
+          const next = { ...prev };
+          for (const r of rows) {
+            const pid = r.player_id;
+            const starting = Math.trunc(Number(r.starting_initiative ?? 0));
+            const current = Math.trunc(Number(r.initiative_current ?? 0));
+            next[pid] = {
+              score: Math.trunc(Number(r.initiative_score ?? 0)),
+              bonus: Math.trunc(Number(r.initiative_bonus ?? 0)),
+              current: current || starting,
+            };
+          }
+          return next;
+        });
+      })
+      .catch(() => {});
+  }, [campaignId, initiativeEnabled]);
 
   /* -----------------------------------------------------------
      Sanity helpers
@@ -1010,5 +1029,6 @@ const hasSelection = selectedIds.length > 0;
     </div>
   );
 }
+
 
 
