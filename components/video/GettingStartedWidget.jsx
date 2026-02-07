@@ -277,7 +277,7 @@ export default function GettingStartedWidget({
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
         >
-          <div className="gs-widget__title">Quick Overview</div>
+          <div className="gs-widget__title">Lanternwave Overview</div>
 
           <div className="gs-widget__header-controls">
             <button
