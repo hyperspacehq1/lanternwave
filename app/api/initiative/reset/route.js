@@ -30,7 +30,7 @@ export async function POST(req) {
     await query(
       `
       UPDATE players
-         SET initiative_current = initiative_score + initiative_bonus,
+         SET initiative_current = COALESCE(initiative_score, 0) + COALESCE(initiative_bonus, 0),
              updated_at = NOW()
        WHERE tenant_id = $1
          AND campaign_id = $2
@@ -47,3 +47,4 @@ export async function POST(req) {
     );
   }
 }
+
