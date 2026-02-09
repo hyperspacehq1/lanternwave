@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import "../database-manager/database-manager.css";
+import "./user-manager.css";
 
 /* ---------- UI primitives ---------- */
 
@@ -15,20 +16,16 @@ function Badge({ status }) {
 
 function ConfirmModal({ message, onConfirm, onCancel }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <div className="rounded-xl border border-white/15 bg-neutral-900 p-6 max-w-md w-full shadow-xl space-y-4">
-        <p className="text-sm">{message}</p>
-        <div className="flex justify-end gap-3">
-          <button
-            type="button"
-            className="px-3 py-2 rounded-lg border border-white/15 bg-white/5 hover:bg-white/10 text-sm"
-            onClick={onCancel}
-          >
+    <div className="um-modal-overlay">
+      <div className="um-modal">
+        <p>{message}</p>
+        <div className="um-modal-actions">
+          <button type="button" className="um-btn" onClick={onCancel}>
             Cancel
           </button>
           <button
             type="button"
-            className="px-3 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-sm text-white"
+            className="um-btn-confirm-delete"
             onClick={onConfirm}
           >
             Delete
@@ -52,20 +49,16 @@ export default function UserManagerPage() {
     setLoading(true);
     setError(null);
     try {
-      console.log("[user-manager] Fetching users...");
       const res = await fetch("/api/admin/user-manager", {
         cache: "no-store",
       });
-      console.log("[user-manager] Response status:", res.status);
       const data = await res.json();
-      console.log("[user-manager] Response data:", data);
       if (data?.ok) {
         setUsers(data.users || []);
       } else {
         setError(data?.error || "Failed to load users");
       }
     } catch (err) {
-      console.error("[user-manager] Fetch error:", err);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -75,7 +68,6 @@ export default function UserManagerPage() {
   async function deleteUser(userId, tenantId) {
     setLoading(true);
     try {
-      console.log("[user-manager] Deleting user:", userId);
       const res = await fetch("/api/admin/user-manager", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
@@ -132,16 +124,16 @@ export default function UserManagerPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="um-header-actions">
             <div className="flex items-center gap-2">
-              <span className="inline-block w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+              <span className="um-online-dot" />
               <span className="text-sm text-white/60">
                 {onlineCount} online
               </span>
             </div>
             <button
               type="button"
-              className="px-3 py-2 rounded-lg border border-white/15 bg-white/5 hover:bg-white/10 text-sm"
+              className="um-btn"
               onClick={loadUsers}
               disabled={loading}
             >
@@ -163,7 +155,7 @@ export default function UserManagerPage() {
           <input
             type="text"
             placeholder="Search by username, email, user ID, or tenant ID\u2026"
-            className="w-full md:w-96 px-3 py-2 rounded-lg border border-white/15 bg-white/5 text-sm placeholder:text-white/40 focus:outline-none focus:border-white/30"
+            className="um-search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -177,16 +169,16 @@ export default function UserManagerPage() {
 
         {/* Users table */}
         <div className="overflow-x-auto rounded-xl border border-white/10">
-          <table className="w-full text-sm">
+          <table className="um-table">
             <thead>
-              <tr className="border-b border-white/10 text-left text-xs text-white/50 uppercase tracking-wider">
-                <th className="px-4 py-3">Username</th>
-                <th className="px-4 py-3">Email</th>
-                <th className="px-4 py-3">Tenant ID</th>
-                <th className="px-4 py-3">User ID</th>
-                <th className="px-4 py-3 text-center">AI Usage</th>
-                <th className="px-4 py-3 text-center">Status</th>
-                <th className="px-4 py-3 text-right">Actions</th>
+              <tr>
+                <th>Username</th>
+                <th>Email</th>
+                <th>Tenant ID</th>
+                <th>User ID</th>
+                <th className="text-center">AI Usage</th>
+                <th className="text-center">Status</th>
+                <th className="text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -201,30 +193,23 @@ export default function UserManagerPage() {
                 </tr>
               )}
               {filtered.map((u) => (
-                <tr
-                  key={u.user_id}
-                  className="border-b border-white/5 hover:bg-white/[0.03] transition-colors"
-                >
-                  <td className="px-4 py-3 font-medium">{u.username}</td>
-                  <td className="px-4 py-3 text-white/70">{u.email}</td>
-                  <td className="px-4 py-3 font-mono text-xs text-white/50">
-                    {u.tenant_id}
-                  </td>
-                  <td className="px-4 py-3 font-mono text-xs text-white/50">
-                    {u.user_id}
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <span className="inline-flex items-center px-2 py-1 text-xs rounded bg-white/5 border border-white/10">
+                <tr key={u.user_id}>
+                  <td className="font-medium">{u.username}</td>
+                  <td className="text-white/70">{u.email}</td>
+                  <td className="mono">{u.tenant_id}</td>
+                  <td className="mono">{u.user_id}</td>
+                  <td className="text-center">
+                    <span className="um-usage-pill">
                       {u.ai_usage_count ?? 0}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-center">
+                  <td className="text-center">
                     <Badge status={u.is_online ? "green" : "yellow"} />
                   </td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="text-right">
                     <button
                       type="button"
-                      className="px-2 py-1 rounded text-xs text-red-400 hover:bg-red-500/10 border border-red-500/20 hover:border-red-500/40 transition-colors"
+                      className="um-btn-delete"
                       onClick={() => setDeleteTarget(u)}
                       disabled={loading}
                     >
