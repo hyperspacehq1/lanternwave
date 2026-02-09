@@ -17,6 +17,13 @@ export function middleware(request: NextRequest) {
   const hasSession = request.cookies.get("lw_session");
 
   /* -------------------------------------------------
+     SKIP STATIC ASSETS (so video/images load on mobile)
+  -------------------------------------------------- */
+  if (/\.(mp4|webm|ogg|png|jpe?g|gif|svg|ico|css|js|woff2?|ttf|eot)$/i.test(pathname)) {
+    return NextResponse.next();
+  }
+
+  /* -------------------------------------------------
      PHONE BLOCK (runs first)
   -------------------------------------------------- */
   if (

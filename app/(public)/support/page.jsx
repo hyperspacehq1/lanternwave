@@ -5,7 +5,7 @@ export default function SupportPage() {
 
       <p>
         Welcome to LanternWave! We’re here to help you get the most out
-        of the app—whether you’re a player, parent, educator, or game
+        of the app—whether you’re a player, parent, or game
         master.
       </p>
 
@@ -17,13 +17,19 @@ export default function SupportPage() {
       </p>
 
       <ul>
-        <li>Create an account or sign in</li>
-        <li>Follow the on-screen setup to choose your experience</li>
-        <li>
-          Join or start a session using an access code (if provided)
-        </li>
-        <li>No advanced technical knowledge is required</li>
-      </ul>
+  <li>Create an account or sign in.</li>
+  <li>
+    Navigate to the Campaign Manager and create a new Campaign, or choose
+    Frozen Sick from the Campaign Package when creating a new Campaign.
+  </li>
+  <li>
+    Use the Media Controller to upload images, video, and music that you can
+    play and share with players during your tabletop session.
+  </li>
+  <li>
+    An overview video is included when you first log in to help you get started.
+  </li>
+</ul>
 
       <h2>Accounts & Access</h2>
 
@@ -37,7 +43,7 @@ export default function SupportPage() {
       <h3>Access Codes</h3>
       <p>
         Some LanternWave experiences require a session or access code,
-        typically provided by a game organizer, teacher, or host.
+        typically provided by a game organizer, or host.
       </p>
 
       <ul>

@@ -64,7 +64,7 @@ export default function PrivacyPolicyPage() {
       <p>
         For privacy-related questions or requests, contact:
         <br />
-        <strong>Email:</strong> privacy@lanternwave.com
+        <strong>Email:</strong> support@lanternwave.com
       </p>
     </div>
   );
