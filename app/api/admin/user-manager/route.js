@@ -16,6 +16,8 @@ export async function GET() {
         u.id        AS user_id,
         u.username,
         u.email,
+        u.is_admin,
+        u.created_at,
         tu.tenant_id,
         COALESCE(ai.usage_count, 0)::int AS ai_usage_count,
         CASE
@@ -34,6 +36,7 @@ export async function GET() {
         FROM user_sessions
         WHERE expires_at > NOW()
       ) s ON s.user_id = u.id
+      WHERE u.deleted_at IS NULL
       ORDER BY u.username ASC
     `);
 
@@ -52,12 +55,8 @@ export async function GET() {
  *
  * Expects JSON body: { user_id, tenant_id }
  *
- * Deletes associated rows across all related tables, then
- * removes the tenant and user records themselves.
- *
- * NOTE: If your FK constraints use ON DELETE CASCADE this will
- * happen automatically — but we do explicit deletes here for
- * safety in case cascades are not configured.
+ * Soft-deletes the user and tenant (sets deleted_at),
+ * and hard-deletes sessions and usage records.
  */
 export async function DELETE(request) {
   try {
@@ -71,7 +70,7 @@ export async function DELETE(request) {
       );
     }
 
-    // Delete in dependency order (children first)
+    // Remove sessions and usage (no deleted_at on these tables)
     await query(`DELETE FROM tenant_ai_usage WHERE tenant_id = $1`, [
       tenant_id,
     ]);
@@ -80,8 +79,14 @@ export async function DELETE(request) {
       `DELETE FROM tenant_users WHERE user_id = $1 AND tenant_id = $2`,
       [user_id, tenant_id]
     );
-    await query(`DELETE FROM users WHERE id = $1`, [user_id]);
-    await query(`DELETE FROM tenants WHERE id = $1`, [tenant_id]);
+
+    // Soft-delete user and tenant
+    await query(`UPDATE users SET deleted_at = NOW() WHERE id = $1`, [
+      user_id,
+    ]);
+    await query(`UPDATE tenants SET deleted_at = NOW() WHERE id = $1`, [
+      tenant_id,
+    ]);
 
     return NextResponse.json({ ok: true });
   } catch (err) {
