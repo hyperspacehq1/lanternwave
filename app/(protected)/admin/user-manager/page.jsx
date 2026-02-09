@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { query } from "@/lib/db/db";
+import { query } from "@/lib/db";
 
 /**
  * GET /api/admin/user-manager
