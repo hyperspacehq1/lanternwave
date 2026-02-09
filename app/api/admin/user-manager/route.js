@@ -1,16 +1,16 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 /**
  * GET /api/admin/user-manager
- *
- * Returns all users with:
- *   - username, email, tenant_id, user_id
- *   - ai_usage_count  (from tenant_ai_usage)
- *   - is_online        (active session in user_sessions)
  */
 export async function GET() {
+  console.log("[user-manager] GET /api/admin/user-manager called");
   try {
+    console.log("[user-manager] Running users query...");
     const result = await query(`
       SELECT
         u.id        AS user_id,
@@ -40,11 +40,12 @@ export async function GET() {
       ORDER BY u.username ASC
     `);
 
+    console.log("[user-manager] Query returned", result.rows.length, "users");
     return NextResponse.json({ ok: true, users: result.rows });
   } catch (err) {
-    console.error("User list fetch failed:", err);
+    console.error("[user-manager] GET failed:", err.message, err.stack);
     return NextResponse.json(
-      { ok: false, error: "Failed to fetch users" },
+      { ok: false, error: err.message },
       { status: 500 }
     );
   }
@@ -52,16 +53,14 @@ export async function GET() {
 
 /**
  * DELETE /api/admin/user-manager
- *
- * Expects JSON body: { user_id, tenant_id }
- *
- * Soft-deletes the user and tenant (sets deleted_at),
- * and hard-deletes sessions and usage records.
+ * Body: { user_id, tenant_id }
  */
 export async function DELETE(request) {
+  console.log("[user-manager] DELETE called");
   try {
     const body = await request.json();
     const { user_id, tenant_id } = body;
+    console.log("[user-manager] Deleting user:", user_id, "tenant:", tenant_id);
 
     if (!user_id || !tenant_id) {
       return NextResponse.json(
@@ -70,29 +69,26 @@ export async function DELETE(request) {
       );
     }
 
-    // Remove sessions and usage (no deleted_at on these tables)
-    await query(`DELETE FROM tenant_ai_usage WHERE tenant_id = $1`, [
-      tenant_id,
-    ]);
-    await query(`DELETE FROM user_sessions WHERE user_id = $1`, [user_id]);
-    await query(
-      `DELETE FROM tenant_users WHERE user_id = $1 AND tenant_id = $2`,
-      [user_id, tenant_id]
-    );
+    await query(`DELETE FROM tenant_ai_usage WHERE tenant_id = $1`, [tenant_id]);
+    console.log("[user-manager] Deleted tenant_ai_usage");
 
-    // Soft-delete user and tenant
-    await query(`UPDATE users SET deleted_at = NOW() WHERE id = $1`, [
-      user_id,
-    ]);
-    await query(`UPDATE tenants SET deleted_at = NOW() WHERE id = $1`, [
-      tenant_id,
-    ]);
+    await query(`DELETE FROM user_sessions WHERE user_id = $1`, [user_id]);
+    console.log("[user-manager] Deleted user_sessions");
+
+    await query(`DELETE FROM tenant_users WHERE user_id = $1 AND tenant_id = $2`, [user_id, tenant_id]);
+    console.log("[user-manager] Deleted tenant_users");
+
+    await query(`UPDATE users SET deleted_at = NOW() WHERE id = $1`, [user_id]);
+    console.log("[user-manager] Soft-deleted user");
+
+    await query(`UPDATE tenants SET deleted_at = NOW() WHERE id = $1`, [tenant_id]);
+    console.log("[user-manager] Soft-deleted tenant");
 
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error("User delete failed:", err);
+    console.error("[user-manager] DELETE failed:", err.message, err.stack);
     return NextResponse.json(
-      { ok: false, error: "Failed to delete user" },
+      { ok: false, error: err.message },
       { status: 500 }
     );
   }
