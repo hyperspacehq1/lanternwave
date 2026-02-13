@@ -36,6 +36,17 @@ export default function CampaignManagerPage() {
   const selectedRecord = selectedByType[activeType] || null;
 
   /* ------------------------------------------------------------
+     Clear stale selections & cached records when campaign changes.
+     Without this, switching to a campaign with no NPCs (etc.)
+     would still show the previously-selected record from the
+     old campaign in the detail pane.
+  ------------------------------------------------------------ */
+  useEffect(() => {
+    setSelectedByType((prev) => ({ campaigns: prev.campaigns }));
+    setRecordsByType((prev) => ({ campaigns: prev.campaigns }));
+  }, [campaignId]);
+
+  /* ------------------------------------------------------------
      Load records for active type
   ------------------------------------------------------------ */
 useEffect(() => {
