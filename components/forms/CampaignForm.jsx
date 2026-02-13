@@ -149,7 +149,7 @@ export default function CampaignForm({ record, onChange }) {
         console.log("[CampaignForm] Template details:", selectedTemplate);
         
         // Show info about template
-        if (selectedTemplate.filename) {
+        if (selectedTemplate.filename && record._isNew) {
           setImportStatus("info");
           setImportMessage(`Template "${selectedTemplate.label}" will be imported when you save.`);
         } else {
@@ -158,7 +158,7 @@ export default function CampaignForm({ record, onChange }) {
         }
       }
     }
-  }, [record.campaignPackage, campaignPackages]);
+  }, [record.campaignPackage, campaignPackages, record._isNew]);
 
   // --------------------------------------------------
   // Defaults
