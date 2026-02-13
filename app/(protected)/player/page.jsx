@@ -134,7 +134,7 @@ export default function PlayerPage() {
 
   return (
     <div className="lw-player">
-      {!key && <div className="lw-player-idle">NO SIGNAL</div>}
+      {!key && <div className="lw-player-idle">Awaiting the next moment</div>}
 
       <button className="lw-player-help" aria-label="Player view help">
         ⓘ
