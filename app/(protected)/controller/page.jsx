@@ -507,7 +507,7 @@ export default function ControllerPage() {
 
           <div className="lw-preview-frame">
             {!previewKey && !showWaveform && (
-              <div className="lw-preview-placeholder">NO CLIP</div>
+              <div className="lw-preview-placeholder">Waiting for the Game Master</div>
             )}
 
             {previewKey && previewType === "image" && (
